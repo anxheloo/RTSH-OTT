@@ -1,56 +1,68 @@
-# Welcome to your Expo app 👋
+# RTSH TANI
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+OTT streaming app for Radio Televizioni Shqiptar. Live TV (19 channels) + Radio (13 channels) + EPG + Catch-up. iOS + Android.
 
-## Get started
+## Stack
 
-1. Install dependencies
+Expo SDK 56 · React Native 0.85.3 · React 19.2 · TypeScript strict · Expo Router · Zustand · TanStack Query · MMKV · expo-video · expo-audio
 
-   ```bash
-   npm install
-   ```
+## Prerequisites
 
-2. Start the app
+- Node 20 LTS
+- Watchman
+- Xcode 16+ (iOS)
+- Android Studio + API 34 (Android)
+- JDK 17
+- CocoaPods
 
-   ```bash
-   npx expo start
-   ```
-
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
+## Setup
 
 ```bash
-npm run reset-project
+npm install
+cp .env.example .env   # fill in values
+npx expo run:android   # local Android build + launch
+npx expo run:ios       # local iOS build + launch (simulator)
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+## Environment variables
 
-### Other setup steps
+| Variable | Required | Values | Description |
+|----------|----------|--------|-------------|
+| `EXPO_PUBLIC_API_BASE_URL` | ✅ | URL | Backend base URL |
+| `EXPO_PUBLIC_API_MODE` | ✅ | `mock` · `dev` · `staging` · `prod` | API mode — `mock` uses MSW fixtures |
+| `EXPO_PUBLIC_ENV` | ✅ | `development` · `preview` · `production` | Environment label |
 
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
-- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
-- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
+Private vars (EAS dashboard only, never in `.env`):
 
-## Learn more
+| Variable | Description |
+|----------|-------------|
+| `SENTRY_DSN` | Sentry project DSN |
+| `MMKV_ENCRYPTION_KEY` | MMKV storage encryption key |
 
-To learn more about developing your project with Expo, look at the following resources:
+## Commands
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+```bash
+npm run lint          # ESLint
+npm run format        # Prettier write
+npm run format:check  # Prettier check (CI)
 
-## Join the community
+# EAS (deferred until feature-complete)
+eas build --profile simulator-ios --platform ios
+eas build --profile preview --platform all
+eas build --profile production --platform all
+eas update --channel production --message "..."
+```
 
-Join our community of developers creating universal apps.
+## App variants
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+Set `APP_VARIANT` env var to switch bundle ID + display name:
+
+| Variant | Bundle ID | Name |
+|---------|-----------|------|
+| `production` | `al.rtsh.tani` | RTSH TANI |
+| `preview` | `al.rtsh.tani.preview` | RTSH TANI (Preview) |
+| `development` | `al.rtsh.tani.dev` | RTSH TANI (Dev) |
+
+## Conventions
+
+See `.claude/rules/STYLE_GUIDE.md` for coding conventions.
