@@ -1,1 +1,2 @@
-// barrel
+export * from './domain';
+

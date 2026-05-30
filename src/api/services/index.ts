@@ -1,1 +1,9 @@
-// barrel
+export * as auth from './auth';
+export * as catchup from './catchup';
+export * as channels from './channels';
+export * as config from './config';
+export * as epg from './epg';
+export * as radio from './radio';
+export * as streams from './streams';
+export * as users from './users';
+

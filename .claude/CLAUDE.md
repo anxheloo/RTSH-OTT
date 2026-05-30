@@ -73,13 +73,13 @@ Single `useAppStore` composed from slices:
 - `ChannelsSlice` — favorites, recently watched
 - `EpgSlice` — reminders set by user
 
-Persist via MMKV (`zustandStorage`). `partialize` controls what persists. `onRehydrateStorage` applies side effects (re-apply theme, re-lock if needed).
+Persist via MMKV (`zustandStorage`). `partialize` controls what persists. `onRehydrateStorage` applies side effects (re-apply theme).
 
 ### Storage layers
 
 | Data | Where |
 |------|-------|
-| Refresh token, biometric flag, parental PIN hash | Keychain (`expo-secure-store`) |
+| Refresh token, parental PIN hash | Keychain (`expo-secure-store`) |
 | User, settings, theme, favorites, reminders | MMKV (Zustand persist) |
 | Server data (channels, EPG, catch-up, programs) | TanStack Query cache (selective MMKV persist for slow-changing) |
 | Resume positions (per-program) | MMKV (separate key) |
@@ -117,8 +117,8 @@ Tokens live in `src/theme/`:
 
 - Login → mutation → `setToken` writes access to store + refresh to keychain → navigate `(app)`.
 - App boot: `useCheckToken` reads keychain → if present, set token → app routes to `(app)` via `Stack.Protected`.
-- Background 30s+ → `useAppState` triggers lock (if biometric or PIN enabled).
 - 401 → interceptor calls refresh (single-flight). On refresh failure → logout.
+- No app-lock — `(auth)` vs `(app)` gating is purely token-based. Parental PIN is content-level (gates adult content per EPG metadata), not app-entry.
 
 ### Docs
 

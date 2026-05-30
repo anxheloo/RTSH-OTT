@@ -27,6 +27,7 @@ module.exports = defineConfig([
       ],
       'simple-import-sort/exports': 'error',
       'no-console': 'warn',
+      'import/no-named-as-default-member': 'off',
     },
   },
   {

@@ -40,38 +40,38 @@ Step-by-step plan to build the RTSH TANI mobile prototype. Each step = one Claud
 
 ## Phase 3 — Store, Storage & Providers
 
-- [ ] **3.1** `npm i react-native-mmkv` (zustand installed in 2.5).
-- [ ] **3.2** `src/store/storage.ts` — `STORAGE_KEYS`, MMKV instance, `zustandStorage` adapter, `clearAppStorage`.
-- [ ] **3.3** `src/store/createUserSlice.ts` — user, token, isAuthenticated, isLocked, login/logout/lock/unlock.
-- [ ] **3.4** `src/store/createSettingsSlice.ts` — locale, hapticsEnabled, autoplay, dataSaver, parentalPinHash, tcAcceptedAt, cellularPlaybackAllowed, manualQualityPreset, backgroundVideoAllowed.
-- [ ] **3.5** `src/store/createPlayerSlice.ts` — currentChannelId, position, isPlaying, isFullscreen, isRadioActive.
-- [ ] **3.6** `src/store/createModalSlice.ts` — modal stack (`apiError | noInternet | notify | confirmation`).
-- [ ] **3.7** `src/store/createChannelsSlice.ts` — favorites, recentlyWatched.
-- [ ] **3.8** `src/store/createEpgSlice.ts` — reminders (programId → fireAt).
-- [ ] **3.9** `src/store/useAppStore.ts` — compose all slices, persist with `partialize`, `onRehydrateStorage` reapplies theme + relocks.
-- [ ] **3.10** `src/services/keychain.ts` — `storeOnKeychain`, `getFromKeychain`, `removeFromKeychain`.
-- [ ] **3.11** `npx expo install expo-secure-store react-native-keyboard-controller react-native-gesture-handler @gorhom/bottom-sheet`.
+- [x] **3.1** `npm i react-native-mmkv` (zustand installed in 2.5). ✅ react-native-mmkv@4.3.1 via expo install.
+- [x] **3.2** `src/store/storage.ts` — MMKV instance, `zustandStorage` adapter, `clearAppStorage`. ✅ STORAGE_KEYS lives in `src/constants/storage.ts` (Phase 1).
+- [x] **3.3** `src/store/createUserSlice.ts` — user, token, isAuthenticated, login/logout. ✅ No app-lock (RTSH doesn't gate app entry; parental PIN only gates adult content).
+- [x] **3.4** `src/store/createSettingsSlice.ts` — minimal: locale, tcAcceptedAt. ✅ Other fields (haptics, autoplay, dataSaver, parentalPinHash, cellular gate, qualityPreset, backgroundVideoAllowed) deferred until design lands.
+- [~] **3.5** `src/store/createPlayerSlice.ts` — **To check after design.** Likely split: drop global video state (local + MMKV for resume), keep small `createRadioSlice` for cross-screen radio mini-player + background audio. Decide once design lands.
+- [x] **3.6** `src/store/createModalSlice.ts` — modal stack (`apiError | noInternet | notify | confirmation`). ✅ Stack-based (multiple modals queueable), payload-driven for generic rendering by `ModalWrapper` later.
+- [~] **3.7** `src/store/createChannelsSlice.ts` — **To check after API contract + design.** Likely TanStack Query (server-synced) or MMKV hook (client-only). Slice probably wrong abstraction.
+- [~] **3.8** `src/store/createEpgSlice.ts` — **To check after design.** Likely MMKV-backed hook + expo-notifications scheduling, not a slice (only add/remove actions).
+- [x] **3.9** `src/store/useAppStore.ts` — compose User/Settings/Theme/Modal slices, persist with `partialize` (user, locale, tcAcceptedAt, mode only), `onRehydrateStorage` re-applies theme colors from mode. Channels/EPG/Player slices deferred (3.5/3.7/3.8).
+- [x] **3.10** `src/services/keychain.ts` — `storeOnKeychain`, `getFromKeychain`, `removeFromKeychain`. ✅ expo-secure-store installed + plugin wired in app.config.ts. Added `src/config/auth.ts` with `REFRESH_TOKEN_KEY`.
+- [~] **3.11** Native deps `react-native-keyboard-controller`, `react-native-gesture-handler`, `@gorhom/bottom-sheet` — **To check after design.** Install + provider wiring depends on whether bottom-sheets are used and keyboard UX choices. (expo-secure-store already installed in 3.10.)
 
 ---
 
 ## Phase 4 — API Layer
 
-- [ ] **4.1** `npm i axios @tanstack/react-query`. `src/api/client.ts` — `apiClient` + `queryClient` (staleTime 5min, retry 1 non-401).
-- [ ] **4.2** Request interceptor injects token. Response interceptor: single-flight refresh on 401 → retry → logout on fail.
-- [ ] **4.3** `src/api/endpoints.ts` — route constants for all resources.
-- [ ] **4.4** `src/api/services/` — `auth.ts`, `channels.ts`, `epg.ts`, `catchup.ts`, `radio.ts`, `streams.ts`, `users.ts`, `config.ts`.
-- [ ] **4.5** `src/api/queries/` — TanStack Query hooks per resource.
-- [ ] **4.6** `src/api/mutations/` — `useLoginMutation`, `useRegisterMutation`, `useUpdateProfileMutation`, etc.
+- [x] **4.1** `npm i axios @tanstack/react-query`. `src/api/client.ts` — `apiClient` + `queryClient` (staleTime 5min, gcTime 10min, retry 1 non-401, no refetchOnFocus on RN). ✅ axios@1.16.1, TanStack v5.100.14.
+- [x] **4.2** Request interceptor injects token from store. Response interceptor: single-flight refresh on 401 → retry → logout on fail. ✅ Decoupled via `registerRefreshHandler()` — auth mutation layer (4.6) wires the actual refresh logic. Disabled false-positive `import/no-named-as-default-member` rule for axios pattern.
+- [x] **4.3** `src/api/endpoints.ts` — route constants for all resources (AUTH, USERS, CHANNELS, EPG, CATCHUP, RADIO, STREAMS, CONFIG). ✅ Placeholder paths — confirm against backend contract when delivered.
+- [x] **4.4** `src/api/services/` — all 8 service files scaffolded (auth, users, channels, epg, catchup, radio, streams, config). ✅ auth/users/streams have typed request+response; channels/epg/catchup/radio/config return `unknown` pending API contract. Re-type when contract lands.
+- [~] **4.5** `src/api/queries/` — **Defer** until services are real-typed (contract-dependent). Building queries on `unknown` adds no value.
+- [x] **4.6** `src/api/mutations/` — auth mutations done (login, register, logout, forgotPassword). ✅ `authRefresh.ts` exports `setupAuthRefresh()` which wires `registerRefreshHandler` from 4.2 — call from app bootstrap (Phase 5.8). Other mutations (updateProfile, etc.) deferred until services typed.
 - [ ] **4.7** `src/api/index.ts` — barrel re-export.
-- [ ] **4.8** `npm i -D msw msw-react-native`. MSW handlers + fixtures (19 channels, 7d EPG, 200 catchup). Active when `EXPO_PUBLIC_API_MODE=mock`.
+- [~] **4.8** MSW handlers + fixtures — **Defer** until API contract lands (no contract = no realistic fixtures).
 
 ---
 
 ## Phase 5 — Core Hooks
 
-- [ ] **5.1** `useCheckToken` — read token from keychain on boot, hydrate store.
-- [ ] **5.2** `useAppState` — sets `isLocked` after 30s in background.
-- [ ] **5.3** `useOTA` — `expo-updates` check on load.
+- [x] **5.1** `useCheckToken` — `useQuery`-based boot auth check. Proactively exchanges refresh token for access token via `refreshAccessToken()` (DRY with 401 interceptor). Store is post-resolution source of truth.
+- [x] **5.2** `useAppState` — exposes app foreground/background transitions via options object `{ onForeground, onBackground, onChange }`. Only fires on actual `active ↔ background/inactive` transitions, not every status tick.
+- [x] **5.3** `useOTA` — `expo-updates` check + fetch on mount. ✅ Wraps modern `Updates.useUpdates()` hook. Caller decides when to apply (`Updates.reloadAsync()`). No-op when `Updates.isEnabled` is false (dev). Errors swallowed — OTA must not block boot.
 - [ ] **5.4** `useNetworkReconnect` — `@react-native-community/netinfo`, ties to TanStack `onlineManager`, mounts offline banner.
 - [ ] **5.5** `useOrientation` + `useLockOrientationOnMount` — `npx expo install expo-screen-orientation`.
 - [ ] **5.6** `useKeyboard` — wraps `react-native-keyboard-controller`.
@@ -105,9 +105,8 @@ Step-by-step plan to build the RTSH TANI mobile prototype. Each step = one Claud
 ## Phase 8 — Navigation
 
 - [ ] **8.1** Confirm `experiments.typedRoutes: true` in `app.config.ts`.
-- [ ] **8.2** `app/_layout.tsx` — providers + `Stack.Protected` guards (no token → auth, locked → unlock, unlocked → app).
+- [ ] **8.2** `app/_layout.tsx` — providers + `Stack.Protected` guards (no token → auth, token → app).
 - [ ] **8.3** `app/(auth)/` — `_layout.tsx`, `login.tsx`, `register.tsx`, `forgot.tsx`.
-- [ ] **8.4** `app/unlock.tsx` — biometric/PIN gate.
 - [ ] **8.5** `app/(app)/_layout.tsx` — Stack with tabs + player modals.
 - [ ] **8.6** `app/(app)/(tabs)/_layout.tsx` — Native Tabs (Live / EPG / Catchup / Radio / Profile).
 - [ ] **8.7** `app/(app)/player/[id].tsx` — `presentation: "fullScreenModal"`, `orientation: "all"`.
@@ -153,8 +152,7 @@ Step-by-step plan to build the RTSH TANI mobile prototype. Each step = one Claud
 ## Phase 12 — Auth Flow Hardening
 
 - [ ] **12.1** Single-flight refresh queue verified (5 parallel 401s → 1 refresh → 5 retries).
-- [ ] **12.2** Biometric: `expo-local-authentication`. `unlock.tsx` honors biometric.
-- [ ] **12.3** Parental PIN: 4-digit, SHA-256 + salt in keychain. Shake on wrong, lockout after 5.
+- [ ] **12.2** Parental PIN: 4-digit, SHA-256 + salt in keychain. Gates adult-flagged content per EPG metadata. Shake on wrong, attempt-throttle after 5.
 
 ---
 
