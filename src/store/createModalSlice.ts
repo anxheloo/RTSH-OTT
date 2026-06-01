@@ -1,5 +1,7 @@
 import { StateCreator } from 'zustand';
 
+import type { AppStore } from './useAppStore';
+
 export type ModalType = 'apiError' | 'noInternet' | 'notify' | 'confirmation';
 
 export interface ModalPayload {
@@ -24,7 +26,7 @@ export interface ModalSlice {
   closeAllModals: () => void;
 }
 
-export const createModalSlice: StateCreator<ModalSlice> = (set, get) => ({
+export const createModalSlice: StateCreator<AppStore, [], [], ModalSlice> = (set) => ({
   modals: [],
 
   openModal: (type, payload) => {
@@ -33,15 +35,10 @@ export const createModalSlice: StateCreator<ModalSlice> = (set, get) => ({
     return id;
   },
 
-  closeModal: (id) => {
-    const { modals } = get();
-    if (!modals.length) return;
-    if (id) {
-      set({ modals: modals.filter((m) => m.id !== id) });
-    } else {
-      set({ modals: modals.slice(0, -1) });
-    }
-  },
+  closeModal: (id) =>
+    set((s) => ({
+      modals: id ? s.modals.filter((m) => m.id !== id) : s.modals.slice(0, -1),
+    })),
 
   closeAllModals: () => set({ modals: [] }),
 });

@@ -7,10 +7,13 @@ import * as SplashScreen from 'expo-splash-screen';
 
 import { Fonts } from '@/theme/fonts';
 import { queryClient } from '@/api/client';
+import { useBootstrap } from '@/hooks/useBootstrap';
 
 SplashScreen.preventAutoHideAsync();
 
-export default function RootLayout() {
+function RootLayoutInner() {
+  const { isReady } = useBootstrap();
+
   const [loaded, error] = useFonts({
     [Fonts.light]: require('../../assets/fonts/Outfit-Light.ttf'),
     [Fonts.regular]: require('../../assets/fonts/Outfit-Regular.ttf'),
@@ -23,19 +26,25 @@ export default function RootLayout() {
     [Fonts.black]: require('../../assets/fonts/Outfit-Black.ttf'),
   });
 
+  const fontsResolved = loaded || !!error;
+
   useEffect(() => {
-    if (loaded || error) {
+    if (fontsResolved && isReady) {
       SplashScreen.hideAsync();
     }
-  }, [loaded, error]);
+  }, [fontsResolved, isReady]);
 
-  if (!loaded && !error) {
+  if (!fontsResolved || !isReady) {
     return null;
   }
 
+  return <Stack />;
+}
+
+export default function RootLayout() {
   return (
     <QueryClientProvider client={queryClient}>
-      <Stack />
+      <RootLayoutInner />
     </QueryClientProvider>
   );
 }

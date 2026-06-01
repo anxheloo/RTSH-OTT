@@ -49,7 +49,6 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     userInterfaceStyle: "automatic",
     ios: {
       bundleIdentifier,
-      icon: "./assets/expo.icon",
       infoPlist: {
         ITSAppUsesNonExemptEncryption: false,
       },
@@ -87,7 +86,6 @@ export default ({ config }: ConfigContext): ExpoConfig => {
       reactCompiler: true,
     },
     extra: {
-      router: {},
       eas: {
         projectId: "19f4d236-ba4f-4208-bf8b-4a0c229e027c",
       },

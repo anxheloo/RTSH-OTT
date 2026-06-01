@@ -115,16 +115,22 @@ Tokens live in `src/theme/`:
 
 ### Auth flow
 
-- Login → mutation → `setToken` writes access to store + refresh to keychain → navigate `(app)`.
-- App boot: `useCheckToken` reads keychain → if present, set token → app routes to `(app)` via `Stack.Protected`.
-- 401 → interceptor calls refresh (single-flight). On refresh failure → logout.
-- No app-lock — `(auth)` vs `(app)` gating is purely token-based. Parental PIN is content-level (gates adult content per EPG metadata), not app-entry.
+Access token in memory, refresh token in keychain. Boot is offline-first (keychain-only check). 401s single-flight refresh through a bare axios instance to prevent loop deadlocks. Logout is async + atomic. No app-lock — `(auth)` vs `(app)` is token-based. Parental PIN is content-level, not app-entry.
 
-### Docs
+Full rationale, behavior, and known gaps: `@rules/ARCHITECTURE.md` → Auth flow.
+
+### Project flows reference
+
+Everything cross-cutting (auth, theme, boot/splash, network state, persistence boundaries) lives in `@rules/ARCHITECTURE.md`. Read it before proposing changes to those flows.
+
+### Coding conventions
+
+`@rules/STYLE_GUIDE.md`.
+
+### Specs
 
 - `docs/API.md` — backend contract (source of truth for `src/api/`)
 - `docs/PLAYER.md` — HLS + AES-128 spec + fallback decision
-- `../STYLE_GUIDE.md` — coding conventions (read before writing components)
 
 ## Working preferences (Anxhelo)
 
@@ -136,9 +142,9 @@ Tokens live in `src/theme/`:
 ## On every session start
 
 1. Read this file.
-2. Read `../MEMORY.md` for last session state.
-3. Read `../plan.md` to find the next step to execute.
-4. Read `../STYLE_GUIDE.md` before writing components.
+2. Read `rules/ARCHITECTURE.md` for current flow rationale + known gaps.
+3. Read `docs/plan.md` to find the next step to execute.
+4. Read `rules/STYLE_GUIDE.md` before writing components.
 
 ## Output rule
 

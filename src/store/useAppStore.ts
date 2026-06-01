@@ -1,12 +1,11 @@
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 
-import { darkTheme, lightTheme } from '@/theme/colors';
 import { STORAGE_KEYS } from '@/constants/storage';
 
 import { createModalSlice, ModalSlice } from './createModalSlice';
 import { createSettingsSlice, SettingsSlice } from './createSettingsSlice';
-import { createThemeSlice, ThemeSlice } from './createThemeSlice';
+import { createThemeSlice, resolveColors, ThemeSlice } from './createThemeSlice';
 import { createUserSlice, UserSlice } from './createUserSlice';
 import { zustandStorage } from './storage';
 
@@ -28,11 +27,15 @@ export const useAppStore = create<AppStore>()(
         locale: state.locale,
         tcAcceptedAt: state.tcAcceptedAt,
         mode: state.mode,
+        cellularPlaybackAllowed: state.cellularPlaybackAllowed,
+        backgroundVideoAllowed: state.backgroundVideoAllowed,
+        autoplayEnabled: state.autoplayEnabled,
+        dataSaverEnabled: state.dataSaverEnabled,
+        hapticsEnabled: state.hapticsEnabled,
       }),
       onRehydrateStorage: () => (state) => {
         if (!state) return;
-        if (state.mode === 'light') state.colors = lightTheme;
-        else if (state.mode === 'dark') state.colors = darkTheme;
+        state.colors = resolveColors(state.mode);
       },
     },
   ),

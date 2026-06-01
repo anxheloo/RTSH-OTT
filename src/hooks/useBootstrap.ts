@@ -1,0 +1,74 @@
+import { useEffect, useRef } from 'react';
+import { Appearance } from 'react-native';
+
+import { resolveColors } from '@/store/createThemeSlice';
+import { useAppStore } from '@/store/useAppStore';
+import { refreshAccessToken, setupAuthRefresh } from '@/api/mutations/authRefresh';
+
+import { useCheckToken } from './useCheckToken';
+import { type NetworkState,useNetworkReconnect } from './useNetworkReconnect';
+import { useOTA } from './useOTA';
+
+export interface BootstrapState {
+  /** True once the keychain check has resolved. Splash gate uses this. */
+  isReady: boolean;
+  isAuthenticated: boolean;
+  network: NetworkState;
+  ota: ReturnType<typeof useOTA>;
+}
+
+/**
+ * App-root orchestrator. Mount exactly once from `_layout.tsx`. Responsibilities:
+ *
+ *   1. Wire 401 → refresh into the api client (`setupAuthRefresh`).
+ *   2. Mount `useNetworkReconnect` (bridges NetInfo → TanStack `onlineManager`).
+ *   3. Mount `useOTA` (exposes update state; runtime auto-checks on launch).
+ *   4. Run boot auth check via `useCheckToken` (keychain-only — never blocks
+ *      splash on the network).
+ *   5. Kick off a background access-token refresh once the keychain check
+ *      reports authenticated. Fire-and-forget so it never blocks first paint.
+ *   6. Subscribe to OS color-scheme changes — re-resolves theme colors
+ *      whenever `mode === 'system'` and the user toggles their OS theme at
+ *      runtime.
+ *
+ * Splash gate (`isReady`) only blocks on (1) fonts (in `_layout.tsx`) and
+ * (2) the keychain read — both essentially instant. The app boots offline.
+ */
+let authWired = false;
+const wireAuthRefreshOnce = (): void => {
+  if (authWired) return;
+  authWired = true;
+  setupAuthRefresh();
+};
+
+export function useBootstrap(): BootstrapState {
+  wireAuthRefreshOnce();
+
+  const network = useNetworkReconnect();
+  const ota = useOTA();
+  const auth = useCheckToken();
+
+  const backgroundRefreshKicked = useRef(false);
+  useEffect(() => {
+    if (auth.data?.authenticated && !backgroundRefreshKicked.current) {
+      backgroundRefreshKicked.current = true;
+      void refreshAccessToken();
+    }
+  }, [auth.data?.authenticated]);
+
+  useEffect(() => {
+    const sub = Appearance.addChangeListener(() => {
+      if (useAppStore.getState().mode === 'system') {
+        useAppStore.setState({ colors: resolveColors('system') });
+      }
+    });
+    return () => sub.remove();
+  }, []);
+
+  return {
+    isReady: !auth.isLoading,
+    isAuthenticated: auth.data?.authenticated ?? false,
+    network,
+    ota,
+  };
+}

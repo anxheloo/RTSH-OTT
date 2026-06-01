@@ -1,4 +1,7 @@
+import axios from 'axios';
+
 import type { User } from '@/types';
+import { ENV } from '@/config/env';
 
 import { apiClient } from '../client';
 import { AUTH_ROUTES } from '../endpoints';
@@ -20,6 +23,17 @@ export interface AuthResponse {
   refreshToken: string;
 }
 
+/**
+ * Bare axios instance for the refresh endpoint only. Bypasses the 401
+ * interceptor in `apiClient` to avoid a refresh-loop deadlock when the
+ * refresh request itself returns 401.
+ */
+const refreshClient = axios.create({
+  baseURL: ENV.EXPO_PUBLIC_API_BASE_URL,
+  timeout: 15_000,
+  headers: { 'Content-Type': 'application/json' },
+});
+
 export async function login(payload: LoginPayload): Promise<AuthResponse> {
   const { data } = await apiClient.post<AuthResponse>(AUTH_ROUTES.LOGIN, payload);
   return data;
@@ -31,7 +45,7 @@ export async function register(payload: RegisterPayload): Promise<AuthResponse> 
 }
 
 export async function refresh(refreshToken: string): Promise<AuthResponse> {
-  const { data } = await apiClient.post<AuthResponse>(AUTH_ROUTES.REFRESH, { refreshToken });
+  const { data } = await refreshClient.post<AuthResponse>(AUTH_ROUTES.REFRESH, { refreshToken });
   return data;
 }
 

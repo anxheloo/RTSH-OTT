@@ -22,7 +22,9 @@ export const CHANNELS_ROUTES = {
 } as const;
 
 export const EPG_ROUTES = {
-  BY_DATE: (date: string) => `/epg?date=${date}`,
+  // Pass `date` via axios `params`, not template-interpolated, so values are
+  // properly URL-encoded.
+  LIST: '/epg',
   PROGRAM: (id: string) => `/epg/program/${id}`,
 } as const;
 

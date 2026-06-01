@@ -1,34 +1,38 @@
+import { Appearance } from 'react-native';
+
 import { StateCreator } from 'zustand';
 
 import { darkTheme, lightTheme, ThemeColors } from '@/theme/colors';
+
+import type { AppStore } from './useAppStore';
 
 export type ThemeMode = 'light' | 'dark' | 'system';
 
 export interface ThemeSlice {
   mode: ThemeMode;
   colors: ThemeColors;
-  setTheme: (mode: ThemeMode, systemScheme?: 'light' | 'dark') => void;
+  setTheme: (mode: ThemeMode) => void;
   toggleTheme: () => void;
 }
 
-const resolveColors = (mode: ThemeMode, systemScheme?: 'light' | 'dark'): ThemeColors => {
+export const resolveColors = (mode: ThemeMode): ThemeColors => {
   if (mode === 'system') {
-    return systemScheme === 'dark' ? darkTheme : lightTheme;
+    return Appearance.getColorScheme() === 'dark' ? darkTheme : lightTheme;
   }
   return mode === 'dark' ? darkTheme : lightTheme;
 };
 
-export const createThemeSlice: StateCreator<ThemeSlice> = (set, get) => ({
+export const createThemeSlice: StateCreator<AppStore, [], [], ThemeSlice> = (set, get) => ({
   mode: 'system',
-  colors: lightTheme,
+  colors: resolveColors('system'),
 
-  setTheme: (mode, systemScheme) => {
-    set({ mode, colors: resolveColors(mode, systemScheme) });
+  setTheme: (mode) => {
+    set({ mode, colors: resolveColors(mode) });
   },
 
   toggleTheme: () => {
     const current = get().mode;
-    const next: ThemeMode = current === 'dark' ? 'light' : 'dark';
-    set({ mode: next, colors: next === 'dark' ? darkTheme : lightTheme });
+    const next: ThemeMode = current === 'system' ? 'light' : current === 'light' ? 'dark' : 'system';
+    set({ mode: next, colors: resolveColors(next) });
   },
 });

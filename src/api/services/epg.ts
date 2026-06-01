@@ -2,7 +2,7 @@ import { apiClient } from '../client';
 import { EPG_ROUTES } from '../endpoints';
 
 export async function getEpgByDate(date: string): Promise<unknown> {
-  const { data } = await apiClient.get<unknown>(EPG_ROUTES.BY_DATE(date));
+  const { data } = await apiClient.get<unknown>(EPG_ROUTES.LIST, { params: { date } });
   return data;
 }
 

@@ -8,7 +8,13 @@ export async function getMe(): Promise<User> {
   return data;
 }
 
-export async function updateProfile(payload: Partial<User>): Promise<User> {
+/**
+ * Caller-modifiable fields on the user profile. Excludes server-owned fields
+ * (`id`, `email`) so a stray spread can't accidentally PATCH them.
+ */
+export type UpdateProfilePayload = Partial<Pick<User, 'displayName' | 'avatarUrl'>>;
+
+export async function updateProfile(payload: UpdateProfilePayload): Promise<User> {
   const { data } = await apiClient.patch<User>(USERS_ROUTES.UPDATE_PROFILE, payload);
   return data;
 }

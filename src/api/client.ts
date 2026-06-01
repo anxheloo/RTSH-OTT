@@ -48,7 +48,9 @@ apiClient.interceptors.response.use(
     const newToken = await inflightRefresh;
 
     if (!newToken) {
-      useAppStore.getState().logout();
+      // logout is async (clears keychain + store); fire-and-forget from the
+      // interceptor — the rejected request is what surfaces to the caller.
+      void useAppStore.getState().logout();
       return Promise.reject(error);
     }
 
