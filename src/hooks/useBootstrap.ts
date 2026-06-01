@@ -4,6 +4,7 @@ import { Appearance } from 'react-native';
 import { resolveColors } from '@/store/createThemeSlice';
 import { useAppStore } from '@/store/useAppStore';
 import { refreshAccessToken, setupAuthRefresh } from '@/api/mutations/authRefresh';
+import { initI18n } from '@/i18n';
 
 import { useCheckToken } from './useCheckToken';
 import { type NetworkState,useNetworkReconnect } from './useNetworkReconnect';
@@ -34,15 +35,16 @@ export interface BootstrapState {
  * Splash gate (`isReady`) only blocks on (1) fonts (in `_layout.tsx`) and
  * (2) the keychain read — both essentially instant. The app boots offline.
  */
-let authWired = false;
-const wireAuthRefreshOnce = (): void => {
-  if (authWired) return;
-  authWired = true;
+let bootstrapWired = false;
+const wireOnceAtBoot = (): void => {
+  if (bootstrapWired) return;
+  bootstrapWired = true;
   setupAuthRefresh();
+  initI18n();
 };
 
 export function useBootstrap(): BootstrapState {
-  wireAuthRefreshOnce();
+  wireOnceAtBoot();
 
   const network = useNetworkReconnect();
   const ota = useOTA();

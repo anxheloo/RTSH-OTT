@@ -7,6 +7,7 @@ type VariantValues = {
   name: string;
   bundleIdentifier: string;
   package: string;
+  updatesChannel: string;
 };
 
 function getVariantValues(): VariantValues {
@@ -15,6 +16,7 @@ function getVariantValues(): VariantValues {
       name: "RTSH TANI (Dev)",
       bundleIdentifier: "al.rtsh.tani.dev",
       package: "al.rtsh.tani.dev",
+      updatesChannel: "development",
     };
   }
   if (IS_PREVIEW) {
@@ -22,12 +24,14 @@ function getVariantValues(): VariantValues {
       name: "RTSH TANI (Preview)",
       bundleIdentifier: "al.rtsh.tani.preview",
       package: "al.rtsh.tani.preview",
+      updatesChannel: "preview",
     };
   }
   return {
     name: "RTSH TANI",
     bundleIdentifier: "al.rtsh.tani",
     package: "al.rtsh.tani",
+    updatesChannel: "production",
   };
 }
 
@@ -36,6 +40,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     name,
     bundleIdentifier,
     package: androidPackage,
+    updatesChannel,
   } = getVariantValues();
 
   return {
@@ -70,6 +75,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     plugins: [
       "expo-router",
       "expo-secure-store",
+      "expo-localization",
       [
         "expo-splash-screen",
         {
@@ -93,6 +99,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     owner: "anxheloo",
     updates: {
       url: "https://u.expo.dev/19f4d236-ba4f-4208-bf8b-4a0c229e027c",
+      requestHeaders: { "expo-channel-name": updatesChannel },
     },
     runtimeVersion: {
       policy: "appVersion",

@@ -1,0 +1,11 @@
+{
+  "common": {
+    "ok": "OK",
+    "cancel": "Cancel",
+    "retry": "Retry",
+    "close": "Close"
+  },
+  "offline": {
+    "banner": "No internet connection"
+  }
+}

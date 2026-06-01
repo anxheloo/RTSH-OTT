@@ -9,6 +9,7 @@
  */
 import React from 'react';
 import { StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
+import { useTranslation } from 'react-i18next';
 
 import type { ThemeColors } from '@/theme/colors';
 import { useAppStore } from '@/store/useAppStore';
@@ -19,7 +20,7 @@ import ReusableText from '../Inputs/ReusableText';
 export type OfflineBannerProps = {
   /** Override the auto-detected offline state. */
   isOffline?: boolean;
-  /** Banner text. Defaults to a generic English string until i18n lands. */
+  /** Override the banner text. Defaults to `t('offline.banner')`. */
   message?: string;
   /** Theme background token. Defaults to `'warning'`. */
   backgroundColor?: keyof ThemeColors;
@@ -29,11 +30,9 @@ export type OfflineBannerProps = {
   testID?: string;
 };
 
-const DEFAULT_MESSAGE = 'No internet connection';
-
 const OfflineBanner: React.FC<OfflineBannerProps> = ({
   isOffline,
-  message = DEFAULT_MESSAGE,
+  message,
   backgroundColor = 'warning',
   textColor = 'onPrimary',
   style,
@@ -41,6 +40,8 @@ const OfflineBanner: React.FC<OfflineBannerProps> = ({
 }) => {
   const network = useNetworkReconnect();
   const colors = useAppStore((s) => s.colors);
+  const { t } = useTranslation();
+  const resolvedMessage = message ?? t('offline.banner');
 
   const resolvedIsOffline = isOffline ?? !network.isOnline;
   if (!resolvedIsOffline) return null;
@@ -53,7 +54,7 @@ const OfflineBanner: React.FC<OfflineBannerProps> = ({
       accessibilityLiveRegion="polite"
     >
       <ReusableText variant="caption" themeColor={textColor} textAlign="center">
-        {message}
+        {resolvedMessage}
       </ReusableText>
     </View>
   );

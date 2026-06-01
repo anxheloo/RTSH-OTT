@@ -93,7 +93,12 @@ Each completed step carries enough context that a future session can reconstruct
 - [~] **4.5** `src/api/queries/` — **Defer** until services are real-typed (contract-dependent). Building queries on `unknown` adds no value.
 - [x] **4.6** `src/api/mutations/` — auth mutations done (login, register, logout, forgotPassword). ✅ `authRefresh.ts` exports `setupAuthRefresh()` which wires `registerRefreshHandler` from 4.2. Other mutations (updateProfile, etc.) deferred until services typed.
   - **Reworked by 5.5a:** `refreshAccessToken` narrowed catch to 401/403 (transient errors no longer wipe keychain). `useLogoutMutation` logs non-auth server errors in `__DEV__`. Wired into app via 5.8 `useBootstrap` (replaces the original "manual `setupAuthRefresh` call needed" note).
-- [ ] **4.7** `src/api/index.ts` — barrel re-export. [INFO] also covers re-exporting `services/` and `queries/` once typed.
+- [x] **4.7** `src/api/index.ts` — barrel re-export.
+  - **What:** added `export * from './services'` to the barrel (already exporting `client`, `endpoints`, `mutations`). `queries/` still empty; will be added when domain types land (**5.X.3**).
+  - **Why:** consumers import from `@/api` rather than reaching into subfolders. Closes the last `[ ]` in Phase 4.
+  - **Confidence:** Lints + tsc clean; no service exports collide. [CERTAIN]
+  - **Trade-offs / known gaps:** None.
+  - **Carry-overs:** add `export * from './queries'` when 5.X.3 lands.
 - [~] **4.8** MSW handlers + fixtures — **Defer** until API contract lands (no contract = no realistic fixtures).
 
 ---
@@ -169,10 +174,27 @@ Each completed step carries enough context that a future session can reconstruct
 
 ### Infra phases (each a real chunk of work)
 - [~] **5.X.10** MMKV encryption (H1) — choose key-mgmt story: EAS secret → native config plugin → JS, or generate-and-store-in-SecureStore on first launch.
-- [~] **5.X.11** iOS keychain accessibility (M2) — pass `keychainAccessible: AFTER_FIRST_UNLOCK_THIS_DEVICE_ONLY` for refresh token so background radio playback works while device is locked.
+- [x] **5.X.11** iOS keychain accessibility.
+  - **What:** `src/services/keychain.ts` now passes `keychainAccessible: AFTER_FIRST_UNLOCK_THIS_DEVICE_ONLY` by default to every `SecureStore.{setItemAsync, getItemAsync, deleteItemAsync}` call. Exported `KeychainAccessibility` enum with two levels — `AfterFirstUnlockThisDeviceOnly` (default, good for background tasks like radio playback) and `WhenUnlockedThisDeviceOnly` (for user-presence-gated secrets). All three helpers accept an optional `{ accessibility }` parameter for per-call overrides. Backwards-compatible — existing callers (`refreshAccessToken`, `useLogoutMutation` indirectly via `store.logout()`) keep working without changes.
+  - **Why:** default `SecureStore` accessibility is `WHEN_UNLOCKED` — background radio playback couldn't read the refresh token while the device was locked. The `THIS_DEVICE_ONLY` suffix prevents the keychain item from syncing to iCloud / restoring to another device (matches our threat model — the refresh token must not leave the device).
+  - **Confidence:**
+    - `AFTER_FIRST_UNLOCK_THIS_DEVICE_ONLY` is the right level for the refresh token. [HIGH]
+    - Existing callers don't need changes — the default applies transparently. [CERTAIN]
+    - Android no-op: SecureStore's Android backend ignores `keychainAccessible`. [HIGH]
+    - Not validated against a real background-audio scenario yet (no player phase code). [MEDIUM — would raise to HIGH by: playing radio, locking device, observing token is still readable when a 401 fires.]
+  - **Trade-offs / known gaps:** None. When parental PIN lands (**5.X.15**), use `WhenUnlockedThisDeviceOnly` for the PIN hash so it requires an unlocked device to verify.
+  - **Carry-overs:** none.
 - [~] **5.X.12** Sentry init — DSN as EAS secret, init before `<Stack/>`, replace `__DEV__ console.warn` patterns.
 - [~] **5.X.13** Background audio + PiP entitlements in `app.config.ts` (iOS `UIBackgroundModes: ['audio']`, Android `foregroundServiceType`). Pairs with player phase.
-- [~] **5.X.14** OTA `updates.channel` explicit in `app.config.ts` (currently inherited from EAS profile).
+- [x] **5.X.14** OTA `updates.channel` explicit in `app.config.ts`.
+  - **What:** `getVariantValues()` now returns `updatesChannel` per `APP_VARIANT` (`development` / `preview` / `production`). `updates.requestHeaders` includes `expo-channel-name: <channel>` so the runtime tells the EAS Update CDN which channel to serve regardless of what was embedded at build time.
+  - **Why:** previously `updates.channel` was only set in `eas.json` build profiles — works for EAS Builds but ambiguous if someone runs a local prod build. Setting it via `requestHeaders` in `app.config.ts` makes the variant → channel mapping explicit and survives any build path.
+  - **Confidence:**
+    - `requestHeaders: { 'expo-channel-name': '<channel>' }` is the documented SDK-56 way to override the embedded channel at runtime. [HIGH]
+    - All three variants (`development`, `preview`, `production`) now have explicit channels. [CERTAIN]
+    - Not validated by actually shipping an OTA to a non-prod channel. [MEDIUM — would raise to HIGH by: `eas update --channel preview` + confirming a preview build picks it up.]
+  - **Trade-offs / known gaps:** Channel names hard-coded in `app.config.ts`. If the team adds a `staging` variant later, both `getVariantValues()` and `eas.json` need updating in sync. Acceptable for a 3-variant app.
+  - **Carry-overs:** none.
 - [~] **5.X.15** Parental PIN feature — 4-digit, SHA-256+salt in keychain. New `createParentalSlice` + `PARENTAL_PIN_KEY` constant. Spec-mandated v1.
 - [~] **5.X.16** TypeScript pin re-evaluate — `~6.0.3` is ahead of Expo SDK 56's TS 5.x baseline; run `npx expo-doctor` and pin if compatibility issues surface.
 

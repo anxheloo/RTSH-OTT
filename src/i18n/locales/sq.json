@@ -1,0 +1,11 @@
+{
+  "common": {
+    "ok": "Në rregull",
+    "cancel": "Anulo",
+    "retry": "Provo përsëri",
+    "close": "Mbyll"
+  },
+  "offline": {
+    "banner": "Nuk ka lidhje me internetin"
+  }
+}
