@@ -1,9 +1,16 @@
+/**
+ * Spacing scale — 4px base grid.
+ * space_10 and space_15 are design-verified off-grid values from Figma (2026-06-02):
+ *   space_10 — channel card inner padding (10px)
+ *   space_15 — screen horizontal padding (15px)
+ */
 export const SPACING = {
   space_2: 2,
   space_4: 4,
   space_8: 8,
   space_10: 10,
   space_12: 12,
+  space_15: 15,
   space_16: 16,
   space_20: 20,
   space_24: 24,

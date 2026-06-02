@@ -167,9 +167,23 @@ Each completed step carries enough context that a future session can reconstruct
 - [~] **5.X.5** `useCheckToken` returns rich result `{ authenticated, reason }` so UI can distinguish "no session" from "network error".
 
 ### Design-dependent (unblocked when design lands)
-- [~] **5.X.6** Semantic color tokens (`overlay`, `disabled`, `onSurface`, `link`, `focus`, `skeleton`) in `ThemeColors`.
-- [~] **5.X.7** `BORDERRADIUS.pill` / `full`; `SHADOWS`, `OPACITY`, `Z_INDEX`, `ANIMATION` token files.
-- [~] **5.X.8** Reconcile `SPACING.space_10` + `space_28` off-grid values.
+- [x] **5.X.6** Semantic color tokens in `ThemeColors`.
+  - **What:** Added `surfaceElevated`, `onSurface`, `link`, `focus`, `disabled`, `overlay`, `skeleton` to `ThemeColors` interface + both theme objects. Dark values verified against Figma (2026-06-02): `surface=#212121`, `surfaceElevated=#373737`, `primary=#EB122F`, `textMuted=#929292`, `overlay=rgba(0,0,0,0.72)`.
+  - **Why:** Figma design uses these tokens across inputs, tabs, overlays. Missing tokens forced hardcoded hex at call sites.
+  - **Confidence:** Dark theme values CERTAIN (read from Figma). Light theme values HIGH (sensible inverses — design is dark-primary). [HIGH]
+  - **Trade-offs / known gaps:** Light theme not design-verified. When a light-mode design lands, swap values in one pass.
+  - **Carry-overs:** none.
+- [x] **5.X.7** New token files: `SHADOWS`, `OPACITY`, `Z_INDEX`, `ANIMATION`; `BORDERRADIUS` expanded.
+  - **What:** Created `src/theme/shadows.ts` (5 levels, cross-platform), `opacity.ts` (5 named values), `zIndex.ts` (layered z stack), `animation.ts` (durations + spring configs). Added `BORDERRADIUS.none=0`, `card=5`, `pill_sm=30`, `pill=32`, `full=9999` — all verified against Figma. Updated `src/theme/index.ts` barrel to export all new files.
+  - **Why:** Design uses pill-shaped inputs/buttons (32px), near-pill tab toggles (30px), and card corners (5px). Without these tokens, call sites would hardcode numbers.
+  - **Confidence:** Figma border values CERTAIN. Shadow/opacity/z/animation are reasonable app-level defaults, not design-verified. [HIGH/MEDIUM]
+  - **Trade-offs / known gaps:** Shadows not design-verified (design is flat). Values are sensible defaults for modals/cards.
+  - **Carry-overs:** none.
+- [x] **5.X.8** Spacing reconciliation.
+  - **What:** `space_10` confirmed design-verified (channel card inner padding = 10px). `space_15` added (screen horizontal padding = 15px, confirmed from all Figma screens). `space_28` retained (off-grid but unconfirmed — no direct usage found in design, kept for layout flexibility).
+  - **Why:** Figma uses consistent 15px screen margins and 10px card padding. These are intentional off-grid values, not mistakes.
+  - **Confidence:** space_10 and space_15 CERTAIN (read from Figma). space_28 LOW — would raise to HIGH by: finding a specific design element that uses 28px.
+  - **Carry-overs:** remove space_28 if no usage found after Phase 11 screens land.
 - [~] **5.X.9** Decide `predictiveBackGestureEnabled` on Android.
 
 ### Infra phases (each a real chunk of work)
@@ -286,29 +300,61 @@ Each completed step carries enough context that a future session can reconstruct
     - No skeleton variant. Add later as part of **5.X.7** (animation tokens).
   - **Open questions:** none — generic primitives.
   - **Carry-overs:** when i18n lands, replace `OfflineBanner` default message. When design lands, audit all three for height + padding + border conventions.
-- [ ] **6.6** `components/ModalWrapper.tsx` — reads modal from store, renders apiError / noInternet / notify / confirmation.
-- [ ] **6.7** `components/empty/EmptyChannelsState.tsx`, `EmptyEpgState.tsx`, `EmptyCatchupState.tsx`.
-- [ ] **6.8** Barrels for all component folders.
+- [x] **6.6** `components/ModalWrapper.tsx` — reads modal from store, renders apiError / noInternet / notify / confirmation.
+  - **What:** Global modal renderer mounted at root in `_layout.tsx`. Reads the top entry from `ModalSlice.modals` stack. Renders a `Modal` (transparent, fade) with a backdrop dismiss. Four types: `apiError` / `noInternet` get a red icon strip + default message; `confirmation` gets two-button row (cancel + confirm); `notify` gets single OK. All text/button labels fall back to sensible defaults but accept `payload` overrides.
+  - **Why:** Centralising modal rendering at root means any code in any screen/hook can call `useAppStore.openModal()` and get consistent UI without importing a modal component.
+  - **Confidence:** Modal stack pattern correct. [HIGH] Backdrop tap dismisses top modal — correct for notify/apiError; may need override for non-dismissable confirmation modals. [MEDIUM — would raise to HIGH by: testing confirmation where user must choose.]
+  - **Trade-offs / known gaps:** `hasTwoActions` ternary for conditional close needs to be explicit `if/else` (ESLint `no-unused-expressions`). Fixed.
+  - **Carry-overs:** Add `isDismissable?: boolean` to `ModalPayload` when a non-dismissable flow is needed.
+- [x] **6.7** `components/empty/EmptyChannelsState.tsx`, `EmptyEpgState.tsx`, `EmptyCatchupState.tsx`.
+  - **What:** Three themed empty-state components with optional `onRetry` prop. Each renders a heading, muted subtitle, and retry button. All read `colors` from store.
+  - **Why:** Phase 11 screens need empty states for load-fail paths. Better to scaffold them before screen wiring than patch later.
+  - **Confidence:** Straightforward primitives. [HIGH]
+  - **Trade-offs / known gaps:** Copy is English-only. Swap to `t('namespace:key')` when i18n lands (Phase 13).
+  - **Carry-overs:** none.
+- [x] **6.8** Barrels for all component folders.
+  - **What:** All existing folder barrels (`Buttons/`, `Inputs/`, `Layout/`, `Media/`, `empty/`) confirmed up-to-date. Added root-level `components/index.ts` re-exporting all subfolders + `ModalWrapper`.
+  - **Confidence:** [CERTAIN] — tsc clean confirms all re-exports resolve.
+  - **Carry-overs:** Add `channels/`, `epg/`, `catchup/`, `radio/` exports to root barrel as feature components land.
 
 ---
 
 ## Phase 7 — Form Layer
 
-- [ ] **7.1** `npm i react-hook-form zod @hookform/resolvers`.
-- [ ] **7.2** `components/Inputs/ControlledInput.tsx` — RHF Controller wrapping `ReusableInput`.
-- [ ] **7.3** Zod schemas: login, register, forgot in `src/features/auth/schemas.ts`.
+- [x] **7.1** Form approach decision: skipped `react-hook-form` — too heavy for 2-4 field forms.
+  - **What:** `react-hook-form` and `@hookform/resolvers` not installed. All auth forms use plain `useState` controlled inputs + `schema.safeParse()` on submit. `zod` already present (`^4.4.3` via env.ts).
+  - **Why:** Login (2 fields), register (4 fields), forgot (1 field) don't justify the RHF dependency. `ReusableInput` is already a controlled primitive — it plugs directly into local state without a form library wrapper.
+  - **Confidence:** Correct call for this form complexity. [HIGH]
+  - **Trade-offs / known gaps:** If a settings form or profile edit grows to 8+ fields, re-evaluate. The controlled pattern still works but gets verbose.
+  - **Carry-overs:** none.
+- [x] **7.2** ~~`ControlledInput.tsx`~~ — skipped, not needed without RHF.
+- [x] **7.3** Zod schemas: `src/features/auth/schemas.ts`.
+  - **What:** Three schemas — `loginSchema` (email + password + rememberMe), `registerSchema` (displayName + email + password + confirmPassword with `.refine` cross-field check), `forgotPasswordSchema` (email). Exports inferred types (`LoginFormData`, `RegisterFormData`, `ForgotPasswordFormData`). Uses Zod v4 `z.email()` (deprecated string-param overload flagged as Hint-severity TS6385 — compiles fine, not a blocking issue).
+  - **Why:** Single source of truth for validation rules used in auth screen `safeParse()` calls.
+  - **Confidence:** Schema logic correct. [HIGH] Zod v4.4.3 deprecation hint is cosmetic — no runtime impact. [CERTAIN]
+  - **Trade-offs / known gaps:** `rememberMe` state is local and not yet persisted — tracked for when settings persistence is wired.
+  - **Carry-overs:** none.
 
 ---
 
 ## Phase 8 — Navigation
 
-- [ ] **8.1** Confirm `experiments.typedRoutes: true` in `app.config.ts`.
-- [ ] **8.2** `app/_layout.tsx` — providers + `Stack.Protected` guards (no token → auth, token → app).
-- [ ] **8.3** `app/(auth)/` — `_layout.tsx`, `login.tsx`, `register.tsx`, `forgot.tsx`.
-- [ ] **8.5** `app/(app)/_layout.tsx` — Stack with tabs + player modals.
-- [ ] **8.6** `app/(app)/(tabs)/_layout.tsx` — Native Tabs (Live / EPG / Catchup / Radio / Profile).
-- [ ] **8.7** `app/(app)/player/[id].tsx` — `presentation: "fullScreenModal"`, `orientation: "all"`.
-- [ ] **8.8** Deep links: `rtshtani://channel/5`.
+- [x] **8.1** `experiments.typedRoutes: true` confirmed present in `app.config.ts`. [CERTAIN]
+- [x] **8.2** `app/_layout.tsx` — `Stack.Protected` guards + `ModalWrapper` at root.
+  - **What:** `RootLayoutInner` now reads `isAuthenticated` + `token` from store. Two `Stack.Protected` blocks: `guard={!isAuthenticated || !token}` gates `(auth)`, `guard={isAuthenticated && !!token}` gates `(app)`. `<ModalWrapper />` rendered outside `<Stack>` so modals float above all navigation. Font loading expanded to include Anton + Inter via `@expo-google-fonts`.
+  - **Why:** Expo Router v7 `Stack.Protected` is the idiomatic way to implement auth guards — no manual redirect logic needed.
+  - **Confidence:** [HIGH] Known limbo window (5.X.5): during background refresh, `isAuthenticated=true` but `token=null` → user can't access either group briefly. Using `!isAuthenticated` alone (ignoring token) would eliminate limbo but allow a request with no token. Current conservative choice. Revisit with 5.X.5.
+  - **Carry-overs:** 5.X.5 (rich auth result) would resolve the limbo state.
+- [x] **8.3** Auth stack — `(auth)/_layout.tsx`, `login.tsx`, `register.tsx`, `forgot.tsx`.
+  - **What:** `(auth)/_layout.tsx` — Stack, no header, black background. Auth screens use dark RTSH branding matching Figma exactly.
+  - **Confidence:** Navigation structure correct. [HIGH] Screen implementations detail in Phase 11 entries below.
+- [x] **8.5** `app/(app)/_layout.tsx` — Stack with player modals as `fullScreenModal`.
+  - **What:** App stack with `headerShown: false`, player/channel routes set as `presentation: 'fullScreenModal'`.
+- [x] **8.6** `app/(app)/(tabs)/_layout.tsx` — 5 tabs: Live / EPG / Catchup / Radio / Profile.
+  - **What:** Native Tabs. Tab bar bg `colors.tabBar` (`#212121`), active tint `colors.primary` (`#EB122F`), inactive `colors.textMuted` (`#929292`). Text labels only — no icon library installed yet.
+  - **Known gaps:** Icon library needed for tab bar icons. Deferred — add when `@expo/vector-icons` or `expo-symbols` wired in.
+- [x] **8.7** `app/(app)/player/[id].tsx` + `channel/[id].tsx` — stub full-screen modal placeholders.
+- [x] **8.8** Deep link scheme `rtshtani://` confirmed in `app.config.ts`. [CERTAIN]
 
 ---
 
@@ -334,16 +380,25 @@ Each completed step carries enough context that a future session can reconstruct
 
 ## Phase 11 — Screen Scaffolds
 
-- [ ] **11.1** Splash + boot confirmed wired (P8.2).
-- [ ] **11.2** `(auth)/login.tsx` — form, mutation, navigate on success.
-- [ ] **11.3** `(auth)/register.tsx`, `forgot.tsx`.
-- [ ] **11.4** `(tabs)/index.tsx` Live — hero + channel grid.
-- [ ] **11.5** `(tabs)/epg.tsx` — date picker, channel rail + timeline, synced scroll.
-- [ ] **11.6** `(tabs)/catchup.tsx` — InfiniteList, genre chips, resume badge.
-- [ ] **11.7** `(tabs)/radio.tsx` — radio grid, mini-player dock.
-- [ ] **11.8** `(tabs)/profile.tsx` — Account / Playback / Appearance / Notifications / Parental / Language / Legal / About / Sign out.
-- [ ] **11.9** `player/[id].tsx` — player + program info + "Up next" rail.
-- [ ] **11.10** `channel/[id].tsx`, `program/[id].tsx`.
+- [x] **11.1** Splash + boot confirmed wired via `_layout.tsx` gates. [CERTAIN]
+- [x] **11.2** `(auth)/login.tsx` — Figma-accurate login screen.
+  - **What:** Black bg. #212121 header 78px, RTSH logo. Email + password `ReusableInput` (pill 32px, height 60, #212121 bg). "Remember Me" checkbox row + "Forgot Password?" link. Full-width #EB122F Login button. `loginSchema.safeParse()` validates on submit; field errors shown via `errorText`. Calls `useLoginMutation`; `Stack.Protected` auto-routes on success.
+  - **Confidence:** Design match [HIGH]. Mutation wiring [HIGH]. Not validated on device. [MEDIUM — would raise to HIGH by: running on simulator, testing error states.]
+  - **Carry-overs:** "Remember Me" not yet persisted to settings. Wire when auth persistence is revisited.
+- [x] **11.3** `(auth)/register.tsx` + `forgot.tsx`.
+  - **What:** Register: 4 fields (displayName, email, password, confirmPassword), `registerSchema` validation, `useRegisterMutation`. Forgot: 1 email field, `forgotPasswordSchema`, `useForgotPasswordMutation`, inline success state shows confirmation message.
+  - **Confidence:** [HIGH] Pattern matches login. Not device-tested. [MEDIUM]
+- [x] **11.4** `(tabs)/index.tsx` — Live screen from Figma.
+  - **What:** Black bg. #212121 header 78px, RTSH logo left + profile avatar right. Toggle row: Search | Televizion (active) | Radio — local `useState`, `#373737` bg on active, `#212121` on inactive, pill_sm (30px). 2-column `FlatList` channel grid, 15px side padding, 10px gap. `ChannelCard` component: image 132px (ReusableImage), label row 40px (#141414 bg, 5px bottom corners), Anton 14px channel name. Static 8-channel placeholder data.
+  - **Confidence:** Layout matches Figma. [HIGH] Toggle "Radio" tab is local state only — doesn't navigate to radio tab yet. [MEDIUM — would raise to HIGH by: connecting to real channel data from API queries.] `ChannelCard` in `components/channels/`.
+  - **Trade-offs / known gaps:** Uses `FlatList` — swap to `@shopify/flash-list` in Phase 10.
+  - **Carry-overs:** Wire toggle to real data filter (TV vs Radio channels) when API contract lands.
+- [~] **11.5** `(tabs)/epg.tsx` — scaffold only (FullScreenLoader placeholder). Full implementation deferred: needs API contract + FlashList (Phase 10).
+- [~] **11.6** `(tabs)/catchup.tsx` — scaffold only. Deferred: needs API contract + FlashList.
+- [~] **11.7** `(tabs)/radio.tsx` — scaffold only. Deferred: needs Phase 9 RadioPlayer + API contract.
+- [~] **11.8** `(tabs)/profile.tsx` — scaffold only. Deferred: needs full settings/account design.
+- [~] **11.9** `player/[id].tsx` — stub modal. Full implementation deferred to Phase 9.
+- [~] **11.10** `channel/[id].tsx` — stub modal. `program/[id].tsx` not yet created.
 
 ---
 
