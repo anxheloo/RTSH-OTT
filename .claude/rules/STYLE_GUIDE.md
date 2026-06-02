@@ -1,47 +1,93 @@
 # STYLE_GUIDE.md — RTSH-OTT
 
-Coding conventions derived from prior project (SOLITAR). Read before writing components, hooks, or store code.
+Distilled from real code across RTSH and SOLITAR-FRONTEND_EMERGENT, then elevated to world-class standards. This is the recommended approach for writing clean, professional, self-explanatory React Native / Expo code in this project. Where patterns from those repos were solid, they're kept. Where something more professional exists, it's here instead.
 
-## Principles
+---
 
-- **One responsibility per file.** A component file exports one component (default). A hook file exports one hook. A slice file exports one slice + its type.
-- **Reusable primitives prefixed with `Reusable`** (`ReusableBtn`, `ReusableInput`, `ReusableText`, `ReusableImage`). Generic design-system pieces only. Feature components keep their domain name (`ChannelCard`, `EpgRow`, `LivePlayer`).
-- **Default export + barrel re-export.** Component files use `export default`; folder-level `index.ts` re-exports.
-- **No layout/styling in shared components.** Position with margins comes from the parent; primitives manage their own internals only.
-- **Read theme directly from the store.** `const colors = useAppStore((s) => s.colors)`. No `useTheme()` hook, no Context wrapper.
-- **Async actions live inside slices.** No "thunk" pattern — slice methods are `async` when they touch I/O (keychain, MMKV, network).
+## Core Principles
 
-## File naming
+- **One responsibility per file.** One component, one hook, one slice.
+- **Reusable primitives are prefixed `Reusable`.** `ReusableBtn`, `ReusableInput`, `ReusableText`, `ReusableImage`. Feature components keep domain names: `ChannelCard`, `EpgRow`, `LivePlayer`.
+- **Theme comes from the store, not Context.** `const colors = useAppStore((s) => s.colors)`. No ThemeProvider, no `useTheme()`.
+- **Shared primitives own their internals only.** Margins and positioning belong to the parent.
+- **No magic numbers.** Fonts, radii, and spacing always come from token files.
+- **Modals flow through `ModalSlice` + `ModalWrapper`.** No `Alert.alert`, no local modal state.
+- **No `console.log` in committed code.** Use a Sentry breadcrumb or remove it.
+- **No deep relative imports.** Use `@/` aliases throughout.
 
-| Kind | Convention | Example |
-|------|------------|---------|
-| Component file | `PascalCase.tsx` | `ChannelCard.tsx` |
-| Hook file | `useCamelCase.ts` | `useChannels.ts` |
-| Store slice | `createXSlice.ts` | `createUserSlice.ts` |
-| Service / util | `camelCase.ts` | `formatters.ts` |
-| Type-only | `kebab-case.ts` or grouped in `types/` | `types/api.ts` |
-| Route file | exact route name | `app/(tabs)/index.tsx`, `app/player/[id].tsx` |
-| Folder | `PascalCase` for component groups, `lowercase` for domain | `Buttons/`, `Inputs/`, `Layout/`, `chat/`, `contacts/` |
+---
 
 ## TypeScript
 
-- `strict: true`. Path alias `@/*` rooted at project root.
-- Props type defined **above** the component, named `XProps` or `TXProps`. Inline if trivial.
-- `React.FC<Props>` for components (matches SOLITAR style).
-- `as const` on lookup tables (`STORAGE_KEYS`, `BORDERRADIUS`, `FONTSIZE`).
-- Discriminated unions over enums for state machines (`MessageStatus`, `PlayerStatus`).
-- Never use `any`. `unknown` + narrow, or a precise type.
+### `interface` vs `type`
 
-## Component template
+`interface` for contracts and shapes. `type` for unions, aliases, and inferred types.
+
+```ts
+// interface: component props, slice shape, API response contracts
+interface ChannelCardProps { ... }
+interface UserSlice { ... }
+interface ChannelResponse { ... }
+
+// type: unions, discriminated types, z.infer, store composition
+type MessageStatus = 'pending' | 'sent' | 'delivered' | 'read' | 'failed';
+type ThemeMode = 'light' | 'dark' | 'system';
+type AppState = UserSlice & ThemeSlice & SettingsSlice & ...;
+type LoginFormType = z.infer<typeof LoginSchema>;
+```
+
+### Discriminated unions over enums
+
+String literal unions are lighter, narrow better, and don't require an import.
+
+```ts
+// avoid
+enum CallStatus { Ringing, Active, Ended, Missed }
+
+// prefer
+type CallStatus = 'ringing' | 'active' | 'ended' | 'missed';
+```
+
+### `as const` on all lookup tables
+
+```ts
+export const BORDERRADIUS = {
+  radius_8: 8,
+  radius_12: 12,
+  radius_14: 14,
+  radius_20: 20,
+} as const;
+
+export const STORAGE_KEYS = {
+  USER: 'user',
+  SETTINGS: 'settings',
+  RESUME_POSITIONS: 'resume_positions',
+} as const;
+```
+
+### General
+
+- Avoid `any`. Use `unknown` + narrow, or a precise type.
+- `error: unknown` in catch blocks — cast only after narrowing.
+- Props type named `XProps` (e.g. `ChannelCardProps`), defined above the component.
+- `React.FC<Props>` for every component.
+
+---
+
+## Components
+
+### Template
 
 ```tsx
 import React from 'react';
-import { StyleSheet, View, TouchableOpacity } from 'react-native';
+import { StyleSheet, TouchableOpacity } from 'react-native';
 import Animated from 'react-native-reanimated';
 
-import { Fonts, FONTSIZE } from '@/theme/fonts';
 import { BORDERRADIUS } from '@/theme/borders';
+import { FONTSIZE } from '@/theme/fonts';
+import { SPACING } from '@/theme/spacing';
 import { useAppStore } from '@/store/useAppStore';
+import ReusableText from '@/components/Inputs/ReusableText';
 
 type ChannelCardProps = {
   channelId: string;
@@ -60,29 +106,51 @@ const ChannelCard: React.FC<ChannelCardProps> = ({ channelId, title, logoUrl, on
       activeOpacity={0.8}
       testID={`channel-card-${channelId}`}
     >
-      {/* ... */}
+      <ReusableText text={title} size={FONTSIZE.sm} color={colors.text} />
     </TouchableOpacity>
   );
 };
 
+export default ChannelCard;
+
 const styles = StyleSheet.create({
   container: {
     borderRadius: BORDERRADIUS.radius_12,
-    padding: 12,
+    padding: SPACING.space_12,
   },
 });
-
-export default ChannelCard;
 ```
 
-Rules:
-- JSDoc block at top of non-trivial files.
-- StyleSheet always at the bottom of the file.
-- `React.memo` only for components in lists or that re-render frequently. When memoized, set `displayName`.
-- `activeOpacity`: `0.8` for buttons, `0.7` for text-as-button, `0.9` for images.
-- `testID` on every interactive leaf — needed for Expo MCP automation.
+### Key points
 
-## Store slice template
+- `StyleSheet.create()` lives at the **bottom**, after `export default`.
+- Props type defined **above** the component, named `XProps`.
+- Wrap shared primitives with `Animated.View` from `react-native-reanimated` even when not animating yet — avoids a refactor later.
+- `testID` on every interactive leaf.
+- JSDoc block at the top of every non-trivial file.
+
+### `activeOpacity`
+
+| Context | Value |
+|---------|-------|
+| Buttons | `0.8` |
+| Text acting as a button | `0.7` |
+| Image containers | `0.9` |
+
+### `React.memo`
+
+Only memoize components inside `FlashList`/`FlatList` or those that re-render at high frequency. When memoized, always set `displayName`.
+
+```ts
+const ChannelCard = React.memo(({ ... }) => { ... });
+ChannelCard.displayName = 'ChannelCard';
+```
+
+---
+
+## Store Slices
+
+### Template
 
 ```ts
 import { StateCreator } from 'zustand';
@@ -90,6 +158,7 @@ import { StateCreator } from 'zustand';
 export interface ChannelsSlice {
   favorites: string[];
   recentlyWatched: string[];
+  updateChannelsSlice: (state: Partial<ChannelsSlice>) => void;
   toggleFavorite: (channelId: string) => void;
   addRecentlyWatched: (channelId: string) => void;
 }
@@ -97,6 +166,8 @@ export interface ChannelsSlice {
 export const createChannelsSlice: StateCreator<ChannelsSlice> = (set) => ({
   favorites: [],
   recentlyWatched: [],
+
+  updateChannelsSlice: (state) => set(state),
 
   toggleFavorite: (channelId) =>
     set((s) => ({
@@ -112,18 +183,102 @@ export const createChannelsSlice: StateCreator<ChannelsSlice> = (set) => ({
 });
 ```
 
-Rules:
-- Interface declares state + actions together.
-- `set` is the only mutator; never expose raw `set` to components.
-- Async actions: declare `async`, do I/O first, then `set`.
-- Selectors live at call site: `useAppStore((s) => s.favorites)`. Avoid wrapping every read in a custom hook unless reused 3+ times.
+### Key points
 
-## API service template
+- Every slice exposes `updateXSlice: set` as a universal partial setter for simple batched updates from outside the slice.
+- Complex domain actions get explicit named methods alongside it.
+- `set` is the only mutator — never expose raw `set` to components.
+- Async slice actions: do I/O first (`SecureStore`, MMKV, network), then `set`.
+- Selectors live at the call site: `useAppStore((s) => s.favorites)`. Extract to a custom hook only when reused in 3+ places.
+
+### Imperative access outside React
+
+Inside axios interceptors, service functions, or async callbacks — use `useAppStore.getState()`.
+
+```ts
+useAppStore.getState().updateModalSlice({ currentModal: 'apiError', modalData: { message } });
+useAppStore.getState().logout();
+```
+
+---
+
+## Hooks
+
+### Template
+
+```ts
+import { useCallback, useEffect, useRef } from 'react';
+import { AppState, AppStateStatus } from 'react-native';
+import { useAppStore } from '@/store/useAppStore';
+
+/**
+ * Fires `onResume` when app returns from background after `thresholdMs`.
+ * Uses a timestamp ref because RN timers are throttled when suspended —
+ * setTimeout-based approaches fire late on iOS.
+ */
+export function useAppResumeGuard(onResume: () => void, thresholdMs = 30_000) {
+  const appStateRef = useRef<AppStateStatus>(AppState.currentState);
+  const backgroundedAtRef = useRef<number | null>(null);
+
+  const handleChange = useCallback(
+    (next: AppStateStatus) => {
+      if (appStateRef.current === 'active' && next.match(/inactive|background/)) {
+        backgroundedAtRef.current = Date.now();
+      }
+      if (next === 'active' && backgroundedAtRef.current !== null) {
+        if (Date.now() - backgroundedAtRef.current >= thresholdMs) onResume();
+        backgroundedAtRef.current = null;
+      }
+      appStateRef.current = next;
+    },
+    [onResume, thresholdMs],
+  );
+
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', handleChange);
+    return () => sub.remove();
+  }, [handleChange]);
+}
+```
+
+### Key points
+
+- `useCallback` wraps async functions used in `useEffect` deps — keeps deps stable, avoids stale closures.
+- `useEffect(() => { fn(); }, [fn])` — the callback is the dep.
+- `useRef` for instance state that must not trigger re-renders (timestamps, handles, previous values).
+- Return a stable object shape — never conditionally omit keys.
+- JSDoc at the top explaining the **why**, not the what.
+- Cleanup functions only `.remove()` / `.unsubscribe()` — never throw inside cleanup.
+- Module-level singletons (cached state, subscriber Sets) are appropriate for hooks that must only initialize once across all mounts (e.g. `useNetworkReconnect`).
+
+---
+
+## API Layer
+
+### Endpoint constants
+
+Composable string constants. Parametrized routes as inline functions.
+
+```ts
+export const AUTH_ROUTES = 'api/auth';
+export const CHANNELS_ROUTES = 'api/channels';
+
+export const LOGIN_ROUTE = `${AUTH_ROUTES}/login`;
+export const REGISTER_ROUTE = `${AUTH_ROUTES}/register`;
+export const REFRESH_ROUTE = `${AUTH_ROUTES}/refresh`;
+
+export const CHANNEL_BY_ID = (id: string) => `${CHANNELS_ROUTES}/${id}`;
+export const STREAM_BY_ID = (id: string) => `${CHANNELS_ROUTES}/${id}/stream`;
+```
+
+### Service
+
+Pure functions — no hooks, no store reads.
 
 ```ts
 import { apiClient } from '../client';
-import { CHANNELS_ROUTES } from '../endpoints';
-import type { Channel } from '@/types';
+import { CHANNELS_ROUTES, CHANNEL_BY_ID } from '../endpoints';
+import type { Channel } from '@/types/domain';
 
 export const getChannels = async (): Promise<Channel[]> => {
   const res = await apiClient.get(CHANNELS_ROUTES);
@@ -131,12 +286,12 @@ export const getChannels = async (): Promise<Channel[]> => {
 };
 
 export const getChannelById = async (id: string): Promise<Channel> => {
-  const res = await apiClient.get(`${CHANNELS_ROUTES}/${id}`);
+  const res = await apiClient.get(CHANNEL_BY_ID(id));
   return res.data.channel;
 };
 ```
 
-## Query hook template
+### Query hook
 
 ```ts
 import { useQuery } from '@tanstack/react-query';
@@ -151,196 +306,215 @@ export const useChannels = () => {
 };
 ```
 
-Rules:
-- Query keys: array, first element is the resource (`['channels']`, `['epg', date]`). No factory yet — add when 5+ keys per resource.
-- Always return safe defaults (`data ?? []`) so consumers don't null-check on every render.
+### Mutation hook
 
-## Hook template
+The `mutationFn` logic is a **named async function** defined above the hook, not an inline arrow.
 
 ```ts
-import { useEffect, useRef } from 'react';
-import { AppState, AppStateStatus } from 'react-native';
+import { useMutation } from '@tanstack/react-query';
 import { useAppStore } from '@/store/useAppStore';
+import { login } from '../services/auth';
+import type { LoginFormType } from '@/types/auth';
 
-/**
- * Locks app when returning from 30s+ in background.
- * Uses timestamp check on resume (RN timers are throttled when suspended).
- */
-export function useAppLock() {
-  const appStateRef = useRef<AppStateStatus>(AppState.currentState);
-  const backgroundedAtRef = useRef<number | null>(null);
-
-  const token = useAppStore((s) => s.token);
-  const lockApp = useAppStore((s) => s.lockApp);
-
-  useEffect(() => {
-    const sub = AppState.addEventListener('change', (next) => {
-      // ...
-    });
-    return () => sub.remove();
-  }, [token, lockApp]);
+async function loginFlow(data: LoginFormType) {
+  const res = await login(data);
+  return res;
 }
+
+export const useLogin = () => {
+  const updateUserSlice = useAppStore((s) => s.updateUserSlice);
+  const updateModalSlice = useAppStore((s) => s.updateModalSlice);
+
+  return useMutation({
+    mutationFn: loginFlow,
+    onSuccess: ({ user, accessToken }) => {
+      updateUserSlice({ user, token: accessToken, isAuthenticated: true });
+    },
+    onError: (error) => {
+      updateModalSlice({ currentModal: 'apiError', modalData: { message: error.message } });
+    },
+  });
+};
 ```
 
-Rules:
-- JSDoc explains WHY at the top.
-- `useRef` for instance state that shouldn't trigger renders.
-- Return a stable object shape — never conditionally omit keys.
+### Key points
 
-## Imports order
+- Query keys are always arrays: `['channels']`, `['epg', date]`, `['channel', id]`. First element is the resource name.
+- Always return safe defaults from query hooks (`data ?? []`, `data ?? null`).
+- Don't use `useEffect` to react to query `data`/`error` — use `onSuccess`/`onError` in mutation/query options.
+- A bare axios instance (`refreshClient`) handles the refresh endpoint only — prevents interceptor deadlock on 401.
 
-1. React + RN core
-2. Third-party libs
-3. Blank line
-4. `@/` internal imports grouped by layer: `theme/`, `store/`, `api/`, `hooks/`, `components/`, `utils/`, `types/`
+---
+
+## Schemas & Validation
+
+Zod schema and inferred type co-located in the same file.
+
+```ts
+import { z } from 'zod';
+
+export const LoginSchema = z.object({
+  email: z.string().email('auth:invalid_email'),
+  password: z.string().min(8, 'auth:password_too_short'),
+});
+
+export type LoginFormType = z.infer<typeof LoginSchema>;
+```
+
+Schemas live in `types/` alongside domain types, not inside form files.
+
+---
+
+## Navigation
+
+- Expo Router v7 file-based routing. No `useNavigation` + stack manipulation.
+- Auth guard via `Stack.Protected` in root `_layout.tsx` — no guard `useEffect`.
+- Full-screen player routes are root-level modals: `player/[id]`, `channel/[id]`.
+- Platform-specific presentation where it matters:
+
+```ts
+presentation: Platform.OS === 'ios' ? 'modal' : 'formSheet',
+sheetAllowedDetents: [0.5, 1.0],
+sheetGrabberVisible: true,
+sheetCornerRadius: BORDERRADIUS.radius_20,
+```
+
+---
+
+## Modals
+
+All modals route through `ModalSlice` + `ModalWrapper`. This works from anywhere in the app — React components, async flows, axios interceptors.
+
+```ts
+useAppStore.getState().updateModalSlice({
+  currentModal: 'confirmation',
+  modalData: {
+    title: t('common:confirm'),
+    message: t('settings:logout_confirm'),
+    onConfirm: () => logout(),
+  },
+});
+```
+
+---
+
+## Keychain / Storage
+
+A three-function wrapper in `services/keychain.ts` is the only way to interact with `expo-secure-store`. Nothing calls it directly.
+
+```ts
+export const storeOnKeychain = async (key: string, value: string): Promise<void> => { ... };
+export const retrieveFromKeychain = async (key: string): Promise<string | null> => { ... };
+export const removeFromKeychain = async (key: string): Promise<void> => { ... };
+```
+
+| Data | Storage |
+|------|---------|
+| Refresh token, parental PIN hash | Keychain (`expo-secure-store`) |
+| User, settings, theme, favorites | MMKV (Zustand persist) |
+| Access token | Memory only (Zustand, not persisted) |
+| Resume positions | MMKV (separate key) |
+
+---
+
+## File Naming
+
+| Kind | Convention | Example |
+|------|------------|---------|
+| Component | `PascalCase.tsx` | `ChannelCard.tsx` |
+| Hook | `useCamelCase.ts` | `useChannels.ts` |
+| Store slice | `createXSlice.ts` | `createChannelsSlice.ts` |
+| Service | `camelCase.ts` | `channels.ts` |
+| Types | grouped in `types/` | `types/domain.ts` |
+| Route file | exact route name | `(tabs)/index.tsx`, `player/[id].tsx` |
+| Component folder | `PascalCase` | `Buttons/`, `Inputs/`, `Media/` |
+| Domain folder | lowercase | `channels/`, `epg/`, `catchup/` |
+
+---
+
+## Import Order
+
+1. React + React Native core
+2. Third-party libraries
+3. *(blank line)*
+4. `@/` internal imports, grouped by layer: `theme/` → `store/` → `api/` → `hooks/` → `components/` → `utils/` → `types/`
 
 ```tsx
-import React, { useState } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import React, { useState, useCallback } from 'react';
+import { View, TouchableOpacity, StyleSheet } from 'react-native';
+import Animated from 'react-native-reanimated';
 import { useQuery } from '@tanstack/react-query';
 
+import { BORDERRADIUS } from '@/theme/borders';
+import { FONTSIZE } from '@/theme/fonts';
+import { SPACING } from '@/theme/spacing';
 import { useAppStore } from '@/store/useAppStore';
 import { getChannels } from '@/api/services/channels';
-import ChannelCard from '@/components/Media/ChannelCard';
-import { Fonts, FONTSIZE } from '@/theme/fonts';
+import ChannelCard from '@/components/channels/ChannelCard';
+import { formatDuration } from '@/utils/formatters';
+import type { Channel } from '@/types/domain';
 ```
 
-## Folder structure
+---
 
-```
-src/
-  api/
-    client.ts                   # axios + queryClient
-    endpoints.ts                # route constants
-    index.ts                    # big barrel
-    services/                   # axios wrappers per domain
-      auth.ts
-      channels.ts
-      epg.ts
-      catchup.ts
-      radio.ts
-      streams.ts
-      users.ts
-      config.ts
-    queries/                    # TanStack Query hooks
-    mutations/                  # TanStack Mutation hooks
-    mocks/                      # MSW handlers + fixtures
-  app/                          # expo-router (thin)
-    _layout.tsx
-    unlock.tsx
-    (auth)/
-    (app)/
-      _layout.tsx
-      (tabs)/
-        _layout.tsx
-        index.tsx               # Live
-        epg.tsx
-        catchup.tsx
-        radio.tsx
-        profile.tsx
-      player/[id].tsx
-      channel/[id].tsx
-      program/[id].tsx
-  components/
-    Buttons/
-      ReusableBtn.tsx
-      index.ts
-    Inputs/
-      ReusableInput.tsx
-      ReusableText.tsx
-      index.ts
-    Layout/
-      FullScreenLoader.tsx
-      TabHeader.tsx
-      OfflineBanner.tsx
-      index.ts
-    Media/
-      ReusableImage.tsx
-      VideoPlayer.tsx
-      LivePlayer.tsx
-      VodPlayer.tsx
-      RadioPlayer.tsx
-      PlayerControls.tsx
-      index.ts
-    channels/                   # feature components
-    epg/
-    catchup/
-    radio/
-    empty/                      # empty-state variants
-    ModalWrapper.tsx
-  config/
-    auth.ts                     # AUTH_TOKEN_KEY, BIOMETRIC_KEY
-    env.ts                      # zod-validated env
-    permissions.ts
-  constants/
-    storage.ts                  # STORAGE_KEYS
-    player.ts                   # SEEK_STEP_S, DEFAULT_QUALITY
-  hooks/
-    index.ts                    # barrel
-    useAppState.ts
-    useAppLock.ts
-    useCheckToken.ts
-    useOTA.ts
-    useKeyboard.ts
-    useOrientation.ts
-    useNetworkReconnect.ts
-    useNotifications.ts
-    useHaptic.ts
-  i18n/
-    index.ts
-    locales/
-      sq.json
-      en.json
-  services/
-    keychain.ts                 # expo-secure-store wrapper
-    sentry.ts
-    analytics.ts
-    push.ts
-  store/
-    storage.ts                  # MMKV + zustandStorage adapter
-    useAppStore.ts              # main store
-    createUserSlice.ts
-    createSettingsSlice.ts
-    createThemeSlice.ts
-    createPlayerSlice.ts
-    createModalSlice.ts
-    createChannelsSlice.ts
-    createEpgSlice.ts
-  theme/
-    colors.ts                   # lightTheme + darkTheme
-    fonts.ts                    # Fonts, FONTSIZE, FONTWEIGHT
-    borders.ts                  # BORDERRADIUS
-    spacing.ts                  # SPACING
-  types/
-    index.ts
-    api.ts
-    domain.ts
-    theme.ts
-  utils/
-    index.ts
-    formatters.ts               # formatProgramTime, formatDuration
-    helpers.ts
-    constants.ts
+## Barrel Exports
+
+Every component/hook folder has an `index.ts`. Group with comments in large barrels.
+
+```ts
+// src/hooks/index.ts
+
+// Auth
+export { useCheckToken } from './useCheckToken';
+export { useBootstrap } from './useBootstrap';
+
+// Network
+export { useNetworkReconnect } from './useNetworkReconnect';
+
+// App lifecycle
+export { useAppState } from './useAppState';
+export { useOTA } from './useOTA';
 ```
 
-## Don'ts
-
-- No relative `../../../` imports. Use `@/`.
-- No magic numbers in component files. Pull from `BORDERRADIUS`, `FONTSIZE`, `SPACING`.
-- No `useEffect` for navigation guards — use `Stack.Protected` (Expo Router v7).
-- No raw strings in JSX. Use `t('namespace:key')` from `react-i18next`.
-- No `localStorage` / `sessionStorage` — MMKV or SecureStore.
-- No throwing inside `useEffect` cleanup. Catch and log.
-- No `console.log` left in committed code. Use Sentry breadcrumb or remove.
+---
 
 ## Comments
 
-- JSDoc block at top of every file that's not trivial.
-- Inline `//` only when the WHY is non-obvious. The WHAT is in the code.
-- TODOs include initials + date: `// TODO(anx 2026-05-28): refactor when API contract lands`.
+- JSDoc block at the top of every non-trivial file: the **why**, the contract, known edge cases.
+- Inline `//` only for things a reader would otherwise have to discover the hard way: a hidden constraint, a subtle invariant, a platform-specific workaround.
+- TODOs include initials + date: `// TODO(anx 2026-06-02): replace when API contract lands`.
+- Never describe what the code does — the code does that.
 
-## Commit format
+---
 
-Conventional Commits: `feat(player): add fullscreen toggle`, `fix(auth): clear store on refresh failure`, `chore: bump expo to 55.0.1`.
+## Commit Format
 
-Branches: `feat/<scope>-<short>`, `fix/<scope>-<short>`.
+Conventional Commits.
+
+```
+feat(player): add fullscreen toggle
+fix(auth): clear store on refresh failure
+chore: bump expo to 56.0.1
+refactor(store): extract PlayerSlice
+```
+
+Branch naming: `feat/<scope>-<short>`, `fix/<scope>-<short>`.
+
+---
+
+## Things Worth Avoiding
+
+| Pattern | Preferred approach |
+|---------|-------------------|
+| `../../../` deep relative imports | `@/` aliases |
+| `enum` | String literal discriminated union |
+| `any` | `unknown` + narrow, or a precise type |
+| `Alert.alert` | `ModalSlice` + `ModalWrapper` |
+| `console.log` in commits | Sentry breadcrumb or remove |
+| Navigation guard in `useEffect` | `Stack.Protected` |
+| `useEffect` reacting to query `data`/`error` | `onSuccess`/`onError` in mutation options |
+| Direct `expo-secure-store` calls | `services/keychain.ts` wrapper |
+| Context for theme | `useAppStore((s) => s.colors)` |
+| Inline `StyleSheet` objects in JSX | `styles.xxx` from `StyleSheet.create()` |
+| Magic numbers for spacing/font/radius | Token files (`SPACING`, `FONTSIZE`, `BORDERRADIUS`) |
+| `React.memo` on non-list components | Memoize only in lists or high-frequency renders |

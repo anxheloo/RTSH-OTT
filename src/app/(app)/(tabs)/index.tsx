@@ -7,13 +7,13 @@
  */
 import React, { useState } from 'react';
 import {
-  FlatList,
   Image,
   StyleSheet,
   TouchableOpacity,
   View,
 } from 'react-native';
 
+import { FlashList } from '@shopify/flash-list';
 import { router } from 'expo-router';
 
 import { BORDERRADIUS, FONTSIZE, SPACING } from '@/theme';
@@ -45,14 +45,8 @@ const LiveScreen: React.FC = () => {
   const colors = useAppStore((s) => s.colors);
   const [activeTab, setActiveTab] = useState<ContentTab>('tv');
 
-  const renderChannel = ({ item, index }: { item: Channel; index: number }) => (
-    <View
-      style={[
-        styles.cardWrapper,
-        // Right card in each row gets no right margin (handled by columnWrapperStyle gap)
-        index % 2 === 0 ? styles.cardLeft : styles.cardRight,
-      ]}
-    >
+  const renderChannel = ({ item }: { item: Channel }) => (
+    <View style={styles.cardWrapper}>
       <ChannelCard
         channelId={item.id}
         name={item.name}
@@ -105,13 +99,13 @@ const LiveScreen: React.FC = () => {
         />
       </View>
 
-      {/* Channel grid */}
-      <FlatList
+      {/* Channel grid — FlashList v2, 2-column, spacing via item margins + separator */}
+      <FlashList
         data={CHANNELS}
         renderItem={renderChannel}
-        keyExtractor={(item) => item.id}
+        keyExtractor={(item: Channel) => item.id}
         numColumns={2}
-        columnWrapperStyle={styles.columnWrapper}
+        ItemSeparatorComponent={() => <View style={{ height: SPACING.space_10 }} />}
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
         testID="live-channel-grid"
@@ -194,15 +188,10 @@ const styles = StyleSheet.create({
     paddingTop: SPACING.space_10,
     paddingBottom: SPACING.space_24,
   },
-  columnWrapper: {
-    gap: SPACING.space_10,
-    marginBottom: SPACING.space_10,
-  },
   cardWrapper: {
     flex: 1,
+    paddingHorizontal: 5,
   },
-  cardLeft: {},
-  cardRight: {},
 });
 
 export default LiveScreen;
