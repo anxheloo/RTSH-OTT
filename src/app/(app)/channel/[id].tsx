@@ -1,9 +1,9 @@
 /**
  * Channel modal — full-screen live player for a specific channel.
- * Same as player/[id] for now; will expand with EPG sidebar in a future pass.
+ * Stream URL and channel name resolved from query hooks.
  *
- * TODO(anx 2026-06-02): add EPG strip below player once channels + EPG
- * query hooks land (5.X.3).
+ * TODO(anx 2026-06-02): add EPG strip below player once EPG query hook
+ * integration lands in a future pass.
  */
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
@@ -11,20 +11,27 @@ import { StyleSheet, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 
 import { useAppStore } from '@/store/useAppStore';
+import { useChannelQuery, useChannelStreamQuery } from '@/api/queries';
+import { FullScreenLoader } from '@/components/Layout';
 import LivePlayer from '@/components/Media/LivePlayer';
-
-const STUB_STREAM_URL = 'https://stream.rtsh.al/rtsh1/live.m3u8';
 
 const ChannelScreen: React.FC = () => {
   const colors = useAppStore((s) => s.colors);
   const { id } = useLocalSearchParams<{ id: string }>();
 
+  const { stream, isLoading: streamLoading } = useChannelStreamQuery(id ?? '');
+  const { channel } = useChannelQuery(id ?? '');
+
+  if (streamLoading) {
+    return <FullScreenLoader />;
+  }
+
   return (
     <View style={[styles.screen, { backgroundColor: colors.background }]}>
       <LivePlayer
         channelId={id ?? ''}
-        streamUrl={STUB_STREAM_URL}
-        channelName={id ?? ''}
+        streamUrl={stream?.hlsUrl ?? ''}
+        channelName={channel?.name ?? id ?? ''}
         onClose={() => router.back()}
       />
     </View>

@@ -8,32 +8,12 @@ import { StyleSheet, TouchableOpacity, View } from 'react-native';
 
 import { FONTSIZE, SPACING } from '@/theme';
 import { useAppStore } from '@/store/useAppStore';
+import { useRadioStationsQuery } from '@/api/queries';
 import ReusableText from '@/components/Inputs/ReusableText';
+import { FullScreenLoader } from '@/components/Layout';
 import TabHeader from '@/components/Layout/TabHeader';
 import RadioPlayer from '@/components/Media/RadioPlayer';
-
-type RadioStation = {
-  id: string;
-  name: string;
-  streamUrl: string;
-  genre: string;
-};
-
-const RADIO_STATIONS: RadioStation[] = [
-  { id: 'rtsh-radio1', name: 'RTSH Radio 1', streamUrl: 'https://stream.rtsh.al/radio1/live.m3u8', genre: 'Lajme & Muzikë' },
-  { id: 'rtsh-radio2', name: 'RTSH Radio 2', streamUrl: 'https://stream.rtsh.al/radio2/live.m3u8', genre: 'Muzikë Popullore' },
-  { id: 'rtsh-radio3', name: 'RTSH Radio 3', streamUrl: 'https://stream.rtsh.al/radio3/live.m3u8', genre: 'Klasike' },
-  { id: 'rtsh-radiotirana', name: 'Radio Tirana', streamUrl: 'https://stream.rtsh.al/radiotirana/live.m3u8', genre: 'Lajme' },
-  { id: 'rtsh-radiokorca', name: 'Radio Korça', streamUrl: 'https://stream.rtsh.al/radiokorca/live.m3u8', genre: 'Rajonale' },
-  { id: 'rtsh-radiogjirokastres', name: 'Radio Gjirokastrës', streamUrl: 'https://stream.rtsh.al/radiogjk/live.m3u8', genre: 'Rajonale' },
-  { id: 'rtsh-radiodurres', name: 'Radio Durrësit', streamUrl: 'https://stream.rtsh.al/radiodurres/live.m3u8', genre: 'Rajonale' },
-  { id: 'rtsh-radiovlora', name: 'Radio Vlorës', streamUrl: 'https://stream.rtsh.al/radiovlora/live.m3u8', genre: 'Rajonale' },
-  { id: 'rtsh-radioelbasani', name: 'Radio Elbasanit', streamUrl: 'https://stream.rtsh.al/radioelbasani/live.m3u8', genre: 'Rajonale' },
-  { id: 'rtsh-radiofier', name: 'Radio Fierit', streamUrl: 'https://stream.rtsh.al/radiofier/live.m3u8', genre: 'Rajonale' },
-  { id: 'rtsh-radioberat', name: 'Radio Beratit', streamUrl: 'https://stream.rtsh.al/radioberat/live.m3u8', genre: 'Rajonale' },
-  { id: 'rtsh-radiokukes', name: 'Radio Kukësit', streamUrl: 'https://stream.rtsh.al/radiokukes/live.m3u8', genre: 'Rajonale' },
-  { id: 'rtsh-radioshkoder', name: 'Radio Shkodrës', streamUrl: 'https://stream.rtsh.al/radioshkoder/live.m3u8', genre: 'Rajonale' },
-];
+import type { RadioStation } from '@/types/domain';
 
 const StationRow: React.FC<{ station: RadioStation; isActive: boolean; onPress: () => void }> = ({
   station,
@@ -77,6 +57,11 @@ const StationRow: React.FC<{ station: RadioStation; isActive: boolean; onPress: 
 const RadioScreen: React.FC = () => {
   const colors = useAppStore((s) => s.colors);
   const [activeStation, setActiveStation] = useState<RadioStation | null>(null);
+  const { stations, isLoading } = useRadioStationsQuery();
+
+  if (isLoading && stations.length === 0 && !activeStation) {
+    return <FullScreenLoader />;
+  }
 
   if (activeStation) {
     return (
@@ -107,7 +92,7 @@ const RadioScreen: React.FC = () => {
   return (
     <View style={[styles.screen, { backgroundColor: colors.background }]}>
       <TabHeader title="Radio" />
-      {RADIO_STATIONS.map((station) => (
+      {stations.map((station) => (
         <StationRow
           key={station.id}
           station={station}

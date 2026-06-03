@@ -1,6 +1,7 @@
 /**
  * Catchup tab — catch-up TV / VOD content.
- * Placeholder data until 5.X.1 (domain types) + 5.X.3 (query hooks) land.
+ * Fetches items from the mock/API via useCatchupQuery.
+ * Duration in seconds formatted to "X min"; airDate formatted relative to today.
  */
 import React from 'react';
 import { StyleSheet, TouchableOpacity, View } from 'react-native';
@@ -9,52 +10,58 @@ import { router } from 'expo-router';
 
 import { BORDERRADIUS, FONTSIZE, SPACING } from '@/theme';
 import { useAppStore } from '@/store/useAppStore';
+import { useCatchupQuery } from '@/api/queries';
 import AnimatedFlashList from '@/components/AnimatedFlashList';
 import { EmptyCatchupState } from '@/components/empty';
 import ReusableText from '@/components/Inputs/ReusableText';
+import { FullScreenLoader } from '@/components/Layout';
 import TabHeader from '@/components/Layout/TabHeader';
 import ReusableImage from '@/components/Media/ReusableImage';
+import type { CatchupItem } from '@/types/domain';
 
-type CatchupItem = {
-  id: string;
-  title: string;
-  channelName: string;
-  date: string;
-  duration: string;
-  thumbnailUri?: string;
-};
+function formatDuration(seconds: number): string {
+  return `${Math.round(seconds / 60)} min`;
+}
 
-const PLACEHOLDER_CATCHUP: CatchupItem[] = [
-  { id: 'c1', title: 'Lajmet e Orës 18:00', channelName: 'RTSH 1 HD', date: 'Sot', duration: '30 min' },
-  { id: 'c2', title: 'Debat Politik', channelName: 'RTSH 1 HD', date: 'Sot', duration: '60 min' },
-  { id: 'c3', title: 'Dokumentar i Natyrës', channelName: 'RTSH 2', date: 'Dje', duration: '45 min' },
-  { id: 'c4', title: 'Kronikë Ekonomike', channelName: 'RTSH 24', date: 'Dje', duration: '20 min' },
-  { id: 'c5', title: 'Kampionati i Futbollit', channelName: 'RTSH Sport HD', date: '2 ditë më parë', duration: '90 min' },
-  { id: 'c6', title: 'Koncert Muzike Popullore', channelName: 'RTSH Muzikë', date: '2 ditë më parë', duration: '120 min' },
-];
+function formatAirDate(iso: string): string {
+  const today = new Date();
+  const air = new Date(iso);
+  const todayStr = today.toISOString().split('T')[0];
+  const airStr = air.toISOString().split('T')[0];
+
+  if (airStr === todayStr) return 'Sot';
+
+  const yesterday = new Date(today);
+  yesterday.setDate(today.getDate() - 1);
+  if (airStr === yesterday.toISOString().split('T')[0]) return 'Dje';
+
+  const diffMs = today.getTime() - air.getTime();
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+  return `${diffDays} ditë më parë`;
+}
 
 const CatchupCard: React.FC<{ item: CatchupItem }> = ({ item }) => {
   const colors = useAppStore((s) => s.colors);
   return (
     <TouchableOpacity
       style={[styles.card, { backgroundColor: colors.surface }]}
-      onPress={() => router.push(`/(app)/player/${item.id}`)}
+      onPress={() => router.push(`/(app)/program/${item.id}`)}
       activeOpacity={0.8}
       testID={`catchup-card-${item.id}`}
     >
       <View style={[styles.thumbnail, { backgroundColor: colors.videoPlaceholderBg }]}>
-        {item.thumbnailUri ? (
-          <ReusableImage source={item.thumbnailUri} width={112} height={72} />
+        {item.thumbnail ? (
+          <ReusableImage source={item.thumbnail} width={112} height={72} />
         ) : null}
         <View style={[styles.durationBadge, { backgroundColor: 'rgba(0,0,0,0.7)' }]}>
           <ReusableText fontSize={FONTSIZE.xs} themeColor="text">
-            {item.duration}
+            {formatDuration(item.duration)}
           </ReusableText>
         </View>
       </View>
       <View style={styles.cardInfo}>
         <ReusableText fontSize={FONTSIZE.xs} themeColor="textMuted" numberOfLines={1}>
-          {item.channelName} · {item.date}
+          {item.channelName} · {formatAirDate(item.airDate)}
         </ReusableText>
         <ReusableText fontSize={FONTSIZE.sm} themeColor="text" numberOfLines={2}>
           {item.title}
@@ -66,12 +73,17 @@ const CatchupCard: React.FC<{ item: CatchupItem }> = ({ item }) => {
 
 const CatchupScreen: React.FC = () => {
   const colors = useAppStore((s) => s.colors);
+  const { items, isLoading } = useCatchupQuery();
+
+  if (isLoading && items.length === 0) {
+    return <FullScreenLoader />;
+  }
 
   return (
     <View style={[styles.screen, { backgroundColor: colors.background }]}>
       <TabHeader title="Catchup" />
       <AnimatedFlashList
-        data={PLACEHOLDER_CATCHUP}
+        data={items}
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => <CatchupCard item={item} />}
         emptyComponent={<EmptyCatchupState />}

@@ -19,7 +19,7 @@ const PROGRAMS_PER_CHANNEL = [
 
 let epgIdCounter = 0;
 
-function generateDayEpg(channelId: string, dateStr: string) {
+function generateDayEpg(channelId: string, channelName: string, dateStr: string) {
   const items = [];
   let cursor = new Date(`${dateStr}T06:00:00`);
 
@@ -31,6 +31,7 @@ function generateDayEpg(channelId: string, dateStr: string) {
     items.push({
       id: `epg-${channelId}-${dateStr}-${epgIdCounter}`,
       channelId,
+      channelName,
       title: prog.title,
       description: `${prog.title} — emision i transmetuar nga RTSH TANI.`,
       startTime: start.toISOString(),
@@ -63,7 +64,7 @@ export function getMockEpg(channelId?: string, date?: string): object[] {
   const items: object[] = [];
   for (const ch of channels) {
     for (const d of dates) {
-      items.push(...generateDayEpg(ch.id, d));
+      items.push(...generateDayEpg(ch.id, ch.name, d));
     }
   }
   return items;

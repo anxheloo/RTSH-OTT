@@ -1,9 +1,6 @@
 /**
  * Live tab — home screen showing RTSH TV channel grid.
  * Layout per Figma screen 3 (2026-06-02).
- *
- * TODO(anx 2026-06-02): Replace static CHANNELS with useChannels() query once
- * the channels API is wired. Thumbnails currently use placeholder bg.
  */
 import React, { useState } from 'react';
 import {
@@ -19,37 +16,29 @@ import { router } from 'expo-router';
 import { BORDERRADIUS, FONTSIZE, SPACING } from '@/theme';
 import { Fonts } from '@/theme/fonts';
 import { useAppStore } from '@/store/useAppStore';
+import { useChannelsQuery } from '@/api/queries';
 import ChannelCard from '@/components/channels/ChannelCard';
 import ReusableText from '@/components/Inputs/ReusableText';
+import { FullScreenLoader } from '@/components/Layout';
+import type { Channel } from '@/types/domain';
 
 type ContentTab = 'search' | 'tv' | 'radio';
-
-type Channel = {
-  id: string;
-  name: string;
-};
-
-/** Static placeholder data — swap for useChannels() when API layer lands */
-const CHANNELS: Channel[] = [
-  { id: 'rtsh1', name: 'RTSH 1 HD' },
-  { id: 'rtsh2', name: 'RTSH 2' },
-  { id: 'rtsh3', name: 'RTSH 3' },
-  { id: 'rtsh24', name: 'RTSH 24' },
-  { id: 'rtshsport', name: 'RTSH Sport HD' },
-  { id: 'rtshfem', name: 'RTSH Fëmijë' },
-  { id: 'rtshmu', name: 'RTSH Muzikë' },
-  { id: 'rtshklan', name: 'RTSH Klan' },
-];
 
 const LiveScreen: React.FC = () => {
   const colors = useAppStore((s) => s.colors);
   const [activeTab, setActiveTab] = useState<ContentTab>('tv');
+  const { channels, isLoading } = useChannelsQuery();
+
+  if (isLoading && channels.length === 0) {
+    return <FullScreenLoader />;
+  }
 
   const renderChannel = ({ item }: { item: Channel }) => (
     <View style={styles.cardWrapper}>
       <ChannelCard
         channelId={item.id}
         name={item.name}
+        thumbnailUri={item.logoUrl}
         onPress={() => router.push(`/(app)/channel/${item.id}`)}
       />
     </View>
@@ -101,7 +90,7 @@ const LiveScreen: React.FC = () => {
 
       {/* Channel grid — FlashList v2, 2-column, spacing via item margins + separator */}
       <FlashList
-        data={CHANNELS}
+        data={channels}
         renderItem={renderChannel}
         keyExtractor={(item: Channel) => item.id}
         numColumns={2}

@@ -80,7 +80,7 @@ export const handlers: Handler[] = [
   {
     method: 'get',
     test: (u) => /^\/streams\//.test(u),
-    respond: () => ({ data: { streamUrl: MOCK_LIVE_STREAM, headers: {} } }),
+    respond: () => ({ data: { hlsUrl: MOCK_LIVE_STREAM, headers: {} } }),
   },
 
   // ── EPG ────────────────────────────────────────────────────────────────────

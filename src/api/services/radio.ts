@@ -1,12 +1,14 @@
+import type { RadioStation } from '@/types/domain';
+
 import { apiClient } from '../client';
 import { RADIO_ROUTES } from '../endpoints';
 
-export async function getRadioStations(): Promise<unknown[]> {
-  const { data } = await apiClient.get<unknown[]>(RADIO_ROUTES.LIST);
-  return data;
+export async function getRadioStations(): Promise<RadioStation[]> {
+  const { data } = await apiClient.get<{ stations: RadioStation[] }>(RADIO_ROUTES.LIST);
+  return data.stations;
 }
 
-export async function getRadioById(id: string): Promise<unknown> {
-  const { data } = await apiClient.get<unknown>(RADIO_ROUTES.BY_ID(id));
-  return data;
+export async function getRadioById(id: string): Promise<RadioStation> {
+  const { data } = await apiClient.get<{ station: RadioStation }>(RADIO_ROUTES.BY_ID(id));
+  return data.station;
 }
