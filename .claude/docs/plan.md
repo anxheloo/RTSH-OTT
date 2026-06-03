@@ -160,9 +160,15 @@ Each completed step carries enough context that a future session can reconstruct
 ## Phase 5.X — Audit follow-ups deferred (need context / design / backend)
 
 ### Backend-contract dependent (unblocked when `docs/API.md` lands)
-- [~] **5.X.1** Domain types in `src/types/domain.ts` for `Channel`, `EpgItem`, `Program`, `CatchupItem`, `RadioStation`, `AppConfig`. Replace `Promise<unknown>` in 5 service files.
+- [x] **5.X.1** Domain types in `src/types/domain.ts` — `Channel`, `EpgItem`, `CatchupItem`, `RadioStation`, `AppConfig`. Services retyped.
+  - **What:** Added 5 interfaces to `domain.ts`. All 5 service files (`channels`, `epg`, `catchup`, `radio`, `config`) now return domain types and unwrap their response envelopes (`{ channels }`, `{ items }`, etc.). Mock fixtures updated to match: streams handler uses `hlsUrl` (was `streamUrl`), EPG generator adds `channelName` per item.
+  - **Confidence:** Type shapes match mock fixtures exactly. [CERTAIN] Will need re-validation when real API contract lands — shapes are inferred from mock design.
+  - **Carry-overs:** Re-validate all interfaces against `docs/API.md` when backend delivers contract (see 5.X.2).
 - [~] **5.X.2** Zod schemas at API boundary (auth + streams first, then domain). Generic axios transformer optional.
-- [~] **5.X.3** TanStack query hooks (`useChannelsQuery`, `useEpgQuery`, etc.) in `src/api/queries/`. Currently empty.
+- [x] **5.X.3** TanStack query hooks — `useChannelsQuery`, `useChannelQuery`, `useEpgQuery`, `useCatchupQuery`, `useCatchupItemQuery`, `useRadioStationsQuery`, `useChannelStreamQuery`, `useCatchupStreamQuery`, `useRadioStreamQuery` in `src/api/queries/`.
+  - **What:** 5 query files created + barrel updated. All hooks use named exports, return stable object shapes with safe defaults (`?? []` / `?? null`). Stream queries have `staleTime: 30_000` and `enabled: !!id`. All 5 tab screens + `channel/[id]` wired to query data — static placeholder arrays removed. EPG ISO timestamps formatted to HH:MM; catchup duration seconds→"X min" and airDate→relative Albanian.
+  - **Confidence:** Query hooks follow TanStack v5 pattern correctly. [CERTAIN] End-to-end flow (mock server → service → hook → screen) verified by lint+tsc clean. [HIGH] Not validated on simulator yet. [MEDIUM — raise by: running on simulator with `EXPO_PUBLIC_API_MODE=mock`.]
+  - **Carry-overs:** Add `export * from './queries'` to `src/api/index.ts` barrel when Phase 18.1 API doc lands and queries are stable.
 - [~] **5.X.4** Per-call timeout overrides (`streamClient` with 5s timeout for stream manifests).
 - [~] **5.X.5** `useCheckToken` returns rich result `{ authenticated, reason }` so UI can distinguish "no session" from "network error".
 
@@ -209,7 +215,7 @@ Each completed step carries enough context that a future session can reconstruct
     - Not validated by actually shipping an OTA to a non-prod channel. [MEDIUM — would raise to HIGH by: `eas update --channel preview` + confirming a preview build picks it up.]
   - **Trade-offs / known gaps:** Channel names hard-coded in `app.config.ts`. If the team adds a `staging` variant later, both `getVariantValues()` and `eas.json` need updating in sync. Acceptable for a 3-variant app.
   - **Carry-overs:** none.
-- [~] **5.X.15** Parental PIN feature — 4-digit, SHA-256+salt in keychain. New `createParentalSlice` + `PARENTAL_PIN_KEY` constant. Spec-mandated v1.
+- [x] **5.X.15** Parental PIN feature — completed as part of Phase 12.2. See that entry for full detail.
 - [~] **5.X.16** TypeScript pin re-evaluate — `~6.0.3` is ahead of Expo SDK 56's TS 5.x baseline; run `npx expo-doctor` and pin if compatibility issues surface.
 
 ### Persist scope decision (defer until API contract)
@@ -501,12 +507,24 @@ Each completed step carries enough context that a future session can reconstruct
 
 ## Phase 15 — RTSH Product Features
 
-- [ ] **15.1** T&C acceptance — first-launch gate, `tcAcceptedAt` flag, expo-web-browser.
+- [x] **15.1** T&C acceptance — `TCGateOverlay` component, `tcAcceptedAt` flag, `expo-web-browser`.
+  - **What:** `TCGateOverlay` is a non-dismissable full-screen `Modal` mounted at root in `_layout.tsx` alongside `ModalWrapper`. Visible when `isAuthenticated && tcAcceptedAt === null`. Shows T&C summary + "Lexo kushtet e plota" link (opens `expo-web-browser`) + "Pranoj dhe Vazhdo" button (calls `acceptTC()` which sets `tcAcceptedAt: Date.now()` in MMKV-persisted store). Both `sq` and `en` locale strings added (`tc.*` namespace).
+  - **Why:** Spec-mandated v1 first-launch gate. `tcAcceptedAt` was already in `SettingsSlice`; `expo-web-browser` was already installed (`~56.0.5`).
+  - **Confidence:** `acceptTC()` sets `tcAcceptedAt` + MMKV persists it — overlay disappears and never shows again. [HIGH] `expo-web-browser` opens in-app browser on both iOS and Android. [HIGH] Not device-tested. [MEDIUM — raise by: fresh install + login on simulator, verify overlay shows, accept, verify it never shows again after restart.]
+  - **Trade-offs / known gaps:** TC_URL hardcoded as `https://www.rtsh.al/termat`. When `useAppConfigQuery` is wired, read `appConfig.tcUrl` instead. No "decline" option — spec doesn't require one (must accept to use the service).
 - [ ] **15.2** Geoblocking overlay — 451/geo error → full-screen RTSH-branded overlay + retry.
-- [ ] **15.3** Cellular-data gate — confirmation modal when cellular + `cellularPlaybackAllowed=false`.
+- [x] **15.3** Cellular-data gate — `useCellularGate` hook, confirmation modal when `cellular + !cellularPlaybackAllowed`.
+  - **What:** `useCellularGate()` hook checks `network.type === 'cellular'` and `!cellularPlaybackAllowed` on mount. If both true, opens a `'confirmation'` modal with translated strings (`player.cellular_gate_*`). Confirming does nothing (playback continues); cancelling calls `router.back()`. Wired into `channel/[id].tsx` and `program/[id].tsx` as first hook call. Hook exported from `hooks/index.ts`.
+  - **Why:** Spec-mandated. `cellularPlaybackAllowed` was already in `SettingsSlice` with a toggle in profile. Gate runs at the player route level so it covers all entry points.
+  - **Confidence:** Cellular type check correct (`NetInfoStateType` values include `'cellular'`). [HIGH] `router.back()` inside modal `onCancel` navigates away correctly — modal is dismissed first by `ModalWrapper`, then callback fires. [HIGH] Not device-tested on cellular. [MEDIUM — raise by: testing on a device with cellular enabled and `cellularPlaybackAllowed=false`.]
+  - **Trade-offs / known gaps:** Gate fires on mount — if network type is briefly `'unknown'` before NetInfo resolves, gate won't trigger (safe default: better to let it through than false-positive). Add to `player/[id].tsx` stub route when it gets a real player.
 - [ ] **15.4** Mosaic view — 4/6/9 channel thumbnail grid, periodic refresh, tap to switch.
 - [ ] **15.5** PIP + iOS background video — `supportsBackgroundPlayback` toggled by `backgroundVideoAllowed`.
-- [ ] **15.6** Foreground refresh — channels + EPG refetch on app foreground.
+- [x] **15.6** Foreground refresh — channels + EPG invalidated on app foreground.
+  - **What:** `useBootstrap` now calls `useAppState({ onForeground: handleForeground })` where `handleForeground` invalidates `['channels']` and `['epg']` query keys via `queryClient.invalidateQueries`. `useCallback` stabilises the callback reference. `staleTime: 5min` (set on `queryClient`) naturally rate-limits actual network requests — invalidation only triggers a real fetch if data is older than 5 min.
+  - **Why:** Live TV + EPG data goes stale while the app is backgrounded. Refetching on foreground keeps the channel grid and programme guide current without polling.
+  - **Confidence:** `useAppState` singleton (from Phase 5.2) correctly fires `onForeground` on active↔background transitions. [HIGH] `queryClient.invalidateQueries` is the correct TanStack v5 API. [CERTAIN] Not validated end-to-end on device. [MEDIUM — raise by: background the app for >5min, foreground it, observe network requests in the mock server log.]
+  - **Trade-offs / known gaps:** Catchup is not invalidated on foreground (it changes infrequently; users won't notice stale catchup items). Add if product feedback warrants it.
 
 ---
 

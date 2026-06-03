@@ -1,11 +1,13 @@
-import { useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { Appearance } from 'react-native';
 
 import { resolveColors } from '@/store/createThemeSlice';
 import { useAppStore } from '@/store/useAppStore';
+import { queryClient } from '@/api/client';
 import { refreshAccessToken, setupAuthRefresh } from '@/api/mutations/authRefresh';
 import { initI18n } from '@/i18n';
 
+import { useAppState } from './useAppState';
 import { useCheckToken } from './useCheckToken';
 import { type NetworkState,useNetworkReconnect } from './useNetworkReconnect';
 import { useOTA } from './useOTA';
@@ -57,6 +59,14 @@ export function useBootstrap(): BootstrapState {
       void refreshAccessToken();
     }
   }, [auth.data?.authenticated]);
+
+  // Invalidate live data on foreground so stale channels / EPG auto-refetch.
+  // staleTime (5 min) naturally rate-limits how often a real network request fires.
+  const handleForeground = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ['channels'] });
+    queryClient.invalidateQueries({ queryKey: ['epg'] });
+  }, []);
+  useAppState({ onForeground: handleForeground });
 
   useEffect(() => {
     const sub = Appearance.addChangeListener(() => {

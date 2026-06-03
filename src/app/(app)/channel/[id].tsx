@@ -12,10 +12,12 @@ import { router, useLocalSearchParams } from 'expo-router';
 
 import { useAppStore } from '@/store/useAppStore';
 import { useChannelQuery, useChannelStreamQuery } from '@/api/queries';
+import { useCellularGate } from '@/hooks/useCellularGate';
 import { FullScreenLoader } from '@/components/Layout';
 import LivePlayer from '@/components/Media/LivePlayer';
 
 const ChannelScreen: React.FC = () => {
+  useCellularGate();
   const colors = useAppStore((s) => s.colors);
   const { id } = useLocalSearchParams<{ id: string }>();
 

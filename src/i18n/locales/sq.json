@@ -77,7 +77,15 @@
     "error": "Gabim gjatë luajtjes",
     "retry": "Provo përsëri",
     "quality": "Cilësia",
-    "fullscreen": "Ekran i plotë"
+    "fullscreen": "Ekran i plotë",
+    "cellular_gate_title": "Rrjet celular",
+    "cellular_gate_message": "Po luani video me rrjet celular. Kjo mund të konsumojë të dhënat tuaja. Doni të vazhdoni?"
+  },
+  "tc": {
+    "title": "Kushtet e Shërbimit",
+    "summary": "Duke pranuar, ju bini dakord me Kushtet e Shërbimit dhe Politikën e Privatësisë të RTSH TANI.",
+    "read_full": "Lexo kushtet e plota",
+    "accept": "Pranoj dhe Vazhdo"
   },
   "epg": {
     "title": "EPG",

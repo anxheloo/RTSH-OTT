@@ -77,7 +77,15 @@
     "error": "Playback error",
     "retry": "Retry",
     "quality": "Quality",
-    "fullscreen": "Fullscreen"
+    "fullscreen": "Fullscreen",
+    "cellular_gate_title": "Cellular network",
+    "cellular_gate_message": "You are about to stream over cellular data. This may use your mobile data allowance. Do you want to continue?"
+  },
+  "tc": {
+    "title": "Terms of Service",
+    "summary": "By accepting, you agree to the Terms of Service and Privacy Policy of RTSH TANI.",
+    "read_full": "Read full terms",
+    "accept": "Accept and Continue"
   },
   "epg": {
     "title": "EPG",

@@ -11,11 +11,13 @@ import { StyleSheet, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 
 import { useAppStore } from '@/store/useAppStore';
+import { useCellularGate } from '@/hooks/useCellularGate';
 import VodPlayer from '@/components/Media/VodPlayer';
 
 const STUB_VOD_URL = 'https://stream.rtsh.al/catchup/stub.m3u8';
 
 const ProgramScreen: React.FC = () => {
+  useCellularGate();
   const colors = useAppStore((s) => s.colors);
   const { id } = useLocalSearchParams<{ id: string }>();
 
