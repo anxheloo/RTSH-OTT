@@ -13,6 +13,13 @@ import { queryClient } from '@/api/client';
 import { useBootstrap } from '@/hooks/useBootstrap';
 import ModalWrapper from '@/components/ModalWrapper';
 
+// Start mock server before any React rendering so the first API call is intercepted.
+// Tree-shaken in production — the conditional is evaluated at module load time.
+if (process.env.EXPO_PUBLIC_API_MODE === 'mock') {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  require('@/api/mocks/server').initMockServer();
+}
+
 SplashScreen.preventAutoHideAsync();
 
 function RootLayoutInner() {

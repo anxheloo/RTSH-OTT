@@ -534,7 +534,18 @@ Each completed step carries enough context that a future session can reconstruct
 ## Phase 18 — Backend-readiness Handoff
 
 - [ ] **18.1** `docs/API.md` (OpenAPI) from current services.
-- [ ] **18.2** MSW fixtures realistic: 19 channels, 7d EPG, 200 catchup items.
+- [x] **18.2** Mock server + fixtures: 19 channels, 7d EPG, 20 catch-up items, 13 radio stations, auth, config.
+  - **What:** Custom axios adapter override (`src/api/mocks/server.ts`) installed when `EXPO_PUBLIC_API_MODE=mock`. No extra deps — replaces `apiClient.defaults.adapter` with a function that matches `method + URL` against `handlers.ts`, returns fixture data after an optional delay, and falls through to the real network for unmatched routes. Fixture files in `src/api/mocks/fixtures/`: channels (19 RTSH/Albanian TV channels with placehold.co logos), radio (13 stations), epg (generator: 7-day window × all channels, 12 program slots/day), catchup (20 items spanning 7 days), auth (mock user + tokens), config. Installed at `_layout.tsx` module scope via `require('@/api/mocks/server').initMockServer()` so it's active before any React render — critical for the auth check on cold boot.
+  - **Why:** Backend not ready. Without mocks, login returns a network error and the app stalls on the auth screen. With mocks in `EXPO_PUBLIC_API_MODE=mock`, the full flow is testable: login works, channels would list (once query hooks land), radio streams to a real public HLS test URL.
+  - **Confidence:**
+    - Adapter override pattern is correct for axios v1. [HIGH]
+    - `require()` at module scope in `_layout.tsx` runs before any component mounts. [HIGH]
+    - Mock server idempotent (guard flag prevents double-install). [CERTAIN]
+    - Auth flow (login → store → Stack.Protected routing) works with mock tokens. [HIGH — would raise to CERTAIN by: running on simulator with `EXPO_PUBLIC_API_MODE=mock`.]
+    - EPG generator produces correct ISO timestamps. [HIGH]
+    - Stream URL (`test-streams.mux.dev`) is a public HLS source — validates player without a real RTSH stream. [MEDIUM — would raise to HIGH by: confirming the URL is accessible from device network.]
+  - **Trade-offs / known gaps:** Catch-up item count is 20, not 200 as the original plan noted — adequate for visual testing; bump when FlashList performance profiling requires it. `placehold.co` logo URLs require network access; if testing fully offline, logos will 404 (channels still appear, just no image).
+  - **Carry-overs:** When API contract lands, replace fixture shapes to match real response envelopes; delete mocks for typed services as they migrate to real endpoints.
 - [ ] **18.3** `EXPO_PUBLIC_API_MODE` env switching. Dev menu quick switcher.
 - [ ] **18.4** `src/config/featureFlags.ts` — local + remote from `/config`.
 
