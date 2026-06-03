@@ -13,6 +13,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { useTranslation } from 'react-i18next';
 
 import { router } from 'expo-router';
 
@@ -33,6 +34,7 @@ type FieldErrors = {
 };
 
 const RegisterScreen: React.FC = () => {
+  const { t } = useTranslation();
   const colors = useAppStore((s) => s.colors);
 
   const [displayName, setDisplayName] = useState('');
@@ -90,7 +92,7 @@ const RegisterScreen: React.FC = () => {
           <ReusableInput
             value={displayName}
             onChangeText={(v) => { setDisplayName(v); clearError('displayName'); }}
-            placeholder="Display Name"
+            placeholder={t('auth.register.display_name_placeholder')}
             autoCapitalize="words"
             autoComplete="name"
             errorText={fieldErrors.displayName}
@@ -102,7 +104,7 @@ const RegisterScreen: React.FC = () => {
           <ReusableInput
             value={email}
             onChangeText={(v) => { setEmail(v); clearError('email'); }}
-            placeholder="Email"
+            placeholder={t('auth.register.email_placeholder')}
             keyboardType="email-address"
             autoCapitalize="none"
             autoComplete="email"
@@ -115,7 +117,7 @@ const RegisterScreen: React.FC = () => {
           <ReusableInput
             value={password}
             onChangeText={(v) => { setPassword(v); clearError('password'); }}
-            placeholder="Password"
+            placeholder={t('auth.register.password_placeholder')}
             isPassword
             autoComplete="new-password"
             errorText={fieldErrors.password}
@@ -127,7 +129,7 @@ const RegisterScreen: React.FC = () => {
           <ReusableInput
             value={confirmPassword}
             onChangeText={(v) => { setConfirmPassword(v); clearError('confirmPassword'); }}
-            placeholder="Confirm Password"
+            placeholder={t('auth.register.confirm_password_placeholder')}
             isPassword
             autoComplete="new-password"
             errorText={fieldErrors.confirmPassword}
@@ -142,12 +144,12 @@ const RegisterScreen: React.FC = () => {
               themeColor="error"
               textAlign="center"
             >
-              {(mutationError as Error).message ?? 'Registration failed. Please try again.'}
+              {(mutationError as Error).message ?? t('auth.register.failed')}
             </ReusableText>
           ) : null}
 
           <ReusableBtn
-            label="Create Account"
+            label={t('auth.register.submit')}
             onPress={handleRegister}
             variant="primary"
             isLoading={isPending}
@@ -170,12 +172,12 @@ const RegisterScreen: React.FC = () => {
               themeColor="textMuted"
               textAlign="center"
             >
-              Already have an account?{' '}
+              {t('auth.register.have_account')}{' '}
               <ReusableText
                 fontSize={FONTSIZE.regular}
                 style={{ color: colors.primary, fontFamily: Fonts.bold }}
               >
-                Sign in
+                {t('auth.register.sign_in')}
               </ReusableText>
             </ReusableText>
           </TouchableOpacity>

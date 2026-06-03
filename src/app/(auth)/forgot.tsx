@@ -13,6 +13,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { useTranslation } from 'react-i18next';
 
 import { router } from 'expo-router';
 
@@ -25,6 +26,7 @@ import ReusableText from '@/components/Inputs/ReusableText';
 import { forgotPasswordSchema } from '@/features/auth/schemas';
 
 const ForgotPasswordScreen: React.FC = () => {
+  const { t } = useTranslation();
   const colors = useAppStore((s) => s.colors);
 
   const [email, setEmail] = useState('');
@@ -72,7 +74,7 @@ const ForgotPasswordScreen: React.FC = () => {
             themeColor="text"
             style={styles.title}
           >
-            Reset Password
+            {t('auth.forgot.title')}
           </ReusableText>
 
           <ReusableText
@@ -80,7 +82,7 @@ const ForgotPasswordScreen: React.FC = () => {
             themeColor="textMuted"
             style={styles.subtitle}
           >
-            Enter your email address and we&apos;ll send you a link to reset your password.
+            {t('auth.forgot.subtitle')}
           </ReusableText>
 
           {sent ? (
@@ -90,7 +92,7 @@ const ForgotPasswordScreen: React.FC = () => {
                 themeColor="success"
                 textAlign="center"
               >
-                Reset link sent! Check your inbox.
+                {t('auth.forgot.success')}
               </ReusableText>
             </View>
           ) : (
@@ -101,7 +103,7 @@ const ForgotPasswordScreen: React.FC = () => {
                   setEmail(v);
                   if (emailError) setEmailError(undefined);
                 }}
-                placeholder="Email"
+                placeholder={t('auth.forgot.email_placeholder')}
                 keyboardType="email-address"
                 autoCapitalize="none"
                 autoComplete="email"
@@ -117,12 +119,12 @@ const ForgotPasswordScreen: React.FC = () => {
                   themeColor="error"
                   textAlign="center"
                 >
-                  {(mutationError as Error).message ?? 'Failed to send reset link.'}
+                  {(mutationError as Error).message ?? t('auth.forgot.failed')}
                 </ReusableText>
               ) : null}
 
               <ReusableBtn
-                label="Send Reset Link"
+                label={t('auth.forgot.submit')}
                 onPress={handleSend}
                 variant="primary"
                 isLoading={isPending}
@@ -147,12 +149,12 @@ const ForgotPasswordScreen: React.FC = () => {
               themeColor="textMuted"
               textAlign="center"
             >
-              Back to{' '}
+              {t('auth.forgot.back_to')}{' '}
               <ReusableText
                 fontSize={FONTSIZE.regular}
                 style={{ color: colors.primary }}
               >
-                Sign in
+                {t('auth.forgot.sign_in')}
               </ReusableText>
             </ReusableText>
           </TouchableOpacity>

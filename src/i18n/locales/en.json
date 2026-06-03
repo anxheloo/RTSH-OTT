@@ -3,9 +3,92 @@
     "ok": "OK",
     "cancel": "Cancel",
     "retry": "Retry",
-    "close": "Close"
+    "close": "Close",
+    "loading": "Loading...",
+    "error": "Error",
+    "back": "Back"
   },
   "offline": {
     "banner": "No internet connection"
+  },
+  "auth": {
+    "login": {
+      "email_placeholder": "Email",
+      "password_placeholder": "Password",
+      "remember_me": "Remember Me",
+      "forgot_password": "Forgot Password?",
+      "submit": "Login",
+      "no_account": "Don't have an account?",
+      "sign_up": "Sign up",
+      "failed": "Login failed. Please try again."
+    },
+    "register": {
+      "display_name_placeholder": "Display Name",
+      "email_placeholder": "Email",
+      "password_placeholder": "Password",
+      "confirm_password_placeholder": "Confirm Password",
+      "submit": "Create Account",
+      "failed": "Registration failed. Please try again.",
+      "have_account": "Already have an account?",
+      "sign_in": "Sign in"
+    },
+    "forgot": {
+      "title": "Reset Password",
+      "subtitle": "Enter your email address and we'll send you a link to reset your password.",
+      "email_placeholder": "Email",
+      "submit": "Send Reset Link",
+      "success": "Reset link sent! Check your inbox.",
+      "failed": "Failed to send reset link.",
+      "back_to": "Back to",
+      "sign_in": "Sign in"
+    }
+  },
+  "profile": {
+    "title": "Profile",
+    "user_default": "User",
+    "theme": {
+      "label": "THEME",
+      "system": "System",
+      "light": "Light",
+      "dark": "Dark"
+    },
+    "language": {
+      "label": "LANGUAGE"
+    },
+    "playback": {
+      "label": "PLAYBACK",
+      "autoplay": "Autoplay",
+      "cellular": "Allow cellular playback",
+      "data_saver": "Data saver"
+    },
+    "app_settings": {
+      "label": "APPLICATION",
+      "haptics": "Haptics",
+      "parental_pin": "Parental PIN",
+      "pin_active": "Active →",
+      "pin_set": "Set →"
+    },
+    "logout": "Logout",
+    "logging_out": "Logging out..."
+  },
+  "player": {
+    "live": "LIVE",
+    "loading": "Loading...",
+    "error": "Playback error",
+    "retry": "Retry",
+    "quality": "Quality",
+    "fullscreen": "Fullscreen"
+  },
+  "epg": {
+    "title": "EPG",
+    "empty": {
+      "title": "No programs",
+      "subtitle": "No programs available"
+    }
+  },
+  "errors": {
+    "api_default": "Something went wrong",
+    "network": "No internet connection",
+    "session_expired": "Session expired"
   }
 }

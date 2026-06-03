@@ -3,9 +3,92 @@
     "ok": "Në rregull",
     "cancel": "Anulo",
     "retry": "Provo përsëri",
-    "close": "Mbyll"
+    "close": "Mbyll",
+    "loading": "Duke ngarkuar...",
+    "error": "Gabim",
+    "back": "Prapa"
   },
   "offline": {
     "banner": "Nuk ka lidhje me internetin"
+  },
+  "auth": {
+    "login": {
+      "email_placeholder": "Email",
+      "password_placeholder": "Fjalëkalimi",
+      "remember_me": "Mbaj mend",
+      "forgot_password": "Keni harruar fjalëkalimin?",
+      "submit": "Hyr",
+      "no_account": "Nuk keni llogari?",
+      "sign_up": "Regjistrohu",
+      "failed": "Identifikimi dështoi. Provoni përsëri."
+    },
+    "register": {
+      "display_name_placeholder": "Emri i ekranit",
+      "email_placeholder": "Email",
+      "password_placeholder": "Fjalëkalimi",
+      "confirm_password_placeholder": "Konfirmo fjalëkalimin",
+      "submit": "Krijo llogari",
+      "failed": "Regjistrimi dështoi. Provoni përsëri.",
+      "have_account": "Keni tashmë llogari?",
+      "sign_in": "Identifikohu"
+    },
+    "forgot": {
+      "title": "Rivendos fjalëkalimin",
+      "subtitle": "Shkruani adresën tuaj të emailit dhe ne do t'ju dërgojmë një lidhje për rivendosjen e fjalëkalimit.",
+      "email_placeholder": "Email",
+      "submit": "Dërgo lidhjen",
+      "success": "Lidhja e rivendosjes u dërgua! Kontrolloni kutinë tuaj hyrëse.",
+      "failed": "Dërgimi i lidhjes dështoi.",
+      "back_to": "Kthehu te",
+      "sign_in": "Identifikohu"
+    }
+  },
+  "profile": {
+    "title": "Profili",
+    "user_default": "Përdorues",
+    "theme": {
+      "label": "TEMA",
+      "system": "Sistemi",
+      "light": "Ndritshme",
+      "dark": "Errët"
+    },
+    "language": {
+      "label": "GJUHA"
+    },
+    "playback": {
+      "label": "LUAJTJA",
+      "autoplay": "Luajtje automatike",
+      "cellular": "Lejo luajtje me rrjet celular",
+      "data_saver": "Kursim i të dhënave"
+    },
+    "app_settings": {
+      "label": "APLIKACIONI",
+      "haptics": "Vibrim",
+      "parental_pin": "PIN Prindëror",
+      "pin_active": "Aktiv →",
+      "pin_set": "Vendos →"
+    },
+    "logout": "Dil",
+    "logging_out": "Duke dalë..."
+  },
+  "player": {
+    "live": "LIVE",
+    "loading": "Duke ngarkuar...",
+    "error": "Gabim gjatë luajtjes",
+    "retry": "Provo përsëri",
+    "quality": "Cilësia",
+    "fullscreen": "Ekran i plotë"
+  },
+  "epg": {
+    "title": "EPG",
+    "empty": {
+      "title": "Asnjë program",
+      "subtitle": "Nuk ka programe të disponueshme"
+    }
+  },
+  "errors": {
+    "api_default": "Diçka shkoi keq",
+    "network": "Nuk ka lidhje me internetin",
+    "session_expired": "Sesioni skadoi"
   }
 }

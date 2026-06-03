@@ -48,7 +48,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     name,
     slug: "rtshtani",
     version: "1.0.0",
-    orientation: "portrait",
+    orientation: "default",
     icon: "./assets/images/icon.png",
     scheme: "rtshtani",
     userInterfaceStyle: "automatic",

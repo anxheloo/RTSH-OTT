@@ -17,6 +17,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { useTranslation } from 'react-i18next';
 
 import { router } from 'expo-router';
 
@@ -35,6 +36,7 @@ type FieldErrors = {
 };
 
 const LoginScreen: React.FC = () => {
+  const { t } = useTranslation();
   const colors = useAppStore((s) => s.colors);
 
   const [email, setEmail] = useState('');
@@ -87,7 +89,7 @@ const LoginScreen: React.FC = () => {
               setEmail(v);
               if (fieldErrors.email) setFieldErrors((e) => ({ ...e, email: undefined }));
             }}
-            placeholder="Email"
+            placeholder={t('auth.login.email_placeholder')}
             keyboardType="email-address"
             autoCapitalize="none"
             autoComplete="email"
@@ -103,7 +105,7 @@ const LoginScreen: React.FC = () => {
               setPassword(v);
               if (fieldErrors.password) setFieldErrors((e) => ({ ...e, password: undefined }));
             }}
-            placeholder="Password"
+            placeholder={t('auth.login.password_placeholder')}
             isPassword
             autoComplete="current-password"
             errorText={fieldErrors.password}
@@ -133,7 +135,7 @@ const LoginScreen: React.FC = () => {
                 fontSize={FONTSIZE.md}
                 style={{ color: colors.text, fontFamily: Fonts.regular }}
               >
-                Remember Me
+                {t('auth.login.remember_me')}
               </ReusableText>
             </TouchableOpacity>
 
@@ -146,7 +148,7 @@ const LoginScreen: React.FC = () => {
                 fontSize={FONTSIZE.md}
                 style={{ color: colors.text, fontFamily: Fonts.regular }}
               >
-                Forgot Password?
+                {t('auth.login.forgot_password')}
               </ReusableText>
             </TouchableOpacity>
           </View>
@@ -159,13 +161,13 @@ const LoginScreen: React.FC = () => {
               textAlign="center"
               style={styles.apiError}
             >
-              {(mutationError as Error).message ?? 'Login failed. Please try again.'}
+              {(mutationError as Error).message ?? t('auth.login.failed')}
             </ReusableText>
           ) : null}
 
           {/* Login button */}
           <ReusableBtn
-            label="Login"
+            label={t('auth.login.submit')}
             onPress={handleLogin}
             variant="primary"
             isLoading={isPending}
@@ -189,12 +191,12 @@ const LoginScreen: React.FC = () => {
               themeColor="textMuted"
               textAlign="center"
             >
-              Don&apos;t have an account?{' '}
+              {t('auth.login.no_account')}{' '}
               <ReusableText
                 fontSize={FONTSIZE.regular}
                 style={{ color: colors.primary, fontFamily: Fonts.bold }}
               >
-                Sign up
+                {t('auth.login.sign_up')}
               </ReusableText>
             </ReusableText>
           </TouchableOpacity>

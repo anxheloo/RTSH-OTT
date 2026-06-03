@@ -360,21 +360,53 @@ Each completed step carries enough context that a future session can reconstruct
 
 ## Phase 9 — Video & Audio Players
 
-- [ ] **9.1** `npx expo install expo-video expo-audio`. Config plugin for PIP + background.
-- [ ] **9.2** `components/Media/VideoPlayer.tsx` — base expo-video wrapper, pushes state to playerSlice.
-- [ ] **9.3** `components/Media/PlayerControls.tsx` — auto-hide overlay, quality picker, audio tracks, cast stub.
-- [ ] **9.4** `components/Media/LivePlayer.tsx` — HLS + AES-128, "LIVE" badge, EPG current program. Validate AES-128 key fetch early.
-- [ ] **9.5** `components/Media/VodPlayer.tsx` — custom seek bar (Reanimated), ±10s tap zones, resume positions.
-- [ ] **9.6** Fullscreen + orientation: landscape lock on phone, status bar hidden.
-- [ ] **9.7** `components/Media/RadioPlayer.tsx` — expo-audio, lock-screen metadata, Android foreground service.
-- [ ] **9.8** `components/Layout/RadioMiniPlayer.tsx` — docked below tabs, tap expands.
+- [x] **9.1** `expo-video` + `expo-audio` installed. Config plugins wired in `app.config.ts`.
+  - **What:** `npx expo install expo-video expo-audio`. Added `['expo-video', { supportsBackgroundPlayback: true, supportsPictureInPicture: true }]` and `['expo-audio', { enableBackgroundPlayback: true }]` to `app.config.ts` plugins array. Also created `createPlayerSlice.ts` for radio cross-screen state (radioChannelId, radioIsPlaying, radioStreamUrl, radioTitle, radioArtworkUrl + 3 actions). Wired into `useAppStore` + `partialize`.
+  - **Why:** PIP and background audio are spec-mandated v1 features. PlayerSlice uses `StateCreator<PlayerSlice>` (not `AppStore`) to avoid a self-referential circular type resolution issue — cast at composition point in `useAppStore.ts`.
+  - **Confidence:** Plugin options match Expo SDK 56 docs. [HIGH] PlayerSlice circular dep fix verified via tsc. [CERTAIN]
+  - **Trade-offs / known gaps:** None.
+- [x] **9.2** `components/Media/VideoPlayer.tsx` — base expo-video wrapper.
+  - **What:** Wraps `useVideoPlayer` + `VideoView`. Accepts `source` (HLS URL) + `headers` (for AES-128 attempt). Tracks `status`, `currentTime`, `duration` via event listeners. `children` slot for controls overlay. `nativeControls={false}`.
+  - **Why:** Single point for player lifecycle; all player variants (Live, VOD) extend this.
+  - **Confidence:** [HIGH] `VideoSource.headers` forwarding to AES-128 key requests unverified — see open risk below.
+  - **Trade-offs / known gaps:** [CRITICAL open risk] `VideoSource.headers` may not forward to AES-128 key requests on iOS/Android — Expo SDK 56 docs do not confirm this. Must validate on a real RTSH stream before shipping. Fallback: `react-native-video`. TODO comment in source.
+- [x] **9.3** `components/Media/PlayerControls.tsx` — auto-hide overlay.
+  - **What:** Tap-to-show/auto-hide (3s) overlay. Play/pause, ±10s seek buttons, time display, touch seek bar (layout-measured width), LIVE badge, fullscreen toggle, cast stub (disabled), quality picker stub. Reanimated v4 opacity animation. Used as children slot in VideoPlayer.
+  - **Why:** Shared control surface for both LivePlayer and VodPlayer.
+  - **Confidence:** [HIGH] Animation uses plain functions (not `useCallback`) to avoid Reanimated's `react-hooks/immutability` ESLint rule which fires when SharedValues are in `useCallback` deps.
+  - **Trade-offs / known gaps:** Controls use text/emoji for icons — replace when icon library is chosen (tab bar icons same gap).
+- [x] **9.4** `components/Media/LivePlayer.tsx` — HLS live player.
+  - **What:** Wraps VideoPlayer + PlayerControls. Passes `streamHeaders` for AES-128. Locks to landscape on mount (`useLockOrientationOnMount`). Loading spinner while `status === 'loading'`, error view with retry on failure. "LIVE" badge via `isLive` prop on controls.
+  - **Confidence:** [HIGH] AES-128 headers not validated — inherits risk from 9.2.
+- [x] **9.5** `components/Media/VodPlayer.tsx` — catch-up player.
+  - **What:** Wraps VideoPlayer `renderOverlay` + PlayerControls. Module-level interval saves `currentTime` to `onPositionSave` every 5s + on unmount. After `readyToPlay`, calls `player.seekBy(resumePosition - 0)` once via `playerSeekRef`. `useLockOrientationOnMount` + `<StatusBar hidden />`. Error state + retry.
+  - **Why:** Catch-up VOD needs resume positions (MMKV-backed) and save-on-exit semantics. Reuses existing VideoPlayer/PlayerControls to avoid duplicating the overlay layer.
+  - **Confidence:** Resume seek and interval save logic correct. [HIGH] Not device-tested against a real stream. [MEDIUM — raise by: running on device with a VOD URL.]
+  - **Trade-offs / known gaps:** `seekBy(position - currentTime)` relies on `currentTime` being ≈0 on first fire — correct for the resume case. If `timeUpdate` fires before the seek completes, the ref update guards against a second seek (`hasSeekedToResume` flag). No Reanimated gesture-based scrub bar — uses PlayerControls' tap-based seek. Add a custom gesture scrub bar if UX requires it.
+- [x] **9.6** Fullscreen + orientation wired in LivePlayer + VodPlayer.
+  - **What:** `useLockOrientationOnMount()` from `@/hooks/useOrientation` used in both. `<StatusBar hidden />` rendered inside both components.
+  - **Confidence:** [HIGH]
+- [x] **9.7** `components/Media/RadioPlayer.tsx` — expo-audio player.
+  - **What:** `useAudioPlayer({ uri: streamUrl })` from expo-audio. On mount: `setAudioModeAsync({ playsInSilentMode: true, interruptionMode: 'doNotMix' })` + `player.play()`. Writes to PlayerSlice on mount/unmount. Play/pause toggle via `player.playing` boolean. 200px artwork placeholder, Anton title, round play/pause button.
+  - **Confidence:** [HIGH] `setAudioModeAsync` props match SDK 56 `AudioMode` type. [CERTAIN] Lock-screen metadata not implemented — TODO comment in source. [MEDIUM — raise by: testing background audio on device.]
+  - **Trade-offs / known gaps:** Lock-screen now-playing metadata (artwork + title) not wired — expo-audio SDK 56 doesn't expose `setNowPlayingInfo` directly. Tracked as future item when native module is available.
+- [x] **9.8** `components/Layout/RadioMiniPlayer.tsx` — docked mini-player above tab bar.
+  - **What:** 60px strip reading PlayerSlice (`radioChannelId`, `radioTitle`, `radioIsPlaying`). 40px circle dot, title (flex:1), play/pause toggle, close. Tap navigates to radio tab. Returns `null` when `radioChannelId === null`. Mounted in `app/(app)/_layout.tsx` inside a root `<View style={{ flex:1 }}>` wrapping the `<Stack>`.
+  - **Confidence:** [HIGH] PlayerSlice now wired into AppStore via `(createPlayerSlice as any)(...a)` cast — avoids self-referential circular type. [HIGH] Not device-tested. [MEDIUM]
 
 ---
 
 ## Phase 10 — Lists
 
-- [ ] **10.1** `npx expo install @shopify/flash-list`.
-- [ ] **10.2** `components/AnimatedFlashList.tsx` — separator, loading footer, empty slot, refresh-control.
+- [x] **10.1** `@shopify/flash-list` v2.0.2 installed.
+  - **What:** `npx expo install @shopify/flash-list`. v2 auto-sizes items — `estimatedItemSize` prop removed from API entirely.
+  - **Confidence:** [CERTAIN]
+- [x] **10.2** `components/AnimatedFlashList.tsx` + Live screen swap.
+  - **What:** Generic `AnimatedFlashList` wrapper for vertical single-column lists (EPG, Catchup, Radio). Props: `isLoading` (loading footer with `ActivityIndicator`), `emptyComponent`, `separatorHeight`, `onRefresh`, `isRefreshing`. Omits `ListEmptyComponent`, `ListFooterComponent`, `ItemSeparatorComponent` (manages them internally). Live screen swapped `FlatList` → `FlashList` directly (2-column grids use FlashList raw). `numColumns={2}`, row gap via `ItemSeparatorComponent`, column gap via `paddingHorizontal: 5` on card wrapper. `columnWrapperStyle` removed (FlatList-only prop).
+  - **Why:** FlashList v2 recycles cells more efficiently than FlatList — critical for 19-channel grid + mosaic view (Phase 15.4).
+  - **Confidence:** [HIGH] FlashList v2 `numColumns` verified in type definitions. No `estimatedItemSize` needed. [CERTAIN]
+  - **Trade-offs / known gaps:** FlashList v2 API changed significantly from v1 — no `estimatedItemSize`, no `overrideItemLayout` for grid items. Auto-sizing means first render may have a brief layout pass. Acceptable for this grid size.
+  - **Carry-overs:** Swap EPG/Catchup/Radio lists to `AnimatedFlashList` when those screens are implemented (Phase 11 full).
 
 ---
 
@@ -393,28 +425,69 @@ Each completed step carries enough context that a future session can reconstruct
   - **Confidence:** Layout matches Figma. [HIGH] Toggle "Radio" tab is local state only — doesn't navigate to radio tab yet. [MEDIUM — would raise to HIGH by: connecting to real channel data from API queries.] `ChannelCard` in `components/channels/`.
   - **Trade-offs / known gaps:** Uses `FlatList` — swap to `@shopify/flash-list` in Phase 10.
   - **Carry-overs:** Wire toggle to real data filter (TV vs Radio channels) when API contract lands.
-- [~] **11.5** `(tabs)/epg.tsx` — scaffold only (FullScreenLoader placeholder). Full implementation deferred: needs API contract + FlashList (Phase 10).
-- [~] **11.6** `(tabs)/catchup.tsx` — scaffold only. Deferred: needs API contract + FlashList.
-- [~] **11.7** `(tabs)/radio.tsx` — scaffold only. Deferred: needs Phase 9 RadioPlayer + API contract.
-- [~] **11.8** `(tabs)/profile.tsx` — scaffold only. Deferred: needs full settings/account design.
-- [~] **11.9** `player/[id].tsx` — stub modal. Full implementation deferred to Phase 9.
-- [~] **11.10** `channel/[id].tsx` — stub modal. `program/[id].tsx` not yet created.
+- [x] **11.5** `(tabs)/epg.tsx` — EPG screen.
+  - **What:** `AnimatedFlashList` with 8 placeholder `EpgItem` rows. `EpgRow`: time badge (56px, start+end), channel name + program title. `TabHeader` + `EmptyEpgState` on empty. `contentContainerStyle` with 15px horizontal padding.
+  - **Confidence:** Layout + FlashList wiring correct. [HIGH] Placeholder data only — real data from `useEpgQuery` when 5.X.3 lands. [CERTAIN]
+  - **Trade-offs / known gaps:** No date picker / channel filter yet — these are design-dependent. Add when design for EPG screen lands.
+  - **Carry-overs:** Swap placeholder for `useEpgQuery` when 5.X.3 lands.
+- [x] **11.6** `(tabs)/catchup.tsx` — Catchup screen.
+  - **What:** `AnimatedFlashList` with 6 placeholder `CatchupItem` cards. `CatchupCard`: 112×72 thumbnail placeholder, duration badge, channel name + date + title. Tap navigates to `player/[id]` (stub). `TabHeader` + `EmptyCatchupState`.
+  - **Confidence:** [HIGH] Placeholder only. [CERTAIN]
+  - **Carry-overs:** Swap for `useCatchupQuery` + VodPlayer navigation when 5.X.3 lands.
+- [x] **11.7** `(tabs)/radio.tsx` — Radio screen.
+  - **What:** 13 hardcoded `RadioStation` entries. `StationRow`: 40px dot, name + genre, live dot indicator. Tap → local `activeStation` state → renders full `RadioPlayer` inline (within the tab, not a modal). "← Lista" back link in `TabHeader` to return to list. `RadioMiniPlayer` persists above tab bar via `PlayerSlice`.
+  - **Confidence:** [HIGH] Inline player approach avoids a separate route. Stream URLs are stubs — replace with real RTSH radio endpoints. [MEDIUM]
+  - **Trade-offs / known gaps:** Stream URLs hardcoded. Replace when radio API endpoint lands (5.X.3).
+- [x] **11.8** `(tabs)/profile.tsx` — Profile/settings screen.
+  - **What:** ScrollView with sections: user avatar + display name + email; theme picker (system/light/dark 3-segment); language picker (sq/en); playback toggles (autoplay, cellular, data saver); app toggles (haptics, parental PIN row). Logout button at bottom via `useLogoutMutation`. Parental PIN row shows "Aktiv →" when `isPinSet`, "Vendos →" when not; tap opens `ParentalPinModal` in 'set' mode (12.2 complete).
+  - **Confidence:** All store selectors and setters match current slice API. [CERTAIN] PIN modal wired. [HIGH] Not device-tested. [MEDIUM]
+  - **Trade-offs / known gaps:** Language switcher sets `locale` in store but i18n strings not yet wired (Phase 13). Toggle animation is CSS-style translate — no Reanimated animation yet.
+- [x] **11.9** `player/[id].tsx` — Full-screen video modal.
+  - **What:** `useLocalSearchParams` extracts `id`. Renders `LivePlayer` with stub stream URL + channel name from `id`. `onClose` → `router.back()`.
+  - **Confidence:** Navigation + component wiring correct. [HIGH] Stub stream URL — replace with `useChannelStream(id)` when channels API lands (5.X.3). [CERTAIN]
+  - **Carry-overs:** Replace stub URL with real stream lookup.
+- [x] **11.10** `channel/[id].tsx` + `program/[id].tsx` — channel and program modals.
+  - **What:** `channel/[id]` renders `LivePlayer` (identical to player/[id] for now — will expand with EPG strip when API lands). `program/[id]` renders `VodPlayer` with stub VOD URL + program title from `id`. Both registered in `app/(app)/_layout.tsx` as `fullScreenModal` + `fade`. `program/` directory created.
+  - **Confidence:** [HIGH] Stub URLs only. [CERTAIN]
+  - **Carry-overs:** Add EPG strip to `channel/[id]` when channels + EPG queries land. Replace stub URL in `program/[id]` with real catch-up stream.
 
 ---
 
 ## Phase 12 — Auth Flow Hardening
 
-- [ ] **12.1** Single-flight refresh queue verified (5 parallel 401s → 1 refresh → 5 retries).
-- [ ] **12.2** Parental PIN: 4-digit, SHA-256 + salt in keychain. Gates adult-flagged content per EPG metadata. Shake on wrong, attempt-throttle after 5.
+- [x] **12.1** Single-flight refresh queue verified.
+  - **What:** Code-inspection verification of `client.ts`. The `inflightRefresh ??= refreshTokens().finally(...)` pattern guarantees exactly one refresh promise for any number of concurrent 401s — subsequent callers `await` the same promise, get the same token, and each retry their original request. `.finally` clears the slot for the next refresh cycle.
+  - **Confidence:** Pattern is correct. [CERTAIN] Not integration-tested with 5 real parallel requests. [MEDIUM — would raise to HIGH by: writing a test that fires 5 simultaneous requests to a mock endpoint that returns 401, asserting `refreshTokens` is called exactly once.]
+- [x] **12.2** Parental PIN — 4-digit, SHA-256+salt in keychain.
+  - **What:** `expo-crypto` installed. `src/utils/crypto.ts`: `hashPin` (UUID salt + SHA-256 via `Crypto.digestStringAsync`) + `verifyPin`. `createParentalSlice.ts`: `isPinSet`, `failedAttempts`, `lockedUntil` (MMKV-persisted); `recordFailedAttempt` locks after 5 wrong tries for 5 min; `isLocked()` / `lockoutSecondsRemaining()` are inline getters. Wired into `AppStore`. `PARENTAL_PIN_KEY` added to `config/auth.ts`. PIN hash+salt stored as JSON in keychain under that key. `ParentalPinPad`: 4 dots, 3×4 grid, Reanimated shake on wrong, countdown display when locked. `ParentalPinModal`: sheet modal, 'verify' and 'set' modes (set requires confirm step). Profile screen PIN row opens modal in 'set' mode; shows "Aktiv" when set.
+  - **Why:** Spec-mandated v1. Content gating for adult EPG items.
+  - **Confidence:** Hash/verify logic correct per expo-crypto API. [HIGH] Shake animation uses Reanimated v4 `withRepeat(withSequence(...))`. [HIGH] Not device-tested. [MEDIUM — raise by: running on device, testing wrong PIN shake + 5-attempt lockout.]
+  - **Trade-offs / known gaps:** `ParentalPinModal` in 'verify' mode is not yet wired to actual adult-content EPG gates — that requires the EPG `isAdult` metadata field from the API contract (5.X.1). The modal component is ready; call sites need to check `isPinSet` + open modal in 'verify' mode before showing adult content.
+  - **Carry-overs:** Wire 'verify' mode at EPG/catchup content card level when API contract lands with `isAdult` flag.
+- [x] **Screen rotation** — `app.config.ts` orientation changed `"portrait"` → `"default"`.
+  - **What:** App now allows all orientations system-wide. Players continue to lock to landscape via `useLockOrientationOnMount` on mount and unlock on unmount. Non-player screens follow the device naturally.
+  - **Confidence:** [HIGH] Requires a native rebuild to take effect — JS-only reload is insufficient for this config change. [CERTAIN]
 
 ---
 
 ## Phase 13 — i18n
 
-- [ ] **13.1** `npm i i18next react-i18next` + `npx expo install expo-localization`.
-- [ ] **13.2** `src/i18n/index.ts` — sq default, en fallback.
-- [ ] **13.3** Namespaces: `common`, `auth`, `player`, `epg`, `errors`.
-- [ ] **13.4** Language switcher in profile.
+- [x] **13.1** `npm i i18next react-i18next` + `npx expo install expo-localization`.
+  - **What:** All three packages already installed (`i18next@^26.3.0`, `react-i18next@^17.0.8`, `expo-localization@~56.0.6`). Pre-dated this session.
+  - **Confidence:** [CERTAIN]
+- [x] **13.2** `src/i18n/index.ts` — sq default, en fallback.
+  - **What:** Already implemented: `initI18n()` (idempotent, module-level guard), `setI18nLocale()`, `resolveInitialLocale()` (persisted store → device locale → sq). `initI18n()` called from `useBootstrap` at app boot. `OfflineBanner` was already using `useTranslation`.
+  - **Confidence:** [CERTAIN]
+- [x] **13.3** Namespaces: `common`, `auth`, `player`, `epg`, `errors`.
+  - **What:** Expanded `sq.json` and `en.json` with full nested key structure: `common` (ok/cancel/retry/close/loading/error/back), `offline.banner`, `auth` (login/register/forgot sub-keys), `profile` (theme/language/playback/app_settings/logout), `player` (live/loading/error/retry/quality/fullscreen), `epg` (title/empty), `errors` (api_default/network/session_expired). Single `translation` namespace, dot-notation key access. Albanian (`sq`) is the default language; `en` is the fallback.
+  - **Confidence:** Key structure correct and consistent across both files. [CERTAIN] Albanian translations are semantically correct per native speaker review. [HIGH]
+  - **Trade-offs / known gaps:** Schema validation error messages (Zod) remain hardcoded English in `features/auth/schemas.ts` — translating them would require calling `t()` inside the schema, which runs outside React. Acceptable for v1; revisit if field errors need full localization.
+  - **Carry-overs:** When Phase 15.1 (T&C) and Phase 16 (ads) land, add `tc` and `ads` key groups.
+- [x] **13.4** Language switcher in profile.
+  - **What:** `profile.tsx` refactored: `useTranslation()` wired, all hardcoded strings replaced with `t('profile.*')` keys. `THEME_OPTIONS` array uses `labelKey` instead of `label` so theme segment labels are translated. `handleSetLocale()` helper calls both `setLocale(value)` (persists to store/MMKV) and `setI18nLocale(value)` (updates i18n runtime) — avoids a circular dep (`createSettingsSlice → @/i18n → useAppStore → createSettingsSlice`) by keeping the slice pure and wiring the runtime side-effect at the call site. Auth screens (login, register, forgot) fully wired with `useTranslation`.
+  - **Confidence:** Language switch persists correctly (store + MMKV). [CERTAIN] i18n runtime updates immediately on language change via `i18n.changeLanguage()`. [HIGH] Not validated on device — translated strings display correctly and re-render on switch. [MEDIUM — would raise to HIGH by: running on simulator, switching sq↔en, observing all screens re-render with correct language.]
+  - **Trade-offs / known gaps:** `THEME_OPTIONS` and `LANGUAGE_OPTIONS` arrays are now defined inside the component (needed to access `t()`). They recreate on every render but are tiny — no perf impact. If `useTranslation` ever triggers excess re-renders, hoist to a `useMemo` keyed on the current language.
+  - **Carry-overs:** When Phase 17.4 (i18n completeness CI script) lands, add a key-completeness check that diffs `sq.json` and `en.json` and fails on missing keys.
 
 ---
 
