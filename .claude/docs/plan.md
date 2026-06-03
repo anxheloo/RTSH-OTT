@@ -17,6 +17,36 @@ Each completed step carries enough context that a future session can reconstruct
 
 ---
 
+## Iteration pass — 2026-06-03 (code-quality cleanup + SOLITAR org alignment)
+
+Audit of done steps against the codebase, then applied cleanup. Trigger: user request to remove duplication / unused code / guessing and align organization to the SOLITAR-FRONTEND_EMERGENT reference repo. All steps below stay `[x]`; this records what changed and why.
+
+- **Barrel convention (affects 6.8 + all component folders).** Converted every component barrel from the `export type { XProps } …; export { default as X } …` pattern to SOLITAR's **default-only export + JSDoc header** style. Props interfaces stay as named `export interface XProps` in the component file and are imported directly where needed (verified no consumer imported a `*Props` type via a barrel). Root `components/index.ts` now re-exports all subfolders (added `channels`, `catchup`, `epg`, `radio`, `ParentalPin`). `utils/index.ts` now re-exports `crypto` + `formatters`. STYLE_GUIDE "Barrel Exports" updated. [CERTAIN — lint+tsc clean]
+- **Feature components extracted (11.5/11.6/11.7).** `EpgRow`, `CatchupCard`, `StationRow` moved out of their screens into `components/{epg,catchup,radio}/` (were inline; the folders held empty placeholder barrels). Screens are now thin. Radio list was rendering `stations.map()` with **no scroll container** (bug — stations past the fold were unreachable); now uses `AnimatedFlashList`. [CERTAIN for extraction; HIGH that scroll bug is fixed — raise by device test]
+- **Shared formatters (new `utils/formatters.ts`).** `formatClockTime` / `formatDurationMinutes` / `formatRelativeDay` centralized; were duplicated inline in epg + catchup screens. [CERTAIN]
+- **Dead route deleted (11.9).** `player/[id].tsx` removed — nothing navigated to it (Live grid → `channel/[id]`, Catchup → `program/[id]`). It was a stub-URL copy of `channel/[id]`. Its `Stack.Screen` registration removed from `(app)/_layout.tsx`. [CERTAIN — grep of all router pushes]
+- **`program/[id]` wired to real queries (11.10).** Replaced the hardcoded `STUB_VOD_URL` with `useCatchupItemQuery` + `useCatchupStreamQuery` (mirrors `channel/[id]`). [CERTAIN — tsc clean; MEDIUM that the stream plays — raise by mock-server device run]
+- **ChannelCard renders its logo (11.4).** `thumbnailUri` was accepted but ignored (`_thumbnailUri`); now rendered via `ReusableImage` (`contentFit="contain"`). Hardcoded `#FFFFFF` label color replaced with `colors.text`. [CERTAIN]
+- **PlayerControls dedup.** Removed a local `SEEK_STEP_S = 10` that shadowed the canonical `constants/player.ts` export; now imports it. [CERTAIN]
+- **Empty stub files deleted.** `types/api.ts`, `types/theme.ts`, `utils/helpers.ts`, `constants/index.ts` — all `// barrel` placeholders, unimported. `ThemeColors` stays co-located in `theme/colors.ts` (deliberate divergence from SOLITAR's `types/theme.ts`; RTSH's co-location is cleaner). API wrapper types, when needed, go in `api/types.ts` per SOLITAR. [CERTAIN]
+- **Component prop types → `interface`.** New/edited feature components use `export interface XProps` (was `type … = {}`) per SOLITAR + STYLE_GUIDE. Pre-existing files using `type` left untouched (cosmetic; convert opportunistically when next edited).
+
+Verification: `npx tsc --noEmit` → 0 errors [CERTAIN]; `npm run lint` → clean [CERTAIN]. Not run on simulator this pass.
+
+### Follow-up — SVG icon system + player polish + branded splash (RTSH repo blend)
+
+Studied the sibling **RTSH** repo for the user's coding patterns; adopted the genuinely additive parts, kept our architecture (did **not** migrate to NativeWind; did **not** overwrite our Figma-verified palette — RTSH's palette has fewer tokens and would regress fidelity).
+
+- **SVG icon system (closes 8.6 + 9.3 "no icon library" carry-overs).** Installed `react-native-svg`. New `src/components/Icons/`: typed icon set (`icons.tsx` — Play/Pause/Forward/Backward/Fullscreen/Search/Home/Clock/Layers/Microphone/Profile, each `{ size, color }`, ported from RTSH's SVGs) + `IconButton` (theme-aware circular touchable, our port of RTSH's `IconWrapper`) + barrel; added to root `components` barrel. Wired: **tab bar** now has icons (Live→Home, EPG→Clock, Catchup→Layers, Radio→Microphone, Profile→Profile, recolored by tab tint); **PlayerControls** play/pause/seek/fullscreen now use icons (replaced emoji/text glyphs, added a11y labels); **Live header** avatar shows a Profile icon. [CERTAIN — tsc+lint clean; MEDIUM that icons render correctly on device — needs native rebuild + simulator]
+- **Player keep-awake (9.2).** Base `VideoPlayer` calls `useKeepAwake()` (expo-keep-awake, already present) so the screen won't sleep during playback. Deliberately **did not** add RTSH's pause-on-blur — our spec mandates PIP + background video, which that would fight. [HIGH]
+- **Branded splash.** `app.config.ts` splash was Expo-default (blue `#208AEF` bg + placeholder icon, and **no iOS image** — only an `android` block). Now brand-black `#000000` + `logo-glow.png` (604×604) applied to both platforms. Requires native rebuild. [HIGH — visual, verify on device]
+- **Still default / flagged:** app **icon** (`icon.png`) is still the Expo placeholder — needs a square 1024 brand export from Figma (can't rasterize SVG→PNG here). Leftover create-expo-app asset cruft (`expo-logo.png`, `react-logo*.png`, `tutorial-web.png`, `images/tabIcons/*`, `expo.icon/`) are deletion candidates — not removed (awaiting OK).
+- **`.env` / `.env.example`:** confirmed correct — `.env` gitignored, `.env.example` committed template. No change.
+
+Verification (this follow-up): `npx tsc --noEmit` → 0 errors [CERTAIN]; `npm run lint` → clean [CERTAIN]. `react-native-svg` is a native module → **native rebuild required** before icons render.
+
+---
+
 ## Phase 0 — Tooling & Init
 
 - [x] **0.1** Install local toolchain (Node 20 LTS, Watchman, Xcode 16+, Android Studio + API 34, JDK 17, CocoaPods). Verify with `npx expo-doctor`. ✅ Node 20.20.2, all tools verified, 21/21 expo-doctor checks pass.

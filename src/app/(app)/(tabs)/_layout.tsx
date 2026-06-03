@@ -1,7 +1,6 @@
 /**
  * Bottom tabs layout — 5 tabs: Live, EPG, Catchup, Radio, Profile.
- * Tab bar colors from theme tokens (dark-primary design).
- * Icons deferred — text-only labels until icon library is integrated.
+ * Tab bar colors from theme tokens; SVG icons recolor via the tab tint.
  */
 import React from 'react';
 
@@ -9,6 +8,15 @@ import { Tabs } from 'expo-router';
 
 import { Fonts, FONTSIZE } from '@/theme/fonts';
 import { useAppStore } from '@/store/useAppStore';
+import {
+  ClockIcon,
+  HomeIcon,
+  LayersIcon,
+  MicrophoneIcon,
+  ProfileIcon,
+} from '@/components/Icons';
+
+const TAB_ICON_SIZE = 24;
 
 const TabsLayout: React.FC = () => {
   const colors = useAppStore((s) => s.colors);
@@ -26,7 +34,7 @@ const TabsLayout: React.FC = () => {
         tabBarInactiveTintColor: colors.textMuted,
         tabBarLabelStyle: {
           fontFamily: Fonts.display,
-          fontSize: FONTSIZE.regular,
+          fontSize: FONTSIZE.xs,
           textTransform: 'uppercase',
         },
       }}
@@ -36,6 +44,7 @@ const TabsLayout: React.FC = () => {
         options={{
           title: 'Live',
           tabBarAccessibilityLabel: 'tab-live',
+          tabBarIcon: ({ color }) => <HomeIcon size={TAB_ICON_SIZE} color={color as string} />,
         }}
       />
       <Tabs.Screen
@@ -43,6 +52,7 @@ const TabsLayout: React.FC = () => {
         options={{
           title: 'EPG',
           tabBarAccessibilityLabel: 'tab-epg',
+          tabBarIcon: ({ color }) => <ClockIcon size={TAB_ICON_SIZE} color={color as string} />,
         }}
       />
       <Tabs.Screen
@@ -50,6 +60,7 @@ const TabsLayout: React.FC = () => {
         options={{
           title: 'Catchup',
           tabBarAccessibilityLabel: 'tab-catchup',
+          tabBarIcon: ({ color }) => <LayersIcon size={TAB_ICON_SIZE} color={color as string} />,
         }}
       />
       <Tabs.Screen
@@ -57,6 +68,7 @@ const TabsLayout: React.FC = () => {
         options={{
           title: 'Radio',
           tabBarAccessibilityLabel: 'tab-radio',
+          tabBarIcon: ({ color }) => <MicrophoneIcon size={TAB_ICON_SIZE} color={color as string} />,
         }}
       />
       <Tabs.Screen
@@ -64,6 +76,7 @@ const TabsLayout: React.FC = () => {
         options={{
           title: 'Profile',
           tabBarAccessibilityLabel: 'tab-profile',
+          tabBarIcon: ({ color }) => <ProfileIcon size={TAB_ICON_SIZE} color={color as string} />,
         }}
       />
     </Tabs>

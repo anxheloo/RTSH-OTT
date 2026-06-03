@@ -12,6 +12,7 @@
 import React, { useEffect, useState } from 'react';
 import { StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
 
+import { useKeepAwake } from 'expo-keep-awake';
 import { useVideoPlayer, VideoPlayer as ExpoVideoPlayer, VideoSource, VideoView } from 'expo-video';
 
 export type VideoStatus = 'idle' | 'loading' | 'readyToPlay' | 'error';
@@ -49,6 +50,9 @@ function VideoPlayer({
   style,
   renderOverlay,
 }: VideoPlayerProps): React.ReactElement {
+  // Keep the screen awake while a video player is mounted (deactivates on unmount).
+  useKeepAwake();
+
   const [status, setStatus] = useState<VideoStatus>('idle');
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);

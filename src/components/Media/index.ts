@@ -1,11 +1,10 @@
-export type { LivePlayerProps } from './LivePlayer';
+/**
+ * Media components barrel — video/audio players and image primitive.
+ * Import from '@/components/Media' instead of individual files.
+ */
 export { default as LivePlayer } from './LivePlayer';
 export { default as PlayerControls } from './PlayerControls';
-export type { RadioPlayerProps } from './RadioPlayer';
 export { default as RadioPlayer } from './RadioPlayer';
-export type { ImageCachePolicy, ImagePriority, ReusableImageProps } from './ReusableImage';
 export { default as ReusableImage } from './ReusableImage';
-export type { VideoPlayerProps, VideoStatus } from './VideoPlayer';
 export { default as VideoPlayer } from './VideoPlayer';
-export type { VodPlayerProps } from './VodPlayer';
 export { default as VodPlayer } from './VodPlayer';

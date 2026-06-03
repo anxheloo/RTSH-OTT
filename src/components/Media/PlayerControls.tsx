@@ -21,12 +21,18 @@ import Animated, {
 import type { VideoPlayer } from 'expo-video';
 
 import { BORDERRADIUS } from '@/theme/borders';
-import { Fonts,FONTSIZE } from '@/theme/fonts';
+import { Fonts, FONTSIZE } from '@/theme/fonts';
 import { SPACING } from '@/theme/spacing';
+import {
+  BackwardIcon,
+  ForwardIcon,
+  FullscreenIcon,
+  PauseIcon,
+  PlayIcon,
+} from '@/components/Icons';
+import { SEEK_STEP_S } from '@/constants/player';
 
 const AUTO_HIDE_MS = 3000;
-const SEEK_STEP_S = 10;
-const CONTROL_HIT = 44; // minimum touch target
 
 export type PlayerControlsProps = {
   player: VideoPlayer;
@@ -168,8 +174,9 @@ const PlayerControls: React.FC<PlayerControlsProps> = ({
             hitSlop={styles.hitSlop}
             activeOpacity={0.8}
             testID="controls-fullscreen-btn"
+            accessibilityLabel={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
           >
-            <Text style={styles.iconText}>{isFullscreen ? '⤡' : '⤢'}</Text>
+            <FullscreenIcon size={24} />
           </TouchableOpacity>
         </View>
 
@@ -181,8 +188,9 @@ const PlayerControls: React.FC<PlayerControlsProps> = ({
               hitSlop={styles.hitSlop}
               activeOpacity={0.8}
               testID="controls-seek-back-btn"
+              accessibilityLabel={`Rewind ${SEEK_STEP_S} seconds`}
             >
-              <Text style={styles.seekIcon}>-{SEEK_STEP_S}s</Text>
+              <BackwardIcon size={32} />
             </TouchableOpacity>
           ) : null}
 
@@ -191,8 +199,9 @@ const PlayerControls: React.FC<PlayerControlsProps> = ({
             style={styles.playButton}
             activeOpacity={0.8}
             testID="controls-play-pause-btn"
+            accessibilityLabel={isPlaying ? 'Pause' : 'Play'}
           >
-            <Text style={styles.playIcon}>{isPlaying ? '⏸' : '▶'}</Text>
+            {isPlaying ? <PauseIcon size={28} /> : <PlayIcon size={28} />}
           </TouchableOpacity>
 
           {!isLive ? (
@@ -201,8 +210,9 @@ const PlayerControls: React.FC<PlayerControlsProps> = ({
               hitSlop={styles.hitSlop}
               activeOpacity={0.8}
               testID="controls-seek-forward-btn"
+              accessibilityLabel={`Forward ${SEEK_STEP_S} seconds`}
             >
-              <Text style={styles.seekIcon}>+{SEEK_STEP_S}s</Text>
+              <ForwardIcon size={32} />
             </TouchableOpacity>
           ) : null}
         </View>
@@ -320,17 +330,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.15)',
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  playIcon: {
-    color: '#FFFFFF',
-    fontSize: FONTSIZE.xxl,
-  },
-  seekIcon: {
-    color: '#FFFFFF',
-    fontFamily: Fonts.medium,
-    fontSize: FONTSIZE.regular,
-    minWidth: CONTROL_HIT,
-    textAlign: 'center',
   },
   bottomStrip: {
     position: 'absolute',

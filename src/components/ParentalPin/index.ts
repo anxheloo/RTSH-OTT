@@ -1,4 +1,6 @@
-export type { ParentalPinModalProps } from './ParentalPinModal';
+/**
+ * Parental PIN components barrel.
+ * Import from '@/components/ParentalPin' instead of individual files.
+ */
 export { default as ParentalPinModal } from './ParentalPinModal';
-export type { ParentalPinPadProps } from './ParentalPinPad';
 export { default as ParentalPinPad } from './ParentalPinPad';

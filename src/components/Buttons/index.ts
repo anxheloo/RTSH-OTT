@@ -1,2 +1,5 @@
-export type { ButtonSize, ButtonVariant, ReusableBtnProps } from './ReusableBtn';
+/**
+ * Button components barrel.
+ * Import from '@/components/Buttons' instead of individual files.
+ */
 export { default as ReusableBtn } from './ReusableBtn';

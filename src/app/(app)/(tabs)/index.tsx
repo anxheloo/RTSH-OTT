@@ -18,6 +18,7 @@ import { Fonts } from '@/theme/fonts';
 import { useAppStore } from '@/store/useAppStore';
 import { useChannelsQuery } from '@/api/queries';
 import ChannelCard from '@/components/channels/ChannelCard';
+import { ProfileIcon } from '@/components/Icons';
 import ReusableText from '@/components/Inputs/ReusableText';
 import { FullScreenLoader } from '@/components/Layout';
 import type { Channel } from '@/types/domain';
@@ -60,7 +61,9 @@ const LiveScreen: React.FC = () => {
           onPress={() => {}}
           activeOpacity={0.8}
           testID="live-header-avatar"
-        />
+        >
+          <ProfileIcon size={24} color={colors.text} />
+        </TouchableOpacity>
       </View>
 
       {/* Content toggle row */}
@@ -158,6 +161,8 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: BORDERRADIUS.full,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   toggleRow: {
     flexDirection: 'row',

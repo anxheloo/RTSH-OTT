@@ -15,13 +15,6 @@ const AppLayout: React.FC = () => {
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen
-          name="player/[id]"
-          options={{
-            presentation: 'fullScreenModal',
-            animation: 'fade',
-          }}
-        />
-        <Stack.Screen
           name="channel/[id]"
           options={{
             presentation: 'fullScreenModal',

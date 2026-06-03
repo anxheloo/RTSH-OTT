@@ -459,7 +459,19 @@ import type { Channel } from '@/types/domain';
 
 ## Barrel Exports
 
-Every component/hook folder has an `index.ts`. Group with comments in large barrels.
+Every component/hook folder has an `index.ts` with a short JSDoc header. Group with comments in large barrels.
+
+**Barrels export the component/hook only — never its `Props` type.** Props stay as a named `export interface XProps` in the component file and are imported directly from that file when a sibling needs them (`import VideoPlayer, { VideoStatus } from './VideoPlayer'`). Re-exporting types through the barrel adds noise and a second place to keep in sync.
+
+```ts
+// src/components/epg/index.ts
+
+/**
+ * EPG components barrel.
+ * Import from '@/components/epg' instead of individual files.
+ */
+export { default as EpgRow } from './EpgRow';
+```
 
 ```ts
 // src/hooks/index.ts

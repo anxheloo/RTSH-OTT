@@ -79,11 +79,10 @@ export default ({ config }: ConfigContext): ExpoConfig => {
       [
         "expo-splash-screen",
         {
-          backgroundColor: "#208AEF",
-          android: {
-            image: "./assets/images/splash-icon.png",
-            imageWidth: 76,
-          },
+          // RTSH brand: glow logo on brand-black, applied to iOS + Android.
+          backgroundColor: "#000000",
+          image: "./assets/images/logo-glow.png",
+          imageWidth: 200,
         },
       ],
       [
