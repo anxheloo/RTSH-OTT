@@ -5,6 +5,14 @@
 import { InternalAxiosRequestConfig } from 'axios';
 
 import { mockAuthResponse, mockUser } from './fixtures/auth';
+import {
+  mockRegisterDetails,
+  mockRegisterStart,
+  mockRegisterVerify,
+  mockResetPassword,
+  mockResetRequest,
+  mockResetVerify,
+} from './fixtures/authFlow';
 import { mockCatchupItems } from './fixtures/catchup';
 import { MOCK_LIVE_STREAM,mockChannels } from './fixtures/channels';
 import { mockAppConfig } from './fixtures/config';
@@ -20,16 +28,23 @@ type Handler = {
   respond: (config: InternalAxiosRequestConfig) => MockResponse;
 };
 
+/** axios serializes the request body to a JSON string before the adapter — parse it back. */
+function parseBody<T>(data: unknown): T {
+  if (typeof data === 'string') {
+    try {
+      return JSON.parse(data) as T;
+    } catch {
+      return {} as T;
+    }
+  }
+  return (data ?? {}) as T;
+}
+
 export const handlers: Handler[] = [
   // ── Auth ──────────────────────────────────────────────────────────────────
   {
     method: 'post',
     test: (u) => u.endsWith('/auth/login'),
-    respond: () => ({ data: mockAuthResponse }),
-  },
-  {
-    method: 'post',
-    test: (u) => u.endsWith('/auth/register'),
     respond: () => ({ data: mockAuthResponse }),
   },
   {
@@ -42,9 +57,54 @@ export const handlers: Handler[] = [
     test: (u) => u.endsWith('/auth/logout'),
     respond: () => ({ data: { success: true } }),
   },
+
+  // Registration wizard (specific routes before the bare `/auth/register`).
+  {
+    method: 'post',
+    test: (u) => u.endsWith('/auth/register/verify'),
+    delay: 400,
+    respond: (cfg) => mockRegisterVerify(parseBody<{ email?: string; code?: string }>(cfg.data)),
+  },
+  {
+    method: 'post',
+    test: (u) => u.endsWith('/auth/register/details'),
+    delay: 400,
+    respond: (cfg) => mockRegisterDetails(parseBody<{ email?: string }>(cfg.data)),
+  },
+  {
+    method: 'post',
+    test: (u) => u.endsWith('/auth/register/resend'),
+    respond: () => ({ data: { success: true } }),
+  },
+  {
+    method: 'post',
+    test: (u) => u.endsWith('/auth/register'),
+    delay: 400,
+    respond: (cfg) => mockRegisterStart(parseBody<{ email?: string; username?: string }>(cfg.data)),
+  },
+
+  // Password-reset wizard.
   {
     method: 'post',
     test: (u) => u.endsWith('/auth/forgot-password'),
+    delay: 400,
+    respond: (cfg) => mockResetRequest(parseBody<{ email?: string }>(cfg.data)),
+  },
+  {
+    method: 'post',
+    test: (u) => u.endsWith('/auth/reset/verify'),
+    delay: 400,
+    respond: (cfg) => mockResetVerify(parseBody<{ email?: string; code?: string }>(cfg.data)),
+  },
+  {
+    method: 'post',
+    test: (u) => u.endsWith('/auth/reset/password'),
+    delay: 400,
+    respond: (cfg) => mockResetPassword(parseBody<{ email?: string }>(cfg.data)),
+  },
+  {
+    method: 'post',
+    test: (u) => u.endsWith('/auth/reset/resend'),
     respond: () => ({ data: { success: true } }),
   },
 

@@ -3,6 +3,7 @@ export * from './borders';
 export * from './colors';
 export * from './fonts';
 export * from './opacity';
+export * from './playerColors';
 export * from './shadows';
 export * from './spacing';
 export * from './zIndex';

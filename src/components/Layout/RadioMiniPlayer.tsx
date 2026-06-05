@@ -28,7 +28,7 @@ const RadioMiniPlayer: React.FC = () => {
 
   return (
     <TouchableOpacity
-      style={[styles.strip, { backgroundColor: colors.surfaceElevated }]}
+      style={[styles.strip, { backgroundColor: colors.surfaceElevated, borderTopColor: colors.border }]}
       onPress={() => router.push('/(app)/(tabs)/radio')}
       activeOpacity={0.9}
       testID="radio-mini-player"
@@ -95,7 +95,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.space_15,
     gap: SPACING.space_10,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: 'rgba(255,255,255,0.1)',
   },
   dot: {
     width: 40,

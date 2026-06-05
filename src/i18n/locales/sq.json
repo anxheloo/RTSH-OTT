@@ -9,7 +9,9 @@
     "back": "Prapa"
   },
   "offline": {
-    "banner": "Nuk ka lidhje me internetin"
+    "banner": "Nuk ka lidhje me internetin",
+    "title": "Nuk ka lidhje me internetin",
+    "message": "Jeni jashtë linje. Përmbajtja do të shfaqet sapo të riktheheni në linjë."
   },
   "auth": {
     "login": {
@@ -30,7 +32,28 @@
       "submit": "Krijo llogari",
       "failed": "Regjistrimi dështoi. Provoni përsëri.",
       "have_account": "Keni tashmë llogari?",
-      "sign_in": "Identifikohu"
+      "sign_in": "Identifikohu",
+      "username_placeholder": "Përdoruesi",
+      "continue": "Vazhdo",
+      "details_title": "Na trego për veten",
+      "birthday_placeholder": "Datëlindja (VVVV-MM-DD)",
+      "city_placeholder": "Qyteti",
+      "country_placeholder": "Shteti",
+      "education_placeholder": "Arsimi (opsionale)",
+      "gender_label": "Gjinia",
+      "gender": {
+        "male": "Mashkull",
+        "female": "Femër",
+        "other": "Tjetër",
+        "unspecified": "Preferoj të mos them"
+      }
+    },
+    "otp": {
+      "sent": "Shkruani kodin {{length}}-shifror dërguar te {{email}}",
+      "verify": "Verifiko",
+      "resend": "Ridërgo kodin",
+      "resend_in": "Ridërgo pas {{seconds}}s",
+      "invalid": "Kod i pavlefshëm ose i skaduar."
     },
     "forgot": {
       "title": "Rivendos fjalëkalimin",
@@ -41,6 +64,19 @@
       "failed": "Dërgimi i lidhjes dështoi.",
       "back_to": "Kthehu te",
       "sign_in": "Identifikohu"
+    },
+    "reset": {
+      "new_password_title": "Vendos një fjalëkalim të ri",
+      "new_password_placeholder": "Fjalëkalimi i ri",
+      "confirm_password_placeholder": "Konfirmo fjalëkalimin",
+      "submit": "Rivendos fjalëkalimin",
+      "success": "Fjalëkalimi u përditësua. Tani mund të identifikoheni."
+    },
+    "terms": {
+      "agree_prefix": "Duke vazhduar, ju pranoni",
+      "terms_link": "Kushtet e Shërbimit",
+      "and": "dhe",
+      "privacy_link": "Politikën e Privatësisë"
     }
   },
   "profile": {

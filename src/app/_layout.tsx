@@ -1,4 +1,6 @@
 import { useEffect } from 'react';
+import { KeyboardProvider } from 'react-native-keyboard-controller';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { Anton_400Regular } from '@expo-google-fonts/anton';
 import { Inter_400Regular, Inter_500Medium } from '@expo-google-fonts/inter';
@@ -25,7 +27,6 @@ SplashScreen.preventAutoHideAsync();
 
 function RootLayoutInner() {
   const { isReady } = useBootstrap();
-  const token = useAppStore((s) => s.token);
   const isAuthenticated = useAppStore((s) => s.isAuthenticated);
 
   const [fontsLoaded, fontError] = useFonts({
@@ -55,11 +56,18 @@ function RootLayoutInner() {
 
   return (
     <>
+      {/*
+        Gate on `isAuthenticated` ONLY — never on `token`. The access token is
+        in-memory and null on every cold boot until the background refresh
+        lands; gating on it would route a logged-in user (esp. offline) back to
+        (auth). The interceptor lazily refreshes the access token on the first
+        401 once inside the app.
+      */}
       <Stack screenOptions={{ headerShown: false }}>
-        <Stack.Protected guard={!isAuthenticated || !token}>
+        <Stack.Protected guard={!isAuthenticated}>
           <Stack.Screen name="(auth)" />
         </Stack.Protected>
-        <Stack.Protected guard={isAuthenticated && !!token}>
+        <Stack.Protected guard={isAuthenticated}>
           <Stack.Screen name="(app)" />
         </Stack.Protected>
       </Stack>
@@ -71,8 +79,12 @@ function RootLayoutInner() {
 
 export default function RootLayout() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <RootLayoutInner />
-    </QueryClientProvider>
+    <SafeAreaProvider>
+      <QueryClientProvider client={queryClient}>
+        <KeyboardProvider>
+          <RootLayoutInner />
+        </KeyboardProvider>
+      </QueryClientProvider>
+    </SafeAreaProvider>
   );
 }

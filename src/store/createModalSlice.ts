@@ -4,41 +4,37 @@ import type { AppStore } from './useAppStore';
 
 export type ModalType = 'apiError' | 'noInternet' | 'notify' | 'confirmation';
 
-export interface ModalPayload {
+/**
+ * Modal copy + actions. Up to three buttons (SOLITAR shape). `button` defaults
+ * to "OK" in `ModalWrapper` when a modal is shown without one. Alert-style
+ * modals leave `title`/`description` empty to fall back to the i18n defaults in
+ * `ModalWrapper` (so triggers like the network listener pass no text).
+ */
+export interface ModalData {
   title?: string;
-  message?: string;
-  confirmLabel?: string;
-  cancelLabel?: string;
-  onConfirm?: () => void;
-  onCancel?: () => void;
+  description?: string;
+  button?: string;
+  button2?: string;
+  button3?: string;
+  action?: () => void | Promise<void>;
+  action2?: () => void | Promise<void>;
+  action3?: () => void | Promise<void>;
 }
 
-export interface ModalEntry {
-  id: string;
-  type: ModalType;
-  payload?: ModalPayload;
-}
-
+/**
+ * Single-modal slice (one modal at a time), matching RTSH + SOLITAR and the
+ * STYLE_GUIDE. Invoke from anywhere via
+ * `useAppStore.getState().updateModalSlice({ currentModal, modalData })`; close
+ * with `{ currentModal: null }`. `ModalWrapper` renders the active modal.
+ */
 export interface ModalSlice {
-  modals: ModalEntry[];
-  openModal: (type: ModalType, payload?: ModalPayload) => string;
-  closeModal: (id?: string) => void;
-  closeAllModals: () => void;
+  currentModal: ModalType | null;
+  modalData: ModalData;
+  updateModalSlice: (data: Partial<ModalSlice>) => void;
 }
 
 export const createModalSlice: StateCreator<AppStore, [], [], ModalSlice> = (set) => ({
-  modals: [],
-
-  openModal: (type, payload) => {
-    const id = `${type}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-    set((s) => ({ modals: [...s.modals, { id, type, payload }] }));
-    return id;
-  },
-
-  closeModal: (id) =>
-    set((s) => ({
-      modals: id ? s.modals.filter((m) => m.id !== id) : s.modals.slice(0, -1),
-    })),
-
-  closeAllModals: () => set({ modals: [] }),
+  currentModal: null,
+  modalData: {},
+  updateModalSlice: (data) => set(data as Partial<AppStore>),
 });

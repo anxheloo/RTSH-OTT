@@ -4,11 +4,11 @@
  */
 import React, { useState } from 'react';
 import {
-  Image,
   StyleSheet,
   TouchableOpacity,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { FlashList } from '@shopify/flash-list';
 import { router } from 'expo-router';
@@ -20,17 +20,23 @@ import { useChannelsQuery } from '@/api/queries';
 import ChannelCard from '@/components/channels/ChannelCard';
 import { ProfileIcon } from '@/components/Icons';
 import ReusableText from '@/components/Inputs/ReusableText';
-import { FullScreenLoader } from '@/components/Layout';
+import { FullScreenLoader, ScreenLayout } from '@/components/Layout';
+import ReusableImage from '@/components/Media/ReusableImage';
 import type { Channel } from '@/types/domain';
 
 type ContentTab = 'search' | 'tv' | 'radio';
 
 const LiveScreen: React.FC = () => {
   const colors = useAppStore((s) => s.colors);
+  const isOnline = useAppStore((s) => s.isOnline);
+  const insets = useSafeAreaInsets();
   const [activeTab, setActiveTab] = useState<ContentTab>('tv');
   const { channels, isLoading } = useChannelsQuery();
 
-  if (isLoading && channels.length === 0) {
+  // Only block on the loader while a fetch can actually progress. Offline with
+  // no cached data, the query stays paused/pending — render the (empty) grid
+  // instead of an infinite spinner; the no-internet modal explains why.
+  if (isLoading && channels.length === 0 && isOnline) {
     return <FullScreenLoader />;
   }
 
@@ -46,13 +52,19 @@ const LiveScreen: React.FC = () => {
   );
 
   return (
-    <View style={[styles.screen, { backgroundColor: colors.background }]}>
+    <ScreenLayout>
       {/* Header */}
-      <View style={[styles.header, { backgroundColor: colors.headerBackground }]}>
-        <Image
+      <View
+        style={[
+          styles.header,
+          { height: 78 + insets.top, paddingTop: insets.top, backgroundColor: colors.headerBackground },
+        ]}
+      >
+        <ReusableImage
           source={require('../../../../../assets/images/logo-glow.png')}
-          style={styles.logo}
-          resizeMode="contain"
+          width={86}
+          height={38}
+          contentFit="contain"
           testID="live-header-logo"
         />
         {/* Profile avatar placeholder */}
@@ -102,7 +114,7 @@ const LiveScreen: React.FC = () => {
         showsVerticalScrollIndicator={false}
         testID="live-channel-grid"
       />
-    </View>
+    </ScreenLayout>
   );
 };
 
@@ -143,19 +155,11 @@ const ContentToggle: React.FC<ContentToggleProps> = ({ label, tabKey, activeTab,
 };
 
 const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-  },
   header: {
-    height: 78,
     paddingHorizontal: SPACING.space_15,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-  },
-  logo: {
-    width: 86,
-    height: 38,
   },
   avatar: {
     width: 48,

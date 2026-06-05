@@ -14,6 +14,7 @@ import { StatusBar } from 'expo-status-bar';
 
 import { BORDERRADIUS } from '@/theme/borders';
 import { Fonts,FONTSIZE } from '@/theme/fonts';
+import { PLAYER_COLORS } from '@/theme/playerColors';
 import { SPACING } from '@/theme/spacing';
 import { useLockOrientationOnMount } from '@/hooks/useOrientation';
 import { FullScreenLoader } from '@/components/Layout';
@@ -113,28 +114,28 @@ const LivePlayer: React.FC<LivePlayerProps> = ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000000',
+    backgroundColor: PLAYER_COLORS.surface,
   },
   errorContainer: {
     ...StyleSheet.absoluteFill,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(0,0,0,0.85)',
+    backgroundColor: PLAYER_COLORS.scrimStrong,
     gap: SPACING.space_16,
   },
   errorText: {
-    color: '#FFFFFF',
+    color: PLAYER_COLORS.onSurface,
     fontFamily: Fonts.regular,
     fontSize: FONTSIZE.md,
   },
   retryButton: {
     paddingHorizontal: SPACING.space_24,
     paddingVertical: SPACING.space_12,
-    backgroundColor: '#EB122F',
+    backgroundColor: PLAYER_COLORS.brand,
     borderRadius: BORDERRADIUS.radius_8,
   },
   retryText: {
-    color: '#FFFFFF',
+    color: PLAYER_COLORS.onSurface,
     fontFamily: Fonts.bold,
     fontSize: FONTSIZE.regular,
   },

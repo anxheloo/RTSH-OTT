@@ -1,8 +1,8 @@
 /**
  * Renders a thin "no internet" banner when the device is offline. Self-
- * managed: subscribes to `useNetworkReconnect` and renders nothing when
- * online. Pass `isOffline` to override with a controlled value (useful for
- * tests / storybook).
+ * managed: reads `isOnline` from the store (kept current by `useNetworkMonitor`)
+ * and renders nothing when online. Pass `isOffline` to override with a
+ * controlled value (useful for tests / storybook).
  *
  * Mount near the top of the screen tree below any status-bar safe-area
  * spacer. Doesn't reserve layout space when hidden.
@@ -13,7 +13,6 @@ import { useTranslation } from 'react-i18next';
 
 import type { ThemeColors } from '@/theme/colors';
 import { useAppStore } from '@/store/useAppStore';
-import { useNetworkReconnect } from '@/hooks/useNetworkReconnect';
 
 import ReusableText from '../Inputs/ReusableText';
 
@@ -38,12 +37,12 @@ const OfflineBanner: React.FC<OfflineBannerProps> = ({
   style,
   testID,
 }) => {
-  const network = useNetworkReconnect();
+  const isOnline = useAppStore((s) => s.isOnline);
   const colors = useAppStore((s) => s.colors);
   const { t } = useTranslation();
   const resolvedMessage = message ?? t('offline.banner');
 
-  const resolvedIsOffline = isOffline ?? !network.isOnline;
+  const resolvedIsOffline = isOffline ?? !isOnline;
   if (!resolvedIsOffline) return null;
 
   return (

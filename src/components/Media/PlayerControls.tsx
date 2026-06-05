@@ -22,6 +22,7 @@ import type { VideoPlayer } from 'expo-video';
 
 import { BORDERRADIUS } from '@/theme/borders';
 import { Fonts, FONTSIZE } from '@/theme/fonts';
+import { PLAYER_COLORS } from '@/theme/playerColors';
 import { SPACING } from '@/theme/spacing';
 import {
   BackwardIcon,
@@ -279,37 +280,37 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: SPACING.space_16,
     paddingVertical: SPACING.space_12,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: PLAYER_COLORS.scrim,
     gap: SPACING.space_12,
   },
   titleContainer: {
     flex: 1,
   },
   channelName: {
-    color: '#FFFFFF',
+    color: PLAYER_COLORS.onSurface,
     fontFamily: Fonts.display,
     fontSize: FONTSIZE.xl,
   },
   programTitle: {
-    color: 'rgba(255,255,255,0.7)',
+    color: PLAYER_COLORS.onSurfaceDim,
     fontFamily: Fonts.regular,
     fontSize: FONTSIZE.sm,
     marginTop: SPACING.space_2,
   },
   liveBadge: {
-    backgroundColor: '#EB122F',
+    backgroundColor: PLAYER_COLORS.brand,
     paddingHorizontal: SPACING.space_8,
     paddingVertical: SPACING.space_4,
     borderRadius: BORDERRADIUS.radius_8,
   },
   liveBadgeText: {
-    color: '#FFFFFF',
+    color: PLAYER_COLORS.onSurface,
     fontFamily: Fonts.bold,
     fontSize: FONTSIZE.xs,
     letterSpacing: 1,
   },
   iconText: {
-    color: '#FFFFFF',
+    color: PLAYER_COLORS.onSurface,
     fontSize: FONTSIZE.xl,
   },
   centerRow: {
@@ -327,7 +328,7 @@ const styles = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: BORDERRADIUS.full,
-    backgroundColor: 'rgba(255,255,255,0.15)',
+    backgroundColor: PLAYER_COLORS.controlBg,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -338,23 +339,23 @@ const styles = StyleSheet.create({
     right: 0,
     paddingHorizontal: SPACING.space_16,
     paddingVertical: SPACING.space_12,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: PLAYER_COLORS.scrim,
     gap: SPACING.space_8,
   },
   timeText: {
-    color: 'rgba(255,255,255,0.8)',
+    color: PLAYER_COLORS.onSurfaceMuted,
     fontFamily: Fonts.regular,
     fontSize: FONTSIZE.xs,
   },
   seekBarTrack: {
     height: 4,
-    backgroundColor: 'rgba(255,255,255,0.3)',
+    backgroundColor: PLAYER_COLORS.track,
     borderRadius: BORDERRADIUS.full,
     overflow: 'hidden',
   },
   seekBarFill: {
     height: '100%',
-    backgroundColor: '#EB122F',
+    backgroundColor: PLAYER_COLORS.brand,
     borderRadius: BORDERRADIUS.full,
   },
   bottomActions: {
@@ -367,7 +368,7 @@ const styles = StyleSheet.create({
     opacity: 0.4,
   },
   qualityText: {
-    color: '#FFFFFF',
+    color: PLAYER_COLORS.onSurface,
     fontFamily: Fonts.medium,
     fontSize: FONTSIZE.xs,
     letterSpacing: 0.5,

@@ -1,4 +1,5 @@
 export * from './createModalSlice';
+export * from './createNetworkSlice';
 export * from './createPlayerSlice';
 export * from './createSettingsSlice';
 export * from './createThemeSlice';

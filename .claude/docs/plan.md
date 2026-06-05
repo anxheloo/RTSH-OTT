@@ -618,6 +618,157 @@ Verification (this follow-up): `npx tsc --noEmit` → 0 errors [CERTAIN]; `npm r
 
 ---
 
+## Iteration pass — 2026-06-04 (multi-step auth + logo→expo-image)
+
+- **Form-layer reversal (supersedes 7.1).** Server-driven multi-step registration + reset now justify
+  `react-hook-form`. Installed `react-hook-form` + `@hookform/resolvers` + `react-native-keyboard-controller`
+  (closes **5.6**); `<KeyboardProvider>` wired at root in `_layout.tsx` (per official docs). 7.1's "skip RHF"
+  call held for the single-step screens but no longer fits the multi-step flow. [CERTAIN — tsc/lint clean]
+- **Logo → expo-image (updates 11.2 / 11.3 / 11.4).** Decided NOT to add `react-native-svg-transformer`
+  (Expo recommends `react-native-svg` + SVGR — https://docs.expo.dev/versions/latest/sdk/svg/) and NOT to
+  hand-author an inline-path logo component. The logo is an image asset rendered via `ReusableImage`
+  (expo-image). All 4 `logo-glow.png` usages (login/register/forgot/home header) swapped RN `Image` →
+  `ReusableImage`; unused `logo` styles dropped. `IconButton` already serves as the RTSH `IconWrapper`.
+  Logo art stays `logo-glow.png` (a custom asset, not an Expo default) until a final RTSH PNG is provided.
+  [CERTAIN — tsc/lint clean]
+- **Icons.** Added 10 themeable `react-native-svg` icons to `components/Icons/icons.tsx` (Mail, Key, Mobile,
+  Settings, Star, Warning, ChevronLeft, ChevronRight, Language, More), `{size,color}` props. Auth needs Mail/Key.
+- **Auth schemas (extends 7.3).** `features/auth/schemas.ts` gained the server-driven step model: `AUTH_STEP`
+  (completed-step codes; client renders `completed+1`), `GENDERS`, `registerCredentialsSchema`, `otpSchema`
+  (6-digit), `registerDetailsSchema`, `resetPasswordSchema`. Single-step schemas kept until screens rebuilt.
+
+## Phase 11.X — Server-driven multi-step auth (RHF, mock-first)
+
+Backend returns the COMPLETED step; client renders `completed + 1` (1 = start, 2 = verify/OTP, 3 = completed).
+Resume = re-enter step-1 creds → backend returns real progress → client jumps forward. Step-3 register returns
+`{ user, token, refreshToken }` → straight to home. **Built mock-first** (MSW handlers simulate the step
+responses) so the flow is navigable now; real endpoints swap in later with no screen changes. Structure adapted
+from the RTSH sibling app's multi-step flow (`CreateAccount` step state, `OneTimePass`, `useVerifyAndResend`).
+
+- [x] **11.X.0** Deps + `KeyboardProvider` + auth step schemas (see iteration pass above). [CERTAIN]
+- [x] **11.X.1** Endpoints + thin services. `endpoints.ts` AUTH_ROUTES gained register `/verify` `/details`
+      `/resend` + reset `/verify` `/password` `/resend`. `services/auth.ts` gained `AuthStepResponse` +
+      `registerStart` / `registerVerifyOtp` / `registerDetails` / `registerResendOtp` / `resetRequest` /
+      `resetVerifyOtp` / `resetPassword` / `resetResendOtp` (wire payload types co-located). Old single-step
+      `register()` kept until the register screen is rebuilt (11.X.6). [CERTAIN — tsc/lint clean]
+- [x] **11.X.2** Mock step machine. `mocks/fixtures/authFlow.ts` tracks per-email progress in memory; handlers
+      wired for all wizard routes (with a `parseBody` helper for the serialized request body). Returns the
+      completed `step`; resume works (re-submit step 1 → real progress). OTP: any 6 digits except `000000` (→401).
+      Replaced the old `/auth/register` + `/auth/forgot-password` token stubs. [CERTAIN — tsc/lint clean]
+      Note: the **existing single-step register screen no longer completes in mock mode** (endpoint now returns
+      step data) — it's rebuilt next in 11.X.6; login + forgot screens unaffected.
+- [x] **11.X.3** Wizard mutations + error helper. `mutations/registerWizard.ts` + `resetWizard.ts` — 8 thin
+      hooks over the services (each sub-form orchestrates `onSuccess`/`onError` at the call site, since
+      behavior differs per step). `features/auth/errors.ts` `authErrorMessage(err, statusMap?)` prefers the
+      backend `error` field → per-status override → generic fallback. Barrel updated. [CERTAIN — tsc/lint clean]
+- [x] **11.X.4** `components/auth/StepHeader.tsx` (3-segment cumulative progress, themed) + `OtpVerify.tsx`
+      (single hidden `TextInput` drives 6 boxes, auto-submits when full, resend countdown). Adapted from RTSH
+      `StepHeader` / `OneTimePass`. Barrel + root components barrel updated. [CERTAIN — tsc/lint clean]
+- [x] **11.X.5** `login.tsx` → RHF + `Controller` + `zodResolver(loginSchema)`.
+  - **What:** replaced manual `useState` + `safeParse` with react-hook-form. Field errors render via
+    `Controller` `fieldState.error.message`; server error via `authErrorMessage(error, { 401: t('auth.login.failed') })`.
+  - **Why:** user directive — all auth screens use RHF + zod, errors handled the RTSH way (field-level + mapped server error).
+  - **Also (user request):** removed the **Remember Me** checkbox + `rememberMe` schema field — refresh-token
+    persistence makes it redundant. Forgot-password is now a right-aligned link.
+  - **Confidence:** compiles + lints clean. [CERTAIN] Visual parity minus the removed checkbox. [HIGH]
+- [x] **11.X.6** `register.tsx` → server-driven 3-step machine (`{ step, email }`, `switch(step)`).
+  - **What:** route owns the machine + 4 wizard mutations; presentational sub-forms in `components/auth/`:
+    `RegisterCredentialsForm` (step 1, +`TermsNotice`), `OtpVerify` (step 2), `RegisterDetailsForm` (step 3,
+    gender chips). `advance(res)` lifts the completed step (`render = step + 1`); step-3 returns user+tokens →
+    keychain refresh + `store.login()` → Stack.Protected redirects. `StepHeader` as `AuthScreen` topSlot.
+  - **Why:** replaces the single-step screen that no longer completed in mock mode (11.X.2); implements the
+    resumable spec. Sub-forms live outside `app/` per the Expo rule (no co-located components in routes).
+  - **Confidence:** tsc/lint clean; mock-backed flow navigable end-to-end. [HIGH — on-device tap-through unverified]
+- [x] **11.X.7** `forgot.tsx` → reset wizard (`{ step, email, done }`, `switch(step)`).
+  - **What:** mirrors register — `ResetRequestForm` (email) → `OtpVerify` → `ResetPasswordForm`. Step 3 returns
+    no tokens (mock `{ success: true }`) → `done` state shows a success box + back-to-login.
+  - **Why:** spec — reset mirrors register (email → OTP → new password) but ends at login, not auto-login.
+  - **Confidence:** tsc/lint clean. [HIGH]
+- [x] **11.X.5–7 supporting work** (new reusable pieces, all themed/i18n'd):
+  - `components/auth/AuthScreen.tsx` — shared chrome (keyboard-avoid + header logo + scroll), kills 3× header dup.
+  - `components/auth/TermsNotice.tsx` — clickable T&C + Privacy links opening `expo-web-browser`; URLs in
+    `config/links.ts` (`LINKS.TERMS` / `LINKS.PRIVACY`, placeholder `rtsh.al` — swap when final URLs land).
+  - i18n: added `auth.register.*` (username/continue/details/gender.*), `auth.otp.*`, `auth.reset.*`,
+    `auth.terms.*` to **both** `en.json` + `sq.json` (Albanian provided; review recommended).
+  - `OtpVerify` strings moved to i18n (`auth.otp.*`).
+- [x] **11.X.5a** Reuse pass — eliminated hardcoded color values + duplicated auth UI.
+  - **What:** (1) **Player palette** — new theme-independent `theme/playerColors.ts` (`PLAYER_COLORS`); migrated
+    all hex/rgba literals in `VideoPlayer` / `LivePlayer` / `VodPlayer` / `PlayerControls` to it (video chrome is
+    always dark, so it deliberately does NOT read the flipping theme). (2) **Theme-token swaps** for themed
+    components: `ModalWrapper` backdrop → `colors.overlay` (now adapts light/dark), profile toggle thumb →
+    `colors.onPrimary`, `RadioMiniPlayer` hairline → `colors.border`, auth `_layout` content bg → `colors.background`.
+    (3) **`AuthFooterLink`** — extracted the "muted prefix + primary link" footer duplicated in login/register/forgot.
+    (4) Migrated `login.tsx` onto the shared `AuthScreen` chrome (all 3 auth screens now share it).
+  - **Why:** user flagged re-hardcoding colors + repeated UI. Single source of truth per concern; grep confirms
+    zero hex/rgba literals remain outside `theme/` + `Icons/` (only semantic `'transparent'` toggles left).
+  - **Confidence:** tsc/lint clean; player substitutions are value-identical (byte-for-byte same colors) so
+    rendering is unchanged. [CERTAIN] ModalWrapper scrim now lightens in light mode (rgba .72→.5) — intended
+    improvement, not a regression. [HIGH]
+  - **Trade-offs / known gaps:** `PLAYER_COLORS.brand` duplicates the theme `primary` value by design (player
+    must stay dark in light mode) — if the brand red ever changes, update both. Acceptable; documented in the file.
+- [x] **11.X.8** Boot rehydration — manual-data-wipe recovery in `useCheckToken`.
+  - **What:** boot check now has 3 states: (1) no token → unauth; (2) token + persisted user → authenticate
+    instantly (offline-first fast path, unchanged); (3) token but NO user (MMKV wiped, keychain survived) →
+    hydrate over network before resolving: `refreshAccessToken()` (its response already carries the user) →
+    fall back to `getMe()` (`GET /users/me`) only if the refresh response lacked one. Splash waits *only* in
+    case 3 (rare); offline/rejected falls through to `(auth)`.
+  - **Why:** prior gate required token AND persisted user, so a manual data-wipe stranded a valid refresh token
+    and forced re-login. Closes the gap noted in ARCHITECTURE.md → Auth flow.
+  - **Confidence:** tsc/lint clean; mock `/auth/refresh` + `/users/me` exercise both sub-paths. [HIGH —
+    on-device wipe scenario unverified]
+  - **Trade-offs / known gaps:** case 3 triggers one extra `refreshAccessToken()` in `useBootstrap`'s
+    background-refresh effect (harmless, guarded once). 401/403 during hydration wipes keychain + logs out
+    (correct); transient/offline keeps the token for next-boot retry.
+- [x] **11.X.7a** Dead-code removal (post-rebuild). Deleted `useRegisterMutation` / `useForgotPasswordMutation`
+      files + barrel lines; removed single-step `register()` + `forgotPassword()` services + `RegisterPayload`;
+      removed `registerSchema` + `RegisterFormData`. Kept `forgotPasswordSchema` (used by `ResetRequestForm`).
+      [CERTAIN — tsc/lint clean; each symbol was self-referenced only]
+- [~] **11.X.9** Final endpoint wiring — DEFERRED until real endpoints provided; then replace mock handlers +
+      reconcile response shapes (Zod at boundary, **5.X.2**).
+- Carry-over (data fetching, separate from auth): `useChannelsQuery` → `useInfiniteQuery`; EPG by channel+date
+  (`useEpgQuery(channelId, date)`, today …−7d). Relates to **5.X.3**.
+- Carry-over (register step 3): birthday is a plain `YYYY-MM-DD` text input — swap for a native date picker
+  (`@react-native-community/datetimepicker`, per Expo guidance) in a polish pass.
+
+---
+
+## Phase 11.Y — Codebase review follow-ups (2026-06-05)
+
+From the pre-endpoint professional review. Offline/guard items done now; the rest are drafted to land **with** the real endpoint wiring (cheaper to do while touching every service).
+
+### Done now
+- [x] **11.Y.1** Root nav guard keyed on `isAuthenticated` only (was `&& !!token`).
+  - **What:** `_layout.tsx` Protected guards dropped the `token` check. **Why:** access token is in-memory/null on cold boot → a logged-in user (esp. offline) was routed to `(auth)` and, offline, locked out — contradicting offline-first. The interceptor lazily refreshes on first 401 inside the app. Updated CLAUDE.md + ARCHITECTURE auth flow. [CERTAIN — tsc/lint clean]
+- [x] **11.Y.2** Offline = informational `noInternet` modal, browsing still allowed. **Plus: modal + network system simplified to the RTSH/SOLITAR shape** (2026-06-05, after review of both reference apps).
+  - **What:**
+    - **Network:** replaced the over-engineered `useNetworkReconnect` singleton (module `cached` + `subscribers` Set + `useSyncExternalStore`) with a simple `useNetworkMonitor` (RTSH-sized, ~50 lines) mounted once at root. New `createNetworkSlice` holds `isOnline` + `connectionType`; the monitor bridges `onlineManager`, mirrors connectivity into the store, and drives the `noInternet` modal (open on disconnect, close on reconnect). Components read `useAppStore((s) => s.isOnline)`.
+    - **Modal:** migrated `ModalSlice` from a stack (`modals[]` + `openModal`/`closeModal` + ids) to the **single-modal** RTSH/SOLITAR shape (`currentModal` + `modalData` + `updateModalSlice = set`), with SOLITAR's up-to-3-button shape (`button`/`button2`/`button3` + `action`/`action2`/`action3`). This re-aligns the code with the STYLE_GUIDE (the stack was the deviation). `ModalWrapper` rewritten as a generic alert renderer that owns the default i18n copy (`offline.title/message`), so triggers pass no text. `useCellularGate` rewired to `updateModalSlice` + store `connectionType`. Live-screen loader gated on `isOnline` (no infinite offline spinner). Deleted interim `useNetworkModal`.
+  - **Why:** user flagged the singleton as over-engineered and preferred RTSH's trigger-in-listener + single-modal slice for cross-app consistency (RTSH + SOLITAR + this app share one mental model). Verified against both reference projects' actual code.
+  - **Trade-off:** lost modal *stacking* (one modal at a time; last-wins). Accepted — concurrent modals are rare here, and it matches the other two apps. [CERTAIN — tsc/lint clean]
+  - **Files:** `createNetworkSlice.ts` (new), `useNetworkMonitor.ts` (new), `createModalSlice.ts` + `ModalWrapper.tsx` (rewritten), `useCellularGate.ts`, live `index.tsx`, `OfflineBanner.tsx`, `useBootstrap.ts`, store composition + barrels. Docs: CLAUDE.md slices, ARCHITECTURE network, STYLE_GUIDE modals.
+- [x] **11.Y.3** Doc drift fixed: CLAUDE.md slices (removed non-existent `ChannelsSlice`/`EpgSlice`, added `ParentalSlice`), "MSW" → custom axios-adapter mock, guard description.
+- [x] **11.Y.12** Safe-area + screen-layout convention (after analyzing SOLITAR + RTSH + Bunk-Art).
+  - **What:** `react-native-safe-area-context` was installed but unused (would break layout under notch/status bar). Added `<SafeAreaProvider>` at root and top-inset handling in the shared header spots (`TabHeader`, `AuthScreen`, live custom header). New `ScreenLayout` (Bunk-Art `MainLayout`/`ContentLayout` analog: themed bg + flex + opt-in `edges`); migrated all 5 tab screens off the repeated `<View flex:1 bg>` boilerplate. Added a `utils/` bucketing convention to STYLE_GUIDE (bucket by domain as it grows; no premature single-file folders).
+  - **Why:** user reported missing `SafeAreaProvider`; cross-project review showed a layout-component family is the team convention. **Confidence:** tsc/lint clean. [CERTAIN] Visual inset correctness on a notched device unverified until manual test. [HIGH]
+  - **Carry-overs:** full-screen player routes (`channel/[id]`, `program/[id]`) can adopt `ScreenLayout edges={['bottom']}` if they need bottom inset — left to manual testing.
+
+### Drafted — land with endpoint wiring (11.X.9)
+- [~] **11.Y.4** Runtime validation at the API boundary (Zod).
+  - **Deferred because:** needs the real response shapes. **What we need:** the endpoint list + payloads.
+  - **Approach:** parse each service response with a Zod schema co-located in `types/` (or a typed `http()` wrapper that takes a schema); on parse failure, throw a typed `ApiError` → surfaces via `apiError` modal. Kills silent `undefined` (e.g. `accessToken`). Relates to **5.X.2**.
+- [~] **11.Y.5** Pin one response envelope.
+  - **Deferred because:** backend-defined. Today services disagree (`getChannels` → `data.channels`, `getMe` → bare `data`, auth → `data`). **Approach:** agree one shape with backend; centralize unwrapping in the `http()` wrapper; align all services in one pass.
+- [~] **11.Y.6** Root `ErrorBoundary` + Sentry.
+  - **Deferred because:** Sentry needs the DSN (EAS secret) and is cheapest to wire alongside real traffic. **Approach:** `ErrorBoundary` around the root `Stack` (themed fallback + reset); `@sentry/react-native` init in `_layout`, wrap export, capture the swallowed font-load error + `authErrorMessage` non-4xx. Relates to **5.X.12 / Phase 14**.
+- [~] **11.Y.7** Query-key factory (`api/queryKeys.ts`).
+  - **Approach:** centralize `['channels']`, `['channel', id]`, `['stream', kind, id]`, `['epg', date]`, etc. so invalidations (`useBootstrap` foreground) can't drift. Low risk; can also ride the wiring pass.
+- [~] **11.Y.8** Fix `(createPlayerSlice as any)` store typing — give `PlayerSlice` the `StateCreator<AppStore,...>` signature like its siblings, drop the cast. Chore; no blocker.
+- [~] **11.Y.9** Skeleton loaders for data screens (live/epg/catchup/radio) — replace empty/spinner with `FlashList` skeletons. Pairs with real data + design. Relates to data-screen polish.
+- [~] **11.Y.10** Tests — start with pure logic: `authFlow` mock machine, `authErrorMessage`, store `login/logout`, `useCheckToken` three branches, `syncNoInternetModal`. No blocker; high value before store launch.
+- [~] **11.Y.11** MMKV encryption / `user` field whitelist before real PII persists. Relates to **5.X.10 / 5.X.17**.
+
+---
+
 ## Working with Claude Code
 
 For each step:

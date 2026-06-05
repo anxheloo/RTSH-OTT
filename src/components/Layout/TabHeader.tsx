@@ -9,6 +9,7 @@
  */
 import React from 'react';
 import { StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { ThemeColors } from '@/theme/colors';
 import { useAppStore } from '@/store/useAppStore';
@@ -48,13 +49,15 @@ const TabHeader: React.FC<TabHeaderProps> = ({
   testID,
 }) => {
   const colors = useAppStore((s) => s.colors);
+  const insets = useSafeAreaInsets();
 
   return (
     <View
       style={[
         styles.container,
         {
-          height,
+          height: height + insets.top,
+          paddingTop: insets.top,
           backgroundColor: colors[backgroundColor],
           borderBottomWidth: showBottomBorder ? StyleSheet.hairlineWidth : 0,
           borderBottomColor: colors.border,

@@ -9,14 +9,13 @@ import { initI18n } from '@/i18n';
 
 import { useAppState } from './useAppState';
 import { useCheckToken } from './useCheckToken';
-import { type NetworkState,useNetworkReconnect } from './useNetworkReconnect';
+import { useNetworkMonitor } from './useNetworkMonitor';
 import { useOTA } from './useOTA';
 
 export interface BootstrapState {
   /** True once the keychain check has resolved. Splash gate uses this. */
   isReady: boolean;
   isAuthenticated: boolean;
-  network: NetworkState;
   ota: ReturnType<typeof useOTA>;
 }
 
@@ -24,7 +23,8 @@ export interface BootstrapState {
  * App-root orchestrator. Mount exactly once from `_layout.tsx`. Responsibilities:
  *
  *   1. Wire 401 → refresh into the api client (`setupAuthRefresh`).
- *   2. Mount `useNetworkReconnect` (bridges NetInfo → TanStack `onlineManager`).
+ *   2. Mount `useNetworkMonitor` (bridges NetInfo → TanStack `onlineManager`,
+ *      mirrors connectivity into the store, drives the no-internet modal).
  *   3. Mount `useOTA` (exposes update state; runtime auto-checks on launch).
  *   4. Run boot auth check via `useCheckToken` (keychain-only — never blocks
  *      splash on the network).
@@ -48,7 +48,7 @@ const wireOnceAtBoot = (): void => {
 export function useBootstrap(): BootstrapState {
   wireOnceAtBoot();
 
-  const network = useNetworkReconnect();
+  useNetworkMonitor();
   const ota = useOTA();
   const auth = useCheckToken();
 
@@ -80,7 +80,6 @@ export function useBootstrap(): BootstrapState {
   return {
     isReady: !auth.isLoading,
     isAuthenticated: auth.data?.authenticated ?? false,
-    network,
     ota,
   };
 }

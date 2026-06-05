@@ -5,5 +5,6 @@
 export { default as FullScreenLoader } from './FullScreenLoader';
 export { default as OfflineBanner } from './OfflineBanner';
 export { default as RadioMiniPlayer } from './RadioMiniPlayer';
+export { default as ScreenLayout } from './ScreenLayout';
 export { default as TabHeader } from './TabHeader';
 export { default as TCGateOverlay } from './TCGateOverlay';

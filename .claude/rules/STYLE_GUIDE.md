@@ -196,7 +196,7 @@ export const createChannelsSlice: StateCreator<ChannelsSlice> = (set) => ({
 Inside axios interceptors, service functions, or async callbacks — use `useAppStore.getState()`.
 
 ```ts
-useAppStore.getState().updateModalSlice({ currentModal: 'apiError', modalData: { message } });
+useAppStore.getState().updateModalSlice({ currentModal: 'apiError', modalData: { description } });
 useAppStore.getState().logout();
 ```
 
@@ -331,7 +331,7 @@ export const useLogin = () => {
       updateUserSlice({ user, token: accessToken, isAuthenticated: true });
     },
     onError: (error) => {
-      updateModalSlice({ currentModal: 'apiError', modalData: { message: error.message } });
+      updateModalSlice({ currentModal: 'apiError', modalData: { description: error.message } });
     },
   });
 };
@@ -383,17 +383,23 @@ sheetCornerRadius: BORDERRADIUS.radius_20,
 
 ## Modals
 
-All modals route through `ModalSlice` + `ModalWrapper`. This works from anywhere in the app — React components, async flows, axios interceptors.
+Single-modal slice (`currentModal` + `modalData`), one modal at a time — matches RTSH + SOLITAR. All modals route through `ModalSlice` + `ModalWrapper`, callable from anywhere (React components, async flows, axios interceptors). `ModalWrapper` owns the default i18n copy per type, so alert-style triggers (e.g. `noInternet`) pass no text. Up to three buttons via `button`/`button2`/`button3` + `action`/`action2`/`action3`; `button` defaults to "OK".
 
 ```ts
 useAppStore.getState().updateModalSlice({
   currentModal: 'confirmation',
   modalData: {
     title: t('common:confirm'),
-    message: t('settings:logout_confirm'),
-    onConfirm: () => logout(),
+    description: t('settings:logout_confirm'),
+    button: t('common:ok'),
+    action: () => logout(),
+    button2: t('common:cancel'),
+    action2: () => {}, // ModalWrapper closes after the action runs
   },
 });
+
+// close from anywhere
+useAppStore.getState().updateModalSlice({ currentModal: null });
 ```
 
 ---
@@ -429,6 +435,14 @@ export const removeFromKeychain = async (key: string): Promise<void> => { ... };
 | Route file | exact route name | `(tabs)/index.tsx`, `player/[id].tsx` |
 | Component folder | `PascalCase` | `Buttons/`, `Inputs/`, `Media/` |
 | Domain folder | lowercase | `channels/`, `epg/`, `catchup/` |
+
+### `utils/` organization
+
+Keep `utils/` flat while small. Once a category reaches ~3+ files, bucket it into a
+domain subfolder with its own barrel — mirrors SOLITAR / Bunk-Art (`utils/format/`,
+`utils/crypto/`, `utils/storage/`, …). Don't create single-file folders preemptively.
+Cross-cutting infra that isn't a pure helper stays at its own top level (`hooks/`,
+`services/`, `store/`) rather than nesting under `utils/`.
 
 ---
 

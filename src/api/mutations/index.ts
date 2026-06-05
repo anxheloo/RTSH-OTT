@@ -1,6 +1,6 @@
 export * from './authRefresh';
-export * from './useForgotPasswordMutation';
+export * from './registerWizard';
+export * from './resetWizard';
 export * from './useLoginMutation';
 export * from './useLogoutMutation';
-export * from './useRegisterMutation';
 

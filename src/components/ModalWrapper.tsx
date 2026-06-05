@@ -1,5 +1,15 @@
+/**
+ * Single-modal renderer for the `ModalSlice` (`currentModal` + `modalData`).
+ * Generic alert sheet — title + description + up to three buttons — covering the
+ * alert-style modal types. Structural modals (e.g. a future language/quality
+ * picker) can be added with a `switch (currentModal)` branch here.
+ *
+ * Owns the default i18n copy per type so triggers (e.g. the network listener)
+ * can fire `updateModalSlice({ currentModal: 'noInternet' })` with no text.
+ */
 import React from 'react';
 import { Modal, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 
 import { BORDERRADIUS, SPACING } from '@/theme';
 import { useAppStore } from '@/store/useAppStore';
@@ -8,104 +18,92 @@ import ReusableBtn from './Buttons/ReusableBtn';
 import ReusableText from './Inputs/ReusableText';
 
 const ModalWrapper: React.FC = () => {
+  const { t } = useTranslation();
   const colors = useAppStore((s) => s.colors);
-  const modals = useAppStore((s) => s.modals);
-  const closeModal = useAppStore((s) => s.closeModal);
-  const closeAllModals = useAppStore((s) => s.closeAllModals);
+  const currentModal = useAppStore((s) => s.currentModal);
+  const modalData = useAppStore((s) => s.modalData);
+  const updateModalSlice = useAppStore((s) => s.updateModalSlice);
 
-  if (modals.length === 0) return null;
+  if (!currentModal) return null;
 
-  const top = modals[modals.length - 1];
-  const { id, type, payload } = top;
+  const close = () => updateModalSlice({ currentModal: null });
+  // Force a choice on confirmation/notify; alerts dismiss on backdrop tap.
+  const dismissable = currentModal === 'apiError' || currentModal === 'noInternet';
 
   const title =
-    payload?.title ??
-    (type === 'apiError'
-      ? 'Something went wrong'
-      : type === 'noInternet'
-        ? 'No connection'
-        : type === 'confirmation'
-          ? 'Are you sure?'
-          : 'Notice');
+    modalData.title ||
+    (currentModal === 'apiError'
+      ? t('common.error')
+      : currentModal === 'noInternet'
+        ? t('offline.title')
+        : '');
 
-  const message =
-    payload?.message ??
-    (type === 'apiError'
-      ? 'An error occurred. Please try again.'
-      : type === 'noInternet'
-        ? 'Check your internet connection and retry.'
-        : undefined);
+  const description =
+    modalData.description ||
+    (currentModal === 'apiError'
+      ? t('errors.api_default')
+      : currentModal === 'noInternet'
+        ? t('offline.message')
+        : '');
 
-  const hasTwoActions = type === 'confirmation';
+  const run = (action?: () => void | Promise<void>) => async () => {
+    await action?.();
+    close();
+  };
+
+  // Primary first, then optional secondaries. Single button → full width;
+  // two → side-by-side; three → stacked.
+  type Btn = { label: string; action?: () => void | Promise<void> };
+  const secondaries: Btn[] = [];
+  if (modalData.button2) secondaries.push({ label: modalData.button2, action: modalData.action2 });
+  if (modalData.button3) secondaries.push({ label: modalData.button3, action: modalData.action3 });
+
+  const sideBySide = secondaries.length === 1;
+  const primaryLabel = modalData.button ?? t('common.ok');
+  const showIconStrip = currentModal === 'apiError' || currentModal === 'noInternet';
 
   return (
-    <Modal
-      transparent
-      animationType="fade"
-      visible
-      onRequestClose={() => closeModal(id)}
-      statusBarTranslucent
-    >
+    <Modal transparent animationType="fade" visible onRequestClose={close} statusBarTranslucent>
       <TouchableOpacity
-        style={styles.backdrop}
+        style={[styles.backdrop, { backgroundColor: colors.overlay }]}
         activeOpacity={1}
-        onPress={() => closeModal(id)}
+        onPress={dismissable ? close : undefined}
       >
-        <TouchableOpacity
-          activeOpacity={1}
-          style={[styles.sheet, { backgroundColor: colors.surface }]}
-        >
-          {/* icon strip for known types */}
-          {(type === 'apiError' || type === 'noInternet') && (
-            <View style={[styles.iconStrip, { backgroundColor: colors.error }]} />
-          )}
+        <TouchableOpacity activeOpacity={1} style={[styles.sheet, { backgroundColor: colors.surface }]}>
+          {showIconStrip && <View style={[styles.iconStrip, { backgroundColor: colors.error }]} />}
 
           <View style={styles.body}>
-            <ReusableText
-              variant="heading3"
-              themeColor="text"
-              textAlign="center"
-              style={styles.title}
-            >
-              {title}
-            </ReusableText>
-
-            {!!message && (
-              <ReusableText
-                variant="body"
-                themeColor="textMuted"
-                textAlign="center"
-                style={styles.message}
-              >
-                {message}
+            {!!title && (
+              <ReusableText variant="heading3" themeColor="text" textAlign="center" style={styles.title}>
+                {title}
               </ReusableText>
             )}
 
-            <View style={[styles.actions, hasTwoActions && styles.actionRow]}>
-              {hasTwoActions && (
+            {!!description && (
+              <ReusableText variant="body" themeColor="textMuted" textAlign="center" style={styles.message}>
+                {description}
+              </ReusableText>
+            )}
+
+            <View style={[styles.actions, sideBySide && styles.actionRow]}>
+              {secondaries.map((b) => (
                 <ReusableBtn
-                  label={payload?.cancelLabel ?? 'Cancel'}
+                  key={b.label}
+                  label={b.label}
                   variant="ghost"
                   size="medium"
-                  isFullWidth={false}
-                  style={styles.actionBtn}
-                  onPress={() => {
-                    payload?.onCancel?.();
-                    closeModal(id);
-                  }}
+                  isFullWidth={!sideBySide}
+                  style={sideBySide ? styles.actionBtn : undefined}
+                  onPress={run(b.action)}
                 />
-              )}
+              ))}
               <ReusableBtn
-                label={payload?.confirmLabel ?? (hasTwoActions ? 'Confirm' : 'OK')}
-                variant={type === 'confirmation' ? 'destructive' : 'primary'}
+                label={primaryLabel}
+                variant={currentModal === 'confirmation' ? 'destructive' : 'primary'}
                 size="medium"
-                isFullWidth={!hasTwoActions}
-                style={hasTwoActions ? styles.actionBtn : undefined}
-                onPress={() => {
-                  payload?.onConfirm?.();
-                  if (hasTwoActions) closeModal(id);
-                  else closeAllModals();
-                }}
+                isFullWidth={!sideBySide}
+                style={sideBySide ? styles.actionBtn : undefined}
+                onPress={run(modalData.action)}
               />
             </View>
           </View>
@@ -118,7 +116,6 @@ const ModalWrapper: React.FC = () => {
 const styles = StyleSheet.create({
   backdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.72)',
     justifyContent: 'center',
     alignItems: 'center',
     padding: SPACING.space_24,
@@ -144,10 +141,10 @@ const styles = StyleSheet.create({
   },
   actions: {
     marginTop: SPACING.space_8,
+    gap: SPACING.space_12,
   },
   actionRow: {
     flexDirection: 'row',
-    gap: SPACING.space_12,
   },
   actionBtn: {
     flex: 1,

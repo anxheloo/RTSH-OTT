@@ -8,9 +8,9 @@ This file complements (does not duplicate) CLAUDE.md. CLAUDE.md describes *what 
 
 ## Auth flow
 
-### How it works today (post 5.5a + 5.8)
+### How it works today (post 5.5a + 5.8 + 11.X.8)
 
-1. **Boot** — `useBootstrap` calls `useCheckToken` (keychain-only, no network). If keychain has refresh token AND persisted `user`, store flips to `isAuthenticated: true`. Background `refreshAccessToken()` is fired-and-forgotten — never blocks splash. App boots offline.
+1. **Boot** — `useBootstrap` calls `useCheckToken`. Three states: **(a)** no refresh token → unauthenticated; **(b)** refresh token **AND** persisted `user` → store flips to `isAuthenticated: true` with no network (offline-first fast path), and a background `refreshAccessToken()` is fired-and-forgotten so it never blocks splash; **(c)** refresh token **but no** `user` (MMKV wiped while keychain survived — e.g. iOS "Clear data" / reinstall) → boot hydrates over the network *before* resolving: `refreshAccessToken()` (its response already carries the user) → falls back to `getMe()` (`GET /users/me`) only if the refresh lacked one. Splash waits only in case (c); offline/rejected there falls through to `(auth)`. The common path (a/b) still boots offline instantly.
 2. **Login** — mutation POSTs `/auth/login` via `apiClient`. On success: refresh token → keychain (`expo-secure-store`), user + access token → store via `login(user, accessToken)`.
 3. **In-flight 401** — response interceptor in `src/api/client.ts` single-flights refresh through a **bare axios instance** (`refreshClient` in `services/auth.ts`) — bypasses the interceptor to prevent refresh-loop deadlocks. On success: retries the original request. On failure: fires `store.logout()`.
 4. **Refresh failure semantics** — only 401/403 wipes the keychain. Network / DNS / 5xx errors return `null` without logout, so flaky connectivity doesn't sign users out.
@@ -93,12 +93,14 @@ This file complements (does not duplicate) CLAUDE.md. CLAUDE.md describes *what 
 
 `src/hooks/useNetworkReconnect.ts`:
 
-- **Module-level singleton:** `cached` state + `subscribers` Set + lazy `initialize()`. First subscriber kicks off:
-  - `onlineManager.setEventListener` — bridges NetInfo into TanStack so queries pause offline and refetch on reconnect.
-  - `NetInfo.addEventListener` — keeps `cached` state in sync, notifies React subscribers via `useSyncExternalStore`.
-  - `NetInfo.fetch()` — primes the cache.
-- Initial state: `isOnline: false`. Conservative default — prevents UI firing requests before NetInfo confirms.
-- Mounted at root via `useBootstrap`.
+- **`useNetworkMonitor`** — one NetInfo listener for the whole app, mounted once at root via `useBootstrap` (RTSH `useNetworkMonitor` pattern). On each change it:
+  - bridges NetInfo into TanStack `onlineManager` (queries pause offline, refetch on reconnect),
+  - mirrors connectivity into the store via `updateNetworkSlice({ isOnline, connectionType })` — components read `useAppStore((s) => s.isOnline)`; the cellular gate reads `connectionType`,
+  - opens the `noInternet` modal on disconnect and closes it on reconnect.
+- **Online = `isConnected && (isInternetReachable ?? true)`** — captive-portal safe.
+- **Modal copy owned by `ModalWrapper`** (i18n), so the listener passes no text. Auto-close on reconnect is an improvement over RTSH (which leaves the modal up).
+- **Store default `isOnline: true`** (optimistic) — avoids a false "offline" flash before NetInfo's first report.
+- **Why not a singleton + `useSyncExternalStore`?** Earlier this was a module-level singleton so it could be mounted by many components without leaking. But it's mounted once at root and the Zustand store is already a shared subscribable source — so `isOnline` lives in `NetworkSlice` and the singleton machinery was removed as over-engineering (2026-06-05).
 
 ### Why these choices
 
@@ -107,7 +109,8 @@ This file complements (does not duplicate) CLAUDE.md. CLAUDE.md describes *what 
 
 ### Known gaps
 
-- No offline banner UI yet (planned in Phase 6). Hook exposes state; component consumer pending.
+- No offline **banner** UI (the unused `OfflineBanner` component exists). Currently offline is surfaced via the `noInternet` modal triggered from the listener; a persistent banner is optional/future.
+- Data screens show an empty list offline (no skeletons yet). The live screen no longer spins forever offline (loader gated on `isOnline`); skeleton loaders are tracked for the data-screen polish pass.
 - No cellular-data gate UI (spec mandates a confirmation modal before playback over cellular when `cellularPlaybackAllowed === false`). Setting field exists; gate UI tracked for the player phase.
 
 ---

@@ -5,10 +5,20 @@
 
 export const AUTH_ROUTES = {
   LOGIN: '/auth/login',
-  REGISTER: '/auth/register',
   REFRESH: '/auth/refresh',
   LOGOUT: '/auth/logout',
-  FORGOT_PASSWORD: '/auth/forgot-password',
+
+  // Registration wizard (server-driven; each returns the completed `step`).
+  REGISTER: '/auth/register', // step 1 — start (username/email/password)
+  REGISTER_VERIFY: '/auth/register/verify', // step 2 — OTP
+  REGISTER_DETAILS: '/auth/register/details', // step 3 — profile details
+  REGISTER_RESEND: '/auth/register/resend', // resend OTP
+
+  // Password-reset wizard (mirrors register).
+  FORGOT_PASSWORD: '/auth/forgot-password', // step 1 — request (email)
+  RESET_VERIFY: '/auth/reset/verify', // step 2 — OTP
+  RESET_PASSWORD: '/auth/reset/password', // step 3 — new password
+  RESET_RESEND: '/auth/reset/resend', // resend OTP
 } as const;
 
 export const USERS_ROUTES = {

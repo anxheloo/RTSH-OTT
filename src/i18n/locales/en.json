@@ -9,7 +9,9 @@
     "back": "Back"
   },
   "offline": {
-    "banner": "No internet connection"
+    "banner": "No internet connection",
+    "title": "No internet connection",
+    "message": "You're offline. Live content will appear once you're back online."
   },
   "auth": {
     "login": {
@@ -30,7 +32,28 @@
       "submit": "Create Account",
       "failed": "Registration failed. Please try again.",
       "have_account": "Already have an account?",
-      "sign_in": "Sign in"
+      "sign_in": "Sign in",
+      "username_placeholder": "Username",
+      "continue": "Continue",
+      "details_title": "Tell us about you",
+      "birthday_placeholder": "Birthday (YYYY-MM-DD)",
+      "city_placeholder": "City",
+      "country_placeholder": "Country",
+      "education_placeholder": "Education (optional)",
+      "gender_label": "Gender",
+      "gender": {
+        "male": "Male",
+        "female": "Female",
+        "other": "Other",
+        "unspecified": "Prefer not to say"
+      }
+    },
+    "otp": {
+      "sent": "Enter the {{length}}-digit code sent to {{email}}",
+      "verify": "Verify",
+      "resend": "Resend code",
+      "resend_in": "Resend code in {{seconds}}s",
+      "invalid": "Invalid or expired code."
     },
     "forgot": {
       "title": "Reset Password",
@@ -41,6 +64,19 @@
       "failed": "Failed to send reset link.",
       "back_to": "Back to",
       "sign_in": "Sign in"
+    },
+    "reset": {
+      "new_password_title": "Set a new password",
+      "new_password_placeholder": "New password",
+      "confirm_password_placeholder": "Confirm password",
+      "submit": "Reset password",
+      "success": "Password updated. You can now sign in."
+    },
+    "terms": {
+      "agree_prefix": "By continuing, you agree to our",
+      "terms_link": "Terms & Conditions",
+      "and": "and",
+      "privacy_link": "Privacy Policy"
     }
   },
   "profile": {

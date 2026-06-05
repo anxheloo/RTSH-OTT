@@ -66,14 +66,16 @@ Expo Router file-based. Root `_layout.tsx` uses `Stack.Protected` guards:
 
 ### State (`src/store/`)
 
-Single `useAppStore` composed from slices:
-- `UserSlice` — auth state, user, tokens (access in store, refresh in keychain)
-- `SettingsSlice` — locale, theme mode, haptics, autoplay, data-saver, parental PIN
+Single `useAppStore` composed from slices (see `src/store/`):
+- `UserSlice` — auth state, user, access token (access in store, refresh in keychain)
+- `SettingsSlice` — locale, theme mode, haptics, autoplay, data-saver, T&C timestamp, cellular/background-video flags
 - `ThemeSlice` — mode + colors (light/dark objects, swapped on toggle)
+- `ModalSlice` — single active modal (`currentModal` + `modalData`, RTSH/SOLITAR style; apiError, noInternet, notify, confirmation). One modal at a time; `updateModalSlice({ currentModal: null })` to close.
+- `NetworkSlice` — runtime connectivity (`isOnline`, `connectionType`), written by `useNetworkMonitor`; not persisted
 - `PlayerSlice` — current playback state (channelId, position, isPlaying, isFullscreen)
-- `ModalSlice` — global modal stack (apiError, noInternet, notify, confirmation)
-- `ChannelsSlice` — favorites, recently watched
-- `EpgSlice` — reminders set by user
+- `ParentalSlice` — PIN-set flag, failed attempts, lockout
+
+Planned (not yet implemented): `ChannelsSlice` (favorites, recently watched) and `EpgSlice` (reminders) — favorites/recently-watched/reminders are not in the store today.
 
 Persist via MMKV (`zustandStorage`). `partialize` controls what persists. `onRehydrateStorage` applies side effects (re-apply theme).
 
@@ -93,7 +95,7 @@ Persist via MMKV (`zustandStorage`). `partialize` controls what persists. `onReh
 - `services/*.ts` — domain-grouped axios calls (`auth.ts`, `channels.ts`, `epg.ts`, `catchup.ts`, `radio.ts`, `streams.ts`, `users.ts`, `config.ts`).
 - `queries/*.ts` — TanStack Query hooks wrapping services.
 - `mutations/*.ts` — TanStack Mutation hooks.
-- `mocks/` — MSW handlers + fixtures, active when `EXPO_PUBLIC_API_MODE=mock`.
+- `mocks/` — **custom axios-adapter mock** (not MSW) + fixtures, active when `EXPO_PUBLIC_API_MODE=mock`. `handlers.ts` is an array of `{ method, test(url), delay?, respond(config) }`; `server.ts` swaps it into the axios adapter.
 
 ### Player
 
@@ -117,7 +119,7 @@ Tokens live in `src/theme/`:
 
 ### Auth flow
 
-Access token in memory, refresh token in keychain. Boot is offline-first (keychain-only check). 401s single-flight refresh through a bare axios instance to prevent loop deadlocks. Logout is async + atomic. No app-lock — `(auth)` vs `(app)` is token-based. Parental PIN is content-level, not app-entry.
+Access token in memory, refresh token in keychain. Boot is offline-first (keychain-first check; network only on manual-wipe recovery). 401s single-flight refresh through a bare axios instance to prevent loop deadlocks. Logout is async + atomic. No app-lock — the root `(auth)` vs `(app)` guard keys on `isAuthenticated` ONLY (never the in-memory access token, which is null on cold boot until the background refresh lands). Parental PIN is content-level, not app-entry.
 
 Full rationale, behavior, and known gaps: `@rules/ARCHITECTURE.md` → Auth flow.
 

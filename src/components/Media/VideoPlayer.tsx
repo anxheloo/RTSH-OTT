@@ -15,6 +15,8 @@ import { StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
 import { useKeepAwake } from 'expo-keep-awake';
 import { useVideoPlayer, VideoPlayer as ExpoVideoPlayer, VideoSource, VideoView } from 'expo-video';
 
+import { PLAYER_COLORS } from '@/theme/playerColors';
+
 export type VideoStatus = 'idle' | 'loading' | 'readyToPlay' | 'error';
 
 export type VideoPlayerOverlayProps = {
@@ -114,7 +116,7 @@ function VideoPlayer({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000000',
+    backgroundColor: PLAYER_COLORS.surface,
   },
   video: {
     flex: 1,

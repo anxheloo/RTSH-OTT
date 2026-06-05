@@ -10,6 +10,7 @@ import { StatusBar } from 'expo-status-bar';
 
 import { BORDERRADIUS } from '@/theme/borders';
 import { FONTSIZE } from '@/theme/fonts';
+import { PLAYER_COLORS } from '@/theme/playerColors';
 import { SPACING } from '@/theme/spacing';
 import { useLockOrientationOnMount } from '@/hooks/useOrientation';
 import ReusableText from '@/components/Inputs/ReusableText';
@@ -134,7 +135,7 @@ const VodPlayer: React.FC<VodPlayerProps> = ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000',
+    backgroundColor: PLAYER_COLORS.surface,
   },
   errorOverlay: {
     position: 'absolute',
@@ -142,7 +143,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: '#000',
+    backgroundColor: PLAYER_COLORS.surface,
     justifyContent: 'center',
     alignItems: 'center',
     gap: SPACING.space_12,
@@ -152,7 +153,7 @@ const styles = StyleSheet.create({
     paddingVertical: SPACING.space_10,
     borderRadius: BORDERRADIUS.radius_8,
     borderWidth: 1,
-    borderColor: '#EB122F',
+    borderColor: PLAYER_COLORS.brand,
   },
 });
 

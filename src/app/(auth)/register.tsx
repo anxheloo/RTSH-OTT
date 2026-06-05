@@ -1,221 +1,126 @@
 /**
- * Register screen — new account creation.
- * 4 fields: Display Name, Email, Password, Confirm Password.
- * Validates with registerSchema before calling useRegisterMutation.
+ * Register screen — server-driven, resumable 3-step wizard.
+ *
+ *   step 1 — credentials (username / email / password)  → POST /auth/register
+ *   step 2 — OTP verify                                  → POST /auth/register/verify
+ *   step 3 — profile details                             → POST /auth/register/details
+ *
+ * Each response carries the COMPLETED step; the client renders `completed + 1`.
+ * Step-3 returns user + tokens → we persist the refresh token and log straight
+ * in (Stack.Protected handles the redirect). The local machine only tracks the
+ * rendered step + the email carried between steps.
  */
 import React, { useState } from 'react';
-import {
-  Image,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  TouchableOpacity,
-  View,
-} from 'react-native';
 import { useTranslation } from 'react-i18next';
 
 import { router } from 'expo-router';
 
-import { BORDERRADIUS, FONTSIZE, SPACING } from '@/theme';
-import { Fonts } from '@/theme/fonts';
 import { useAppStore } from '@/store/useAppStore';
-import { useRegisterMutation } from '@/api/mutations/useRegisterMutation';
-import ReusableBtn from '@/components/Buttons/ReusableBtn';
-import ReusableInput from '@/components/Inputs/ReusableInput';
-import ReusableText from '@/components/Inputs/ReusableText';
-import { registerSchema } from '@/features/auth/schemas';
-
-type FieldErrors = {
-  displayName?: string;
-  email?: string;
-  password?: string;
-  confirmPassword?: string;
-};
+import {
+  useRegisterDetails,
+  useRegisterResendOtp,
+  useRegisterStart,
+  useRegisterVerifyOtp,
+} from '@/api/mutations/registerWizard';
+import type { AuthStepResponse } from '@/api/services/auth';
+import {
+  AuthFooterLink,
+  AuthScreen,
+  OtpVerify,
+  RegisterCredentialsForm,
+  RegisterDetailsForm,
+  StepHeader,
+} from '@/components/auth';
+import { REFRESH_TOKEN_KEY } from '@/config/auth';
+import { authErrorMessage } from '@/features/auth/errors';
+import type { RegisterCredentialsData, RegisterDetailsData } from '@/features/auth/schemas';
+import { storeOnKeychain } from '@/services/keychain';
 
 const RegisterScreen: React.FC = () => {
   const { t } = useTranslation();
-  const colors = useAppStore((s) => s.colors);
 
-  const [displayName, setDisplayName] = useState('');
+  const [step, setStep] = useState(1);
   const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
 
-  const { mutate: register, isPending, error: mutationError } = useRegisterMutation();
+  const start = useRegisterStart();
+  const verify = useRegisterVerifyOtp();
+  const details = useRegisterDetails();
+  const resend = useRegisterResendOtp();
 
-  const clearError = (field: keyof FieldErrors) => {
-    if (fieldErrors[field]) setFieldErrors((e) => ({ ...e, [field]: undefined }));
-  };
-
-  const handleRegister = () => {
-    const result = registerSchema.safeParse({ displayName, email, password, confirmPassword });
-    if (!result.success) {
-      const errs: FieldErrors = {};
-      for (const issue of result.error.issues) {
-        const field = issue.path[0] as keyof FieldErrors;
-        if (!errs[field]) errs[field] = issue.message;
-      }
-      setFieldErrors(errs);
+  /** Move the wizard forward from a step response (or log in when it completes). */
+  const advance = async (res: AuthStepResponse) => {
+    if (res.user && res.accessToken && res.refreshToken) {
+      await storeOnKeychain(REFRESH_TOKEN_KEY, res.refreshToken);
+      useAppStore.getState().login(res.user, res.accessToken);
       return;
     }
-    setFieldErrors({});
-    register({
-      displayName: result.data.displayName,
-      email: result.data.email,
-      password: result.data.password,
-    });
+    if (res.email) setEmail(res.email);
+    setStep(res.step + 1);
+  };
+
+  const handleCredentials = (data: RegisterCredentialsData) => {
+    setEmail(data.email);
+    start.mutate(
+      { username: data.username, email: data.email, password: data.password },
+      { onSuccess: advance },
+    );
+  };
+
+  const handleVerify = (code: string) => {
+    verify.mutate({ email, code }, { onSuccess: advance });
+  };
+
+  const handleDetails = (data: RegisterDetailsData) => {
+    details.mutate({ email, ...data }, { onSuccess: advance });
   };
 
   return (
-    <KeyboardAvoidingView
-      style={[styles.flex, { backgroundColor: colors.background }]}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
-      {/* Header */}
-      <View style={[styles.header, { backgroundColor: colors.headerBackground }]}>
-        <Image
-          source={require('../../../assets/images/logo-glow.png')}
-          style={styles.logo}
-          resizeMode="contain"
-          testID="register-header-logo"
+    <AuthScreen topSlot={<StepHeader currentStep={step} />} testID="register-screen">
+      {step === 1 ? (
+        <RegisterCredentialsForm
+          onSubmit={handleCredentials}
+          isSubmitting={start.isPending}
+          errorText={start.error ? authErrorMessage(start.error) : undefined}
         />
-      </View>
+      ) : null}
 
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
-      >
-        <View style={styles.form}>
-          <ReusableInput
-            value={displayName}
-            onChangeText={(v) => { setDisplayName(v); clearError('displayName'); }}
-            placeholder={t('auth.register.display_name_placeholder')}
-            autoCapitalize="words"
-            autoComplete="name"
-            errorText={fieldErrors.displayName}
-            height={60}
-            borderRadius={BORDERRADIUS.pill}
-            testID="register-display-name-input"
-          />
+      {step === 2 ? (
+        <OtpVerify
+          email={email}
+          onVerify={handleVerify}
+          onResend={() => resend.mutate(email)}
+          isVerifying={verify.isPending}
+          isResending={resend.isPending}
+          errorText={
+            verify.error
+              ? authErrorMessage(verify.error, {
+                  400: t('auth.otp.invalid'),
+                  401: t('auth.otp.invalid'),
+                })
+              : undefined
+          }
+          testID="register-otp"
+        />
+      ) : null}
 
-          <ReusableInput
-            value={email}
-            onChangeText={(v) => { setEmail(v); clearError('email'); }}
-            placeholder={t('auth.register.email_placeholder')}
-            keyboardType="email-address"
-            autoCapitalize="none"
-            autoComplete="email"
-            errorText={fieldErrors.email}
-            height={60}
-            borderRadius={BORDERRADIUS.pill}
-            testID="register-email-input"
-          />
+      {step === 3 ? (
+        <RegisterDetailsForm
+          onSubmit={handleDetails}
+          isSubmitting={details.isPending}
+          errorText={details.error ? authErrorMessage(details.error) : undefined}
+        />
+      ) : null}
 
-          <ReusableInput
-            value={password}
-            onChangeText={(v) => { setPassword(v); clearError('password'); }}
-            placeholder={t('auth.register.password_placeholder')}
-            isPassword
-            autoComplete="new-password"
-            errorText={fieldErrors.password}
-            height={60}
-            borderRadius={BORDERRADIUS.pill}
-            testID="register-password-input"
-          />
-
-          <ReusableInput
-            value={confirmPassword}
-            onChangeText={(v) => { setConfirmPassword(v); clearError('confirmPassword'); }}
-            placeholder={t('auth.register.confirm_password_placeholder')}
-            isPassword
-            autoComplete="new-password"
-            errorText={fieldErrors.confirmPassword}
-            height={60}
-            borderRadius={BORDERRADIUS.pill}
-            testID="register-confirm-password-input"
-          />
-
-          {mutationError ? (
-            <ReusableText
-              variant="caption"
-              themeColor="error"
-              textAlign="center"
-            >
-              {(mutationError as Error).message ?? t('auth.register.failed')}
-            </ReusableText>
-          ) : null}
-
-          <ReusableBtn
-            label={t('auth.register.submit')}
-            onPress={handleRegister}
-            variant="primary"
-            isLoading={isPending}
-            isFullWidth
-            height={60}
-            borderRadius={BORDERRADIUS.pill}
-            labelFontSize={FONTSIZE.md}
-            testID="register-submit-btn"
-            style={styles.submitBtn}
-          />
-
-          <TouchableOpacity
-            style={styles.loginLink}
-            onPress={() => router.back()}
-            activeOpacity={0.7}
-            testID="register-login-link"
-          >
-            <ReusableText
-              fontSize={FONTSIZE.regular}
-              themeColor="textMuted"
-              textAlign="center"
-            >
-              {t('auth.register.have_account')}{' '}
-              <ReusableText
-                fontSize={FONTSIZE.regular}
-                style={{ color: colors.primary, fontFamily: Fonts.bold }}
-              >
-                {t('auth.register.sign_in')}
-              </ReusableText>
-            </ReusableText>
-          </TouchableOpacity>
-        </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+      {step === 1 ? (
+        <AuthFooterLink
+          prefix={t('auth.register.have_account')}
+          linkLabel={t('auth.register.sign_in')}
+          onPress={() => router.back()}
+          testID="register-login-link"
+        />
+      ) : null}
+    </AuthScreen>
   );
 };
-
-const styles = StyleSheet.create({
-  flex: {
-    flex: 1,
-  },
-  header: {
-    height: 78,
-    paddingHorizontal: SPACING.space_15,
-    justifyContent: 'center',
-  },
-  logo: {
-    width: 86,
-    height: 38,
-  },
-  scrollContent: {
-    flexGrow: 1,
-    paddingHorizontal: SPACING.space_15,
-    paddingTop: SPACING.space_32,
-    paddingBottom: SPACING.space_40,
-  },
-  form: {
-    gap: SPACING.space_16,
-  },
-  submitBtn: {
-    marginTop: SPACING.space_8,
-  },
-  loginLink: {
-    alignItems: 'center',
-    marginTop: SPACING.space_8,
-  },
-});
 
 export default RegisterScreen;

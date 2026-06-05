@@ -4,6 +4,7 @@ import { createJSONStorage, persist } from 'zustand/middleware';
 import { STORAGE_KEYS } from '@/constants/storage';
 
 import { createModalSlice, ModalSlice } from './createModalSlice';
+import { createNetworkSlice, NetworkSlice } from './createNetworkSlice';
 import { createParentalSlice, ParentalSlice } from './createParentalSlice';
 import { createPlayerSlice, PlayerSlice } from './createPlayerSlice';
 import { createSettingsSlice, SettingsSlice } from './createSettingsSlice';
@@ -11,7 +12,13 @@ import { createThemeSlice, resolveColors, ThemeSlice } from './createThemeSlice'
 import { createUserSlice, UserSlice } from './createUserSlice';
 import { zustandStorage } from './storage';
 
-export type AppStore = UserSlice & SettingsSlice & ThemeSlice & ModalSlice & PlayerSlice & ParentalSlice;
+export type AppStore = UserSlice &
+  SettingsSlice &
+  ThemeSlice &
+  ModalSlice &
+  NetworkSlice &
+  PlayerSlice &
+  ParentalSlice;
 
 export const useAppStore = create<AppStore>()(
   persist(
@@ -20,8 +27,9 @@ export const useAppStore = create<AppStore>()(
       ...createSettingsSlice(...a),
       ...createThemeSlice(...a),
       ...createModalSlice(...a),
+      ...createNetworkSlice(...a),
       ...createParentalSlice(...a),
-       
+
       ...(createPlayerSlice as any)(...a),
     }),
     {

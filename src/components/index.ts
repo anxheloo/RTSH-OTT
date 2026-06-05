@@ -2,6 +2,7 @@
  * Root components barrel — re-exports every component subfolder.
  * Import from '@/components' for cross-folder usage.
  */
+export * from './auth';
 export * from './Buttons';
 export * from './catchup';
 export * from './channels';

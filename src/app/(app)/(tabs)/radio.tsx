@@ -4,20 +4,18 @@
  * the inline RadioPlayer for that station.
  */
 import React, { useState } from 'react';
-import { StyleSheet, TouchableOpacity, View } from 'react-native';
+import { TouchableOpacity } from 'react-native';
 
 import { FONTSIZE } from '@/theme';
-import { useAppStore } from '@/store/useAppStore';
 import { useRadioStationsQuery } from '@/api/queries';
 import AnimatedFlashList from '@/components/AnimatedFlashList';
 import ReusableText from '@/components/Inputs/ReusableText';
-import { FullScreenLoader, TabHeader } from '@/components/Layout';
+import { FullScreenLoader, ScreenLayout, TabHeader } from '@/components/Layout';
 import RadioPlayer from '@/components/Media/RadioPlayer';
 import { StationRow } from '@/components/radio';
 import type { RadioStation } from '@/types/domain';
 
 const RadioScreen: React.FC = () => {
-  const colors = useAppStore((s) => s.colors);
   const [activeStation, setActiveStation] = useState<RadioStation | null>(null);
   const { stations, isLoading } = useRadioStationsQuery();
 
@@ -27,7 +25,7 @@ const RadioScreen: React.FC = () => {
 
   if (activeStation) {
     return (
-      <View style={[styles.screen, { backgroundColor: colors.background }]}>
+      <ScreenLayout>
         <TabHeader
           title={activeStation.name}
           leftAction={
@@ -47,12 +45,12 @@ const RadioScreen: React.FC = () => {
           streamUrl={activeStation.streamUrl}
           title={activeStation.name}
         />
-      </View>
+      </ScreenLayout>
     );
   }
 
   return (
-    <View style={[styles.screen, { backgroundColor: colors.background }]}>
+    <ScreenLayout>
       <TabHeader title="Radio" />
       <AnimatedFlashList
         data={stations}
@@ -62,14 +60,8 @@ const RadioScreen: React.FC = () => {
         )}
         separatorHeight={0}
       />
-    </View>
+    </ScreenLayout>
   );
 };
 
 export default RadioScreen;
-
-const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-  },
-});

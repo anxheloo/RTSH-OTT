@@ -11,7 +11,7 @@ import type { ThemeMode } from '@/store/createThemeSlice';
 import { useAppStore } from '@/store/useAppStore';
 import { useLogoutMutation } from '@/api/mutations';
 import ReusableText from '@/components/Inputs/ReusableText';
-import TabHeader from '@/components/Layout/TabHeader';
+import { ScreenLayout, TabHeader } from '@/components/Layout';
 import { ParentalPinModal } from '@/components/ParentalPin';
 import { setI18nLocale } from '@/i18n';
 
@@ -35,7 +35,12 @@ const ToggleRow: React.FC<ToggleRowProps> = ({ label, value, onToggle, testID })
         {label}
       </ReusableText>
       <View style={[styles.toggle, { backgroundColor: value ? colors.primary : colors.surfaceElevated }]}>
-        <View style={[styles.toggleThumb, { transform: [{ translateX: value ? 18 : 2 }] }]} />
+        <View
+          style={[
+            styles.toggleThumb,
+            { backgroundColor: colors.onPrimary, transform: [{ translateX: value ? 18 : 2 }] },
+          ]}
+        />
       </View>
     </TouchableOpacity>
   );
@@ -78,7 +83,7 @@ const ProfileScreen: React.FC = () => {
   ];
 
   return (
-    <View style={[styles.screen, { backgroundColor: colors.background }]}>
+    <ScreenLayout>
       <TabHeader title={t('profile.title')} />
       <ScrollView
         contentContainerStyle={styles.scroll}
@@ -226,16 +231,13 @@ const ProfileScreen: React.FC = () => {
         onSuccess={() => setPinModalVisible(false)}
         onDismiss={() => setPinModalVisible(false)}
       />
-    </View>
+    </ScreenLayout>
   );
 };
 
 export default ProfileScreen;
 
 const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-  },
   scroll: {
     paddingHorizontal: SPACING.space_15,
     paddingBottom: SPACING.space_24,
@@ -278,7 +280,6 @@ const styles = StyleSheet.create({
     width: 20,
     height: 20,
     borderRadius: 10,
-    backgroundColor: '#fff',
   },
   segmentRow: {
     flexDirection: 'row',
