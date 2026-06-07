@@ -8,7 +8,6 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { FlashList } from '@shopify/flash-list';
 import { router } from 'expo-router';
@@ -17,19 +16,19 @@ import { BORDERRADIUS, FONTSIZE, SPACING } from '@/theme';
 import { Fonts } from '@/theme/fonts';
 import { useAppStore } from '@/store/useAppStore';
 import { useChannelsQuery } from '@/api/queries';
+import { BrandHeader } from '@/components/Brand';
 import ChannelCard from '@/components/channels/ChannelCard';
-import { ProfileIcon } from '@/components/Icons';
+import { Icon } from '@/components/Icons';
 import ReusableText from '@/components/Inputs/ReusableText';
 import { FullScreenLoader, ScreenLayout } from '@/components/Layout';
-import ReusableImage from '@/components/Media/ReusableImage';
 import type { Channel } from '@/types/domain';
+import { ProfileIcon } from '@/assets/icons';
 
 type ContentTab = 'search' | 'tv' | 'radio';
 
 const LiveScreen: React.FC = () => {
   const colors = useAppStore((s) => s.colors);
   const isOnline = useAppStore((s) => s.isOnline);
-  const insets = useSafeAreaInsets();
   const [activeTab, setActiveTab] = useState<ContentTab>('tv');
   const { channels, isLoading } = useChannelsQuery();
 
@@ -54,29 +53,19 @@ const LiveScreen: React.FC = () => {
   return (
     <ScreenLayout>
       {/* Header */}
-      <View
-        style={[
-          styles.header,
-          { height: 78 + insets.top, paddingTop: insets.top, backgroundColor: colors.headerBackground },
-        ]}
-      >
-        <ReusableImage
-          source={require('../../../../../assets/images/logo-glow.png')}
-          width={86}
-          height={38}
-          contentFit="contain"
-          testID="live-header-logo"
-        />
-        {/* Profile avatar placeholder */}
-        <TouchableOpacity
-          style={[styles.avatar, { backgroundColor: colors.surfaceElevated }]}
-          onPress={() => {}}
-          activeOpacity={0.8}
-          testID="live-header-avatar"
-        >
-          <ProfileIcon size={24} color={colors.text} />
-        </TouchableOpacity>
-      </View>
+      <BrandHeader
+        testID="live-header"
+        rightSlot={
+          <TouchableOpacity
+            style={[styles.avatar, { backgroundColor: colors.surfaceElevated }]}
+            onPress={() => {}}
+            activeOpacity={0.8}
+            testID="live-header-avatar"
+          >
+            <Icon as={ProfileIcon} size={24} color={colors.text} />
+          </TouchableOpacity>
+        }
+      />
 
       {/* Content toggle row */}
       <View style={[styles.toggleRow, { backgroundColor: colors.background }]}>
@@ -155,12 +144,6 @@ const ContentToggle: React.FC<ContentToggleProps> = ({ label, tabKey, activeTab,
 };
 
 const styles = StyleSheet.create({
-  header: {
-    paddingHorizontal: SPACING.space_15,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
   avatar: {
     width: 48,
     height: 48,

@@ -104,7 +104,7 @@ Verification (this follow-up): `npx tsc --noEmit` → 0 errors [CERTAIN]; `npm r
   - **Known gaps:** [MEDIUM] persisted `user` blob is unbounded — whatever backend returns gets written to disk. Whitelist fields (`id`, `email`, `displayName`) once API contract is firm — tracked as **5.X.17**. [LOW] `onRehydrateStorage` swallows corruption silently; add Sentry breadcrumb (depends on 5.X.12).
 - [x] **3.10** `src/services/keychain.ts` — `storeOnKeychain`, `getFromKeychain`, `removeFromKeychain`. ✅ expo-secure-store installed + plugin wired in app.config.ts. Added `src/config/auth.ts` with `REFRESH_TOKEN_KEY`.
   - **Known gaps:** [MEDIUM] `SecureStore` calls don't pin `keychainAccessible` — defaults to `WHEN_UNLOCKED` on iOS. Background radio playback can't read the refresh token while device is locked — tracked as **5.X.11**. [LOW] `auth.ts` exports `REFRESH_TOKEN_KEY` as a bare const (no `as const`, no `KEYCHAIN_KEYS` group). Wrap when parental PIN key lands (**5.X.15**).
-- [~] **3.11** Native deps `react-native-keyboard-controller`, `react-native-gesture-handler`, `@gorhom/bottom-sheet` — **To check after design.** Install + provider wiring depends on whether bottom-sheets are used and keyboard UX choices. (expo-secure-store already installed in 3.10.)
+- [~] **3.11** Native deps `react-native-keyboard-controller`, `react-native-gesture-handler`. **`@gorhom/bottom-sheet` dropped** (decision 7, 2026-06-05) — sheets are native route-based (`(modals)` + platform presentation), no extra sheet lib. (expo-secure-store already installed in 3.10.)
 
 ---
 
@@ -769,7 +769,212 @@ From the pre-endpoint professional review. Offline/guard items done now; the res
 
 ---
 
-## Working with Claude Code
+## Iteration pass — 2026-06-05 (designer HTML landed → Phase 22)
+
+**Trigger:** designer delivered a full interactive HTML mockup (`rtsh-tani-mobile.html`, 16 screens + overlays, Albanian copy, real RTSH logo lockup as vector). Directive: **design wins on visuals** (colors / spacing / type / layout / flow), **keep our architecture** (Expo Router file-based, single Zustand store + slices, TanStack/axios API layer, component organization, STYLE_GUIDE conventions). Scope: full app. **Tab-bar reference:** `github.com/anxheloo/spotify-music-player-demo` — config-driven `<Tabs>` with a typed `TabBar` object living in `theme/`, spread into `screenOptions` (follow this; improve where the design needs it).
+
+### Design facts extracted (source of truth for Phase 22)
+
+- **Palette (dark, flatter + darker than current):** bg `#000` (screens) on page `#0d0d10`; surfaces `--surf #141417` / `--surf-2 #1B1B20` / `--surf-3 #26262C`; border `--line #2A2A31`; text `#fff`; muted `--mut #9A9AA2` / `--mut-2 #6E6E77` (inactive nav); brand `--red #EB122F` (+ `--red-2 #ff3a52` for gradients). Header is **transparent black** (not an elevated bar). Bottom nav is **translucent black + blur** (`rgba(10,10,12,.92)`), top hairline `--line`, active icon tinted red, label white.
+- **Type:** **Inter** everywhere (400–900). Headings 800–900, section titles / player title 700, labels / links / buttons 600. Sizes seen: 25 (welcome), 20–23 (h2), 17 (header + section), 15 (body/input), 14 (label/link), 13–13.5 (sub), 12–12.5 (meta), 10–11 (kicker/tag).
+- **Radii:** pill inputs/search/toggle 24; buttons 27 (capsule, h54); cards 14; inputs 14; list-icons 11–12; sheet 24 top.
+- **Logo:** the file ships the **full lockup** as vector (`LOGO` const, viewBox `1.163 142.418 496.791 217.07`): red mark (`#EB122F`) + "RADIO TELEVIZIONI SHQIPTAR" tagline paths recolored **white** via CSS. Header 25px tall, splash 52px tall.
+- **Nav model (4 tabs):** `Kreu` (home), `Guida` (guide), `Kërko` (search), `Profili` (profile). **Radio is not a tab** — it's a Televizion/Radio toggle on Home (+ radio player route). **Catch-up is not a tab** — it's folded into the **Player** via a day-strip (today = live + EPG; past day = catch-up banner + that day's recorded EPG). **Mosaic** opens from a Home header icon. **Search** is a tab.
+- **16 screens:** splash, login, register, terms, onboard (parental + cellular config, skippable), home, guide, search, profile, settings, player(+EPG+catch-up), radio-list, radio-player, mosaic, parental(PIN), geo-block. **Overlays:** bottom sheet (options/quality, radio-select rows), ad popup (skip countdown, shown on app-open + channel-open), toast.
+
+### Decisions (design-wins, flagged for sign-off before code — see "Open questions")
+
+1. **Switch primary font Outfit → Inter.** [HIGH] Design is Inter-only; Anton (display) + Outfit (body) get retired. Keeps `Fonts` token API, swaps families. Flagged: removing Anton changes channel-name / tab-label look intentionally.
+2. **Config-driven `<Tabs>` with a theme-folder `TabBar` object** — base it on **SOLITAR's `theme/tabBar.ts`** (cleaner than the spotify-music-player-demo: static color-agnostic config in `theme/`, dynamic colors injected at the layout). NOT NativeTabs, NOT a hand-rolled `tabBar` render prop. [HIGH] Structure: `theme/tabBar.ts` exports a typed `TabBar` (`tabBarStyle` layout/height/shadow + hairline, `tabBarLabelStyle` from `Fonts`/`FONTSIZE`, item/icon styles) with **no colors**; `(tabs)/_layout.tsx` spreads `TabBar.tabBarStyle` then overrides `backgroundColor: colors.tabBar` + `borderTopColor: colors.tabBarBorder` and sets active/inactive tints from tokens (SOLITAR pattern verbatim). Improvements for the RTSH design: (a) `tabBarBackground` blur via `expo-blur` (translucent bar); (b) **decouple active icon tint (red) from label tint (white)** by coloring icons off `focused` while `tabBarActiveTintColor` drives only the label; (c) flat hairline top (SOLITAR already does `borderTopWidth:1`, no rounding). Keep `headerShown:false` (RTSH headers are per-screen/custom, unlike SOLITAR's shared `header`).
+3. **Restructure tabs 5 → 4** and fold radio→home-toggle + catch-up→player-day-strip. [HIGH] Matches design flow; the `catchup`/`radio` *data* layers (services/queries) stay, only their UI host moves.
+4. **Adopt full logo lockup** (mark + white tagline) from the design vector. [HIGH] **Supersedes this session's earlier "mark-only" choice** and the `RtshLogo` mark-only component (mark-only stays available; lockup becomes the header/splash default).
+5. **Darken surface palette** to the design tokens. [HIGH] Header becomes transparent; `tabBar`/`inputBackground`/`surface*` re-valued. Re-validates **5.X.6 / 5.X.7 / 5.X.8** against real values.
+6. **Dark default + light theme retained as a feature.** [HIGH] (user 2026-06-05) Design is dark; dark stays default, but the light theme + toggle stay working. Every new token (`tabBarBorder`, `surface-3`, `mutedStrong`, `red-2`, transparent header) gets a light-palette value too.
+7. **Sheets: native, route-based, platform-aware — NOT `@gorhom/bottom-sheet`.** [HIGH] (user 2026-06-05) *Learn from* SOLITAR's `(modals)` group (don't copy verbatim): the takeaway is route-based screens with `presentation: ios ? 'modal' : 'formSheet'` + `sheetAllowedDetents` / `sheetGrabberVisible` / `sheetCornerRadius` / `gestureEnabled`. Implement the cleanest version for our codebase: one shared, typed `getModalScreenOptions({ detents, cornerRadius })` helper (SOLITAR repeats the block per screen — we won't), **detents tuned per sheet** (our small option/quality sheets are content-sized, not SOLITAR's 0.95), in-sheet scaffold = `SafeAreaView` → keyboard handling → header → content, alerts still via the existing `ModalSlice`/`ModalWrapper`. Drops the `@gorhom` option in **3.11**.
+8. **Mobile-first, responsive later.** [HIGH] (user 2026-06-05) Build mobile fully first; grids are 2-col on phones, and on tablet/large screens become `flexWrap` rows via `useWindowDimensions` breakpoints — derived from the finished mobile layout, not built in parallel. Applies to channel grid (22.7) + mosaic (22.12); tablet/large pass deferred to **22.18**.
+9. **Auth: keep OTP, re-skin into the design flow; do NOT delete the wizard.** [HIGH] (user 2026-06-06) The mockup omits OTP but the backend requires verification. So: **re-skin** the existing Phase 11.X server-driven flow to the design rather than rip it out. Target flow: `login` → `register` (design's single-page form: email, username, password, confirm, age, city/country, gender, accept-terms) → **OTP verify** (re-skinned `OtpVerify`/`StepHeader`) → `terms` → `onboard` (parental + cellular, skippable) → ad(app-open) → home. Reset keeps OTP (request → OTP → new password), re-skinned. **Reuse** `RegisterCredentialsForm`/`RegisterDetailsForm`/`OtpVerify`/`StepHeader`/`TermsNotice`/`ResetRequestForm`/`ResetPasswordForm` (re-skin, don't replace). ⚠️ **Backend-ordering flag [MEDIUM]:** design collapses creds+details into ONE pre-OTP form, but the built step-machine splits creds(step1)→OTP(step2)→details(step3). Reconcile when the real auth contract lands — would raise to HIGH by: confirming whether `/auth/register` accepts all fields at step 1 (single form) or still requires the creds→OTP→details split. Until then, mock posts all fields at step 1 then OTP. Tracked in **22.6**.
+
+### Supersessions / re-validations (entries to revisit during Phase 22)
+
+- **Phase 8 (nav, 5 tabs)** → superseded by **22.4** (4 tabs, theme-config tab bar). 
+- **5.X.6 / 5.X.7 / 5.X.8** (design-dependent tokens) → real values now exist; reconcile in **22.1**.
+- **2.1 fonts (Outfit/Anton)** → reconsidered in **22.2** (Inter).
+- **3.4 SettingsSlice (minimal)** → expand fields in **22.13** (cellular, defaultQuality, language, notifications, cast, parental-age).
+- **3.5 PlayerSlice / radio mini-player** → shape confirmed by design in **22.10 / 22.11**.
+- **11.Y.9 skeletons** → unblocked by design surfaces; ride per-screen steps.
+- Session logo work (`RtshLogo`, `BrandHeader`, `BrandedSplash`) → extended in **22.3**.
+
+---
+
+## Phase 22 — Design Implementation (designer HTML)
+
+> Build order is foundation-first (tokens → type → logo → nav shell → primitives) then per-screen, so screens compose finished primitives. Each screen step is "done" when it matches the HTML on a notched device (light verification = `npx expo run:android`). Albanian copy comes verbatim from the mockup (22.16). Keep STYLE_GUIDE conventions throughout.
+
+- [x] **22.1** Token reconciliation.
+  - **What:** `colors.ts` — `darkTheme` re-valued to the designer palette (background `#000`, surface `#141417`, surfaceElevated `#1B1B20`, border `#2A2A31`, textMuted `#9A9AA2`, cardBackground/inputBackground `#141417`, overlay `rgba(0,0,0,0.6)`, tabBar `rgba(10,10,12,0.92)`, headerBackground `transparent`). Added 4 new `ThemeColors` tokens — `surfaceHigh` (`#26262C` / light `#DCDEE3`), `primaryBright` (`#FF3A52`), `mutedDim` (`#6E6E77` / light `#9CA3AF`), `tabBarBorder` (`#2A2A31` / light `#E5E7EB`) — with **light-theme values too** (decision 6); light theme retained, headerBackground/tabBar made transparent/translucent to match the flat design. `borders.ts` — added `pill_input: 24` + `button: 27` (legacy `pill`/`pill_sm` kept, marked superseded). `spacing.ts` — added `space_18` (screen gutter; `space_15` marked superseded).
+  - **Why:** foundation for Phase 22; design is darker/flatter than the placeholder palette. Naming note: plan draft said `surface-3`/`mutedStrong`/`--red-2` → implemented as `surfaceHigh`/`mutedDim`/`primaryBright` (semantic, accurate to their role).
+  - **Confidence:** tsc + lint clean. [CERTAIN] New tokens have both light + dark values so the theme toggle stays whole. [CERTAIN] Visual correctness on device unverified (no run yet). [MEDIUM — would raise to HIGH by: `npx expo run:android` once a screen consumes the new tokens, e.g. after 22.4/22.7.]
+  - **Trade-offs / known gaps:** legacy `pill`(32)/`pill_sm`(30)/`space_15`(15) still present so current screens don't break; remove once all screens migrate to `pill_input`/`button`/`space_18`. Re-validates **5.X.6/5.X.7/5.X.8** (design-dependent token gaps) — real values now landed for colors/radii/spacing; `SHADOWS`/`OPACITY`/`Z_INDEX`/`ANIMATION` (5.X.7) still as-is, revisit when a screen needs them.
+  - **Carry-overs:** `headerBackground: 'transparent'` means `BrandHeader`/`TabHeader` now blend with the screen bg (intended) — confirm during 22.3/22.4 restyle.
+- [x] **22.2** Typography → Inter.
+  - **What:** `fonts.ts` — `Fonts` tokens remapped to Inter families (regular→400, medium→500, semiBold→600, bold→700, extraBold/display→800, black→900; sub-400 alias to 400). `_layout.tsx` — `useFonts` now loads only Inter 400/500/600/700/800/900; Anton + Outfit `require`s removed. `ReusableText` — VARIANTS re-scaled to the design ramp (heading1 25/800, heading2 22/800, heading3 17/700, body 15/400, bodySmall 13/400, caption 12/400, label 14/600).
+  - **Why:** designer HTML is Inter-only (decision 1). Token-aliasing keeps every `Fonts.*` call site working while swapping the family in one place.
+  - **Confidence:** tsc + lint clean. [CERTAIN] All referenced weights load (verified the package exports 400–900). [CERTAIN] `Fonts.display` call sites (live ContentToggle, tab label, ChannelCard, PlayerControls) now render Inter 800 instead of Anton — intended. [HIGH] On-device rendering unverified. [MEDIUM — would raise to HIGH by: `npx expo run:android`.]
+  - **Trade-offs / known gaps:** VARIANT size changes (heading3 20→17, body 16→15, label 12→14) shift existing screens' text — intended design migration, confirm during per-screen restyle.
+  - **Carry-overs:** `@expo-google-fonts/anton` dep + `assets/fonts/Outfit-*.ttf` are now unused — remove in the **23.4** cleanup (left now to avoid mid-step dep churn). The 4 `Fonts.display` sites get proper variants during their screen restyle (22.4/22.7/22.10).
+- [x] **22.3** Logo lockup.
+  - **What:** new `RtshLogoFull` — design's full lockup via `SvgXml`; mark stays `#EB122F`, wordmark inherits `currentColor` so `taglineColor` recolors it (white default). Wired into `BrandHeader` (height 26, `taglineColor={colors.text}` → themed) + `BrandedSplash` (height 52, bar 220). **Per the SOLITAR layout (user 2026-06-06), the SVG logo components were moved to `assets/icons/Brand/`** (`RtshLogo`, `RtshLogoFull` + barrel), imported via the existing `@/assets/*` alias; `src/components/Brand/` now holds only the composite UI (`BrandHeader`, `BrandedSplash`).
+  - **Why:** designer file ships the real lockup (decision 4); pure SVG marks belong with assets per SOLITAR, composite UI stays in components.
+  - **Decision — native splash PNG:** kept the **mark** PNG (`assets/images/splash-logo.png`) for the instant OS splash; the **lockup** shows in the React `BrandedSplash`. (Only binary asset touched in 22.1–22.3.)
+  - **Confidence:** tsc + lint clean. [CERTAIN] Lockup is verbatim from the in-repo HTML; tagline recolors via root `fill="currentColor"` + `SvgXml color`. [HIGH — relies on react-native-svg fill inheritance; raise to CERTAIN via `npx expo run:android`. If tagline renders black: set `fill="currentColor"` per wordmark element instead of root.]
+  - **Carry-overs:** `RtshLogo` (square mark) kept for compact spots (channel `clogo`, mosaic) — used in 22.7/22.12. Full icon-set migration → **22.3b**.
+- [x] **22.3b** Icon system → `react-native-svg-transformer` + raw `.svg` (RTSH engine, SOLITAR folders).
+  - **What:** installed `react-native-svg-transformer`; added `metro.config.js` (svg → `sourceExts`, `babelTransformerPath: react-native-svg-transformer/expo`) + `src/types/svg.d.ts` (`*.svg` → `React.FC<SvgProps>`). Migrated all 21 glyphs from `components/Icons/icons.tsx` to raw `.svg` (no baked width/height, `currentColor`) under `assets/icons/{Player,TabBar,General,Auth}/` + per-domain barrels + root `assets/icons/index.ts` (re-exports Brand too). Added dynamic `Icon` wrapper (`components/Icons/Icon.tsx`: `as` + `size`/`width`/`height`/`color`). Updated consumers (live `index`, tabs `_layout`, `PlayerControls`) to `<Icon as={X} … />`. Deleted `icons.tsx`.
+  - **Why:** industry-standard, designer-friendly, zero hand-transcription (decision after comparing all 3 sibling repos). Icons are fully dynamic (width/height/color) per user.
+  - **Confidence:** tsc + lint clean. [CERTAIN] Glyphs render + recolor on device. [MEDIUM — transformer needs a dev-client rebuild + Metro `--clear`; would raise to HIGH by `npx expo run:android`. Fallbacks if a glyph mis-renders: ensure `fill="none"` root for stroke icons (kept), or pass explicit `fill`/`stroke`.]
+  - **Decisions (deviations from the draft, confirmed with user 2026-06-06):** (1) `IconButton` **stays** in `components/Icons/` — that folder is repurposed for icon *wrappers* (`Icon`, `IconButton`); raw glyphs live in `assets/icons/`. Cleaner than splitting into Buttons; matches RTSH's `components/Icons/IconWrapper`. `components/Icons/` kept (holds the wrappers), not deleted.
+  - **Brand converted to raw `.svg` too** (transformer-for-all, no inline `SvgXml` left): `assets/icons/Brand/{rtsh-logo,rtsh-logo-full}.svg` (mark `#EB122F`, recolorable parts `currentColor`) with thin `RtshLogo`/`RtshLogoFull` sizing wrappers preserving the `size`/`letterColor` and `height`/`taglineColor` APIs — so `BrandHeader`/`BrandedSplash` are unchanged. tsc + lint clean.
+  - **Carry-overs:** remove unused `@expo-google-fonts/anton` + `Outfit-*.ttf` in 23.4 (from 22.2). On-device render of all transformer glyphs still pending a dev-client rebuild (MEDIUM, above).
+- [x] **22.4** Navigation restructure — 4-tab shell + config-driven frosted bar.
+  - **What:** (a) `theme/tabBar.ts` — static color-agnostic `TabBar` config (height 64, hairline, label `Fonts.semiBold`/`FONTSIZE.xs`, `iconSize`), colors injected at the layout (SOLITAR pattern). (b) `(tabs)/_layout.tsx` rewritten → 4 tabs **index(Kreu) · guide(Guida) · search(Kërko) · profile(Profili)**; `expo-blur` `BlurView` `tabBarBackground` (tint follows theme) over `colors.tabBar`; **active icon red (`focused`→`colors.primary`) decoupled from label tint (white via `tabBarActiveTintColor`)**, inactive `mutedDim`. (c) Routes reconciled: `epg`→`guide` (renamed), `radio` tab → `(app)/radio.tsx` (list route), `catchup` tab **removed** (folds into player day-strip), new `search` tab stub. Added `guide` tab glyph (`assets/icons/TabBar/guide.svg`). Installed `expo-blur` (~56.0.3).
+  - **Why:** design's 4-tab model + translucent frosted bar (decisions 2/3). Catch-up/radio data layers untouched — only their UI host moved.
+  - **Confidence:** tsc + lint clean. [CERTAIN] Bar renders frosted with red-active/white-label on device. [MEDIUM — needs dev-client run (expo-blur native + transformer glyphs); raise via `npx expo run:android`.]
+  - **Decisions/deferrals:** tab bar is **non-absolute** (reserves layout space — no content hidden, works on all current screens); switch to `position:absolute` + per-screen bottom padding only if we want scroll-behind-blur (refine in 22.7+). The other new routes (`mosaic`, `settings`, `onboard`, `geo`, `radio/[id]`) are created **just-in-time in their screen steps** (22.6/22.10/22.11/22.12/22.13) rather than as empty stubs now. `(modals)` group → **22.15**. `(auth)` flow order (terms/onboard) → **22.6**. Only the `guide` nav icon was added now; the other ~17 design icons land per screen as used (avoids unused assets).
+  - **Carry-overs:** `search.tsx` is a stub (22.9). `(app)/radio.tsx` is the old radio screen relocated (restyle 22.11). Old `Clock`/`Layers`/`Microphone` glyphs now unused by tabs but kept in `assets/icons/General` for later screens. Update CLAUDE.md nav section + ARCHITECTURE when the flow settles (after 22.6).
+- [x] **22.5** Shared primitives.
+  - **What:** built `SegmentedToggle` (2-up pill, generic), `SegmentedChoice` (n-up full-width, gender/age), `FilterChipRow` (scrollable chips), `SearchBar` (dual: pressable→navigate / live input), `Switch` (custom 46×27 reanimated toggle — colour cross-fade + slide), `Checkbox` (square check; `label` or rich `children`) in `components/Inputs/`; `ListRow` (icon tile + title/sub + trailing slot, default chevron) in `components/Layout/`. Added `CheckIcon` glyph + `BORDERRADIUS.radius_20`. Barrels updated. All theme-tokened, controlled, portable (only `colors` from store).
+  - **Why:** design building blocks the screens (22.6+) compose from; role-model dynamic/reusable primitives.
+  - **Confidence:** tsc + lint clean. [CERTAIN] On-device visuals unverified (no run). [MEDIUM — raise via `npx expo run:android`.]
+  - **Deferrals:** `ReusableBtn`/`ReusableInput` are already prop-driven (variants/sizes/overrides) — tune their **defaults** to the design in **22.6** where consumed (avoids guess-then-retouch). `SheetOptionRow` → **22.15** (sheet-specific).
+- [~] **22.6** Auth/onboarding screens — **re-skin the Phase 11.X server-driven flow, keep OTP** (decision 9). Flow: `login` (welcome copy, pill email/password, remember-me, forgot link, register link) → `register` (design single-page form: email, username, password, confirm, age, city/country, gender segmented, accept-terms checkbox) → **OTP verify** (re-skin `OtpVerify` + `StepHeader`) → `terms` (scroll + accept — reconcile with `TCGateOverlay`) → `onboard` (parental toggle+age, cellular toggle, skip/continue) → ad(app-open) → home. Reset = request → OTP → new password (re-skin `ResetRequestForm`/`ResetPasswordForm`). **Reuse, don't delete** the existing auth components. ⚠️ Backend-ordering: design collects all register fields before OTP, but the built machine splits creds→OTP→details; keep mock posting all fields at step 1, reconcile when `/auth/register` contract lands (decision 9 flag). New fields (username, age, city/country, gender) extend `registerDetailsSchema`/`registerCredentialsSchema`.
+  - **Progress (2026-06-06):**
+    - **Login re-skinned** — welcome heading + subtitle (new i18n `auth.login.welcome`/`welcome_subtitle` in sq+en), leading mail/key glyphs, remember-me `Checkbox` beside the forgot link, `size="large"` red CTA. RHF/zod/`useLoginMutation` logic untouched.
+    - **Base primitives tuned to design defaults** (the 22.5 deferral): `ReusableInput.medium` → h52 / radius 14 / 15px (the design default); `ReusableBtn.large` → h54 capsule / bold. Login dropped its per-call height/radius overrides. tsc + lint clean. [CERTAIN]
+    - **Remaining:** register single-page form (+ new fields, gender `SegmentedChoice`, accept-terms `Checkbox`), OTP verify re-skin, `terms` screen, `onboard` screen (Switch + age `SegmentedChoice`), reset re-skin. Wizard machine + schemas to extend next.
+    - **Note:** remember-me is local UI state only — not yet wired to session persistence (TODO when login persistence behavior is defined).
+- [ ] **22.7** Home (`index`). Header (logo + mosaic icon + profile icon), `SearchBar` (→ search), Televizion/Radio `SegmentedToggle`. TV: `HeroCarousel` (+ dots), "Vazhdo të shikosh" `ContinueRow` (horizontal cards w/ progress), package `FilterChipRow`, "Kanalet TV" **2-col grid** (mobile) of restyled `ChannelCard` (LIVE/lock/geo tags). Radio: `StationRow` list. FlashList-backed. Grid column logic written so 22.18 can widen it to wrapped rows on tablet (decision 8).
+- [ ] **22.8** Guide (`guide`). TV/Radio toggle; `GuideRow` (now/next + progress + current-time badge) per channel/station. Tap → player / radio player.
+- [ ] **22.9** Search (`search`). Back + search input; Channels grid, Programs list (`prog` rows), recent-search chips. Wire to channels/epg queries (client filter until backend search).
+- [ ] **22.10** Player + EPG + catch-up. Restyle player chrome (glass back/options buttons, centered title, LIVE tag, controls track+knob). `DayStrip` (catch-up day selector) → today=EPG/live, past=`CatchupBanner` + recorded `EpgRow`s (dim/now states). Options `BottomSheet` (quality/audio/subtitles/cast) + Quality sheet + `Toast` on change. Folds Phase-9 player + catchup data.
+- [ ] **22.11** Radio. `radio` list route + `radio/[id]` player (scene art, name/sub/kbps, `Equalizer` bars, prev/play/next, radio now/next). Mini-player dock (RadioMiniPlayer exists) restyle + background-audio (5.X.13).
+- [ ] **22.12** Mosaic (`mosaic`). **2-col** grid (mobile) of channel tiles (last-frame scene + LIVE badge), tap → player. Same column logic as 22.7 so 22.18 widens to wrapped rows on tablet. Spec: 4/6/9 density — design shows 12 in a 2-col scroll; confirm density control.
+- [ ] **22.13** Profile + Settings. Profile (avatar initials, name/email, package badge, list rows → account/favorites/parental/settings/logout). Settings (Luajtja: cellular toggle, default-quality→sheet, parental toggle; Aplikacioni: language, notifications, cast, terms, version). Expand `SettingsSlice` (3.4) with the toggled fields.
+- [ ] **22.14** Parental + Geo. Restyle `ParentalPin` to design (lock big-icon, 4-dot PIN, keypad) as a gate before locked-channel play. `geo` full-screen overlay (globe, copy, back-to-home) shown when streams endpoint returns geo-error (or `geo`-flagged channel). Wire into `openChannel` flow (lock → PIN, geo → overlay) — both spec-mandated.
+- [ ] **22.15** Overlays. (a) **Sheets = native route-based** (decision 7): `(modals)` screens + shared `getModalScreenOptions({ detents, cornerRadius })` (`ios ? 'modal' : 'formSheet'`, grabber, content-sized detents, corner 20–24); in-sheet scaffold per SOLITAR (SafeAreaView → keyboard → header → content). NO `@gorhom`. (b) `Toast` (white pill + check, auto-dismiss). (c) `AdOverlay` (creative + REKLAMË label + skip countdown; app-open + channel-open slots, frequency-capped) — lands Phase 16 infra. Alerts stay on `ModalSlice`/`ModalWrapper`.
+- [ ] **22.16** i18n sq copy. Lift exact Albanian strings from the mockup into `sq.json` (auth, home, guide, search, profile, settings, player, radio, parental, geo, ad, toast); add `en.json` parallels. Replace hardcoded screen strings.
+- [ ] **22.17** QA + verification pass. `npx expo run:android` (+ iOS), notched safe-area check on every screen, tab/flow walkthrough matching the mockup's `go()` graph (login→ad→home; channel→ad→player; lock→PIN; geo→overlay; day→catch-up; home-toggle→radio), `npm run lint` + `tsc` clean. Mark per-screen confidence.
+- [~] **22.18** Tablet / iPad / **TV** large-screen pass (decisions 8 + TV scope 2026-06-06). **Deferred until mobile (22.1–22.17) is complete, approved, and functional.** Same design with display adjustments (not a redesign): `useWindowDimensions` breakpoints flip grids (channel grid 22.7, mosaic 22.12) from 2-col to `flexWrap` rows with correct item sizing; revisit gutters/hero/player width. **TV is now in v1 scope** (end-phase) — CLAUDE.md updated; TV adds focus/D-pad navigation + 10-foot spacing on top of the large-screen layout (its own sub-pass after tablet/iPad). Build mobile first, then widen — do not build in parallel.
+
+---
+
+## Phase 22 — Design inventory & mapping (build-ready reference)
+
+> Source: `.claude/docs/rtsh-tani-mobile.html` (in-repo, analyzed 2026-06-06). Maps every design screen / icon / component / input / flow / data-shape to our codebase, marked **EXISTS** (reuse) · **RESTYLE** (exists, re-skin to design) · **NEW** (build). Each row names the Phase 22 step that owns it. This is the lookup table the per-screen steps compose from.
+
+### A. Screen → route map
+
+| # | Design screen (sq) | Our route (file-based) | Status | Step |
+|---|---|---|---|---|
+| 1 | Splash | `BrandedSplash` during boot in `_layout` | EXISTS | 22.3 |
+| 2 | Login (Mirë se vini) | `(auth)/login` | RESTYLE | 22.6 |
+| 3 | Register (Krijo llogari) | `(auth)/register` | RESTYLE | 22.6 |
+| 4 | Terms (Kushtet) | `(auth)/terms` (+ reconcile `TCGateOverlay`) | NEW/RESTYLE | 22.6 |
+| 5 | Onboard (Konfigurimi) | `(auth)/onboard` | NEW | 22.6 |
+| 6 | Home (Kreu) | `(app)/(tabs)/index` | RESTYLE | 22.7 |
+| 7 | Guide (Guida) | `(app)/(tabs)/guide` (rename from `epg`) | RESTYLE | 22.8 |
+| 8 | Search (Kërko) | `(app)/(tabs)/search` | NEW | 22.9 |
+| 9 | Profile (Profili) | `(app)/(tabs)/profile` | RESTYLE | 22.13 |
+| 10 | Settings (Cilësimet) | `(app)/settings` | NEW | 22.13 |
+| 11 | Player + EPG + catch-up | `(app)/channel/[id]` | RESTYLE | 22.10 |
+| 12 | Radio list | `(app)/radio` | NEW | 22.11 |
+| 13 | Radio player | `(app)/radio/[id]` | RESTYLE | 22.11 |
+| 14 | Mosaic (Mozaik) | `(app)/mosaic` | NEW | 22.12 |
+| 15 | Parental (PIN) | `ParentalPinModal` gate (+ route if needed) | RESTYLE | 22.14 |
+| 16 | Geo-block | `(app)/geo` | NEW | 22.14 |
+| — | Catchup tab (removed) | folded into player day-strip (11) | — | 22.10 |
+| — | Radio tab (removed) | folded into Home toggle + radio routes | — | 22.7/22.11 |
+
+### B. Icon inventory (design `ic()` → `components/Icons/icons.tsx`)
+
+- **EXISTS (reuse):** `user`→ProfileIcon · `search`→SearchIcon · `mail`→MailIcon · `key`→KeyIcon · `back`→ChevronLeftIcon · `play`→PlayIcon · `pause`→PauseIcon · `full`→FullscreenIcon · `chev`→ChevronRightIcon · `settings`→SettingsIcon · `home`→HomeIcon · `clock`→ClockIcon · `lang`→LanguageIcon.
+- **NEW (~17, add to icons.tsx, `size`+`color` props, stroke 1.8–2):** `shield` (parental) · `lock` (locked channel) · `globe` (geo) · `wifi` (cellular) · `bell` (notifications) · `doc` (terms) · `out` (logout) · `tv` · `guide` (calendar-grid tab) · `grid` (mosaic) · `radio` (broadcast waves) · `pkg` (package) · `quality` · `check` (checkbox/toast) · `info` · `heart` (favorites) · `cast` · `arrow` (ad CTA, long arrow).
+- **Note:** design uses outline (stroke) icons; current set mixes fill/stroke — new ones follow the design's stroke style. `StarIcon`/`MicrophoneIcon`/`LayersIcon`/`MobileIcon`/`MoreIcon`/`Forward`/`Backward`/`Warning` stay available but design favors `heart`/`radio`/`guide`/`grid`. Owned by **22.4** (tab/nav icons) + per-screen steps.
+
+### C. Component inventory (design class/widget → our component)
+
+| Design widget | Our component | Status | Step |
+|---|---|---|---|
+| `logo` lockup | `RtshLogoFull` (+ `RtshLogo` mark exists) | NEW | 22.3 |
+| `hdr` (logo/title headers) | `BrandHeader` / `TabHeader` | RESTYLE | 22.3/22.4 |
+| `pfp` / `iconbtn` | `IconButton` (Icons/) | RESTYLE | 22.5 |
+| `searchbar` | `SearchBar` (pressable + input variants) | NEW | 22.5 |
+| `toggle2` | `SegmentedToggle` (2-up pill) | NEW | 22.5 |
+| `chip`/`chiprow` | `FilterChipRow` | NEW | 22.5 |
+| `btn-red`/`btn-ghost` | `ReusableBtn` (variants) | RESTYLE | 22.5 |
+| `lnk` | `ReusableText` link variant | EXISTS | 22.2 |
+| `hero` + `dots` | `HeroCarousel` | NEW | 22.7 |
+| `hrow`/`hcard`+`pgbar`+`play-badge` | `ContinueRow` + `ContinueCard` | NEW | 22.7 |
+| `card`+`clogo`+`tagchip`(live/lock/geo)+`nm` | `ChannelCard` | RESTYLE | 22.7 |
+| `bottomnav` | `theme/tabBar.ts` + `(tabs)/_layout` | RESTYLE | 22.4 |
+| `video`/`top`/`ttl`/`ctrl`/`track`+`knob`/`livetag` | `VideoPlayer`/`LivePlayer`/`PlayerControls` | RESTYLE | 22.10 |
+| `daystrip`/`day` | `DayStrip` | NEW | 22.10 |
+| `cubanner` | `CatchupBanner` | NEW | 22.10 |
+| `prog` + `epg-h` | `EpgRow` + section header | RESTYLE | 22.10 |
+| `gitem` (now/next) | `GuideRow` | NEW | 22.8 |
+| `list-item`+`li-ic`+`chev`/`tg` | `ListRow` + `Switch` | NEW | 22.5/22.13 |
+| `seg-choice` | `SegmentedChoice` (n-up) | NEW | 22.5 |
+| `check`/`cbox` | `Checkbox` | NEW | 22.5 |
+| `splash`/`loadbar` | `BrandedSplash` | EXISTS | 22.3 |
+| `center-pad`/`big-ic` | `CenteredMessage` (geo/parental) | NEW | 22.14 |
+| `pin`/`keypad` | `ParentalPinModal`/`ParentalPinPad` | RESTYLE | 22.14 |
+| `mos-grid`/`mos` | `MosaicTile` + grid | NEW | 22.12 |
+| `rp-art`/`eq` | `RadioPlayer` art + `Equalizer` | RESTYLE/NEW | 22.11 |
+| `radio-item` | `StationRow` | RESTYLE | 22.11 |
+| `sheet`/`opt-row` | `(modals)` routes + `getModalScreenOptions` + `SheetOptionRow` | NEW | 22.15 |
+| `adpop`/`ad-*` | `AdOverlay` | NEW | 22.15/Ph16 |
+| `toast` | `Toast` | NEW | 22.15 |
+| mini-player dock | `RadioMiniPlayer` (Layout/) | RESTYLE | 22.11 |
+
+### D. Inputs / controls
+
+`pill-input` (icon+field) → `ReusableInput` pill variant · `inp` (labeled) → `ReusableInput` labeled variant · `select.inp` → option sheet (`(modals)` picker, not a native `<select>`) · `check`/`cbox` → `Checkbox` · `seg-choice` → `SegmentedChoice` · `tg` → `Switch` · `keypad` → `ParentalPinPad` · `track`+`knob` → player seek in `PlayerControls`. RHF + zod for the forms (login/register) per existing auth stack.
+
+### E. Flow graph (from the mockup's `go()` / handlers)
+
+- **Boot:** splash (1.7s loadbar) → login. *(Ours: `BrandedSplash` until bootstrap ready → guard routes to `(auth)` or `(app)`.)*
+- **Login** `Hyr` → ad(app-open) → home · → register link.
+- **Register** → terms (also via accept-link) → **terms** `Pranoj` → **onboard** → ad(app-open) → home · onboard `Kapërce` skips to home.
+- **Home:** search→search · grid→mosaic · user→profile · Televizion/Radio toggle · channel tap→`openChannel`.
+- **openChannel:** `lock`→parental PIN → (4 digits) → ad(channel) → player · `geo`→geo screen · else → ad(channel) → player.
+- **Player:** back→home · settings→options sheet · day-strip: today=EPG/live, past day=catch-up banner + recorded EPG · quality sheet → toast.
+- **Guide:** TV/Radio toggle · row→player / radio player. **Profile**→settings; logout→login.
+- **Ad:** 5s countdown, skip enabled after ~4s → continues. Slots: app-open + channel-open (frequency-capped). Maps to **Phase 16** infra + 22.15.
+
+### F. Data shapes (mockup arrays → `types/domain.ts`, reconcile with 5.X.1)
+
+- `CH[name, gradient, isLive 0/1, package, flag ''|lock|geo]` → `Channel { id, name, logoUrl, isLive, package, contentFlag: 'none'|'adult'|'geo' }`.
+- `PKGS[]` → package filter values (`Të gjitha` = all).
+- `RADIO[name, sub, gradient]` → `RadioStation { id, name, description }`.
+- `DAYS[label, date]` → catch-up day selector model.
+- `EPG[time, title, desc, isLive]` → `EpgItem`.
+- `QUAL[label, desc, isDefault]` → quality option list (player + settings default).
+- Gradients `g1–g6` are placeholder artwork → real `logoUrl`/poster from backend; keep a gradient fallback.
+
+---
+
+## Phase 23 — Role-model quality gate (final audit)
+
+> **Goal (user 2026-06-06):** this repo should be a reference-grade Expo project other teams copy — excellent structure, dynamic/reusable/customizable components + helpers, clean self-explanatory code, clear flow and organization. These standards **guide every Phase 22 step as it's built** (don't bolt quality on at the end); this phase is the formal sign-off that audits the finished app against them. Each item is a concrete, checkable gate, not an aspiration. Run after 22.1–22.18 + feature phases (15/16) are complete.
+
+- [~] **23.1** Structure & organization. One responsibility per file; folders match STYLE_GUIDE (`components/<Domain>`, `hooks/`, `store/`, `api/{services,queries,mutations}`, `theme/`, `types/`, `utils/<bucket>`); every component/hook folder has a JSDoc'd barrel exporting component/hook only (no Props re-export); zero deep relative imports (`@/` everywhere); `utils/` bucketed by domain once ≥3 files. Verify by tree review + `grep` for `../../`.
+- [~] **23.2** Reusable / dynamic / customizable. Primitives are prop-driven with variants + sensible defaults, theme-tokened (no hardcoded colors/sizes/radii/spacing — all from `theme/`), and **portable** (no store coupling in shared primitives; data in via props). Config that varies (tab bar, modal presentation, ad slots, quality list) lives in `theme/` or a config module, not inline. No copy-paste components that should be one parameterized component.
+- [~] **23.3** Functions & helpers. Pure where possible, single-responsibility, fully typed, colocated by domain, unit-tested for the non-trivial ones. No business logic buried in components that belongs in a hook/service/util.
+- [~] **23.4** Clean, self-explanatory code. JSDoc (the *why*) on every non-trivial file; intention-revealing names; no `console.log`, no `any`, no magic numbers/strings, no dead code/unused exports; consistent formatting. Verify: `tsc --noEmit` (strict, zero errors), `expo lint` (zero warnings), `grep` for `console.`/`: any`/`as any`.
+- [~] **23.5** Clear flow & docs current. CLAUDE.md + `rules/ARCHITECTURE.md` (auth, theme, boot/splash, network, navigation, modals, player, ads) + `rules/STYLE_GUIDE.md` match the shipped code; README has commands + env matrix; plan.md has no stale `[ ]`/`[~]` that are actually done. A new dev can trace any flow from the docs alone.
+- [~] **23.6** Type safety & boundaries. TS strict; Zod (or typed `http()`) at every API boundary (11.Y.4/5.X.2); discriminated unions over enums; precise props (`XProps`); no `unknown` left un-narrowed.
+- [~] **23.7** Performance. `FlashList` for all long lists; `React.memo` + `displayName` only where it pays (lists/high-freq); stable callbacks (`useCallback` in deps); images via `expo-image`; no needless re-renders (selector subscriptions, not whole-store reads); reanimated on the UI thread.
+- [~] **23.8** Consistency & a11y sweep. One pattern per concern (one button, one input, one list-row, one sheet mechanism); `testID` on interactive leaves; a11y labels/roles; RTL-safe; light + dark both pass; safe-area correct on notched + tablet.
+- [~] **23.9** Verification gate. `npm run lint` + `npx tsc --noEmit` + tests green; `npx expo-doctor` clean; cold-boot + full `go()`-graph walkthrough on iOS + Android device; no red-box/console errors. Sign off each Phase 22 screen's [MEDIUM] visual claims to [CERTAIN] here.
 
 For each step:
 1. Open this file. Find the next `[ ]` step.

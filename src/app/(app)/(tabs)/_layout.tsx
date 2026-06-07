@@ -1,82 +1,100 @@
 /**
- * Bottom tabs layout — 5 tabs: Live, EPG, Catchup, Radio, Profile.
- * Tab bar colors from theme tokens; SVG icons recolor via the tab tint.
+ * Bottom tabs — 4 tabs per the design: Kreu (home), Guida (guide), Kërko
+ * (search), Profili (profile). Radio folds into the Home toggle + radio routes;
+ * catch-up folds into the player day-strip (Phase 22.4).
+ *
+ * Config-driven (SOLITAR pattern): static layout/typography from `theme/tabBar`,
+ * dynamic colors injected here. Frosted background via `expo-blur`. Active state
+ * tints the ICON red while the LABEL stays white (decoupled): the icon color is
+ * driven by `focused`, the label by `tabBarActiveTintColor`.
  */
 import React from 'react';
+import { StyleSheet } from 'react-native';
 
+import { BlurView } from 'expo-blur';
 import { Tabs } from 'expo-router';
 
-import { Fonts, FONTSIZE } from '@/theme/fonts';
+import { TabBar } from '@/theme/tabBar';
 import { useAppStore } from '@/store/useAppStore';
-import {
-  ClockIcon,
-  HomeIcon,
-  LayersIcon,
-  MicrophoneIcon,
-  ProfileIcon,
-} from '@/components/Icons';
-
-const TAB_ICON_SIZE = 24;
+import { Icon } from '@/components/Icons';
+import { GuideIcon, HomeIcon, ProfileIcon, SearchIcon } from '@/assets/icons';
 
 const TabsLayout: React.FC = () => {
   const colors = useAppStore((s) => s.colors);
+  const mode = useAppStore((s) => s.mode);
 
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarStyle: {
-          backgroundColor: colors.tabBar,
-          borderTopWidth: 0,
-          elevation: 0,
-        },
-        tabBarActiveTintColor: colors.primary,
-        tabBarInactiveTintColor: colors.textMuted,
-        tabBarLabelStyle: {
-          fontFamily: Fonts.display,
-          fontSize: FONTSIZE.xs,
-          textTransform: 'uppercase',
-        },
+        tabBarActiveTintColor: colors.text,
+        tabBarInactiveTintColor: colors.mutedDim,
+        tabBarStyle: { ...TabBar.tabBarStyle, borderTopColor: colors.tabBarBorder },
+        tabBarLabelStyle: TabBar.tabBarLabelStyle,
+        tabBarItemStyle: TabBar.tabBarItemStyle,
+        tabBarBackground: () => (
+          <BlurView
+            tint={mode === 'light' ? 'light' : 'dark'}
+            intensity={24}
+            style={[StyleSheet.absoluteFill, { backgroundColor: colors.tabBar }]}
+          />
+        ),
       }}
     >
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Live',
-          tabBarAccessibilityLabel: 'tab-live',
-          tabBarIcon: ({ color }) => <HomeIcon size={TAB_ICON_SIZE} color={color as string} />,
+          title: 'Kreu',
+          tabBarAccessibilityLabel: 'tab-home',
+          tabBarIcon: ({ focused }) => (
+            <Icon
+              as={HomeIcon}
+              size={TabBar.iconSize}
+              color={focused ? colors.primary : colors.mutedDim}
+            />
+          ),
         }}
       />
       <Tabs.Screen
-        name="epg"
+        name="guide"
         options={{
-          title: 'EPG',
-          tabBarAccessibilityLabel: 'tab-epg',
-          tabBarIcon: ({ color }) => <ClockIcon size={TAB_ICON_SIZE} color={color as string} />,
+          title: 'Guida',
+          tabBarAccessibilityLabel: 'tab-guide',
+          tabBarIcon: ({ focused }) => (
+            <Icon
+              as={GuideIcon}
+              size={TabBar.iconSize}
+              color={focused ? colors.primary : colors.mutedDim}
+            />
+          ),
         }}
       />
       <Tabs.Screen
-        name="catchup"
+        name="search"
         options={{
-          title: 'Catchup',
-          tabBarAccessibilityLabel: 'tab-catchup',
-          tabBarIcon: ({ color }) => <LayersIcon size={TAB_ICON_SIZE} color={color as string} />,
-        }}
-      />
-      <Tabs.Screen
-        name="radio"
-        options={{
-          title: 'Radio',
-          tabBarAccessibilityLabel: 'tab-radio',
-          tabBarIcon: ({ color }) => <MicrophoneIcon size={TAB_ICON_SIZE} color={color as string} />,
+          title: 'Kërko',
+          tabBarAccessibilityLabel: 'tab-search',
+          tabBarIcon: ({ focused }) => (
+            <Icon
+              as={SearchIcon}
+              size={TabBar.iconSize}
+              color={focused ? colors.primary : colors.mutedDim}
+            />
+          ),
         }}
       />
       <Tabs.Screen
         name="profile"
         options={{
-          title: 'Profile',
+          title: 'Profili',
           tabBarAccessibilityLabel: 'tab-profile',
-          tabBarIcon: ({ color }) => <ProfileIcon size={TAB_ICON_SIZE} color={color as string} />,
+          tabBarIcon: ({ focused }) => (
+            <Icon
+              as={ProfileIcon}
+              size={TabBar.iconSize}
+              color={focused ? colors.primary : colors.mutedDim}
+            />
+          ),
         }}
       />
     </Tabs>

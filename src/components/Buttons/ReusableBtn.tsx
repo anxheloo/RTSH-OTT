@@ -49,10 +49,12 @@ interface SizeSpec {
   spinnerSize: 'small' | 'large';
 }
 
+// Design (2026-06-06): primary CTA is a h54 capsule, bold label. `large` matches;
+// borderRadius defaults to height/2 (27 → capsule). small/medium are scale variants.
 const SIZES: Record<ButtonSize, SizeSpec> = {
-  small: { height: 36, paddingHorizontal: 12, labelFontSize: 14, labelFontWeight: 'medium', gap: 6, spinnerSize: 'small' },
-  medium: { height: 44, paddingHorizontal: 16, labelFontSize: 16, labelFontWeight: 'semiBold', gap: 8, spinnerSize: 'small' },
-  large: { height: 52, paddingHorizontal: 20, labelFontSize: 18, labelFontWeight: 'semiBold', gap: 10, spinnerSize: 'small' },
+  small: { height: 40, paddingHorizontal: 14, labelFontSize: 14, labelFontWeight: 'semiBold', gap: 6, spinnerSize: 'small' },
+  medium: { height: 48, paddingHorizontal: 16, labelFontSize: 15, labelFontWeight: 'semiBold', gap: 8, spinnerSize: 'small' },
+  large: { height: 54, paddingHorizontal: 20, labelFontSize: 16, labelFontWeight: 'bold', gap: 8, spinnerSize: 'small' },
 };
 
 export type ReusableBtnProps = Omit<TouchableOpacityProps, 'style' | 'disabled'> & {

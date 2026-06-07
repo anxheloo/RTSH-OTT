@@ -1,0 +1,685 @@
+<!DOCTYPE html>
+<html lang="sq">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>RTSH TANI — Mobile</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+:root{--red:#EB122F;--red-2:#ff3a52;--ink:#000;--bg:#0B0B0D;--surf:#141417;--surf-2:#1B1B20;--surf-3:#26262C;--line:#2A2A31;--txt:#fff;--mut:#9A9AA2;--mut-2:#6E6E77;--nav-h:64px}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%}
+body{font-family:'Inter',-apple-system,sans-serif;background:#0d0d10;color:#e8e8ea;-webkit-font-smoothing:antialiased;display:flex;align-items:center;justify-content:center;min-height:100vh}
+button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
+input,select,textarea{font-family:inherit}
+svg{display:block}
+.hidden{display:none!important}
+::-webkit-scrollbar{width:0;height:0}
+a{color:inherit;text-decoration:none}
+
+/* review toolbar (desktop aid) */
+.review{position:fixed;top:14px;left:50%;transform:translateX(-50%);display:flex;gap:10px;align-items:center;z-index:200;background:#15151a;border:1px solid #2a2a32;border-radius:12px;padding:7px 10px}
+.review .rl svg{height:16px}.review .rl svg path:not([fill]),.review .rl svg polygon:not([fill]),.review .rl svg rect:not([fill]){fill:#fff}
+.review select{height:32px;background:#0d0d10;border:1px solid #2a2a32;border-radius:8px;color:#cfcfd6;font-size:12.5px;padding:0 8px}
+.review button{height:32px;padding:0 12px;border:1px solid #2a2a32;border-radius:8px;background:#0d0d10;color:#cfcfd6;font-size:12.5px;font-weight:600}
+.review button:hover{background:#1b1b22}
+
+/* device frame: fluid */
+.frame{position:relative;width:100%;max-width:412px;height:100vh;max-height:880px;background:var(--ink);overflow:hidden;display:flex;flex-direction:column}
+@media(min-width:480px){body{padding:0}.frame{height:90vh;border-radius:46px;border:11px solid #060608;box-shadow:0 0 0 2px #2a2a32,0 40px 90px -20px rgba(0,0,0,.7)}.statusbar{display:flex!important}}
+@media(max-width:479px){.review{display:none}.frame{max-height:none}}
+
+.statusbar{display:none;position:absolute;top:0;left:0;right:0;height:46px;align-items:flex-end;justify-content:space-between;padding:0 26px 6px;z-index:80;color:#fff;font-size:14px;font-weight:600;pointer-events:none}
+.sb-r{display:flex;align-items:center;gap:6px}.sb-r svg{width:17px;height:12px;fill:#fff}
+.notch{display:none;position:absolute;top:0;left:50%;transform:translateX(-50%);width:140px;height:28px;background:#060608;border-radius:0 0 16px 16px;z-index:81}
+@media(min-width:480px){.notch{display:block}}
+
+/* screens */
+.screen{position:absolute;inset:0;display:none;flex-direction:column;background:var(--ink)}
+.screen.on{display:flex;animation:fade .26s ease}
+@keyframes fade{from{opacity:0}to{opacity:1}}
+.safe-top{height:46px;flex:0 0 auto}
+@media(max-width:479px){.safe-top{height:env(safe-area-inset-top,12px)}}
+.scroll{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch}
+.scroll.has-nav{padding-bottom:calc(var(--nav-h) + 16px)}
+
+/* header */
+.hdr{display:flex;align-items:center;justify-content:space-between;padding:6px 18px 8px;flex:0 0 auto}
+.hdr .logo svg{height:25px}
+.logo svg path:not([fill]),.logo svg polygon:not([fill]),.logo svg rect:not([fill]){fill:#fff}
+.hdr-t{font-size:17px;font-weight:700;color:#fff}
+.pfp{width:40px;height:40px;border-radius:50%;background:var(--surf-2);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;color:#cfcfd6;flex:0 0 auto}
+.pfp svg{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:1.8}
+.iconbtn{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;flex:0 0 auto}
+.iconbtn.glass{background:rgba(0,0,0,.4);backdrop-filter:blur(6px)}
+.iconbtn svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2}
+
+/* search + toggle */
+.searchbar{display:flex;align-items:center;gap:10px;background:var(--surf);border:1px solid var(--line);border-radius:24px;height:48px;padding:0 16px;color:#fff;margin:0 18px}
+.searchbar svg{width:19px;height:19px;fill:none;stroke:#8a8a92;stroke-width:1.8;flex:0 0 auto}
+.searchbar input{flex:1;background:none;border:none;outline:none;color:#fff;font-size:15px}
+.searchbar input::placeholder{color:#7a7a82}
+.toggle2{display:flex;background:var(--surf);border:1px solid var(--line);border-radius:24px;padding:4px;flex:0 0 auto}
+.toggle2 button{padding:9px 18px;border-radius:20px;font-weight:600;font-size:14px;color:#9a9aa2}
+.toggle2 button.on{background:var(--surf-3);color:#fff}
+
+/* pills/chips */
+.chiprow{display:flex;gap:8px;overflow-x:auto;padding:14px 18px 4px}
+.chip{flex:0 0 auto;padding:8px 15px;border-radius:20px;background:var(--surf);border:1px solid var(--line);color:#bfbfc6;font-weight:600;font-size:13px}
+.chip.on{background:var(--red);border-color:var(--red);color:#fff}
+
+/* buttons */
+.btn-red{background:var(--red);color:#fff;font-weight:700;font-size:16px;height:54px;border-radius:27px;display:flex;align-items:center;justify-content:center;gap:8px;width:100%}
+.btn-red:active{background:#cf0f29}
+.btn-red svg{width:20px;height:20px;fill:currentColor}
+.btn-ghost{background:var(--surf-2);border:1px solid var(--line);color:#fff;font-weight:600;height:52px;border-radius:26px;display:flex;align-items:center;justify-content:center;gap:8px;width:100%}
+.lnk{color:#fff;font-weight:600;font-size:14px}.lnk.red{color:var(--red)}
+
+/* scenic art */
+.scene{position:relative;overflow:hidden;background:#1a1a1e}
+.mtn{position:absolute;left:0;right:0;bottom:0;width:100%;height:62%;opacity:.5}
+.scrim{position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.1),rgba(0,0,0,0) 38%,rgba(0,0,0,.7))}
+.g1{background:linear-gradient(180deg,#8FA0AB,#9DAB8C 42%,#43503E 72%,#1b1f1a)}
+.g2{background:linear-gradient(180deg,#3E5C78,#2F6D5B 58%,#102b22)}
+.g3{background:linear-gradient(180deg,#C7D6B2,#82A35F 52%,#37551f)}
+.g4{background:linear-gradient(180deg,#A6BFC9,#86A98F 50%,#3a5440)}
+.g5{background:linear-gradient(180deg,#CBB89A,#9C8F6C 55%,#46402f)}
+.g6{background:linear-gradient(180deg,#AEC0D2,#DCE5EE 52%,#74808f)}
+
+/* hero */
+.hero{margin:8px 18px 0;border-radius:18px;height:178px;position:relative;cursor:pointer}
+.hero .cap{position:absolute;left:16px;bottom:16px;right:16px;z-index:3}
+.hero .kick{display:inline-block;background:var(--red);color:#fff;font-size:10px;font-weight:800;letter-spacing:.08em;padding:4px 9px;border-radius:6px;margin-bottom:8px}
+.hero .t{font-size:20px;font-weight:800;color:#fff;letter-spacing:-.01em;text-shadow:0 2px 8px rgba(0,0,0,.6);line-height:1.15}
+.hero .meta{font-size:12.5px;color:#dcdce0;margin-top:5px;text-shadow:0 1px 4px rgba(0,0,0,.7)}
+.dots{display:flex;gap:6px;justify-content:center;padding:12px 0 0}
+.dots i{width:6px;height:6px;border-radius:50%;background:#3a3a42}.dots i.on{background:var(--red);width:18px;border-radius:4px}
+
+/* section head */
+.sec-h{display:flex;align-items:center;justify-content:space-between;padding:20px 18px 10px}
+.sec-h b{font-size:17px;font-weight:700;color:#fff}.sec-h a{font-size:13px;color:#9a9aa2;font-weight:600}
+
+/* horizontal continue row */
+.hrow{display:flex;gap:12px;overflow-x:auto;padding:0 18px 4px}
+.hcard{flex:0 0 auto;width:200px;cursor:pointer}
+.hcard .thumb{width:200px;height:112px;border-radius:13px;position:relative}
+.hcard .pgbar{position:absolute;left:8px;right:8px;bottom:8px;height:3px;border-radius:2px;background:rgba(255,255,255,.3);z-index:3}
+.hcard .pgbar i{display:block;height:100%;background:var(--red);border-radius:2px}
+.hcard .ttl{font-size:13.5px;font-weight:600;color:#fff;margin-top:8px}
+.hcard .sub{font-size:12px;color:#8a8a92}
+.play-badge{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:42px;height:42px;border-radius:50%;background:rgba(0,0,0,.5);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;z-index:3}
+.play-badge svg{width:20px;height:20px;fill:#fff;margin-left:2px}
+
+/* grid */
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:6px 18px 10px}
+.card{aspect-ratio:16/10;border-radius:14px;position:relative;cursor:pointer}
+.card .nm{position:absolute;left:12px;bottom:11px;z-index:3;font-size:14px;font-weight:700;color:#fff;text-shadow:0 1px 4px rgba(0,0,0,.85);right:12px}
+.card .clogo{position:absolute;left:10px;top:10px;z-index:3;height:22px;background:rgba(0,0,0,.45);backdrop-filter:blur(4px);border-radius:6px;padding:3px 7px;font-size:10px;font-weight:800;color:#fff;display:flex;align-items:center}
+.tagchip{position:absolute;top:10px;right:10px;z-index:3;background:rgba(0,0,0,.5);backdrop-filter:blur(4px);color:#fff;font-size:10px;font-weight:700;padding:3px 7px;border-radius:6px;display:flex;align-items:center;gap:4px}
+.tagchip.live{background:var(--red)}.tagchip svg{width:11px;height:11px;fill:none;stroke:#fff;stroke-width:2}
+.tagchip .d{width:6px;height:6px;border-radius:50%;background:#fff}
+.card:active{transform:scale(.985)}
+
+/* bottom nav */
+.bottomnav{position:absolute;left:0;right:0;bottom:0;height:var(--nav-h);background:rgba(10,10,12,.92);backdrop-filter:blur(14px);border-top:1px solid var(--line);display:flex;z-index:60;padding-bottom:env(safe-area-inset-bottom,0)}
+.bottomnav button{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;color:var(--mut-2);font-size:10.5px;font-weight:600}
+.bottomnav button svg{width:23px;height:23px;fill:none;stroke:currentColor;stroke-width:1.9}
+.bottomnav button.on{color:#fff}
+.bottomnav button.on svg{stroke:var(--red)}
+
+/* player */
+.video{position:relative;width:100%;aspect-ratio:16/9;flex:0 0 auto;background:#000}
+.video .top{position:absolute;top:10px;left:10px;right:10px;display:flex;align-items:center;justify-content:space-between;z-index:5}
+.video .ttl{position:absolute;top:16px;left:0;right:0;text-align:center;color:#fff;font-weight:800;font-size:16px;letter-spacing:.03em;text-shadow:0 1px 6px rgba(0,0,0,.7);z-index:4;pointer-events:none}
+.video .ctrl{position:absolute;left:0;right:0;bottom:12px;display:flex;align-items:center;gap:12px;padding:0 14px;z-index:5}
+.pbtn{width:30px;height:30px;display:flex;align-items:center;justify-content:center;color:#fff;flex:0 0 auto}.pbtn svg{width:22px;height:22px;fill:#fff}
+.track{flex:1;height:4px;border-radius:3px;background:rgba(255,255,255,.3);position:relative}
+.track .fill{position:absolute;left:0;top:0;bottom:0;width:62%;background:var(--red);border-radius:3px}
+.track .knob{position:absolute;left:62%;top:50%;transform:translate(-50%,-50%);width:13px;height:13px;border-radius:50%;background:var(--red);box-shadow:0 0 0 3px rgba(235,18,47,.3)}
+.livetag{position:absolute;top:14px;left:14px;z-index:4;background:var(--red);color:#fff;font-size:10px;font-weight:800;padding:3px 8px;border-radius:5px;display:flex;align-items:center;gap:4px}
+.daystrip{display:flex;overflow-x:auto;border-bottom:1px solid #18181c;flex:0 0 auto}
+.day{flex:0 0 auto;min-width:84px;padding:12px 6px;text-align:center;border-right:1px solid #131316;cursor:pointer}
+.day small{display:block;font-size:11px;color:#7a7a82}.day b{font-size:13px;color:#cfcfd6;font-weight:600}
+.day.on{background:var(--surf)}.day.on small,.day.on b{color:#fff}
+.cubanner{margin:12px 18px 2px;background:rgba(235,18,47,.1);border:1px solid rgba(235,18,47,.28);color:#ff9aa6;font-size:12px;padding:9px 12px;border-radius:10px;display:flex;gap:8px;align-items:center}
+.cubanner svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2;flex:0 0 auto}
+.epg-h{padding:16px 18px 4px;font-size:13px;font-weight:800;letter-spacing:.05em;color:#fff}
+.prog{display:flex;align-items:flex-start;gap:12px;padding:13px 18px;border-bottom:1px solid #121215;cursor:pointer}
+.prog .pl{width:24px;height:24px;flex:0 0 auto;margin-top:1px}.prog .pl svg{width:24px;height:24px}
+.prog .pm{flex:1}.prog .pm b{font-size:15px;font-weight:700;color:#fff;display:block}.prog .pm span{font-size:12.5px;color:#8a8a92}
+.prog time{font-size:14px;font-weight:700;color:#fff;white-space:nowrap}
+.prog.dim .pm b{color:#bdbdc4}
+
+/* guide rows */
+.gitem{display:flex;align-items:center;gap:13px;padding:14px 18px;border-bottom:1px solid #131316;cursor:pointer}
+.gch{width:46px;height:46px;border-radius:12px;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:9px;flex:0 0 auto;text-align:center;line-height:1.05;position:relative;overflow:hidden}
+.gmeta{flex:1;min-width:0}
+.gmeta .now{font-size:14.5px;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gmeta .nxt{font-size:12px;color:#8a8a92;margin-top:3px}
+.gmeta .pg{height:3px;border-radius:2px;background:#26262c;margin-top:7px;overflow:hidden}.gmeta .pg i{display:block;height:100%;background:var(--red)}
+.gitem .gt{font-size:12px;color:var(--red);font-weight:700;white-space:nowrap}
+
+/* list / settings */
+.list-item{display:flex;align-items:center;gap:14px;padding:15px 18px;border-bottom:1px solid #141417}
+.li-ic{width:38px;height:38px;border-radius:11px;background:var(--surf-2);display:flex;align-items:center;justify-content:center;color:#cfcfd6;flex:0 0 auto}
+.li-ic svg{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:1.9}
+.li-t{flex:1}.li-t b{font-size:15px;color:#fff;display:block}.li-t span{font-size:12.5px;color:#8a8a92}
+.chev{color:#5a5a62}.chev svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2}
+.tg{width:46px;height:27px;border-radius:20px;background:#34343b;position:relative;transition:.18s;flex:0 0 auto}
+.tg::after{content:"";position:absolute;top:3px;left:3px;width:21px;height:21px;border-radius:50%;background:#fff;transition:.18s}
+.tg.on{background:var(--red)}.tg.on::after{left:22px}
+
+/* forms */
+.field{padding:0 18px 14px}
+.field label{display:block;font-size:13px;color:#9a9aa2;font-weight:600;margin-bottom:7px}
+.inp{width:100%;height:52px;background:var(--surf);border:1px solid var(--line);border-radius:14px;padding:0 16px;color:#fff;font-size:15px}
+.inp:focus{outline:none;border-color:var(--red)}
+select.inp{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' fill='none' stroke='%239a9aa2' stroke-width='2' viewBox='0 0 24 24'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 14px center}
+.pill-input{display:flex;align-items:center;gap:10px;background:var(--surf);border:1px solid var(--line);border-radius:14px;height:52px;padding:0 16px}
+.pill-input svg{width:19px;height:19px;fill:none;stroke:#8a8a92;stroke-width:1.8;flex:0 0 auto}
+.pill-input input{flex:1;background:none;border:none;outline:none;color:#fff;font-size:15px}
+.pill-input input::placeholder{color:#7a7a82}
+.seg-choice{display:flex;gap:10px}
+.seg-choice button{flex:1;height:48px;border-radius:13px;background:var(--surf);border:1px solid var(--line);color:#cfcfd6;font-weight:600;font-size:14px}
+.seg-choice button.on{background:rgba(235,18,47,.14);border-color:var(--red);color:#fff}
+.check{display:flex;align-items:center;gap:11px;cursor:pointer}
+.cbox{width:24px;height:24px;border-radius:7px;background:var(--red);display:flex;align-items:center;justify-content:center;flex:0 0 auto}
+.cbox svg{width:15px;height:15px;fill:none;stroke:#fff;stroke-width:3}
+.cbox.off{background:var(--surf-2);border:1px solid #34343c}.cbox.off svg{display:none}
+
+/* splash */
+.splash{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:30px;background:#000}
+.splash .logo svg{height:52px}
+.loadbar{width:220px;height:5px;border-radius:3px;background:#2a2a30;overflow:hidden}
+.loadbar i{display:block;height:100%;width:20%;background:var(--red);border-radius:3px;animation:load 1.7s ease forwards}
+@keyframes load{from{width:8%}to{width:100%}}
+.spacer{flex:1}
+
+/* parental / geo */
+.center-pad{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:30px}
+.big-ic{width:74px;height:74px;border-radius:22px;background:rgba(235,18,47,.13);display:flex;align-items:center;justify-content:center;margin-bottom:20px}
+.big-ic svg{width:34px;height:34px;fill:none;stroke:var(--red);stroke-width:1.7}
+.pin{display:flex;gap:12px;margin:6px 0 20px}
+.pin span{width:48px;height:56px;border-radius:14px;background:var(--surf);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:26px;color:#fff;font-weight:700}
+.pin span.f{border-color:var(--red)}
+.keypad{display:grid;grid-template-columns:repeat(3,1fr);gap:13px;width:100%;max-width:250px}
+.keypad button{height:56px;border-radius:16px;background:var(--surf);font-size:22px;font-weight:600;color:#fff}
+.keypad button:active{background:var(--surf-3)}
+
+/* mosaic */
+.mos-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:12px 18px}
+.mos{aspect-ratio:16/10;border-radius:12px;position:relative;overflow:hidden;cursor:pointer}
+.mos .nm{position:absolute;left:9px;bottom:7px;z-index:3;font-size:12px;font-weight:700;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.85)}
+.mos .ld{position:absolute;top:7px;right:7px;z-index:3;background:var(--red);color:#fff;font-size:8px;font-weight:800;padding:2px 5px;border-radius:4px}
+
+/* radio player */
+.rp-art{margin:20px auto 0;width:62%;max-width:230px;aspect-ratio:1;border-radius:28px;display:flex;align-items:center;justify-content:center;position:relative}
+.rp-art svg{width:60px;height:60px;fill:none;stroke:#fff;stroke-width:1.4;opacity:.9;position:relative;z-index:3}
+.eq{display:flex;gap:4px;align-items:flex-end;height:28px}
+.eq i{width:5px;background:var(--red);border-radius:2px;animation:eq 1s ease-in-out infinite}
+.eq i:nth-child(2){animation-delay:.2s}.eq i:nth-child(3){animation-delay:.4s}.eq i:nth-child(4){animation-delay:.1s}.eq i:nth-child(5){animation-delay:.3s}
+@keyframes eq{0%,100%{height:7px}50%{height:28px}}
+
+/* radio list */
+.radio-item{display:flex;align-items:center;gap:14px;padding:14px 18px;border-bottom:1px solid #141417;cursor:pointer}
+.radio-ic{width:50px;height:50px;border-radius:13px;display:flex;align-items:center;justify-content:center;flex:0 0 auto;position:relative;overflow:hidden}
+.radio-ic svg{width:22px;height:22px;fill:none;stroke:#fff;stroke-width:1.7;position:relative;z-index:3}
+
+/* ===== overlays: sheet, ad, toast ===== */
+.scrim{position:absolute;inset:0;background:rgba(0,0,0,.6);backdrop-filter:blur(2px);z-index:90;display:none}
+.scrim.on{display:block}
+.sheet{position:absolute;left:0;right:0;bottom:0;background:var(--surf);border-radius:24px 24px 0 0;z-index:91;transform:translateY(100%);transition:transform .28s cubic-bezier(.2,.8,.2,1);max-height:80%;display:flex;flex-direction:column;border-top:1px solid var(--line)}
+.sheet.on{transform:translateY(0)}
+.sheet .grab{width:40px;height:4px;border-radius:3px;background:#3a3a42;margin:10px auto 4px}
+.sheet h3{font-size:16px;font-weight:700;color:#fff;padding:8px 20px 12px}
+.sheet .body{overflow-y:auto;padding-bottom:20px}
+.opt-row{display:flex;align-items:center;justify-content:space-between;padding:14px 20px;cursor:pointer}
+.opt-row b{font-size:15px;color:#fff;font-weight:600}.opt-row span{font-size:12px;color:#8a8a92}
+.opt-row .rk{width:22px;height:22px;border-radius:50%;border:2px solid #3a3a42;display:flex;align-items:center;justify-content:center}
+.opt-row.sel .rk{border-color:var(--red)}.opt-row.sel .rk::after{content:"";width:11px;height:11px;border-radius:50%;background:var(--red)}
+
+/* AD POPUP */
+.adpop{position:absolute;inset:0;z-index:95;display:none;background:rgba(0,0,0,.85);align-items:center;justify-content:center;padding:18px}
+.adpop.on{display:flex;animation:fade .2s ease}
+.ad-card{width:100%;max-width:340px;border-radius:22px;overflow:hidden;position:relative;box-shadow:0 30px 70px -10px rgba(0,0,0,.7)}
+.ad-creative{position:relative;aspect-ratio:3/4;background:linear-gradient(150deg,#13131a 0%,#2a0c14 55%,#EB122F 140%);overflow:hidden}
+.ad-creative .glow{position:absolute;width:240px;height:240px;border-radius:50%;background:radial-gradient(circle,rgba(235,18,47,.55),transparent 65%);right:-70px;top:-50px;filter:blur(6px)}
+.ad-creative .ad-brand{position:absolute;top:18px;left:18px;display:flex;align-items:center;gap:8px;z-index:3}
+.ad-creative .ad-brand .b-logo{width:30px;height:30px;border-radius:9px;background:#fff;display:flex;align-items:center;justify-content:center;font-weight:900;color:#EB122F;font-size:15px}
+.ad-creative .ad-brand b{color:#fff;font-weight:800;font-size:15px;letter-spacing:.02em}
+.ad-creative .ad-body{position:absolute;left:22px;right:22px;bottom:22px;z-index:3}
+.ad-creative .ad-tag{color:#ffd2d8;font-weight:700;font-size:11px;letter-spacing:.14em;text-transform:uppercase}
+.ad-creative .ad-h{color:#fff;font-weight:900;font-size:30px;line-height:1.05;letter-spacing:-.02em;margin:8px 0 8px}
+.ad-creative .ad-sub{color:#f0d6da;font-size:13.5px;margin-bottom:16px}
+.ad-creative .ad-cta{display:inline-flex;align-items:center;gap:8px;background:#fff;color:#111;font-weight:800;font-size:14px;padding:11px 18px;border-radius:22px}
+.ad-creative .ad-cta svg{width:15px;height:15px;fill:none;stroke:#111;stroke-width:2.4}
+.ad-creative .ad-art{position:absolute;right:-10px;top:64px;width:160px;height:300px;z-index:2;opacity:.95}
+.ad-label{position:absolute;top:12px;right:12px;z-index:5;background:rgba(0,0,0,.55);color:#fff;font-size:10px;font-weight:800;letter-spacing:.12em;padding:5px 9px;border-radius:6px}
+.ad-skip{position:absolute;bottom:12px;right:12px;z-index:5;background:rgba(0,0,0,.6);backdrop-filter:blur(6px);color:#fff;font-size:13px;font-weight:700;padding:9px 15px;border-radius:22px;border:1px solid rgba(255,255,255,.25);display:flex;align-items:center;gap:7px}
+.ad-skip.ready{background:var(--red);border-color:var(--red)}
+.ad-skip svg{width:15px;height:15px;fill:currentColor}
+
+.toast{position:absolute;bottom:80px;left:50%;transform:translateX(-50%) translateY(16px);background:#fff;color:#111;padding:11px 18px;border-radius:22px;font-size:13.5px;font-weight:700;z-index:96;opacity:0;transition:.25s;display:flex;gap:8px;align-items:center;pointer-events:none;box-shadow:0 14px 30px rgba(0,0,0,.4)}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.toast svg{width:16px;height:16px;stroke:var(--red);fill:none;stroke-width:2.6}
+</style>
+</head>
+<body>
+
+<div class="review">
+  <span class="rl" data-logo></span>
+  <select id="jump" onchange="jumpTo(this.value)"></select>
+  <button onclick="restart()">↻ Restart</button>
+</div>
+
+<div class="frame" id="frame">
+  <div class="notch"></div>
+  <div class="statusbar"><span>9:41</span><span class="sb-r">
+    <svg viewBox="0 0 18 12"><rect x="0" y="7" width="3" height="5" rx="1"/><rect x="5" y="4" width="3" height="8" rx="1"/><rect x="10" y="2" width="3" height="10" rx="1"/><rect x="15" y="0" width="3" height="12" rx="1"/></svg>
+    <svg viewBox="0 0 18 12"><path d="M9 2.5c2.5 0 4.8 1 6.5 2.6l-1.4 1.4A7.6 7.6 0 009 4.4 7.6 7.6 0 003.9 6.5L2.5 5.1A9.6 9.6 0 019 2.5zm0 3.6c1.5 0 2.9.6 3.9 1.6l-1.5 1.5A3.4 3.4 0 009 9.7c-.9 0-1.7.3-2.4 1L5.1 9.2A5.4 5.4 0 019 6.1z"/></svg>
+    <svg viewBox="0 0 18 12"><rect x="0" y="1" width="15" height="10" rx="2.5" fill="none" stroke="#fff" stroke-width="1.2"/><rect x="2" y="3" width="11" height="6" rx="1.2"/><rect x="16" y="4" width="2" height="4" rx="1"/></svg>
+  </span></div>
+
+  <div id="screens"></div>
+
+  <!-- bottom nav -->
+  <div class="bottomnav hidden" id="nav"></div>
+
+  <!-- overlays -->
+  <div class="scrim" id="scrim" onclick="closeSheet()"></div>
+  <div class="sheet" id="sheet"></div>
+  <div class="adpop" id="adpop"></div>
+  <div class="toast" id="toast"><svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg><span id="toastMsg">U ruajt</span></div>
+</div>
+
+<script>
+const LOGO=`<svg version="1.1" xmlns="http://www.w3.org/2000/svg" viewBox="1.163 142.418 496.791 217.07">
+<polygon fill="#EB122F" points="180.186,142.418 1.163,142.418 1.163,321.628 25.814,321.628 25.814,167.023 180.186,167.023 "/>
+<path fill="#EB122F" d="M71.488,287.628h-9.302v12.232h9.488c4.558,0,7.163-2.419,7.163-6.046v-0.141C78.837,289.674,76.046,287.582,71.488,287.628"/>
+<path fill="#EB122F" d="M204.837,321.721h-9.349v-17.069h-17.256v17.069h-9.395v-42.559h9.349V296h17.256v-16.838h9.349v42.559H204.837z M158.884,318.977c-2.93,2.232-6.698,3.303-11.302,3.303c-5.116,0-9.209-1.209-12.372-3.582c-3.163-2.371-4.744-6.186-4.791-10.465h8.977c0.186,3.86,3.535,6.465,8.186,6.465c4.139,0,6.744-1.581,6.744-4.93c0-3.023-2.465-4.232-8.837-5.814c-3.674-0.93-5.535-1.488-8.326-2.791c-3.767-1.859-5.628-4.558-5.86-9.534c-0.093-3.488,1.349-6.884,3.954-9.256c2.651-2.512,6.418-3.721,11.302-3.721c4.698,0,8.465,1.163,11.349,3.488c2.883,2.325,4.418,5.488,4.511,9.534h-9.023c-0.047-3.627-2.558-5.441-6.651-5.441c-3.954,0-6.372,2.094-6.372,5.116c0,1.535,0.558,2.651,1.768,3.396c1.209,0.744,3.395,1.396,6.604,2.14c4.93,1.256,8.604,2.79,10.93,4.558s3.628,4.373,3.628,7.861C163.349,313.535,161.86,316.791,158.884,318.977 M127.396,287.814h-12.977v33.906h-9.349v-33.953H92.093v-8.651h35.255v8.698H127.396z M78.698,321.768l-9.116-13.675h-7.349v13.628h-9.349v-42.559h19.442c5.395,0,9.628,1.535,12.418,4.326c2.372,2.372,3.674,5.721,3.674,9.721v0.14c0,6.884-3.721,11.163-9.116,13.21l10.418,15.209H78.698z M39.302,359.488h179.023V180.465H39.349L39.302,359.488z"/>
+<path d="M253.349,228.977c2.651,0,4.325-1.395,4.325-3.488v-0.046c0-2.232-1.627-3.488-4.325-3.488H248v7.07h5.349V228.977z M244.279,218.558h9.349c2.651,0,4.698,0.791,6.046,2.093c1.164,1.209,1.768,2.837,1.722,4.511v0.047c0,3.442-2.093,5.535-4.978,6.372l5.675,7.953h-4.372l-5.162-7.302h-4.605v7.302h-3.674V218.558z"/>
+<path d="M284.651,231.209l-3.628-8.372l-3.582,8.372H284.651z M279.396,218.418h3.396L292,239.535h-3.907l-2.14-5.07h-9.906l-2.14,5.07h-3.768L279.396,218.418z"/>
+<path d="M305.303,221.907v14.279h4.139c4.419,0,7.303-2.977,7.303-7.07v-0.046c0-4.093-2.884-7.116-7.303-7.116L305.303,221.907z M301.628,218.558h7.813c6.605,0,11.163,4.512,11.163,10.418v0.047c0,5.907-4.558,10.511-11.163,10.511h-7.813V218.558z"/>
+<rect x="331.256" y="218.558" width="3.675" height="20.977"/>
+<path d="M363.675,229.116v-0.046c0-4.093-2.978-7.442-7.116-7.442c-4.14,0-7.07,3.349-7.07,7.396v0.046c0,4.093,2.977,7.442,7.116,7.442S363.675,233.209,363.675,229.116 M345.628,229.116v-0.046c0-5.907,4.558-10.837,10.977-10.837s10.931,4.884,10.931,10.791v0.046c0,5.907-4.559,10.837-11.023,10.837S345.628,235.023,345.628,229.116"/>
+<polygon points="249.442,263.441 242.791,263.441 242.791,260 259.768,260 259.768,263.441 253.162,263.441 253.162,280.977 249.442,280.977 "/>
+<polygon points="269.674,260 285.256,260 285.256,263.303 273.396,263.303 273.396,268.744 283.907,268.744 283.907,272.047 273.396,272.047 273.396,277.674 285.396,277.674 285.396,280.977 269.674,280.977 "/>
+<polygon points="295.768,260 299.441,260 299.441,277.628 310.465,277.628 310.465,280.977 295.768,280.977 "/>
+<polygon points="320.325,260 335.86,260 335.86,263.303 324,263.303 324,268.744 334.512,268.744 334.512,272.047 324,272.047 324,277.674 336.047,277.674 336.047,280.977 320.325,280.977 "/>
+<polygon points="344.604,260 348.697,260 355.023,276.14 361.303,260 365.303,260 356.604,281.162 353.303,281.162 "/>
+<rect x="375.069" y="260" width="3.675" height="20.977"/>
+<polygon points="389.628,278.279 402,263.256 390,263.256 390,260 406.837,260 406.837,262.744 394.419,277.721 406.837,277.721 406.837,280.977 389.628,280.977 "/>
+<rect x="417.628" y="260" width="3.675" height="20.977"/>
+<path d="M450.047,270.559v-0.047c0-4.094-2.978-7.441-7.116-7.441c-4.14,0-7.07,3.348-7.07,7.395v0.047c0,4.093,2.977,7.441,7.116,7.441C447.163,277.953,450.047,274.651,450.047,270.559 M432,270.604v-0.046c0-5.907,4.559-10.838,11.023-10.838s10.93,4.884,10.93,10.791v0.047c0.047,5.953-4.697,10.79-10.65,10.837c-0.094,0-0.233,0-0.326,0C436.465,281.396,432,276.512,432,270.604"/>
+<polygon points="464.372,260 467.814,260 479.023,274.512 479.023,260 482.697,260 482.697,280.977 479.581,280.977 468,266.047 468,280.977 464.372,280.977 "/>
+<rect x="494.279" y="260" width="3.674" height="20.977"/>
+<path d="M242.884,319.349l2.232-2.651c2,1.721,4.046,2.744,6.604,2.744c2.279,0,3.721-1.069,3.721-2.65v-0.047c0-1.488-0.837-2.326-4.744-3.209c-4.465-1.07-6.977-2.419-6.977-6.279v-0.047c0-3.581,2.977-6.093,7.163-6.093c2.79-0.046,5.488,0.884,7.628,2.651l-2,2.791c-1.86-1.396-3.768-2.141-5.674-2.141c-2.14,0-3.396,1.117-3.396,2.512v0.047c0,1.628,0.93,2.326,4.976,3.303c4.42,1.069,6.698,2.697,6.698,6.139v0.047c0,3.907-3.069,6.279-7.488,6.279C248.372,322.744,245.256,321.535,242.884,319.349"/>
+<polygon points="269.441,301.441 273.116,301.441 273.116,310.186 283.162,310.186 283.162,301.441 286.838,301.441 286.838,322.418 283.162,322.418 283.162,313.582 273.116,313.582 273.116,322.418 269.441,322.418 "/>
+<path d="M311.907,318.418l-3.628-3.069l2.372-2.697l3.674,3.349c0.698-1.209,1.023-2.604,0.978-4v-0.047c0-4.093-2.978-7.441-7.117-7.441c-4.139,0-7.069,3.303-7.069,7.396v0.046c0,4.094,2.977,7.442,7.116,7.442C309.535,319.396,310.791,319.07,311.907,318.418 M317.116,323.07l-2.512-2.232c-1.86,1.302-4.093,2-6.372,2c-6.418,0-10.93-4.885-10.93-10.791V312c0-5.907,4.558-10.838,10.977-10.838c6.418,0,10.93,4.885,10.93,10.791V312c0,2.326-0.744,4.559-2.093,6.418l2.419,2.047L317.116,323.07z"/>
+<rect x="329.907" y="301.441" width="3.674" height="20.977"/>
+<path d="M353.163,312.372c2.79,0,4.512-1.581,4.512-3.721v-0.047c0-2.465-1.768-3.767-4.512-3.767h-4.279v7.534H353.163z M345.209,301.441h8.279c4.931,0,7.953,2.791,7.953,7.023v0.047c0,4.697-3.767,7.162-8.372,7.162h-4.186v6.744h-3.675V301.441z"/>
+<polygon points="376.372,304.884 369.721,304.884 369.721,301.441 386.744,301.441 386.744,304.884 380.093,304.884 380.093,322.418 376.372,322.418 "/>
+<path d="M406.651,314.093l-3.628-8.372l-3.582,8.372H406.651z M401.396,301.303h3.396L414,322.418h-3.907l-2.14-5.069H398l-2.14,5.069h-3.768L401.396,301.303z"/>
+<path d="M432.697,311.86c2.651,0,4.326-1.396,4.326-3.488v-0.046c0-2.233-1.628-3.488-4.326-3.488h-5.349v7.022H432.697z M423.628,301.441h9.349c2.651,0,4.698,0.791,6.047,2.094c1.162,1.209,1.768,2.837,1.721,4.512v0.046c0,3.442-2.093,5.535-4.977,6.325l5.674,7.954h-4.372l-5.162-7.256h-4.604v7.302h-3.675V301.441z"/>
+</svg>`;
+const MTN=`<svg class="mtn" viewBox="0 0 400 120" preserveAspectRatio="none"><path d="M0 120 L70 50 L120 80 L180 30 L240 75 L300 40 L360 70 L400 45 L400 120 Z" fill="rgba(0,0,0,.45)"/><path d="M0 120 L60 75 L130 95 L210 60 L280 90 L340 70 L400 88 L400 120 Z" fill="rgba(0,0,0,.3)"/></svg>`;
+
+function ic(n){const p={
+ user:'<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/>',search:'<circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/>',
+ mail:'<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/>',key:'<circle cx="8" cy="12" r="4"/><path d="M12 12h9M18 12v4M21 12v3"/>',
+ back:'<path d="M15 18l-6-6 6-6"/>',pause:'<rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/>',
+ play:'<path d="M7 5l12 7-12 7z"/>',full:'<path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/>',chev:'<path d="M9 6l6 6-6 6"/>',
+ settings:'<circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 00-.1-1l2-1.5-2-3.4-2.4 1a7 7 0 00-1.7-1L13.5 3h-3l-.3 2.6a7 7 0 00-1.7 1l-2.4-1-2 3.4 2 1.5a7 7 0 000 2l-2 1.5 2 3.4 2.4-1a7 7 0 001.7 1l.3 2.6h3l.3-2.6a7 7 0 001.7-1l2.4 1 2-3.4-2-1.5a7 7 0 00.1-1z"/>',
+ shield:'<path d="M12 2l8 4v6c0 5-3.5 8-8 10-4.5-2-8-5-8-10V6z"/>',lock:'<rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 018 0v3"/>',
+ globe:'<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 010 18M12 3a14 14 0 000 18"/>',wifi:'<path d="M5 12a10 10 0 0114 0M8.5 15.5a5 5 0 017 0M12 19h.01"/>',
+ bell:'<path d="M12 3a6 6 0 016 6c0 7 3 8 3 8H3s3-1 3-8a6 6 0 016-6zM10 21a2 2 0 004 0"/>',doc:'<path d="M14 3H6a2 2 0 00-2 2v14a2 2 0 002 2h12a2 2 0 002-2V9z"/><path d="M14 3v6h6"/>',
+ out:'<path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"/>',home:'<path d="M3 11l9-8 9 8M5 10v10h14V10"/>',
+ tv:'<rect x="3" y="5" width="18" height="13" rx="2"/><path d="M8 21h8"/>',guide:'<rect x="3" y="4" width="18" height="17" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>',
+ grid:'<rect x="3" y="3" width="8" height="8" rx="1.5"/><rect x="13" y="3" width="8" height="8" rx="1.5"/><rect x="3" y="13" width="8" height="8" rx="1.5"/><rect x="13" y="13" width="8" height="8" rx="1.5"/>',
+ radio:'<circle cx="12" cy="12" r="2.5"/><path d="M7 8a7 7 0 000 8M17 8a7 7 0 010 8M4 5a11 11 0 000 14M20 5a11 11 0 010 14"/>',
+ pkg:'<path d="M3 8l9-5 9 5v8l-9 5-9-5z"/><path d="M3 8l9 5 9-5M12 13v8"/>',lang:'<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18"/>',
+ quality:'<rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8M7 9l2 4 2-6 2 6 2-4"/>',
+ check:'<path d="M20 6L9 17l-5-5"/>',info:'<circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/>',heart:'<path d="M12 21s-7-4.5-9.5-9A5 5 0 0112 6a5 5 0 019.5 6C19 16.5 12 21 12 21z"/>',
+ clock:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',arrow:'<path d="M5 12h14M13 6l6 6-6 6"/>',cast:'<path d="M2 16a6 6 0 016 6M2 12a10 10 0 0110 10M2 20h.01M2 4h18a2 2 0 012 2v12a2 2 0 01-2 2h-6"/>'
+}[n]||'';return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;}
+
+/* data */
+const CH=[
+ ['RTSH 1 HD','g1',1,'Bazë',''],['RTSH 2','g2',1,'Bazë',''],['RTSH 3','g3',0,'Bazë',''],['RTSH 24','g6',1,'Lajme',''],
+ ['RTSH Sport HD','g4',1,'Sport',''],['RTSH Muzikë','g5',0,'Muzikë',''],['RTSH Fëmijë','g3',0,'Fëmijë',''],['RTSH Shkollë','g6',1,'Bazë',''],
+ ['RTSH Film','g1',0,'Bazë','lock'],['RTSH Shqip','g5',0,'Bazë',''],['RTSH Kuvend','g2',0,'Lajme',''],['RTSH SAT','g4',1,'Bazë','geo'],
+ ['RTSH Korça','g3',0,'Rajonale',''],['RTSH Gjirokastra','g5',0,'Rajonale',''],['RTSH Kukësi','g2',0,'Rajonale',''],['RTSH Shkodra','g6',1,'Rajonale','']
+];
+const PKGS=['Të gjitha','Bazë','Sport','Lajme','Fëmijë','Muzikë','Rajonale'];
+const RADIO=[['Radio Tirana 1','Lajme & aktualitet','g2'],['Radio Tirana 2','Muzikë & argëtim','g4'],['Radio Tirana 3','Kulturë','g5'],['Radio Tirana Internacional','Internacional','g6'],['Radio Tirana Klasik','Muzikë klasike','g3'],['RTSH Muzikë Radio','Hite shqip','g1'],['Radio Tirana Jazz','Jazz','g2'],['Radio Tirana Fëmijë','Për fëmijë','g4'],['Radio Kukësi','Rajonale','g5'],['Radio Korça','Rajonale','g6'],['Radio Gjirokastra','Rajonale','g3'],['Radio Shkodra','Rajonale','g1']];
+const DAYS=[['E Diel','31.05'],['E Hënë','01.06'],['E Martë','02.06'],['E Mërkurë','03.06'],['Sot','04.06']];
+const EPG=[['19:00','Edicioni Qendror i Lajmeve','Lajmet më të rëndësishme të ditës',1],['19:30','Në Zemër të Shqipërisë','Emision kulturor dhe turizëm',0],['20:00','Film - "Të Dashuruarit"','Dramë romantike shqiptare (Premiere)',0],['21:30','Magazina Sportive','Përmbledhje e ditës sportive',0],['22:15','Dokumentar: Alpet Shqiptare','Natyra dhe trashëgimia',0],['23:30','Muzikë Shqip','Koncert nga studio',0]];
+const QUAL=[['Auto','Përshtatet me lidhjen (ABR)',1],['1080p','HD e plotë',0],['720p','HD',0],['576p','Standard',0],['360p','Kursim të dhënash',0]];
+function art(v){return MTN+'<div class="scrim"></div>';}
+function logoTxt(n){return n.startsWith('RTSH')?'RTSH':'R';}
+
+/* ===== render screens ===== */
+function renderAll(){
+ document.getElementById('screens').innerHTML=[
+  sSplash(),sLogin(),sRegister(),sTerms(),sOnboard(),
+  sHome(),sGuide(),sSearch(),sProfile(),
+  sPlayer(),sRadioList(),sRadioPlayer(),sMosaic(),sSettings(),sParental(),sGeo()
+ ].join('');
+ buildNav();
+}
+
+/* auth */
+function sSplash(){return `<div class="screen" id="sc-splash"><div class="splash"><span class="logo" data-logo></span><div class="loadbar"><i></i></div></div></div>`;}
+function sLogin(){return `<div class="screen" id="sc-login"><div class="safe-top"></div>
+  <div class="hdr"><span class="logo" data-logo></span></div>
+  <div class="scroll" style="display:flex;flex-direction:column">
+   <div class="spacer"></div>
+   <div style="padding:0 18px 10px"><h2 style="font-size:25px;font-weight:800;color:#fff">Mirë se vini</h2><p style="color:#8a8a92;font-size:14px;margin-top:4px">Hyni në llogarinë tuaj RTSH TANI.</p></div>
+   <div class="field"><div class="pill-input">${ic('mail')}<input placeholder="Email" value="arben.hoxha@gmail.com"></div></div>
+   <div class="field"><div class="pill-input">${ic('key')}<input type="password" placeholder="Fjalëkalimi" value="••••••••"></div></div>
+   <div class="field" style="display:flex;align-items:center;justify-content:space-between">
+     <label class="check" onclick="this.querySelector('.cbox').classList.toggle('off')"><span class="cbox">${ic('check')}</span><span style="color:#cfcfd6;font-size:14px;font-weight:500">Më mbaj mend</span></label>
+     <a class="lnk">Harruat fjalëkalimin?</a></div>
+   <div class="field"><button class="btn-red" onclick="appOpen()">Hyr</button></div>
+   <div class="field" style="text-align:center"><span style="color:#8a8a92;font-size:14px">Nuk keni llogari? </span><a class="lnk red" onclick="go('register')">Regjistrohuni</a></div>
+   <div class="spacer"></div>
+  </div></div>`;}
+function sRegister(){return `<div class="screen" id="sc-register"><div class="safe-top"></div>
+  <div class="hdr"><button class="pfp" onclick="go('login')">${ic('back')}</button><span class="hdr-t">Krijo llogari</span><span style="width:40px"></span></div>
+  <div class="scroll">
+   <div class="field" style="padding-top:6px"><label>Email *</label><input class="inp" placeholder="emri@shembull.com"></div>
+   <div class="field"><label>Përdoruesi *</label><input class="inp" placeholder="emri i përdoruesit"></div>
+   <div class="field"><label>Fjalëkalimi *</label><input class="inp" type="password" placeholder="••••••••"></div>
+   <div class="field"><label>Përsërit fjalëkalimin *</label><input class="inp" type="password" placeholder="••••••••"></div>
+   <div class="field"><label>Mosha *</label><input class="inp" type="number" placeholder="p.sh. 28"></div>
+   <div class="field"><label>Qyteti / Shteti *</label><input class="inp" placeholder="Tiranë, Shqipëri"></div>
+   <div class="field"><label>Gjinia *</label><div class="seg-choice"><button class="on" onclick="pick(this)">Mashkull</button><button onclick="pick(this)">Femër</button><button onclick="pick(this)">Tjetër</button></div></div>
+   <div class="field"><label class="check" onclick="this.querySelector('.cbox').classList.toggle('off')"><span class="cbox off">${ic('check')}</span><span style="color:#cfcfd6;font-size:14px">Pranoj <a class="lnk red" onclick="event.stopPropagation();go('terms')">kushtet e përdorimit</a></span></label></div>
+   <div class="field"><button class="btn-red" onclick="go('terms')">Regjistrohu</button></div>
+  </div></div>`;}
+function sTerms(){return `<div class="screen" id="sc-terms"><div class="safe-top"></div>
+  <div class="hdr"><button class="pfp" onclick="go('register')">${ic('back')}</button><span class="hdr-t">Kushtet e Përdorimit</span><span style="width:40px"></span></div>
+  <div class="scroll" style="padding:0 18px;color:#b6b6bc;font-size:13.5px;line-height:1.7">
+    <p style="color:#fff;font-weight:700;margin:6px 0 8px">1. Përdorimi i shërbimit</p><p>Platforma RTSH TANI ofron transmetimin e kanaleve televizive dhe radiofonike të RTSH-së. Përdorimi nënkupton pranimin e këtyre kushteve.</p>
+    <p style="color:#fff;font-weight:700;margin:16px 0 8px">2. Të dhënat personale</p><p>Të dhënat e regjistrimit përpunohen sipas legjislacionit në fuqi për mbrojtjen e të dhënave. Disa shërbime mund të kufizohen gjeografikisht.</p>
+    <p style="color:#fff;font-weight:700;margin:16px 0 8px">3. Përmbajtja</p><p>E drejta e transmetimit i përket RTSH-së. Riprodhimi i paautorizuar është i ndaluar.</p>
+    <p style="color:#fff;font-weight:700;margin:16px 0 8px">4. Reklamat</p><p>Shërbimi mund të përmbajë reklama të vendosura nga RTSH.</p></div>
+  <div style="padding:14px 18px;border-top:1px solid #1c1c20"><button class="btn-red" onclick="go('onboard')">Pranoj dhe vazhdo</button></div></div>`;}
+function sOnboard(){return `<div class="screen" id="sc-onboard"><div class="safe-top"></div>
+  <div class="hdr"><span></span><span class="hdr-t">Konfigurimi fillestar</span><a class="lnk" style="font-size:13px;color:#8a8a92" onclick="appOpen()">Kapërce</a></div>
+  <div class="scroll">
+   <div style="padding:6px 18px 2px"><h2 style="font-size:20px;font-weight:800;color:#fff">Kontrolli prindëror</h2><p style="color:#8a8a92;font-size:13.5px;margin-top:4px">I çaktivizuar si parazgjedhje. Aktivizoni dhe zgjidhni moshën për të mbrojtur përmbajtjen sipas EPG-së.</p></div>
+   <div class="list-item" style="margin-top:8px"><div class="li-ic">${ic('shield')}</div><div class="li-t"><b>Aktivizo kontrollin prindëror</b><span>Bllokon eventet sipas moshës</span></div><div class="tg" onclick="tg(this);togglePC(this)"></div></div>
+   <div class="field" id="pc-age" style="padding-top:14px;opacity:.4;pointer-events:none"><label>Mosha minimale</label><div class="seg-choice"><button onclick="pick(this)">7+</button><button class="on" onclick="pick(this)">12+</button><button onclick="pick(this)">16+</button><button onclick="pick(this)">18+</button></div></div>
+   <div style="padding:18px 18px 2px;border-top:1px solid #1c1c20;margin-top:10px"><h2 style="font-size:20px;font-weight:800;color:#fff">Të dhënat celulare</h2></div>
+   <div class="list-item"><div class="li-ic">${ic('wifi')}</div><div class="li-t"><b>Lejo transmetimin me të dhëna celulare</b><span>Përndryshe vetëm me WiFi</span></div><div class="tg on" onclick="tg(this)"></div></div>
+   <div class="field" style="padding-top:18px"><button class="btn-red" onclick="appOpen()">Vazhdo</button></div>
+  </div></div>`;}
+
+/* HOME */
+function sHome(){return `<div class="screen" id="sc-home"><div class="safe-top"></div>
+  <div class="hdr"><span class="logo" data-logo></span>
+    <div style="display:flex;gap:8px"><button class="pfp" onclick="go('mosaic')">${ic('grid')}</button><button class="pfp" onclick="go('profile')">${ic('user')}</button></div></div>
+  <div class="scroll has-nav" id="homeScroll">
+    <div style="display:flex;gap:10px;align-items:center;padding:2px 18px 0">
+      <div class="searchbar" style="flex:1;margin:0;cursor:pointer" onclick="go('search')">${ic('search')}<span style="color:#7a7a82;font-size:15px">Kërko kanale, programe…</span></div>
+    </div>
+    <div style="display:flex;justify-content:center;padding:14px 18px 0"><div class="toggle2"><button class="on" id="tgTV" onclick="homeMode('tv')">Televizion</button><button id="tgR" onclick="homeMode('radio')">Radio</button></div></div>
+    <div id="tvHome">
+      <div class="hero scene g1" onclick="openChannel('RTSH Film')">${art()}<div class="cap"><span class="kick">PREMIERË SONTE</span><div class="t">Historia që nuk e dini</div><div class="meta">RTSH Film · 20:45 · Dokumentar</div></div></div>
+      <div class="dots"><i class="on"></i><i></i><i></i></div>
+      <div class="sec-h"><b>Vazhdo të shikosh</b></div>
+      <div class="hrow">
+        ${[['RTSH Sport HD','Magazina Sportive','g4',62],['RTSH 1 HD','Edicioni i Lajmeve','g1',30],['RTSH Film','Të Dashuruarit','g5',8]].map(c=>`<div class="hcard" onclick="openChannel('${c[0]}')"><div class="thumb scene ${c[2]}">${art()}<div class="play-badge">${ic('play')}</div><div class="pgbar"><i style="width:${c[3]}%"></i></div></div><div class="ttl">${c[1]}</div><div class="sub">${c[0]}</div></div>`).join('')}
+      </div>
+      <div class="chiprow" id="pkgChips">${PKGS.map((p,i)=>`<div class="chip ${i===0?'on':''}" onclick="filterPkg(this,'${p}')">${p}</div>`).join('')}</div>
+      <div class="sec-h"><b>Kanalet TV</b><a onclick="go('guide')">Guida</a></div>
+      <div class="grid2" id="tvGrid">${tvCards('Të gjitha')}</div>
+    </div>
+    <div id="radioHome" class="hidden">
+      <div class="sec-h"><b>Stacionet Radio</b></div>
+      ${RADIO.map(r=>`<div class="radio-item" onclick="openRadio('${r[0]}','${r[1]}')"><div class="radio-ic scene ${r[2]}">${art()}${ic('radio')}</div><div style="flex:1"><b style="font-size:15px;color:#fff;display:block">${r[0]}</b><span style="font-size:12.5px;color:#8a8a92">${r[1]}</span></div><span class="chev">${ic('chev')}</span></div>`).join('')}
+    </div>
+  </div></div>`;}
+function tvCards(pkg){return CH.filter(c=>pkg==='Të gjitha'||c[3]===pkg).map(ch=>`<div class="card scene ${ch[1]}" onclick="openChannel('${ch[0]}')">${art()}<div class="clogo">${logoTxt(ch[0])}</div>${ch[4]==='lock'?`<div class="tagchip">${ic('lock')}18+</div>`:ch[4]==='geo'?`<div class="tagchip">${ic('globe')}GEO</div>`:`<div class="tagchip live"><span class="d"></span>LIVE</div>`}<div class="nm">${ch[0]}</div></div>`).join('');}
+
+/* GUIDE (now/next) */
+function sGuide(){return `<div class="screen" id="sc-guide"><div class="safe-top"></div>
+  <div class="hdr"><span class="hdr-t">Guida</span><div class="toggle2"><button class="on" id="gTV" onclick="guideMode('tv')">TV</button><button id="gR" onclick="guideMode('radio')">Radio</button></div></div>
+  <div class="scroll has-nav" id="guideScroll">${guideList('tv')}</div></div>`;}
+function guideList(mode){
+ if(mode==='radio'){return `<div class="epg-h" style="padding-top:8px">TANI NË RADIO</div>`+RADIO.slice(0,8).map((r,i)=>`<div class="gitem" onclick="openRadio('${r[0]}','${r[1]}')"><div class="gch scene ${r[2]}">${art()}<span style="position:relative;z-index:3">${ic('radio')}</span></div><div class="gmeta"><div class="now">${['Mëngjesi në Radio','Lajmet e orës','Muzikë pa ndërprerje','Jazz Sessions','Klasik','Hite Shqip','Top 20','Përralla'][i]}</div><div class="nxt">Vijon: ${['Intervista','Magazina','Podcast','Live','Recital','Request','Lista','Muzikë'][i]} · ${['10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00'][i]}</div><div class="pg"><i style="width:${30+i*7}%"></i></div></div><div class="gt">● LIVE</div></div>`).join('');}
+ return `<div class="epg-h" style="padding-top:8px">TANI NË TV</div>`+CH.slice(0,12).map((ch,i)=>{const now=EPG[i%EPG.length];const nx=EPG[(i+1)%EPG.length];return `<div class="gitem" onclick="openChannel('${ch[0]}')"><div class="gch scene ${ch[1]}">${art()}<span style="position:relative;z-index:3">${logoTxt(ch[0])}</span></div><div class="gmeta"><div class="now">${now[1]}</div><div class="nxt">Vijon ${nx[0]}: ${nx[1]}</div><div class="pg"><i style="width:${25+(i*11)%60}%"></i></div></div><div class="gt">${now[0]}</div></div>`;}).join('');
+}
+
+/* SEARCH */
+function sSearch(){return `<div class="screen" id="sc-search"><div class="safe-top"></div>
+  <div class="hdr" style="gap:10px"><button class="pfp" onclick="go('home')">${ic('back')}</button><div class="searchbar" style="flex:1;margin:0">${ic('search')}<input placeholder="Kërko kanale, programe…" value="sport"></div></div>
+  <div class="scroll has-nav">
+   <div class="sec-h"><b>Kanale</b></div>
+   <div class="grid2">${[CH[4],CH[3]].map(ch=>`<div class="card scene ${ch[1]}" onclick="openChannel('${ch[0]}')">${art()}<div class="clogo">${logoTxt(ch[0])}</div><div class="tagchip live"><span class="d"></span>LIVE</div><div class="nm">${ch[0]}</div></div>`).join('')}</div>
+   <div class="sec-h"><b>Programe</b></div>
+   <div class="prog" onclick="openChannel('RTSH Sport HD')"><div class="pl">${ic('play')}</div><div class="pm"><b>Magazina Sportive</b><span>RTSH Sport HD · 21:30</span></div></div>
+   <div class="prog" onclick="openChannel('RTSH Sport HD')"><div class="pl">${ic('play')}</div><div class="pm"><b>Superkupa e Shqipërisë</b><span>RTSH Sport HD · Të dielën</span></div></div>
+   <div class="sec-h"><b>Kërkime të fundit</b></div>
+   <div style="padding:0 18px;display:flex;gap:8px;flex-wrap:wrap">${['lajme','film','sport','fëmijë','korça'].map(t=>`<span class="chip">${t}</span>`).join('')}</div>
+  </div></div>`;}
+
+/* PROFILE */
+function sProfile(){return `<div class="screen" id="sc-profile"><div class="safe-top"></div>
+  <div class="hdr"><span class="hdr-t">Profili</span><button class="pfp" onclick="go('settings')">${ic('settings')}</button></div>
+  <div class="scroll has-nav">
+   <div style="display:flex;flex-direction:column;align-items:center;padding:14px 0 20px">
+     <div class="pfp" style="width:84px;height:84px;font-size:28px;font-weight:800;color:#fff;background:linear-gradient(135deg,#EB122F,#9b0e22)">AH</div>
+     <h2 style="font-size:20px;font-weight:800;color:#fff;margin-top:14px">Arben Hoxha</h2>
+     <span style="color:#8a8a92;font-size:14px">arben.hoxha@gmail.com</span>
+     <span style="margin-top:10px;background:var(--surf-2);border:1px solid var(--line);border-radius:20px;padding:5px 12px;font-size:12px;font-weight:600;color:#cfcfd6">Paketa Bazë · 32 kanale</span>
+   </div>
+   <div class="list-item"><div class="li-ic">${ic('user')}</div><div class="li-t"><b>Të dhënat e llogarisë</b><span>Emri, email, fjalëkalimi</span></div><span class="chev">${ic('chev')}</span></div>
+   <div class="list-item"><div class="li-ic">${ic('heart')}</div><div class="li-t"><b>Të preferuarat</b><span>Kanalet e ruajtura</span></div><span class="chev">${ic('chev')}</span></div>
+   <div class="list-item" onclick="go('settings')"><div class="li-ic">${ic('shield')}</div><div class="li-t"><b>Kontrolli prindëror</b><span>Aktiv · 12+</span></div><span class="chev">${ic('chev')}</span></div>
+   <div class="list-item" onclick="go('settings')"><div class="li-ic">${ic('settings')}</div><div class="li-t"><b>Cilësimet</b><span>Të dhëna celulare, gjuha, njoftimet</span></div><span class="chev">${ic('chev')}</span></div>
+   <div class="list-item" onclick="go('login')"><div class="li-ic" style="color:var(--red)">${ic('out')}</div><div class="li-t"><b style="color:var(--red)">Dil nga llogaria</b></div></div>
+  </div></div>`;}
+
+/* SETTINGS */
+function sSettings(){return `<div class="screen" id="sc-settings"><div class="safe-top"></div>
+  <div class="hdr"><button class="pfp" onclick="go('profile')">${ic('back')}</button><span class="hdr-t">Cilësimet</span><span style="width:40px"></span></div>
+  <div class="scroll">
+   <div class="sec-h"><b style="font-size:12px;color:#8a8a92;text-transform:uppercase;letter-spacing:.06em">Luajtja</b></div>
+   <div class="list-item"><div class="li-ic">${ic('wifi')}</div><div class="li-t"><b>Të dhënat celulare</b><span>Lejo transmetimin pa WiFi</span></div><div class="tg on" onclick="tg(this)"></div></div>
+   <div class="list-item" onclick="openQuality()"><div class="li-ic">${ic('quality')}</div><div class="li-t"><b>Cilësia e parazgjedhur</b><span id="setQ">Auto (ABR)</span></div><span class="chev">${ic('chev')}</span></div>
+   <div class="list-item"><div class="li-ic">${ic('shield')}</div><div class="li-t"><b>Kontrolli prindëror</b><span>Aktiv · 12+</span></div><div class="tg on" onclick="tg(this)"></div></div>
+   <div class="sec-h"><b style="font-size:12px;color:#8a8a92;text-transform:uppercase;letter-spacing:.06em">Aplikacioni</b></div>
+   <div class="list-item"><div class="li-ic">${ic('lang')}</div><div class="li-t"><b>Gjuha</b><span>Shqip</span></div><span class="chev">${ic('chev')}</span></div>
+   <div class="list-item"><div class="li-ic">${ic('bell')}</div><div class="li-t"><b>Njoftimet</b><span>Premiera & lajme</span></div><div class="tg on" onclick="tg(this)"></div></div>
+   <div class="list-item"><div class="li-ic">${ic('cast')}</div><div class="li-t"><b>Transmeto (Cast)</b><span>Në TV ose pajisje</span></div><div class="tg" onclick="tg(this)"></div></div>
+   <div class="list-item"><div class="li-ic">${ic('doc')}</div><div class="li-t"><b>Kushtet e përdorimit</b></div><span class="chev">${ic('chev')}</span></div>
+   <div class="list-item"><div class="li-ic">${ic('info')}</div><div class="li-t"><b>Versioni</b><span>RTSH TANI 2.4.0</span></div></div>
+  </div></div>`;}
+
+/* PLAYER */
+function sPlayer(){return `<div class="screen" id="sc-player">
+  <div class="safe-top" style="background:#000"></div>
+  <div class="video scene g1" id="pScene">${art()}
+    <div class="livetag" id="pLive"><span style="width:6px;height:6px;border-radius:50%;background:#fff;display:block"></span>LIVE</div>
+    <div class="top"><button class="iconbtn glass" onclick="go('home')">${ic('back')}</button><button class="iconbtn glass" onclick="openPlayerOpts()">${ic('settings')}</button></div>
+    <div class="ttl" id="pTitle">RTSH 1 HD</div>
+    <div class="ctrl"><button class="pbtn">${ic('pause')}</button><div class="track"><div class="fill"></div><div class="knob"></div></div><button class="pbtn">${ic('full')}</button></div>
+  </div>
+  <div class="daystrip" id="daystrip">${DAYS.map((d,i)=>`<div class="day ${i===DAYS.length-1?'on':''}" onclick="pickDay(this,${i})"><small>${d[0]}</small><b>${d[1]}</b></div>`).join('')}</div>
+  <div class="scroll" id="pScroll"><div id="cuwrap"></div><div class="epg-h" id="epgH">EPG</div><div id="epglist">${epgRows(true)}</div></div></div>`;}
+function epgRows(live){return EPG.map(p=>{const isLive=live&&p[3];return `<div class="prog ${isLive?'':'dim'}"><div class="pl">${isLive?'<svg viewBox="0 0 24 24" fill="none" stroke="#EB122F" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M10 9l5 3-5 3z" fill="#EB122F"/></svg>':(!live?'<svg viewBox="0 0 24 24" fill="none" stroke="#6c6c74" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M10 9l5 3-5 3z" fill="#6c6c74"/></svg>':'')}</div><div class="pm"><b>${p[1]}</b><span>${p[2]}</span></div><time>${p[0]}</time></div>`;}).join('');}
+
+/* RADIO list (full screen from guide radio) + RADIO player */
+function sRadioList(){return `<div class="screen" id="sc-radiolist"><div class="safe-top"></div>
+  <div class="hdr"><button class="pfp" onclick="go('home')">${ic('back')}</button><span class="hdr-t">Radio</span><span style="width:40px"></span></div>
+  <div class="scroll has-nav">${RADIO.map(r=>`<div class="radio-item" onclick="openRadio('${r[0]}','${r[1]}')"><div class="radio-ic scene ${r[2]}">${art()}${ic('radio')}</div><div style="flex:1"><b style="font-size:15px;color:#fff;display:block">${r[0]}</b><span style="font-size:12.5px;color:#8a8a92">${r[1]}</span></div><span class="chev">${ic('chev')}</span></div>`).join('')}</div></div>`;}
+function sRadioPlayer(){return `<div class="screen" id="sc-radioplayer"><div class="safe-top"></div>
+  <div class="hdr"><button class="pfp" onclick="go('home')">${ic('back')}</button><span class="hdr-t">Po luan tani</span><button class="pfp">${ic('heart')}</button></div>
+  <div class="scroll">
+   <div class="rp-art scene g5" id="rpArt">${art()}${ic('radio')}</div>
+   <div style="text-align:center;padding:24px 30px 4px"><h2 id="rpName" style="font-size:23px;font-weight:800;color:#fff">Radio Tirana 1</h2><p id="rpSub" style="color:#9a9aa2;margin-top:4px">Lajme & aktualitet · 128 kbps</p></div>
+   <div style="display:flex;justify-content:center;padding:12px 0"><div class="eq"><i></i><i></i><i></i><i></i><i></i></div></div>
+   <div style="display:flex;justify-content:center;align-items:center;gap:26px;padding-top:14px"><button class="pfp" style="width:50px;height:50px">${ic('back')}</button><button class="btn-red" style="width:72px;height:72px;border-radius:50%;flex:0 0 auto">${ic('pause')}</button><button class="pfp" style="width:50px;height:50px">${ic('chev')}</button></div>
+   <div class="sec-h" style="padding-top:24px"><b>Programi i radios</b></div>
+   <div class="prog"><div class="pl"><svg viewBox="0 0 24 24" fill="none" stroke="#EB122F" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M10 9l5 3-5 3z" fill="#EB122F"/></svg></div><div class="pm"><b>Lajmet e orës</b><span>Aktualitet</span></div><time>19:00</time></div>
+   <div class="prog dim"><div class="pl"></div><div class="pm"><b>Muzikë Shqip</b><span>Hite</span></div><time>19:30</time></div>
+  </div></div>`;}
+
+/* MOSAIC */
+function sMosaic(){return `<div class="screen" id="sc-mosaic"><div class="safe-top"></div>
+  <div class="hdr"><button class="pfp" onclick="go('home')">${ic('back')}</button><span class="hdr-t">Mozaik</span><span style="width:40px"></span></div>
+  <div class="scroll has-nav"><p style="padding:0 18px 2px;color:#8a8a92;font-size:13px">Imazhi i fundit i transmetuar për çdo kanal, i lidhur me EPG-në.</p>
+   <div class="mos-grid">${CH.slice(0,12).map(ch=>`<div class="mos scene ${ch[1]}" onclick="openChannel('${ch[0]}')">${art()}<div class="ld">LIVE</div><div class="nm">${ch[0]}</div></div>`).join('')}</div></div></div>`;}
+
+/* PARENTAL + GEO */
+function sParental(){return `<div class="screen" id="sc-parental"><div class="safe-top"></div>
+  <div class="hdr"><button class="pfp" onclick="go('home')">${ic('back')}</button><span></span><span style="width:40px"></span></div>
+  <div class="center-pad"><div class="big-ic">${ic('lock')}</div>
+   <h2 style="font-size:21px;font-weight:800;color:#fff;margin-bottom:6px">Kontroll prindëror</h2>
+   <p style="color:#9a9aa2;font-size:14px;margin-bottom:6px">Ky program (18+) është i mbrojtur. Shkruani kodin.</p>
+   <div class="pin"><span id="pin0" class="f"></span><span id="pin1"></span><span id="pin2"></span><span id="pin3"></span></div>
+   <div class="keypad">${[1,2,3,4,5,6,7,8,9].map(n=>`<button onclick="pinPush('${n}')">${n}</button>`).join('')}<span></span><button onclick="pinPush('0')">0</button><button onclick="pinDel()" style="font-size:16px">⌫</button></div>
+  </div></div>`;}
+function sGeo(){return `<div class="screen" id="sc-geo"><div class="safe-top"></div>
+  <div class="hdr"><button class="pfp" onclick="go('home')">${ic('back')}</button><span></span><span style="width:40px"></span></div>
+  <div class="center-pad"><div class="big-ic">${ic('globe')}</div>
+   <h2 style="font-size:21px;font-weight:800;color:#fff;margin-bottom:8px">Jo i disponueshëm në rajonin tuaj</h2>
+   <p style="color:#9a9aa2;font-size:14.5px;line-height:1.6;max-width:280px">Ky shërbim nuk është i disponueshëm në rajonin tuaj për arsye të të drejtave të transmetimit.</p>
+   <button class="btn-ghost" style="margin-top:24px;max-width:200px" onclick="go('home')">Kthehu te kreu</button></div></div>`;}
+
+/* ===== bottom nav ===== */
+const TABS=[['home','Kreu','home'],['guide','Guida','guide'],['search','Kërko','search'],['profile','Profili','user']];
+function buildNav(){document.getElementById('nav').innerHTML=TABS.map(t=>`<button data-tab="${t[0]}" onclick="go('${t[0]}')">${ic(t[2])}<span>${t[1]}</span></button>`).join('');}
+const NAV_TABS=['home','guide','search','profile'];
+
+/* ===== navigation ===== */
+let current='splash';
+function go(id){
+ document.querySelectorAll('#screens .screen').forEach(s=>s.classList.remove('on'));
+ const el=document.getElementById('sc-'+id);if(!el)return;el.classList.add('on');
+ const sc=el.querySelector('.scroll');if(sc)sc.scrollTop=0;
+ document.querySelectorAll('[data-logo]').forEach(e=>{if(!e.innerHTML)e.innerHTML=LOGO;});
+ const nav=document.getElementById('nav');const isMain=NAV_TABS.includes(id);
+ nav.classList.toggle('hidden',!isMain);
+ if(isMain)document.querySelectorAll('#nav button').forEach(b=>b.classList.toggle('on',b.dataset.tab===id));
+ current=id;syncJump(id);
+ if(id==='splash'){restartLoad();clearTimeout(splashT);splashT=setTimeout(()=>go('login'),1700);}
+}
+let splashT;
+function restartLoad(){const i=document.querySelector('#sc-splash .loadbar i');if(i){i.style.animation='none';void i.offsetWidth;i.style.animation='load 1.7s ease forwards';}}
+function appOpen(){ // app open => splash ad then home
+ showAd('splash',()=>go('home'));
+}
+
+/* channel/radio open */
+function openChannel(name){
+ const ch=CH.find(c=>c[0]===name);
+ if(ch&&ch[4]==='lock'){pinTarget=name;go('parental');return;}
+ if(ch&&ch[4]==='geo'){go('geo');return;}
+ pendingChannel=name;
+ showAd('channel',()=>loadPlayer(name));
+}
+let pendingChannel='',pinTarget='';
+function loadPlayer(name){
+ const ch=CH.find(c=>c[0]===name)||CH[0];
+ document.getElementById('pTitle').textContent=name;
+ document.getElementById('pScene').className='video scene '+ch[1];
+ // reset day strip to today
+ document.querySelectorAll('#daystrip .day').forEach((d,i)=>d.classList.toggle('on',i===DAYS.length-1));
+ document.getElementById('cuwrap').innerHTML='';document.getElementById('epgH').textContent='EPG';
+ document.getElementById('epglist').innerHTML=epgRows(true);
+ document.getElementById('pLive').style.display='flex';
+ go('player');
+}
+function openRadio(name,sub){
+ const r=RADIO.find(x=>x[0]===name)||RADIO[0];
+ document.getElementById('rpName').textContent=name;document.getElementById('rpSub').textContent=sub+' · 128 kbps';
+ document.getElementById('rpArt').className='rp-art scene '+r[2];
+ go('radioplayer');
+}
+
+/* home/guide modes */
+function homeMode(m){document.getElementById('tgTV').classList.toggle('on',m==='tv');document.getElementById('tgR').classList.toggle('on',m==='radio');document.getElementById('tvHome').classList.toggle('hidden',m!=='tv');document.getElementById('radioHome').classList.toggle('hidden',m!=='radio');}
+function guideMode(m){document.getElementById('gTV').classList.toggle('on',m==='tv');document.getElementById('gR').classList.toggle('on',m==='radio');document.getElementById('guideScroll').innerHTML=guideList(m);}
+function filterPkg(el,p){document.querySelectorAll('#pkgChips .chip').forEach(c=>c.classList.remove('on'));el.classList.add('on');document.getElementById('tvGrid').innerHTML=tvCards(p);}
+
+/* player day / catch-up + options */
+function pickDay(el,i){
+ document.querySelectorAll('#daystrip .day').forEach(d=>d.classList.remove('on'));el.classList.add('on');
+ const today=i===DAYS.length-1;
+ const clk='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>';
+ document.getElementById('cuwrap').innerHTML=today?'':`<div class="cubanner">${clk} Catch-up · ${DAYS[i][0]} ${DAYS[i][1]} — programe të regjistruara</div>`;
+ document.getElementById('epgH').textContent=today?'EPG':'Catch-up — '+DAYS[i][0]+' '+DAYS[i][1];
+ document.getElementById('epglist').innerHTML=epgRows(today);
+ document.getElementById('pLive').style.display=today?'flex':'none';
+}
+function openPlayerOpts(){
+ openSheet('Opsionet',`
+  <div class="opt-row" onclick="closeSheet();openQuality()"><div><b>Cilësia e videos</b><span>${selQuality}</span></div><span class="chev">${ic('chev')}</span></div>
+  <div class="opt-row"><div><b>Gjuha e audios</b><span>Shqip</span></div><span class="chev">${ic('chev')}</span></div>
+  <div class="opt-row"><div><b>Titrat</b><span>Të çaktivizuara</span></div><span class="chev">${ic('chev')}</span></div>
+  <div class="opt-row" onclick="closeSheet();toast('Po transmetohet në TV')"><div><b>Transmeto në TV (Cast)</b></div><span class="chev">${ic('cast')}</span></div>`);
+}
+let selQuality='Auto';
+function openQuality(){
+ openSheet('Cilësia e videos',QUAL.map((q,i)=>`<div class="opt-row ${q[0]===selQuality?'sel':''}" onclick="setQuality('${q[0]}')"><div><b>${q[0]}</b><span>${q[1]}</span></div><span class="rk"></span></div>`).join(''));
+}
+function setQuality(q){selQuality=q;const s=document.getElementById('setQ');if(s)s.textContent=q==='Auto'?'Auto (ABR)':q;closeSheet();toast('Cilësia: '+q);}
+
+/* sheet */
+function openSheet(title,bodyHtml){document.getElementById('sheet').innerHTML=`<div class="grab"></div><h3>${title}</h3><div class="body">${bodyHtml}</div>`;document.getElementById('sheet').classList.add('on');document.getElementById('scrim').classList.add('on');}
+function closeSheet(){document.getElementById('sheet').classList.remove('on');document.getElementById('scrim').classList.remove('on');}
+
+/* ===== AD POPUP ===== */
+const AD_ART=`<svg viewBox="0 0 160 300" fill="none"><rect x="34" y="40" width="92" height="190" rx="16" fill="#0c0c12" stroke="rgba(255,255,255,.25)" stroke-width="2"/><rect x="40" y="58" width="80" height="150" rx="8" fill="url(#ag)"/><circle cx="80" cy="222" r="6" fill="rgba(255,255,255,.5)"/><defs><linearGradient id="ag" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ff5e74"/><stop offset="1" stop-color="#7a0716"/></linearGradient></defs><text x="80" y="140" text-anchor="middle" fill="#fff" font-family="Inter" font-weight="800" font-size="26">5G</text></svg>`;
+let adTimer;
+function showAd(type,done){
+ const splash=type==='splash';
+ document.getElementById('adpop').innerHTML=`
+  <div class="ad-card"><div class="ad-creative">
+    <div class="glow"></div>
+    <div class="ad-brand"><span class="b-logo">N</span><b>NOVA</b></div>
+    <div class="ad-art">${AD_ART}</div>
+    <div class="ad-body">
+      <div class="ad-tag">Ofertë speciale</div>
+      <div class="ad-h">Internet 5G<br>pa limit</div>
+      <div class="ad-sub">Vetëm 1.500 L / muaj · Aktivizo sot</div>
+      <span class="ad-cta">Mëso më shumë <svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+    </div>
+    <div class="ad-label">REKLAMË</div>
+    <div class="ad-skip" id="adSkip"><span id="adCount">Kalo pas 4s</span></div>
+  </div></div>`;
+ document.getElementById('adpop').classList.add('on');
+ let t=splash?5:5;const c=document.getElementById('adCount'),s=document.getElementById('adSkip');s.onclick=null;
+ clearInterval(adTimer);
+ adTimer=setInterval(()=>{t--;if(t<=1){clearInterval(adTimer);c.innerHTML='Kalo reklamën '+'<svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2.4"><path d="M9 6l6 6-6 6"/></svg>';s.classList.add('ready');s.onclick=()=>finishAd(done);}else{c.textContent='Kalo pas '+(t-1)+'s';}},1000);
+ // auto-finish after full 5s for splash if not skipped (simulate)
+}
+function finishAd(done){clearInterval(adTimer);document.getElementById('adpop').classList.remove('on');if(done)done();}
+
+/* helpers */
+function tg(el){el.classList.toggle('on');}
+function pick(el){el.parentNode.querySelectorAll('button').forEach(b=>b.classList.remove('on'));el.classList.add('on');}
+function togglePC(el){const a=document.getElementById('pc-age');const on=el.classList.contains('on');a.style.opacity=on?'1':'.4';a.style.pointerEvents=on?'auto':'none';}
+function toast(m){const t=document.getElementById('toast');document.getElementById('toastMsg').textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),1900);}
+let pinVal='';
+function pinPush(n){if(pinVal.length>=4)return;pinVal+=n;updatePin();if(pinVal.length===4)setTimeout(()=>{pinVal='';updatePin();pendingChannel=pinTarget;showAd('channel',()=>loadPlayer(pinTarget));},220);}
+function pinDel(){pinVal=pinVal.slice(0,-1);updatePin();}
+function updatePin(){for(let i=0;i<4;i++){const s=document.getElementById('pin'+i);s.textContent=pinVal[i]?'•':'';s.classList.toggle('f',i===pinVal.length);}}
+
+/* review aids */
+const SCREENS=[['splash','Splash'],['login','Login'],['register','Regjistrim'],['terms','Kushtet'],['onboard','Konfigurimi'],['home','Kreu'],['guide','Guida'],['search','Kërko'],['profile','Profili'],['settings','Cilësimet'],['player','Player + EPG'],['radiolist','Radio (listë)'],['radioplayer','Radio player'],['mosaic','Mozaik'],['parental','Kontroll prindëror'],['geo','Geo-block']];
+function buildJump(){document.getElementById('jump').innerHTML='<option disabled selected>Jump…</option>'+SCREENS.map(s=>`<option value="${s[0]}">${s[1]}</option>`).join('');}
+function jumpTo(v){if(v==='player'){loadPlayer('RTSH 1 HD');}else if(v==='radioplayer'){openRadio('Radio Tirana 1','Lajme & aktualitet');}else{go(v);}}
+function syncJump(id){const j=document.getElementById('jump');if(j)[...j.options].forEach(o=>o.selected=o.value===id);}
+function restart(){go('splash');}
+
+function boot(){document.querySelectorAll('[data-logo]').forEach(e=>e.innerHTML=LOGO);renderAll();buildJump();go('splash');}
+boot();
+</script>
+</body>
+</html>

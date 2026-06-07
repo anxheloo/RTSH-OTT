@@ -24,13 +24,14 @@ import { BORDERRADIUS } from '@/theme/borders';
 import { Fonts, FONTSIZE } from '@/theme/fonts';
 import { PLAYER_COLORS } from '@/theme/playerColors';
 import { SPACING } from '@/theme/spacing';
+import { Icon } from '@/components/Icons';
 import {
   BackwardIcon,
   ForwardIcon,
   FullscreenIcon,
   PauseIcon,
   PlayIcon,
-} from '@/components/Icons';
+} from '@/assets/icons';
 import { SEEK_STEP_S } from '@/constants/player';
 
 const AUTO_HIDE_MS = 3000;
@@ -177,7 +178,7 @@ const PlayerControls: React.FC<PlayerControlsProps> = ({
             testID="controls-fullscreen-btn"
             accessibilityLabel={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
           >
-            <FullscreenIcon size={24} />
+            <Icon as={FullscreenIcon} size={24} />
           </TouchableOpacity>
         </View>
 
@@ -191,7 +192,7 @@ const PlayerControls: React.FC<PlayerControlsProps> = ({
               testID="controls-seek-back-btn"
               accessibilityLabel={`Rewind ${SEEK_STEP_S} seconds`}
             >
-              <BackwardIcon size={32} />
+              <Icon as={BackwardIcon} size={32} />
             </TouchableOpacity>
           ) : null}
 
@@ -202,7 +203,7 @@ const PlayerControls: React.FC<PlayerControlsProps> = ({
             testID="controls-play-pause-btn"
             accessibilityLabel={isPlaying ? 'Pause' : 'Play'}
           >
-            {isPlaying ? <PauseIcon size={28} /> : <PlayIcon size={28} />}
+            {isPlaying ? <Icon as={PauseIcon} size={28} /> : <Icon as={PlayIcon} size={28} />}
           </TouchableOpacity>
 
           {!isLive ? (
@@ -213,7 +214,7 @@ const PlayerControls: React.FC<PlayerControlsProps> = ({
               testID="controls-seek-forward-btn"
               accessibilityLabel={`Forward ${SEEK_STEP_S} seconds`}
             >
-              <ForwardIcon size={32} />
+              <Icon as={ForwardIcon} size={32} />
             </TouchableOpacity>
           ) : null}
         </View>

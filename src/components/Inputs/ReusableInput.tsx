@@ -31,10 +31,12 @@ interface SizeSpec {
   iconGap: number;
 }
 
+// Design (2026-06-06): fields are h52 / radius 14 / 15px text. `medium` is the
+// default and matches the design; small/large are scale variants.
 const SIZES: Record<InputSize, SizeSpec> = {
-  small: { height: 40, paddingHorizontal: 12, fontSize: 14, borderRadius: 8, iconGap: 8 },
-  medium: { height: 48, paddingHorizontal: 14, fontSize: 16, borderRadius: 10, iconGap: 10 },
-  large: { height: 56, paddingHorizontal: 16, fontSize: 18, borderRadius: 12, iconGap: 12 },
+  small: { height: 44, paddingHorizontal: 12, fontSize: 14, borderRadius: 12, iconGap: 8 },
+  medium: { height: 52, paddingHorizontal: 16, fontSize: 15, borderRadius: 14, iconGap: 10 },
+  large: { height: 56, paddingHorizontal: 16, fontSize: 16, borderRadius: 14, iconGap: 12 },
 };
 
 export type ReusableInputProps = Omit<TextInputProps, 'style' | 'editable' | 'secureTextEntry'> & {

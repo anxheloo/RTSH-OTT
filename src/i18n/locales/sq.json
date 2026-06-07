@@ -15,6 +15,8 @@
   },
   "auth": {
     "login": {
+      "welcome": "Mirë se vini",
+      "welcome_subtitle": "Hyni në llogarinë tuaj RTSH TANI.",
       "email_placeholder": "Email",
       "password_placeholder": "Fjalëkalimi",
       "remember_me": "Mbaj mend",

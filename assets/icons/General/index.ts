@@ -1,0 +1,12 @@
+export { default as ClockIcon } from './clock.svg';
+export { default as LayersIcon } from './layers.svg';
+export { default as MicrophoneIcon } from './microphone.svg';
+export { default as SettingsIcon } from './settings.svg';
+export { default as StarIcon } from './star.svg';
+export { default as WarningIcon } from './warning.svg';
+export { default as LanguageIcon } from './language.svg';
+export { default as MoreIcon } from './more.svg';
+export { default as MobileIcon } from './mobile.svg';
+export { default as ChevronLeftIcon } from './chevron-left.svg';
+export { default as ChevronRightIcon } from './chevron-right.svg';
+export { default as CheckIcon } from './check.svg';

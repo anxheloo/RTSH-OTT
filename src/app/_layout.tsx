@@ -2,17 +2,23 @@ import { useEffect } from 'react';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
-import { Anton_400Regular } from '@expo-google-fonts/anton';
-import { Inter_400Regular, Inter_500Medium } from '@expo-google-fonts/inter';
+import {
+  Inter_400Regular,
+  Inter_500Medium,
+  Inter_600SemiBold,
+  Inter_700Bold,
+  Inter_800ExtraBold,
+  Inter_900Black,
+} from '@expo-google-fonts/inter';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 
-import { Fonts } from '@/theme/fonts';
 import { useAppStore } from '@/store/useAppStore';
 import { queryClient } from '@/api/client';
 import { useBootstrap } from '@/hooks/useBootstrap';
+import { BrandedSplash } from '@/components/Brand';
 import { TCGateOverlay } from '@/components/Layout';
 import ModalWrapper from '@/components/ModalWrapper';
 
@@ -29,29 +35,25 @@ function RootLayoutInner() {
   const { isReady } = useBootstrap();
   const isAuthenticated = useAppStore((s) => s.isAuthenticated);
 
+  // Inter is the design's sole family (Phase 22.2). Keys are the family names the
+  // `Fonts` tokens in theme/fonts.ts alias to.
   const [fontsLoaded, fontError] = useFonts({
-    [Fonts.light]: require('../../assets/fonts/Outfit-Light.ttf'),
-    [Fonts.regular]: require('../../assets/fonts/Outfit-Regular.ttf'),
-    [Fonts.medium]: require('../../assets/fonts/Outfit-Medium.ttf'),
-    [Fonts.bold]: require('../../assets/fonts/Outfit-Bold.ttf'),
-    [Fonts.semiBold]: require('../../assets/fonts/Outfit-SemiBold.ttf'),
-    [Fonts.extraLight]: require('../../assets/fonts/Outfit-ExtraLight.ttf'),
-    [Fonts.extraBold]: require('../../assets/fonts/Outfit-ExtraBold.ttf'),
-    [Fonts.thin]: require('../../assets/fonts/Outfit-Thin.ttf'),
-    [Fonts.black]: require('../../assets/fonts/Outfit-Black.ttf'),
-    [Fonts.display]: Anton_400Regular,
-    [Fonts.caption]: Inter_400Regular,
-    [Fonts.captionMedium]: Inter_500Medium,
+    Inter_400Regular,
+    Inter_500Medium,
+    Inter_600SemiBold,
+    Inter_700Bold,
+    Inter_800ExtraBold,
+    Inter_900Black,
   });
 
   useEffect(() => {
-    if ((fontsLoaded || !!fontError) && isReady) {
-      SplashScreen.hideAsync();
-    }
-  }, [fontsLoaded, fontError, isReady]);
+    // Our branded splash takes over from the native splash as soon as React can
+    // paint, so hide the native splash on first mount (after the first frame).
+    SplashScreen.hideAsync();
+  }, []);
 
   if ((!fontsLoaded && !fontError) || !isReady) {
-    return null;
+    return <BrandedSplash />;
   }
 
   return (

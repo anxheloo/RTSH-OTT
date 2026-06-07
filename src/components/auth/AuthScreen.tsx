@@ -8,11 +8,10 @@
  */
 import React from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { SPACING } from '@/theme/spacing';
 import { useAppStore } from '@/store/useAppStore';
-import ReusableImage from '@/components/Media/ReusableImage';
+import { BrandHeader } from '@/components/Brand';
 
 export interface AuthScreenProps {
   children: React.ReactNode;
@@ -30,7 +29,6 @@ const AuthScreen: React.FC<AuthScreenProps> = ({
   testID,
 }) => {
   const colors = useAppStore((s) => s.colors);
-  const insets = useSafeAreaInsets();
 
   return (
     <KeyboardAvoidingView
@@ -38,24 +36,7 @@ const AuthScreen: React.FC<AuthScreenProps> = ({
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       testID={testID}
     >
-      <View
-        style={[
-          styles.header,
-          {
-            height: 78 + insets.top,
-            paddingTop: insets.top,
-            backgroundColor: colors.headerBackground,
-          },
-        ]}
-      >
-        <ReusableImage
-          source={require('../../../assets/images/logo-glow.png')}
-          width={86}
-          height={38}
-          contentFit="contain"
-          testID={testID ? `${testID}-logo` : 'auth-header-logo'}
-        />
-      </View>
+      <BrandHeader testID={testID ? `${testID}-header` : 'auth-header'} />
 
       <ScrollView
         contentContainerStyle={styles.scrollContent}
@@ -74,10 +55,6 @@ export default AuthScreen;
 const styles = StyleSheet.create({
   flex: {
     flex: 1,
-  },
-  header: {
-    paddingHorizontal: SPACING.space_15,
-    justifyContent: 'center',
   },
   scrollContent: {
     flexGrow: 1,

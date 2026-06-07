@@ -28,14 +28,16 @@ interface VariantSpec {
   lineHeight: number;
 }
 
+// Type ramp from the designer HTML (Phase 22.2): headings 800, section/title 700,
+// labels/links 600, body 400/500. This table is the canonical text scale.
 const VARIANTS: Record<TextVariant, VariantSpec> = {
-  heading1: { fontSize: 26, fontWeight: 'bold', lineHeight: 32 },
-  heading2: { fontSize: 22, fontWeight: 'semiBold', lineHeight: 28 },
-  heading3: { fontSize: 20, fontWeight: 'semiBold', lineHeight: 26 },
-  body: { fontSize: 16, fontWeight: 'regular', lineHeight: 22 },
-  bodySmall: { fontSize: 14, fontWeight: 'regular', lineHeight: 20 },
+  heading1: { fontSize: 25, fontWeight: 'extraBold', lineHeight: 30 }, // welcome / large h2
+  heading2: { fontSize: 22, fontWeight: 'extraBold', lineHeight: 28 },
+  heading3: { fontSize: 17, fontWeight: 'bold', lineHeight: 22 }, // header / section title
+  body: { fontSize: 15, fontWeight: 'regular', lineHeight: 21 },
+  bodySmall: { fontSize: 13, fontWeight: 'regular', lineHeight: 18 },
   caption: { fontSize: 12, fontWeight: 'regular', lineHeight: 16 },
-  label: { fontSize: 12, fontWeight: 'medium', lineHeight: 16 },
+  label: { fontSize: 14, fontWeight: 'semiBold', lineHeight: 18 }, // labels / links / buttons
 };
 
 export type ReusableTextProps = Omit<TextProps, 'style'> & {

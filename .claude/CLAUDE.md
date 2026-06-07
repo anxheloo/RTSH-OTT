@@ -6,7 +6,7 @@ Guidance for Claude Code when working in this repo.
 
 ## Project
 
-RTSH TANI — OTT streaming app for Radio Televizioni Shqiptar. Live TV (19 channels) + Radio (13 channels) + EPG + Catch-up. Mobile only for v1 (iOS + Android). TVs (Android TV, Tizen, WebOS) deferred.
+RTSH TANI — OTT streaming app for Radio Televizioni Shqiptar. Live TV (19 channels) + Radio (13 channels) + EPG + Catch-up. **Mobile-first** (iOS + Android), then **tablet/iPad + TV** as an end-phase large-screen pass (same design, display adjustments + TV focus/D-pad nav) once mobile is complete and approved — see plan.md **22.18**.
 
 ## Stack
 
@@ -170,7 +170,6 @@ Beyond the architecture scaffold, these features are spec-mandated for v1 — do
 
 ## Out of scope for v1
 
-- TV apps (Android TV, Tizen, WebOS) — separate workstream.
 - Cast (Chromecast / AirPlay) — stub button only.
 - Server-side ad insertion (SSAI) — client-side overlay only in v1.
 - Widevine / FairPlay / PlayReady — AES-128 HLS only (spec confirms).

@@ -1,24 +1,26 @@
 /**
- * Font families loaded in _layout.tsx via useFonts.
- * Anton — display/heading (channel names, titles, EPG headers)
- * Outfit — UI body text (settings, profile, misc)
- * Inter  — secondary/caption text (EPG descriptions, subtitles)
- * System — form inputs (SF Pro on iOS, Roboto on Android — no loading needed)
+ * Font families — **Inter only** (the designer HTML uses Inter 400–900 throughout;
+ * Phase 22.2, 2026-06-06). Tokens are weight-named aliases over the loaded Inter
+ * families so call sites stay weight-semantic (`Fonts.semiBold`) and a future
+ * family swap is a single edit here. Loaded in `_layout.tsx` via `useFonts`
+ * (@expo-google-fonts/inter). Anton + Outfit are retired (no longer loaded).
+ *
+ * Sub-400 weights (`thin`/`extraLight`/`light`) alias to 400 — the design never
+ * goes below Regular, and nothing references them; kept for API stability.
  */
 export const Fonts = {
-  // Anton (display)
-  display: 'Anton_400Regular',
-  // Outfit (body)
-  light: 'OutfitLight',
-  regular: 'OutfitRegular',
-  medium: 'OutfitMedium',
-  bold: 'OutfitBold',
-  semiBold: 'OutfitSemiBold',
-  extraLight: 'OutfitExtraLight',
-  extraBold: 'OutfitExtraBold',
-  thin: 'OutfitThin',
-  black: 'OutfitBlack',
-  // Inter (captions / secondary)
+  thin: 'Inter_400Regular',
+  extraLight: 'Inter_400Regular',
+  light: 'Inter_400Regular',
+  regular: 'Inter_400Regular',
+  medium: 'Inter_500Medium',
+  semiBold: 'Inter_600SemiBold',
+  bold: 'Inter_700Bold',
+  extraBold: 'Inter_800ExtraBold',
+  black: 'Inter_900Black',
+  // display/heading — design headings are 800–900
+  display: 'Inter_800ExtraBold',
+  // captions / secondary
   caption: 'Inter_400Regular',
   captionMedium: 'Inter_500Medium',
 } as const;

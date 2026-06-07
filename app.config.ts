@@ -79,10 +79,12 @@ export default ({ config }: ConfigContext): ExpoConfig => {
       [
         "expo-splash-screen",
         {
-          // RTSH brand: glow logo on brand-black, applied to iOS + Android.
+          // RTSH brand mark on brand-black. The native splash hands off to the
+          // branded splash (BrandedSplash) on first paint — both share this bg
+          // so the transition is seamless.
           backgroundColor: "#000000",
-          image: "./assets/images/logo-glow.png",
-          imageWidth: 200,
+          image: "./assets/images/splash-logo.png",
+          imageWidth: 180,
         },
       ],
       [
