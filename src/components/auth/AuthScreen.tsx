@@ -15,6 +15,11 @@ import { BrandHeader } from '@/components/Brand';
 
 export interface AuthScreenProps {
   children: React.ReactNode;
+  /**
+   * Header override. Defaults to the branded logo header (login). Pass an
+   * `AuthHeader` (back + title) for register / forgot.
+   */
+  header?: React.ReactNode;
   /** Rendered between the header and the form (e.g. the wizard step indicator). */
   topSlot?: React.ReactNode;
   /** Vertical gap between children. Defaults to 16. */
@@ -24,6 +29,7 @@ export interface AuthScreenProps {
 
 const AuthScreen: React.FC<AuthScreenProps> = ({
   children,
+  header,
   topSlot,
   contentGap = SPACING.space_16,
   testID,
@@ -36,7 +42,7 @@ const AuthScreen: React.FC<AuthScreenProps> = ({
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       testID={testID}
     >
-      <BrandHeader testID={testID ? `${testID}-header` : 'auth-header'} />
+      {header ?? <BrandHeader testID={testID ? `${testID}-header` : 'auth-header'} />}
 
       <ScrollView
         contentContainerStyle={styles.scrollContent}

@@ -8,6 +8,7 @@ export * from './catchup';
 export * from './channels';
 export * from './empty';
 export * from './epg';
+export * from './home';
 export * from './Icons';
 export * from './Inputs';
 export * from './Layout';

@@ -22,6 +22,7 @@ let epgIdCounter = 0;
 function generateDayEpg(channelId: string, channelName: string, dateStr: string) {
   const items = [];
   let cursor = new Date(`${dateStr}T06:00:00`);
+  const now = Date.now();
 
   for (let i = 0; i < PROGRAMS_PER_CHANNEL.length; i++) {
     const prog = PROGRAMS_PER_CHANNEL[i % PROGRAMS_PER_CHANNEL.length];
@@ -37,6 +38,8 @@ function generateDayEpg(channelId: string, channelName: string, dateStr: string)
       startTime: start.toISOString(),
       endTime: end.toISOString(),
       isAdult: prog.isAdult,
+      // Currently airing → design `prog` now-state (highlighted row).
+      isLive: now >= start.getTime() && now < end.getTime(),
       thumbnail: `https://placehold.co/320x180/212121/fff?text=${encodeURIComponent(prog.title)}`,
     });
     cursor = end;

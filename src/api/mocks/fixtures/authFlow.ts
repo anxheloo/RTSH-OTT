@@ -64,8 +64,12 @@ export function mockRegisterVerify(body: { email?: string; code?: string }): Moc
   if (!record) return { status: 404, data: { error: 'No pending registration' } };
   if (!isValidOtp(String(body.code ?? ''))) return { status: 401, data: { error: 'Invalid code' } };
 
-  record.completedStep = 2;
-  return { data: { step: 2, email, username: record.username } };
+  // Design flow (decision 9): all profile fields were submitted at step 1, so a
+  // verified OTP completes registration and issues tokens — no separate details
+  // step. The client logs straight in.
+  record.completedStep = 3;
+  const user = { ...mockUser, id: `user-${email}`, email, displayName: record.username };
+  return { data: { step: 3, email, username: record.username, user, ...tokens } };
 }
 
 export function mockRegisterDetails(body: { email?: string }): MockResponse {

@@ -7,5 +7,6 @@ export { default as ListRow } from './ListRow';
 export { default as OfflineBanner } from './OfflineBanner';
 export { default as RadioMiniPlayer } from './RadioMiniPlayer';
 export { default as ScreenLayout } from './ScreenLayout';
+export { default as SectionHeader } from './SectionHeader';
 export { default as TabHeader } from './TabHeader';
 export { default as TCGateOverlay } from './TCGateOverlay';

@@ -7,8 +7,8 @@ import { StyleSheet, View } from 'react-native';
 
 import { BORDERRADIUS, FONTSIZE, SPACING } from '@/theme';
 import { useAppStore } from '@/store/useAppStore';
+import { useDateTime } from '@/hooks/useDateTime';
 import ReusableText from '@/components/Inputs/ReusableText';
-import { formatClockTime } from '@/utils/formatters';
 import type { EpgItem } from '@/types/domain';
 
 export interface EpgRowProps {
@@ -17,15 +17,16 @@ export interface EpgRowProps {
 
 const EpgRow: React.FC<EpgRowProps> = ({ item }) => {
   const colors = useAppStore((s) => s.colors);
+  const { formatTime } = useDateTime();
 
   return (
     <View style={[styles.row, { backgroundColor: colors.surface }]}>
       <View style={[styles.timeBadge, { backgroundColor: colors.surfaceElevated }]}>
         <ReusableText fontSize={FONTSIZE.xs} themeColor="textMuted" textAlign="center">
-          {formatClockTime(item.startTime)}
+          {formatTime(item.startTime)}
         </ReusableText>
         <ReusableText fontSize={FONTSIZE.xs} themeColor="textMuted" textAlign="center">
-          {formatClockTime(item.endTime)}
+          {formatTime(item.endTime)}
         </ReusableText>
       </View>
       <View style={styles.info}>

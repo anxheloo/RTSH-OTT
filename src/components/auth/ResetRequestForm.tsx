@@ -9,11 +9,10 @@ import { useTranslation } from 'react-i18next';
 
 import { zodResolver } from '@hookform/resolvers/zod';
 
-import { BORDERRADIUS, FONTSIZE } from '@/theme';
 import ReusableBtn from '@/components/Buttons/ReusableBtn';
 import ReusableInput from '@/components/Inputs/ReusableInput';
 import ReusableText from '@/components/Inputs/ReusableText';
-import { type ForgotPasswordFormData,forgotPasswordSchema } from '@/features/auth/schemas';
+import { type ForgotPasswordFormData, forgotPasswordSchema } from '@/features/auth/schemas';
 
 export interface ResetRequestFormProps {
   onSubmit: (email: string) => void;
@@ -34,10 +33,7 @@ const ResetRequestForm: React.FC<ResetRequestFormProps> = ({
 
   return (
     <>
-      <ReusableText variant="heading3" themeColor="text">
-        {t('auth.forgot.title')}
-      </ReusableText>
-      <ReusableText variant="body" themeColor="textMuted">
+      <ReusableText variant="bodySmall" themeColor="textMuted">
         {t('auth.forgot.subtitle')}
       </ReusableText>
 
@@ -54,8 +50,6 @@ const ResetRequestForm: React.FC<ResetRequestFormProps> = ({
             autoCapitalize="none"
             autoComplete="email"
             errorText={error?.message}
-            height={60}
-            borderRadius={BORDERRADIUS.pill}
             testID="forgot-email-input"
           />
         )}
@@ -71,11 +65,9 @@ const ResetRequestForm: React.FC<ResetRequestFormProps> = ({
         label={t('auth.forgot.submit')}
         onPress={handleSubmit(({ email }) => onSubmit(email))}
         variant="primary"
+        size="large"
         isLoading={isSubmitting}
         isFullWidth
-        height={60}
-        borderRadius={BORDERRADIUS.pill}
-        labelFontSize={FONTSIZE.md}
         testID="forgot-submit-btn"
       />
     </>

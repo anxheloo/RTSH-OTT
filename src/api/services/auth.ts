@@ -62,6 +62,16 @@ export interface RegisterStartPayload {
   username: string;
   email: string;
   password: string;
+  /**
+   * Profile fields collected on the same (design) form as the credentials and
+   * posted together at step 1 (decision 9). Optional on the type so a future
+   * backend that splits creds → details still typechecks. `location` is the
+   * design's combined "City / Country" field; reconcile to split city/country
+   * when the real `/auth/register` contract lands.
+   */
+  age?: number;
+  location?: string;
+  gender?: Gender;
 }
 
 export interface OtpPayload {

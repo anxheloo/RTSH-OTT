@@ -27,15 +27,26 @@
       "failed": "Identifikimi dështoi. Provoni përsëri."
     },
     "register": {
+      "title": "Krijo llogari",
       "display_name_placeholder": "Emri i ekranit",
-      "email_placeholder": "Email",
-      "password_placeholder": "Fjalëkalimi",
-      "confirm_password_placeholder": "Konfirmo fjalëkalimin",
-      "submit": "Krijo llogari",
+      "email_label": "Email",
+      "email_placeholder": "emri@shembull.com",
+      "username_label": "Përdoruesi",
+      "username_placeholder": "emri i përdoruesit",
+      "password_label": "Fjalëkalimi",
+      "password_placeholder": "••••••••",
+      "confirm_password_label": "Përsërit fjalëkalimin",
+      "confirm_password_placeholder": "••••••••",
+      "age_label": "Mosha",
+      "age_placeholder": "p.sh. 28",
+      "location_label": "Qyteti / Shteti",
+      "location_placeholder": "Tiranë, Shqipëri",
+      "accept_terms_prefix": "Pranoj",
+      "accept_terms_link": "kushtet e përdorimit",
+      "submit": "Regjistrohu",
       "failed": "Regjistrimi dështoi. Provoni përsëri.",
       "have_account": "Keni tashmë llogari?",
       "sign_in": "Identifikohu",
-      "username_placeholder": "Përdoruesi",
       "continue": "Vazhdo",
       "details_title": "Na trego për veten",
       "birthday_placeholder": "Datëlindja (VVVV-MM-DD)",
@@ -49,6 +60,17 @@
         "other": "Tjetër",
         "unspecified": "Preferoj të mos them"
       }
+    },
+    "errors": {
+      "email": "Email i pavlefshëm",
+      "username": "Përdoruesi duhet të ketë të paktën 2 shkronja",
+      "password_min": "Fjalëkalimi duhet të ketë të paktën 8 shkronja",
+      "password_match": "Fjalëkalimet nuk përputhen",
+      "age_required": "Mosha kërkohet",
+      "age_invalid": "Shkruani një moshë të vlefshme",
+      "location_required": "Qyteti / Shteti kërkohet",
+      "gender_required": "Zgjidhni gjininë",
+      "terms_required": "Duhet të pranoni kushtet e përdorimit"
     },
     "otp": {
       "sent": "Shkruani kodin {{length}}-shifror dërguar te {{email}}",
@@ -80,6 +102,33 @@
       "and": "dhe",
       "privacy_link": "Politikën e Privatësisë"
     }
+  },
+  "home": {
+    "search_placeholder": "Kërko kanale, programe…",
+    "toggle_tv": "Televizion",
+    "toggle_radio": "Radio",
+    "continue_watching": "Vazhdo të shikosh",
+    "tv_channels": "Kanalet TV",
+    "guide_link": "Guida",
+    "radio_stations": "Stacionet Radio"
+  },
+  "datetime": {
+    "today": "Sot",
+    "yesterday": "Dje",
+    "tomorrow": "Nesër",
+    "days_ago_one": "{{count}} ditë më parë",
+    "days_ago_other": "{{count}} ditë më parë",
+    "in_days_one": "Pas {{count}} dite",
+    "in_days_other": "Pas {{count}} ditësh"
+  },
+  "guide": {
+    "title": "Guida",
+    "toggle_tv": "TV",
+    "toggle_radio": "Radio",
+    "now_on_tv": "TANI NË TV",
+    "now_on_radio": "TANI NË RADIO",
+    "next": "Vijon {{time}}: {{title}}",
+    "live": "LIVE"
   },
   "profile": {
     "title": "Profili",

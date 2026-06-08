@@ -26,6 +26,7 @@ import {
 import type { AuthStepResponse } from '@/api/services/auth';
 import {
   AuthFooterLink,
+  AuthHeader,
   AuthScreen,
   OtpVerify,
   ResetPasswordForm,
@@ -75,9 +76,14 @@ const ForgotPasswordScreen: React.FC = () => {
     />
   );
 
+  const onBack = () => (step > 1 && !done ? setStep(step - 1) : router.back());
+  const header = (
+    <AuthHeader title={t('auth.forgot.title')} onBack={onBack} testID="forgot-header" />
+  );
+
   if (done) {
     return (
-      <AuthScreen testID="forgot-screen">
+      <AuthScreen header={header} testID="forgot-screen">
         <View style={[styles.successBox, { backgroundColor: colors.surface }]}>
           <ReusableText variant="body" themeColor="success" textAlign="center">
             {t('auth.reset.success')}
@@ -89,7 +95,11 @@ const ForgotPasswordScreen: React.FC = () => {
   }
 
   return (
-    <AuthScreen topSlot={<StepHeader currentStep={step} />} testID="forgot-screen">
+    <AuthScreen
+      header={header}
+      topSlot={<StepHeader currentStep={step} />}
+      testID="forgot-screen"
+    >
       {step === 1 ? (
         <ResetRequestForm
           onSubmit={handleRequest}

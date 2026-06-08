@@ -118,8 +118,7 @@ const OtpVerify: React.FC<OtpVerifyProps> = ({
         isLoading={isVerifying}
         isDisabled={code.length < length}
         isFullWidth
-        height={56}
-        borderRadius={BORDERRADIUS.pill}
+        size="large"
         testID={testID ? `${testID}-verify` : undefined}
       />
 
@@ -155,7 +154,7 @@ const styles = StyleSheet.create({
   box: {
     flex: 1,
     height: 56,
-    borderRadius: BORDERRADIUS.radius_12,
+    borderRadius: BORDERRADIUS.radius_14,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',

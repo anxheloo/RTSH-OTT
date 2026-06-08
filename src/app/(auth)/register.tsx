@@ -1,13 +1,14 @@
 /**
- * Register screen — server-driven, resumable 3-step wizard.
+ * Register screen — design single-page form + OTP (decision 9).
  *
- *   step 1 — credentials (username / email / password)  → POST /auth/register
- *   step 2 — OTP verify                                  → POST /auth/register/verify
- *   step 3 — profile details                             → POST /auth/register/details
+ *   step 1 — one form: email / username / password / confirm / age /
+ *            city-country / gender / accept-terms  → POST /auth/register
+ *   step 2 — OTP verify                            → POST /auth/register/verify
  *
- * Each response carries the COMPLETED step; the client renders `completed + 1`.
- * Step-3 returns user + tokens → we persist the refresh token and log straight
- * in (Stack.Protected handles the redirect). The local machine only tracks the
+ * All profile fields are posted at step 1; a verified OTP completes registration
+ * and returns user + tokens, so we persist the refresh token, mark T&C accepted
+ * (the form's checkbox is the acceptance), and log straight in — the
+ * Stack.Protected guard handles the redirect. The local machine tracks only the
  * rendered step + the email carried between steps.
  */
 import React, { useState } from 'react';
@@ -17,23 +18,21 @@ import { router } from 'expo-router';
 
 import { useAppStore } from '@/store/useAppStore';
 import {
-  useRegisterDetails,
   useRegisterResendOtp,
   useRegisterStart,
   useRegisterVerifyOtp,
 } from '@/api/mutations/registerWizard';
 import type { AuthStepResponse } from '@/api/services/auth';
 import {
-  AuthFooterLink,
+  AuthHeader,
   AuthScreen,
   OtpVerify,
-  RegisterCredentialsForm,
-  RegisterDetailsForm,
+  RegisterForm,
   StepHeader,
 } from '@/components/auth';
 import { REFRESH_TOKEN_KEY } from '@/config/auth';
 import { authErrorMessage } from '@/features/auth/errors';
-import type { RegisterCredentialsData, RegisterDetailsData } from '@/features/auth/schemas';
+import type { RegisterFormData } from '@/features/auth/schemas';
 import { storeOnKeychain } from '@/services/keychain';
 
 const RegisterScreen: React.FC = () => {
@@ -44,13 +43,13 @@ const RegisterScreen: React.FC = () => {
 
   const start = useRegisterStart();
   const verify = useRegisterVerifyOtp();
-  const details = useRegisterDetails();
   const resend = useRegisterResendOtp();
 
-  /** Move the wizard forward from a step response (or log in when it completes). */
+  /** Move forward from a step response (or finalize + log in when it completes). */
   const advance = async (res: AuthStepResponse) => {
     if (res.user && res.accessToken && res.refreshToken) {
       await storeOnKeychain(REFRESH_TOKEN_KEY, res.refreshToken);
+      useAppStore.getState().acceptTC(); // the form's accept-terms checkbox is the acceptance
       useAppStore.getState().login(res.user, res.accessToken);
       return;
     }
@@ -58,10 +57,17 @@ const RegisterScreen: React.FC = () => {
     setStep(res.step + 1);
   };
 
-  const handleCredentials = (data: RegisterCredentialsData) => {
+  const handleRegister = (data: RegisterFormData) => {
     setEmail(data.email);
     start.mutate(
-      { username: data.username, email: data.email, password: data.password },
+      {
+        username: data.username,
+        email: data.email,
+        password: data.password,
+        age: Number(data.age),
+        location: data.location,
+        gender: data.gender,
+      },
       { onSuccess: advance },
     );
   };
@@ -70,21 +76,21 @@ const RegisterScreen: React.FC = () => {
     verify.mutate({ email, code }, { onSuccess: advance });
   };
 
-  const handleDetails = (data: RegisterDetailsData) => {
-    details.mutate({ email, ...data }, { onSuccess: advance });
-  };
+  const onBack = () => (step === 2 ? setStep(1) : router.back());
 
   return (
-    <AuthScreen topSlot={<StepHeader currentStep={step} />} testID="register-screen">
+    <AuthScreen
+      header={<AuthHeader title={t('auth.register.title')} onBack={onBack} testID="register-header" />}
+      topSlot={<StepHeader currentStep={step} totalSteps={2} />}
+      testID="register-screen"
+    >
       {step === 1 ? (
-        <RegisterCredentialsForm
-          onSubmit={handleCredentials}
+        <RegisterForm
+          onSubmit={handleRegister}
           isSubmitting={start.isPending}
           errorText={start.error ? authErrorMessage(start.error) : undefined}
         />
-      ) : null}
-
-      {step === 2 ? (
+      ) : (
         <OtpVerify
           email={email}
           onVerify={handleVerify}
@@ -101,24 +107,7 @@ const RegisterScreen: React.FC = () => {
           }
           testID="register-otp"
         />
-      ) : null}
-
-      {step === 3 ? (
-        <RegisterDetailsForm
-          onSubmit={handleDetails}
-          isSubmitting={details.isPending}
-          errorText={details.error ? authErrorMessage(details.error) : undefined}
-        />
-      ) : null}
-
-      {step === 1 ? (
-        <AuthFooterLink
-          prefix={t('auth.register.have_account')}
-          linkLabel={t('auth.register.sign_in')}
-          onPress={() => router.back()}
-          testID="register-login-link"
-        />
-      ) : null}
+      )}
     </AuthScreen>
   );
 };

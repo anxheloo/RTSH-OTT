@@ -27,15 +27,26 @@
       "failed": "Login failed. Please try again."
     },
     "register": {
+      "title": "Create account",
       "display_name_placeholder": "Display Name",
-      "email_placeholder": "Email",
-      "password_placeholder": "Password",
-      "confirm_password_placeholder": "Confirm Password",
-      "submit": "Create Account",
+      "email_label": "Email",
+      "email_placeholder": "name@example.com",
+      "username_label": "Username",
+      "username_placeholder": "your username",
+      "password_label": "Password",
+      "password_placeholder": "••••••••",
+      "confirm_password_label": "Confirm password",
+      "confirm_password_placeholder": "••••••••",
+      "age_label": "Age",
+      "age_placeholder": "e.g. 28",
+      "location_label": "City / Country",
+      "location_placeholder": "Tirana, Albania",
+      "accept_terms_prefix": "I accept the",
+      "accept_terms_link": "terms of use",
+      "submit": "Register",
       "failed": "Registration failed. Please try again.",
       "have_account": "Already have an account?",
       "sign_in": "Sign in",
-      "username_placeholder": "Username",
       "continue": "Continue",
       "details_title": "Tell us about you",
       "birthday_placeholder": "Birthday (YYYY-MM-DD)",
@@ -49,6 +60,17 @@
         "other": "Other",
         "unspecified": "Prefer not to say"
       }
+    },
+    "errors": {
+      "email": "Invalid email address",
+      "username": "Username must be at least 2 characters",
+      "password_min": "Password must be at least 8 characters",
+      "password_match": "Passwords do not match",
+      "age_required": "Age is required",
+      "age_invalid": "Enter a valid age",
+      "location_required": "City / Country is required",
+      "gender_required": "Select a gender",
+      "terms_required": "You must accept the terms of use"
     },
     "otp": {
       "sent": "Enter the {{length}}-digit code sent to {{email}}",
@@ -80,6 +102,33 @@
       "and": "and",
       "privacy_link": "Privacy Policy"
     }
+  },
+  "home": {
+    "search_placeholder": "Search channels, programs…",
+    "toggle_tv": "Television",
+    "toggle_radio": "Radio",
+    "continue_watching": "Continue watching",
+    "tv_channels": "TV Channels",
+    "guide_link": "Guide",
+    "radio_stations": "Radio Stations"
+  },
+  "datetime": {
+    "today": "Today",
+    "yesterday": "Yesterday",
+    "tomorrow": "Tomorrow",
+    "days_ago_one": "{{count}} day ago",
+    "days_ago_other": "{{count}} days ago",
+    "in_days_one": "in {{count}} day",
+    "in_days_other": "in {{count}} days"
+  },
+  "guide": {
+    "title": "Guide",
+    "toggle_tv": "TV",
+    "toggle_radio": "Radio",
+    "now_on_tv": "NOW ON TV",
+    "now_on_radio": "NOW ON RADIO",
+    "next": "Next {{time}}: {{title}}",
+    "live": "LIVE"
   },
   "profile": {
     "title": "Profile",

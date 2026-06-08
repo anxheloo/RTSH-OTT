@@ -9,11 +9,10 @@ import { useTranslation } from 'react-i18next';
 
 import { zodResolver } from '@hookform/resolvers/zod';
 
-import { BORDERRADIUS, FONTSIZE } from '@/theme';
 import ReusableBtn from '@/components/Buttons/ReusableBtn';
 import ReusableInput from '@/components/Inputs/ReusableInput';
 import ReusableText from '@/components/Inputs/ReusableText';
-import { type ResetPasswordData,resetPasswordSchema } from '@/features/auth/schemas';
+import { type ResetPasswordData, resetPasswordSchema } from '@/features/auth/schemas';
 
 export interface ResetPasswordFormProps {
   onSubmit: (newPassword: string) => void;
@@ -50,8 +49,6 @@ const ResetPasswordForm: React.FC<ResetPasswordFormProps> = ({
             isPassword
             autoComplete="new-password"
             errorText={error?.message}
-            height={60}
-            borderRadius={BORDERRADIUS.pill}
             testID="reset-new-password-input"
           />
         )}
@@ -69,8 +66,6 @@ const ResetPasswordForm: React.FC<ResetPasswordFormProps> = ({
             isPassword
             autoComplete="new-password"
             errorText={error?.message}
-            height={60}
-            borderRadius={BORDERRADIUS.pill}
             testID="reset-confirm-password-input"
           />
         )}
@@ -86,11 +81,9 @@ const ResetPasswordForm: React.FC<ResetPasswordFormProps> = ({
         label={t('auth.reset.submit')}
         onPress={handleSubmit(({ newPassword }) => onSubmit(newPassword))}
         variant="primary"
+        size="large"
         isLoading={isSubmitting}
         isFullWidth
-        height={60}
-        borderRadius={BORDERRADIUS.pill}
-        labelFontSize={FONTSIZE.md}
         testID="reset-submit-btn"
       />
     </>

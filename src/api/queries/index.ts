@@ -1,6 +1,9 @@
 // Channels
 export { useChannelQuery, useChannelsQuery } from './useChannelsQuery';
 
+// Home feed (heroes + continue-watching)
+export { useHomeFeedQuery } from './useHomeFeedQuery';
+
 // EPG
 export { useEpgQuery } from './useEpgQuery';
 

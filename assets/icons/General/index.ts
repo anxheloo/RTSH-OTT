@@ -10,3 +10,7 @@ export { default as MobileIcon } from './mobile.svg';
 export { default as ChevronLeftIcon } from './chevron-left.svg';
 export { default as ChevronRightIcon } from './chevron-right.svg';
 export { default as CheckIcon } from './check.svg';
+export { default as GridIcon } from './grid.svg';
+export { default as LockIcon } from './lock.svg';
+export { default as GlobeIcon } from './globe.svg';
+export { default as RadioIcon } from './radio.svg';

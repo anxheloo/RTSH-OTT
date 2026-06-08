@@ -10,9 +10,9 @@ import { router } from 'expo-router';
 
 import { BORDERRADIUS, FONTSIZE, SPACING } from '@/theme';
 import { useAppStore } from '@/store/useAppStore';
+import { useDateTime } from '@/hooks/useDateTime';
 import ReusableText from '@/components/Inputs/ReusableText';
 import ReusableImage from '@/components/Media/ReusableImage';
-import { formatDurationMinutes, formatRelativeDay } from '@/utils/formatters';
 import type { CatchupItem } from '@/types/domain';
 
 export interface CatchupCardProps {
@@ -24,6 +24,7 @@ const THUMBNAIL_HEIGHT = 72;
 
 const CatchupCard: React.FC<CatchupCardProps> = ({ item }) => {
   const colors = useAppStore((s) => s.colors);
+  const { formatDuration, formatRelativeDay } = useDateTime();
 
   return (
     <TouchableOpacity
@@ -38,7 +39,7 @@ const CatchupCard: React.FC<CatchupCardProps> = ({ item }) => {
         ) : null}
         <View style={[styles.durationBadge, { backgroundColor: colors.overlay }]}>
           <ReusableText fontSize={FONTSIZE.xs} themeColor="text">
-            {formatDurationMinutes(item.duration)}
+            {formatDuration(item.duration)}
           </ReusableText>
         </View>
       </View>

@@ -6,5 +6,6 @@ export { default as LivePlayer } from './LivePlayer';
 export { default as PlayerControls } from './PlayerControls';
 export { default as RadioPlayer } from './RadioPlayer';
 export { default as ReusableImage } from './ReusableImage';
+export { default as SceneBackground } from './SceneBackground';
 export { default as VideoPlayer } from './VideoPlayer';
 export { default as VodPlayer } from './VodPlayer';

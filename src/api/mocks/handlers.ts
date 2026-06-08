@@ -17,6 +17,7 @@ import { mockCatchupItems } from './fixtures/catchup';
 import { MOCK_LIVE_STREAM,mockChannels } from './fixtures/channels';
 import { mockAppConfig } from './fixtures/config';
 import { getMockEpg } from './fixtures/epg';
+import { mockContinueWatching, mockHeroes } from './fixtures/home';
 import { mockRadioStations } from './fixtures/radio';
 
 type MockResponse = { status?: number; data: unknown };
@@ -118,6 +119,13 @@ export const handlers: Handler[] = [
     method: 'patch',
     test: (u) => u.endsWith('/users/me'),
     respond: (cfg) => ({ data: { user: { ...mockUser, ...(cfg.data as object) } } }),
+  },
+
+  // ── Home feed ──────────────────────────────────────────────────────────────
+  {
+    method: 'get',
+    test: (u) => u === '/home',
+    respond: () => ({ data: { heroes: mockHeroes, continueWatching: mockContinueWatching } }),
   },
 
   // ── Channels ───────────────────────────────────────────────────────────────

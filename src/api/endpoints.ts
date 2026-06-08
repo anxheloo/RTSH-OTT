@@ -31,6 +31,11 @@ export const CHANNELS_ROUTES = {
   BY_ID: (id: string) => `/channels/${id}`,
 } as const;
 
+export const HOME_ROUTES = {
+  // Home feed: featured heroes + continue-watching rail.
+  FEED: '/home',
+} as const;
+
 export const EPG_ROUTES = {
   // Pass `date` via axios `params`, not template-interpolated, so values are
   // properly URL-encoded.
