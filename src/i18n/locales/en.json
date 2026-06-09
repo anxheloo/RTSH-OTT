@@ -271,5 +271,20 @@
     "api_default": "Something went wrong",
     "network": "No internet connection",
     "session_expired": "Session expired"
+  },
+  "parental": {
+    "title": "Parental control",
+    "message": "This programme (18+) is protected. Enter your PIN.",
+    "enter": "Enter PIN",
+    "set_new": "Set a new PIN",
+    "confirm": "Confirm PIN",
+    "not_found": "No PIN found. Set one in Settings.",
+    "mismatch": "PINs don't match. Try again.",
+    "locked": "Too many attempts. Try again in {{seconds}}s."
+  },
+  "geo": {
+    "title": "Not available in your region",
+    "body": "This service is not available in your region due to broadcasting rights.",
+    "back_home": "Back to home"
   }
 }

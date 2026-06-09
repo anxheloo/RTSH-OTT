@@ -9,8 +9,8 @@
 ## Status snapshot — 2026-06-09
 
 - **Done:** Phases 0–13 (tooling → store → API → hooks → UI → players → screens → auth-hardening → i18n), 18.2 (mock server), auth wizard (11.X), review fixes (11.Y "done now"), and **Phase 22.1–22.10** (design tokens/type/logo/icons, 4-tab nav, primitives, auth re-skin, domain types, Home, Guide, Search, Player+EPG+catch-up, sheet+Toast infra).
-- **Active:** **Phase 22** — next is **22.14 Parental + Geo**.
-- **Backlog:** deferred audit/infra items (`5.X.*`, `11.Y.4–11`), Telemetry (14), product features (15.2 geo / 15.4 mosaic-snapshot-refresh / 15.5 PIP), Ads (16), Hardening (17), Handoff (18), Distribution (21), Quality gate (23). Remaining Phase 22 screens: 22.14, 22.15(c–e), 22.16–22.18.
+- **Active:** **Phase 22** — 22.14 (parental+geo client) done; next is **22.14b** (backend-synced per-account PIN, mock-first) then **22.14c** (live program-change re-check).
+- **Backlog:** deferred audit/infra items (`5.X.*`, `11.Y.4–11`), Telemetry (14), product features (15.2 geo-CDN / 15.4 mosaic-snapshot-refresh / 15.5 PIP), Ads (16), Hardening (17), Handoff (18), Distribution (21), Quality gate (23). Remaining Phase 22 screens: 22.14b/14c, 22.15(c–e), 22.16–22.18.
 
 ---
 
@@ -133,6 +133,7 @@
 ### Phase 15 — RTSH Product Features
 - [x] **15.1** T&C acceptance — `TCGateOverlay` + `tcAcceptedAt` + `expo-web-browser`.
 - [ ] **15.2** Geoblocking overlay — 451/geo error → full-screen RTSH-branded overlay + retry. (Restyled `geo` screen built in **22.14**.)
+  - **Backend contract (Phase 18.1 `API.md` / 11.X.9 wiring):** geo enforced at the **CDN edge by user IP**, access via backend-issued **signed, short-lived playback URLs** — the client cannot geolocate and must not try. Streams endpoint returns a **typed `451` / `{code:"GEO_BLOCKED"}`** → overlay. Client must **branch a `403` on manifest/AES-key requests**: *expiry* → silently re-fetch the signed URL; *geo* → overlay (ties to the open AES-128 `VideoSource.headers` risk). Region change mid-session is naturally re-checked at the edge on the next signed-URL refresh.
 - [x] **15.3** Cellular-data gate — `useCellularGate` confirmation modal.
 - [ ] **15.4** Mosaic view — 4/6/9 channel thumbnail grid, periodic refresh, tap to switch. (Design build in **22.12**.)
 - [ ] **15.5** Picture-in-Picture + iOS background video (spec-mandated; canonical PIP step).
@@ -212,7 +213,24 @@
     5. Language/Theme as native sheets (design chev rows didn't specify the sub-UI) — reasonable faithful choice; confirm in 22.17.
   - **Open questions:** none blocking. (Worker subagent stopped mid-step after profile/slices/icons/i18n; director finished settings.tsx + sheets + route wiring + fixed a profile font-family bug where inline `style.fontWeight` bypassed the Inter face → now uses `ReusableText` weight props.)
   - **Carry-overs:** `defaultQuality`→player wiring (gap 1); onboard content (parental + cellular intro) is now covered by Settings, so the deferred `onboard` screen needs no separate build.
-- [ ] **22.14** Parental + Geo. Restyle `ParentalPin` to design (lock big-icon, 4-dot PIN, keypad) as a gate before locked-channel play. `geo` full-screen overlay (globe, copy, back-to-home) on streams geo-error / `geo`-flagged channel. Wire into `openChannel` (lock → PIN, geo → overlay) — both spec-mandated (15.2).
+- [x] **22.14** Parental + Geo (client). `ParentalPin` restyled to the full-screen design; geo handled **inline** in the channel (no standalone route — user call 2026-06-09); gating wired at the channel seam.
+  - **What:** `ParentalPinModal` rewritten to the design `sParental` (back header, big lock-icon tile, title + contextual subtitle, then `ParentalPinPad`); `ParentalPinPad` title made optional + lockout copy → i18n. New `CenteredMessage` primitive (`center-pad`/`big-ic`, Layout barrel). Gating in `channel/[id]`: `channel.geoBlocked` → **inline** `CenteredMessage` (globe + copy + back) in place of player+EPG; `channel.isAdult` → `ParentalPinModal` verify before play, playback blocked until verified (no LivePlayer mount → no audio leak), cancel → `router.back()`. New `parental` + `geo` i18n (en+sq, verbatim Albanian, parity verified).
+  - **Why:** spec-mandated (CLAUDE.md geoblocking + parental; 15.2); `channel/[id]` did no gating. Geo as inline state (not a route) per user — block the channel content based on the CDN/stream error rather than navigating to a dead-end screen.
+  - **Confidence:** tsc + lint clean, i18n parity verified [CERTAIN]; gate logic correct (no player mount while locked; geo replaces body) [HIGH]; visual match to `sParental`/`sGeo` [MEDIUM — `expo run:android`].
+  - **Trade-offs / known gaps:**
+    1. **Geo trigger is `channel.geoBlocked` (flag), not the live CDN/stream error.** Real trigger = streams `451/GEO_BLOCKED`; rides 15.2 backend contract + 11.X.9. Raise by: branching `useChannelStreamQuery` error on the typed geo code.
+    2. **Open-gate uses channel-level `isAdult`.** Program-level live re-check is 22.14c. Cancel → leave channel (channel-level); the "stay blocked, pick another program" UX is the live-program path (22.14c).
+    3. **Verify still keychain-only** (per-account backend sync is 22.14b).
+  - **Carry-overs:** 22.14b (backend PIN), 22.14c (live re-check). `CenteredMessage` now available for other empty/blocked states.
+- [ ] **22.14b** Backend-synced parental PIN (mock-first). PIN is **per-account**, synced across devices → backend is source of truth; keychain becomes an offline/fast-recheck cache.
+  - **What:** `ParentalPinModal` set → `POST /users/parental-pin` (raw PIN over TLS; backend KDF-hashes); verify → **backend-authoritative** with **server-side attempt lockout**; clear → `DELETE /users/parental-pin`. `parentalPinSet: boolean` lands on the profile/`getMe()` response so a fresh device knows a PIN exists. Add mock handlers + service + mutation/query. Keep keychain (`SHA-256+salt`) as a **local cache**: after first successful verify on a device, cache locally so the frequent live re-checks (22.14c) and offline gating don't round-trip. Keep the client 5-try lockout as a UX layer on top of the authoritative server lockout.
+  - **Why:** user requirement — same account on another device must already have the PIN. Supersedes the keychain-only model (ARCHITECTURE "Parental"). Security: a 4-digit PIN is low-entropy (10⁴); a leaked fast hash cracks instantly, so the backend must use a slow KDF (argon2id/bcrypt) + salt + server lockout. Sending the raw PIN over TLS to a KDF+rate-limited endpoint is **more** secure for a low-entropy secret than shipping a crackable hash to new devices.
+  - **Approach (when real backend lands, 11.X.9):** confirm endpoint shapes + envelope; until then mock posts/verifies against an in-memory PIN. **On completion update `ARCHITECTURE.md` (Parental: backend source-of-truth + keychain cache + per-account) + `CLAUDE.md` (parental bullet + persistence table: PIN now backend + keychain-cache, not keychain-only) + add the 3 endpoints + `parentalPinSet` to the `API.md` draft (18.1).**
+  - **Open questions:** none blocking (per-account confirmed). Real KDF choice + lockout policy are backend-owned; client only needs the typed verify result + `parentalPinSet`.
+- [ ] **22.14c** Live parental re-check (program-change re-prompt). Live programs change over time → a clean channel can roll into an 18+ program mid-watch.
+  - **What:** `useLiveParentalGuard(channelId)` driven by the EPG query: compute the **next program boundary**, schedule **one timer** to it (not a poll), re-evaluate on the boundary **and** on app-foreground (RN timers throttle when backgrounded — reuse the `AppState`/`useAppResumeGuard` pattern). On transition into an `isAdult` program → pause + `ParentalPinModal` verify; success resumes, cancel stays on the channel blocked. Verify **once per `programId`** (don't re-prompt for the same program). Live = recurring; VOD/catch-up = single check at open (22.14). Binary `isAdult` for v1 (age tiers later). Add a restricted program to the mock EPG so it's testable.
+  - **Why:** real gap not in the original spec; surfaced + agreed 2026-06-09. Without it, the gate is bypassed by waiting for a channel's adult program to start.
+  - **Approach:** local verify via the keychain cache from 22.14b (no network on each boundary). Hook returns a stable shape; wired into the live player screen.
 - [~] **22.15** Overlays. **Partially done in 22.10:** (a) native route sheets — `getModalScreenOptions` (`presentation:'formSheet'` + `sheetAllowedDetents:'fitToContents'` + grabber + corner) + `SheetOptionRow` ✅; (b) `Toast` — `ToastSlice` + root `ToastHost` ✅. **Remaining:** (c) `AdOverlay` (creative + REKLAMË + skip countdown; app-open + channel-open slots, frequency-capped) — pairs with Phase 16; (d) SOLITAR in-sheet scaffold (SafeAreaView → keyboard → header → content) for keyboard-bearing sheets; (e) scrim/background-dimming polish. Alerts stay on `ModalSlice`/`ModalWrapper`.
 - [ ] **22.16** i18n sq copy. Lift exact Albanian strings from the mockup into `sq.json` (+ `en.json` parallels) for every screen; replace remaining hardcoded strings. (auth/home/guide/search/player/catchup/datetime sections already added during their builds.)
 - [ ] **22.17** QA + verification pass. `npx expo run:android` (+ iOS), notched safe-area on every screen, walk the mockup `go()` graph (login→ad→home; channel→ad→player; lock→PIN; geo→overlay; day→catch-up; home-toggle→radio), `lint` + `tsc` clean. Promote per-screen [MEDIUM] visual claims to [CERTAIN].
@@ -242,8 +260,8 @@
 | 12 | Radio list | `(app)/radio` | NEW | 22.11 |
 | 13 | Radio player | `(app)/radio/[id]` | RESTYLE | 22.11 |
 | 14 | Mosaic | `(app)/mosaic` | DONE | 22.12 |
-| 15 | Parental (PIN) | `ParentalPinModal` gate | RESTYLE | 22.14 |
-| 16 | Geo-block | `(app)/geo` | NEW | 22.14 |
+| 15 | Parental (PIN) | `ParentalPinModal` gate | DONE | 22.14 |
+| 16 | Geo-block | inline in `channel/[id]` (`CenteredMessage`) | DONE | 22.14 |
 
 ### B. Icon inventory
 - **EXISTS:** `user`→Profile · `search`→Search · `mail`→Mail · `key`→Key · `back`→ChevronLeft · `play`→Play · `pause`→Pause · `full`→Fullscreen · `chev`→ChevronRight · `settings`→Settings · `home`→Home · `clock`→Clock · `lang`→Language · `check`→Check · `grid`/`lock`/`globe`/`radio`/`guide` (added in 22.4/22.7).
@@ -276,8 +294,8 @@
 | `check`/`cbox` | `Checkbox` | DONE | 22.5 |
 | `sheet`/`opt-row` | `(app)` sheet routes + `getModalScreenOptions` + `SheetOptionRow` | DONE | 22.10/22.15 |
 | `toast` | `Toast` (`ToastSlice`/`ToastHost`) | DONE | 22.10/22.15 |
-| `center-pad`/`big-ic` | `CenteredMessage` (geo/parental) | NEW | 22.14 |
-| `pin`/`keypad` | `ParentalPinModal`/`ParentalPinPad` | RESTYLE | 22.14 |
+| `center-pad`/`big-ic` | `CenteredMessage` (geo/parental) | DONE | 22.14 |
+| `pin`/`keypad` | `ParentalPinModal`/`ParentalPinPad` | DONE | 22.14 |
 | `mos-grid`/`mos` | `MosaicTile` + grid | DONE | 22.12 |
 | `rp-art`/`eq` | `RadioPlayer` art + `Equalizer` | RESTYLE/NEW | 22.11 |
 | `radio-item` | `StationRow` | RESTYLE | 22.11 |

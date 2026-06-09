@@ -6,6 +6,7 @@
  */
 import React, { useEffect, useRef, useState } from 'react';
 import { StyleSheet, TouchableOpacity, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -34,14 +35,12 @@ const KEYS = [
 export type ParentalPinPadProps = {
   onComplete: (pin: string) => void;
   isWrong?: boolean;
+  /** Optional heading above the dots. Omit when the parent screen owns the title. */
   title?: string;
 };
 
-const ParentalPinPad: React.FC<ParentalPinPadProps> = ({
-  onComplete,
-  isWrong = false,
-  title = 'Vendos PIN-in',
-}) => {
+const ParentalPinPad: React.FC<ParentalPinPadProps> = ({ onComplete, isWrong = false, title }) => {
+  const { t } = useTranslation();
   const colors = useAppStore((s) => s.colors);
   const isLocked = useAppStore((s) => s.isLocked);
   const lockoutSecondsRemaining = useAppStore((s) => s.lockoutSecondsRemaining);
@@ -94,14 +93,16 @@ const ParentalPinPad: React.FC<ParentalPinPadProps> = ({
   const locked = isLocked();
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <ReusableText variant="heading3" themeColor="text" textAlign="center" style={styles.title}>
-        {title}
-      </ReusableText>
+    <View style={styles.container}>
+      {title ? (
+        <ReusableText variant="heading3" themeColor="text" textAlign="center" style={styles.title}>
+          {title}
+        </ReusableText>
+      ) : null}
 
       {locked ? (
         <ReusableText fontSize={FONTSIZE.sm} themeColor="error" textAlign="center" style={styles.lockMsg}>
-          Shumë përpjekje. Provo pas {countdown}s.
+          {t('parental.locked', { seconds: countdown })}
         </ReusableText>
       ) : (
         <Animated.View style={[styles.dots, dotsStyle]}>

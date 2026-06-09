@@ -1,18 +1,26 @@
 /**
- * ParentalPinModal — full-screen gate for adult content.
- * Handles two modes:
- *   'verify' — user enters PIN to unlock content.
- *   'set'    — user enters a new 4-digit PIN (confirm on second entry).
+ * ParentalPinModal — full-screen gate for adult content (design `sParental`):
+ * back header, a large lock icon, title + contextual subtitle, then the
+ * `ParentalPinPad` (dots + keypad). Two modes:
+ *   'verify' — enter PIN to unlock content.
+ *   'set'    — enter a new 4-digit PIN (confirm on second entry).
  *
- * Call `useParentalGate()` at call sites; this component is the renderer.
+ * Storage today is keychain (`SHA-256 + salt`). Per-account backend sync +
+ * server-authoritative verify is plan 22.14b (keychain becomes a local cache).
  */
 import React, { useState } from 'react';
-import { Modal, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { Modal, StyleSheet, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { FONTSIZE, SPACING } from '@/theme';
+import { BORDERRADIUS } from '@/theme/borders';
+import { FONTSIZE } from '@/theme/fonts';
+import { SPACING } from '@/theme/spacing';
 import { useAppStore } from '@/store/useAppStore';
+import { Icon, IconButton } from '@/components/Icons';
 import ReusableText from '@/components/Inputs/ReusableText';
 import { hashPin, verifyPin } from '@/utils/crypto';
+import { ChevronLeftIcon, LockIcon } from '@/assets/icons';
 import { PARENTAL_PIN_KEY } from '@/config/auth';
 import { getFromKeychain, storeOnKeychain } from '@/services/keychain';
 
@@ -31,7 +39,9 @@ const ParentalPinModal: React.FC<ParentalPinModalProps> = ({
   onSuccess,
   onDismiss,
 }) => {
+  const { t } = useTranslation();
   const colors = useAppStore((s) => s.colors);
+  const insets = useSafeAreaInsets();
   const recordFailedAttempt = useAppStore((s) => s.recordFailedAttempt);
   const resetAttempts = useAppStore((s) => s.resetAttempts);
   const setIsPinSet = useAppStore((s) => s.setIsPinSet);
@@ -42,7 +52,7 @@ const ParentalPinModal: React.FC<ParentalPinModalProps> = ({
   const handleVerify = async (pin: string) => {
     const stored = await getFromKeychain(PARENTAL_PIN_KEY);
     if (!stored) {
-      setError('PIN nuk u gjet. Vendos PIN-in nga cilësimet.');
+      setError(t('parental.not_found'));
       return;
     }
     const { hash, salt } = JSON.parse(stored) as { hash: string; salt: string };
@@ -66,7 +76,7 @@ const ParentalPinModal: React.FC<ParentalPinModalProps> = ({
     }
     if (pin !== confirmPin) {
       setConfirmPin(null);
-      setError('PIN-et nuk përputhen. Provo sërish.');
+      setError(t('parental.mismatch'));
       setIsWrong(true);
       setTimeout(() => setIsWrong(false), 600);
       return;
@@ -79,48 +89,48 @@ const ParentalPinModal: React.FC<ParentalPinModalProps> = ({
     onSuccess();
   };
 
-  const padTitle =
+  const subtitle =
     mode === 'set'
       ? confirmPin === null
-        ? 'Vendos PIN-in e ri'
-        : 'Konfirmo PIN-in'
-      : 'Vendos PIN-in';
+        ? t('parental.set_new')
+        : t('parental.confirm')
+      : t('parental.message');
 
   return (
     <Modal
       visible={visible}
-      transparent
       animationType="fade"
       onRequestClose={onDismiss}
       statusBarTranslucent
+      presentationStyle="overFullScreen"
+      transparent
     >
-      <View style={[styles.backdrop, { backgroundColor: colors.overlay }]}>
-        <View style={[styles.sheet, { backgroundColor: colors.surface }]}>
-          <TouchableOpacity
-            style={styles.dismissBtn}
-            onPress={onDismiss}
-            activeOpacity={0.7}
-            testID="parental-modal-dismiss"
-          >
-            <ReusableText fontSize={FONTSIZE.md} themeColor="textMuted">✕</ReusableText>
-          </TouchableOpacity>
+      <View style={[styles.screen, { backgroundColor: colors.background, paddingTop: insets.top }]}>
+        <View style={styles.header}>
+          <IconButton onPress={onDismiss} testID="parental-modal-dismiss">
+            <Icon as={ChevronLeftIcon} size={22} color={colors.text} />
+          </IconButton>
+        </View>
+
+        <View style={styles.body}>
+          <View style={[styles.iconTile, { backgroundColor: colors.surfaceElevated }]}>
+            <Icon as={LockIcon} size={34} color={colors.primary} />
+          </View>
+
+          <ReusableText variant="heading2" themeColor="text" textAlign="center" style={styles.title}>
+            {t('parental.title')}
+          </ReusableText>
+          <ReusableText variant="body" themeColor="textMuted" textAlign="center" style={styles.subtitle}>
+            {subtitle}
+          </ReusableText>
 
           {error ? (
-            <ReusableText
-              fontSize={FONTSIZE.sm}
-              themeColor="error"
-              textAlign="center"
-              style={styles.error}
-            >
+            <ReusableText fontSize={FONTSIZE.sm} themeColor="error" textAlign="center" style={styles.error}>
               {error}
             </ReusableText>
           ) : null}
 
-          <ParentalPinPad
-            onComplete={mode === 'verify' ? handleVerify : handleSet}
-            isWrong={isWrong}
-            title={padTitle}
-          />
+          <ParentalPinPad onComplete={mode === 'verify' ? handleVerify : handleSet} isWrong={isWrong} />
         </View>
       </View>
     </Modal>
@@ -130,23 +140,36 @@ const ParentalPinModal: React.FC<ParentalPinModalProps> = ({
 export default ParentalPinModal;
 
 const styles = StyleSheet.create({
-  backdrop: {
+  screen: {
     flex: 1,
-    justifyContent: 'flex-end',
   },
-  sheet: {
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    paddingBottom: SPACING.space_24,
-    paddingTop: SPACING.space_15,
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: SPACING.space_12,
+    height: 56,
   },
-  dismissBtn: {
-    alignSelf: 'flex-end',
-    paddingHorizontal: SPACING.space_15,
-    paddingVertical: SPACING.space_10,
+  body: {
+    flex: 1,
+    alignItems: 'center',
+    paddingHorizontal: SPACING.space_24,
+  },
+  iconTile: {
+    width: 80,
+    height: 80,
+    borderRadius: BORDERRADIUS.full,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: SPACING.space_20,
+  },
+  title: {
+    marginBottom: SPACING.space_4,
+  },
+  subtitle: {
+    maxWidth: 300,
+    marginBottom: SPACING.space_12,
   },
   error: {
-    paddingHorizontal: SPACING.space_24,
-    marginBottom: SPACING.space_10,
+    marginBottom: SPACING.space_8,
   },
 });

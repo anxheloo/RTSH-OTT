@@ -271,5 +271,20 @@
     "api_default": "Diçka shkoi keq",
     "network": "Nuk ka lidhje me internetin",
     "session_expired": "Sesioni skadoi"
+  },
+  "parental": {
+    "title": "Kontroll prindëror",
+    "message": "Ky program (18+) është i mbrojtur. Shkruani kodin.",
+    "enter": "Vendos PIN-in",
+    "set_new": "Vendos PIN-in e ri",
+    "confirm": "Konfirmo PIN-in",
+    "not_found": "PIN nuk u gjet. Vendos PIN-in nga cilësimet.",
+    "mismatch": "PIN-et nuk përputhen. Provo sërish.",
+    "locked": "Shumë përpjekje. Provo pas {{seconds}}s."
+  },
+  "geo": {
+    "title": "Jo i disponueshëm në rajonin tuaj",
+    "body": "Ky shërbim nuk është i disponueshëm në rajonin tuaj për arsye të të drejtave të transmetimit.",
+    "back_home": "Kthehu te kreu"
   }
 }

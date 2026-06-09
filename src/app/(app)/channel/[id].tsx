@@ -15,16 +15,20 @@ import * as ScreenOrientation from 'expo-screen-orientation';
 
 import { PLAYER_COLORS } from '@/theme/playerColors';
 import { SPACING } from '@/theme/spacing';
+import { useAppStore } from '@/store/useAppStore';
 import { useChannelQuery, useChannelStreamQuery, useEpgQuery } from '@/api/queries';
 import { useCellularGate } from '@/hooks/useCellularGate';
 import { useDateTime } from '@/hooks/useDateTime';
 import { CatchupBanner, DayStrip } from '@/components/catchup';
 import { ProgramRow } from '@/components/epg';
 import type { ProgramRowState } from '@/components/epg/ProgramRow';
+import { Icon, IconButton } from '@/components/Icons';
 import ReusableText from '@/components/Inputs/ReusableText';
-import { FullScreenLoader, ScreenLayout } from '@/components/Layout';
+import { CenteredMessage, FullScreenLoader, ScreenLayout, TabHeader } from '@/components/Layout';
 import LivePlayer from '@/components/Media/LivePlayer';
+import { ParentalPinModal } from '@/components/ParentalPin';
 import type { CatchupDay, EpgItem } from '@/types/domain';
+import { ChevronLeftIcon, GlobeIcon } from '@/assets/icons';
 
 const CATCHUP_DAYS_BACK = 7;
 
@@ -40,6 +44,7 @@ const ChannelScreen: React.FC = () => {
   const { id } = useLocalSearchParams<{ id: string }>();
   const channelId = id ?? '';
   const { t } = useTranslation();
+  const colors = useAppStore((s) => s.colors);
   const { formatWeekday, formatDate, formatTime } = useDateTime();
 
   const { stream, isLoading: streamLoading } = useChannelStreamQuery(channelId);
@@ -47,6 +52,14 @@ const ChannelScreen: React.FC = () => {
 
   const [nowMs] = useState(() => Date.now());
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [pinUnlocked, setPinUnlocked] = useState(false);
+
+  // Content gates (22.14). Geo → block the channel inline; adult-flagged
+  // channel → PIN before play (cancel leaves the channel). Live program-level
+  // re-check is 22.14c. `geoBlocked` keys on the channel flag today; real
+  // trigger is the streams/CDN geo error (451 / GEO_BLOCKED) — see plan 15.2.
+  const geoBlocked = !!channel?.geoBlocked;
+  const needsPin = !!channel?.isAdult && !pinUnlocked;
 
   // Day strip — oldest → today (today rightmost). Built at local noon so the
   // localized weekday/date never slips across the day boundary by timezone.
@@ -102,11 +115,39 @@ const ChannelScreen: React.FC = () => {
     if (state === 'recorded') router.push(`/(app)/program/${p.id}`);
   };
 
+  // Geo-restricted — block the channel inline (design `sGeo`) instead of playing.
+  if (geoBlocked) {
+    return (
+      <ScreenLayout edges={['top', 'bottom']}>
+        <TabHeader
+          title=""
+          showBottomBorder={false}
+          leftAction={
+            <IconButton onPress={() => router.back()} testID="geo-back">
+              <Icon as={ChevronLeftIcon} size={22} color={colors.text} />
+            </IconButton>
+          }
+        />
+        <CenteredMessage
+          icon={<Icon as={GlobeIcon} size={36} color={colors.textMuted} />}
+          title={t('geo.title')}
+          body={t('geo.body')}
+          actionLabel={t('geo.back_home')}
+          onAction={() => router.back()}
+          testID="geo-message"
+        />
+      </ScreenLayout>
+    );
+  }
+
   if (streamLoading) {
     return <FullScreenLoader />;
   }
 
-  const player = (
+  // Block playback until the PIN is verified (no audio/video leak behind the gate).
+  const player = needsPin ? (
+    <View style={styles.video} />
+  ) : (
     <LivePlayer
       channelId={channelId}
       streamUrl={stream?.hlsUrl ?? ''}
@@ -159,6 +200,13 @@ const ChannelScreen: React.FC = () => {
           );
         })}
       </ScrollView>
+
+      <ParentalPinModal
+        visible={needsPin}
+        mode="verify"
+        onSuccess={() => setPinUnlocked(true)}
+        onDismiss={() => router.back()}
+      />
     </ScreenLayout>
   );
 };
