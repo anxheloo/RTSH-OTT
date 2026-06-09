@@ -102,7 +102,8 @@ Persist via MMKV (`zustandStorage`). `partialize` controls what persists. `onReh
 - `components/Media/VideoPlayer.tsx` — base `expo-video` wrapper, our controls.
 - `components/Media/LivePlayer.tsx` — HLS + AES-128 + DVR (extends VideoPlayer).
 - `components/Media/VodPlayer.tsx` — catch-up with custom seek bar, resume positions.
-- `components/Media/RadioPlayer.tsx` — `expo-audio` + lock-screen controls + mini-player dock.
+- `components/Media/RadioAudioHost.tsx` — the single `expo-audio` engine, mounted above the router in `(app)/_layout`. Rationale + flow: `rules/ARCHITECTURE.md` → Radio audio.
+- `components/Media/RadioPlayer.tsx` — presentational now-playing core (art + `Equalizer` + transport); no playback logic. `RadioMiniPlayer` (Layout/) is the docked strip.
 - `components/Media/PlayerControls.tsx` — overlay (auto-hide, fullscreen, PIP, audio tracks).
 
 **Open risk:** `expo-video` `VideoSource.headers` may not forward to AES-128 key requests. Validate on a real stream early; fallback = `react-native-video`.
@@ -121,15 +122,15 @@ Tokens live in `src/theme/`:
 
 Access token in memory, refresh token in keychain. Boot is offline-first (keychain-first check; network only on manual-wipe recovery). 401s single-flight refresh through a bare axios instance to prevent loop deadlocks. Logout is async + atomic. No app-lock — the root `(auth)` vs `(app)` guard keys on `isAuthenticated` ONLY (never the in-memory access token, which is null on cold boot until the background refresh lands). Parental PIN is content-level, not app-entry.
 
-Full rationale, behavior, and known gaps: `@rules/ARCHITECTURE.md` → Auth flow.
+Full rationale, behavior, and known gaps: `rules/ARCHITECTURE.md` → Auth flow.
 
 ### Project flows reference
 
-Everything cross-cutting (auth, theme, boot/splash, network state, persistence boundaries) lives in `@rules/ARCHITECTURE.md`. Read it before proposing changes to those flows.
+Everything cross-cutting (auth, theme, boot/splash, network state, persistence boundaries) lives in `rules/ARCHITECTURE.md`. Read it before proposing changes to those flows.
 
 ### Coding conventions
 
-`@rules/STYLE_GUIDE.md`.
+`rules/STYLE_GUIDE.md` — read before writing components.
 
 ### Specs
 
@@ -146,9 +147,11 @@ Everything cross-cutting (auth, theme, boot/splash, network state, persistence b
 ## On every session start
 
 1. Read this file.
-2. Read `rules/ARCHITECTURE.md` for current flow rationale + known gaps.
-3. Read `docs/plan.md` to find the next step to execute.
-4. Read `rules/STYLE_GUIDE.md` before writing components.
+2. Read `docs/plan.md` to find the next step to execute.
+
+Then load lazily, only when the task needs it (keeps non-coding turns cheap):
+- `rules/ARCHITECTURE.md` — before answering "how does X work" or changing any cross-cutting flow (auth, theme, boot/splash, network, persistence, radio audio).
+- `rules/STYLE_GUIDE.md` — before writing or editing components/hooks/slices.
 
 ## Output rule
 

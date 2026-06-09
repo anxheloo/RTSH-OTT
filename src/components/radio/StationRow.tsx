@@ -1,56 +1,63 @@
 /**
- * StationRow — single radio station row for the Radio list.
- * Shows a station dot, name + genre, and a live indicator when active.
+ * StationRow — a radio station row (design `.radio-item`): a rounded scene tile
+ * with the radio glyph, the station name + genre, and a trailing chevron. When
+ * `isActive` (the station currently playing) the chevron is replaced by a small
+ * live Equalizer. Used by the radio list and the Home radio toggle.
+ *
+ * Presentational — the parent owns navigation via `onPress`.
  */
 import React from 'react';
 import { StyleSheet, TouchableOpacity, View } from 'react-native';
 
-import { FONTSIZE, SPACING } from '@/theme';
+import { BORDERRADIUS } from '@/theme/borders';
+import { FONTSIZE } from '@/theme/fonts';
+import { SPACING } from '@/theme/spacing';
 import { useAppStore } from '@/store/useAppStore';
+import { Icon } from '@/components/Icons';
 import ReusableText from '@/components/Inputs/ReusableText';
+import SceneBackground from '@/components/Media/SceneBackground';
+import Equalizer from '@/components/radio/Equalizer';
 import type { RadioStation } from '@/types/domain';
+import { ChevronRightIcon, RadioIcon } from '@/assets/icons';
 
 export interface StationRowProps {
   station: RadioStation;
-  isActive: boolean;
+  /** Highlights the row + shows the live Equalizer when this station is playing. */
+  isActive?: boolean;
   onPress: () => void;
 }
 
-const StationRow: React.FC<StationRowProps> = ({ station, isActive, onPress }) => {
+const TILE = 50;
+
+const StationRow: React.FC<StationRowProps> = ({ station, isActive = false, onPress }) => {
   const colors = useAppStore((s) => s.colors);
 
   return (
     <TouchableOpacity
-      style={[
-        styles.row,
-        {
-          backgroundColor: isActive ? colors.surfaceElevated : colors.surface,
-          borderLeftColor: isActive ? colors.primary : 'transparent',
-        },
-      ]}
+      style={[styles.row, { borderBottomColor: colors.border }]}
       onPress={onPress}
       activeOpacity={0.8}
       testID={`station-row-${station.id}`}
     >
-      <View
-        style={[
-          styles.stationDot,
-          { backgroundColor: isActive ? colors.primary : colors.surfaceElevated },
-        ]}
-      >
-        <ReusableText fontSize={FONTSIZE.xs} themeColor={isActive ? 'onPrimary' : 'textMuted'}>
-          ♪
-        </ReusableText>
+      <View style={styles.tile}>
+        <SceneBackground source={station.artworkUrl} />
+        <Icon as={RadioIcon} size={22} color={colors.onPrimary} />
       </View>
+
       <View style={styles.info}>
-        <ReusableText fontSize={FONTSIZE.regular} themeColor="text" numberOfLines={1}>
+        <ReusableText fontSize={FONTSIZE.regular} fontWeight="bold" themeColor="text" numberOfLines={1}>
           {station.name}
         </ReusableText>
-        <ReusableText fontSize={FONTSIZE.xs} themeColor="textMuted">
+        <ReusableText fontSize={FONTSIZE.sm} themeColor="textMuted" numberOfLines={1} style={styles.genre}>
           {station.genre}
         </ReusableText>
       </View>
-      {isActive ? <View style={[styles.liveDot, { backgroundColor: colors.primary }]} /> : null}
+
+      {isActive ? (
+        <Equalizer height={16} barWidth={3} testID={`station-eq-${station.id}`} />
+      ) : (
+        <Icon as={ChevronRightIcon} size={20} color={colors.mutedDim} />
+      )}
     </TouchableOpacity>
   );
 };
@@ -61,27 +68,25 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: SPACING.space_15,
-    paddingVertical: SPACING.space_12,
-    borderLeftWidth: 3,
-    gap: SPACING.space_12,
+    gap: SPACING.space_15,
+    paddingHorizontal: SPACING.space_18,
+    paddingVertical: SPACING.space_15,
+    borderBottomWidth: StyleSheet.hairlineWidth,
   },
-  stationDot: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: 'center',
+  tile: {
+    width: TILE,
+    height: TILE,
+    borderRadius: BORDERRADIUS.radius_14,
+    overflow: 'hidden',
     alignItems: 'center',
+    justifyContent: 'center',
     flexShrink: 0,
   },
   info: {
     flex: 1,
     gap: SPACING.space_2,
   },
-  liveDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    flexShrink: 0,
+  genre: {
+    marginTop: SPACING.space_2,
   },
 });

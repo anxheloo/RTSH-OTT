@@ -37,6 +37,7 @@ type HomeMode = 'tv' | 'radio';
 const HomeScreen: React.FC = () => {
   const { t } = useTranslation();
   const colors = useAppStore((s) => s.colors);
+  const activeStationId = useAppStore((s) => s.radioChannelId);
 
   const [mode, setMode] = useState<HomeMode>('tv');
   const [pkg, setPkg] = useState<PackageFilter>('all');
@@ -124,7 +125,11 @@ const HomeScreen: React.FC = () => {
   );
 
   const renderStation = ({ item }: { item: RadioStation }) => (
-    <StationRow station={item} isActive={false} onPress={() => router.push('/(app)/radio')} />
+    <StationRow
+      station={item}
+      isActive={item.id === activeStationId}
+      onPress={() => router.push(`/(app)/radio/${item.id}`)}
+    />
   );
 
   return (

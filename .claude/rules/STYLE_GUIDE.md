@@ -414,12 +414,7 @@ export const retrieveFromKeychain = async (key: string): Promise<string | null> 
 export const removeFromKeychain = async (key: string): Promise<void> => { ... };
 ```
 
-| Data | Storage |
-|------|---------|
-| Refresh token, parental PIN hash | Keychain (`expo-secure-store`) |
-| User, settings, theme, favorites | MMKV (Zustand persist) |
-| Access token | Memory only (Zustand, not persisted) |
-| Resume positions | MMKV (separate key) |
+For the full data → storage matrix (with rationale), see `rules/ARCHITECTURE.md` → Persistence boundaries — the single source of truth.
 
 ---
 

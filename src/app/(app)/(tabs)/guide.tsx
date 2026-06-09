@@ -103,8 +103,7 @@ const GuideScreen: React.FC = () => {
         nextLabel: station.genre,
         badge: t('guide.live'),
         isRadio: true,
-        // TODO(anx 2026-06-08): route to radio/[id] player once it lands (22.11).
-        onPress: () => router.push('/(app)/radio'),
+        onPress: () => router.push(`/(app)/radio/${station.id}`),
       })),
     [stations, t],
   );

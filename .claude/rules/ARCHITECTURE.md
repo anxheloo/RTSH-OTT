@@ -104,8 +104,8 @@ This file complements (does not duplicate) CLAUDE.md. CLAUDE.md describes *what 
 
 ### Why these choices
 
-- **Module-level singleton.** Multiple component mounts share one NetInfo subscription + one `onlineManager` listener. Eliminates the leak from the original `useEffect`-per-mount pattern (CRITICAL P5#4 from audit).
-- **`useSyncExternalStore`.** Correct React 19 primitive for external sources. Concurrent-mode safe, no tear between render and effect.
+- **Mounted once at root, not per-component.** A single NetInfo subscription + one `onlineManager` listener, owned by `useBootstrap`. This eliminates the leak from the original `useEffect`-per-mount pattern (CRITICAL P5#4 from audit) without needing module-level singleton machinery — root is the only mount, so there is nothing to deduplicate.
+- **Store as the shared source.** Connectivity lives in `NetworkSlice`; any component reads it via `useAppStore((s) => s.isOnline)`. Zustand is already a concurrent-safe subscribable store, so a hand-rolled singleton + `useSyncExternalStore` would only duplicate what the store provides (removed 2026-06-05).
 
 ### Known gaps
 
@@ -133,6 +133,29 @@ This file complements (does not duplicate) CLAUDE.md. CLAUDE.md describes *what 
 
 ---
 
+## Radio audio (cross-screen playback)
+
+### How it works today (post 22.11)
+
+- **Single engine above the router.** `RadioAudioHost` (`components/Media/RadioAudioHost.tsx`) is mounted once in `(app)/_layout.tsx`, sibling to `RadioMiniPlayer`. It owns the only `expo-audio` player and renders nothing.
+- **Store-driven.** The host is purely reactive to `PlayerSlice`: `player.replace({uri})` when `radioStreamUrl` changes, `player.play()/pause()` when `radioIsPlaying` (or the stream) changes. It sets a background-capable audio session once (`setAudioModeAsync`).
+- **Routes + mini-player never touch audio.** `radio/[id].tsx` selects a station via `setRadioChannel(...)`; the transport + mini-player flip `radioIsPlaying`. All audio is a downstream effect of the store. `clearRadio()` (mini-player close) pauses + tears down.
+- **`RadioPlayer` is now presentational** (art + name/sub + `Equalizer` + prev/play/next) — no playback logic.
+
+### Why these choices
+
+- **Survives navigation.** The old inline `RadioPlayer` held the player, so leaving the screen unmounted it and stopped sound — fatal for a docked mini-player and for background radio. Hoisting the engine above the router decouples lifetime from any screen.
+- **Single source of truth.** Two UIs (player route + mini-player) + future lock-screen controls all converge on `PlayerSlice`; the host is the only writer to the audio device.
+
+### Known gaps
+
+- **Background-while-locked needs entitlements** (iOS `UIBackgroundModes:['audio']`, Android `foregroundServiceType`) — the JS is ready; tracked **5.X.13** (+ dev-client rebuild).
+- **No lock-screen now-playing metadata** (expo-audio SDK 56 doesn't expose `NowPlayingInfo`) — tracked on `RadioPlayer` history.
+- **No radio-EPG source** — the player's programme section shows only a live-now row until a schedule endpoint lands.
+
+---
+
 ## Update log
 
 - **2026-06-01** — Initial doc. Captures state after Phase 5.5a audit fixes + Phase 5.8 `useBootstrap` (offline-first boot).
+- **2026-06-09** — Added **Radio audio** section: store-driven `RadioAudioHost` above the router (22.11) — playback now survives navigation; routes/mini-player only mutate `PlayerSlice`.

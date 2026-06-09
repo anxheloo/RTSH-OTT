@@ -1,0 +1,158 @@
+/**
+ * Radio player — design `sRadioPlayer`. A back / "Po luan tani" / favourite
+ * header over a scroll: the `RadioPlayer` now-playing core (art, name, eq,
+ * transport) and a "Programi i radios" section.
+ *
+ * Playback is store-driven: mounting selects the station in `PlayerSlice`
+ * (which `RadioAudioHost` turns into actual audio); the transport just flips
+ * store flags. Prev / next replace the route with the adjacent station so the
+ * mini-player and deep links stay in sync.
+ *
+ * Radio EPG gap: there is no radio schedule source yet, so the programme
+ * section shows only the live-now row. Wire when a radio-EPG endpoint lands.
+ */
+import React, { useEffect, useMemo } from 'react';
+import { ScrollView, StyleSheet, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
+
+import { router, useLocalSearchParams } from 'expo-router';
+
+import { SPACING } from '@/theme/spacing';
+import { useAppStore } from '@/store/useAppStore';
+import { useRadioStationQuery, useRadioStationsQuery } from '@/api/queries';
+import { useCellularGate } from '@/hooks/useCellularGate';
+import { useDateTime } from '@/hooks/useDateTime';
+import { ProgramRow } from '@/components/epg';
+import { Icon, IconButton } from '@/components/Icons';
+import { FullScreenLoader, ScreenLayout, SectionHeader, TabHeader } from '@/components/Layout';
+import RadioPlayer from '@/components/Media/RadioPlayer';
+import { ChevronLeftIcon, StarIcon } from '@/assets/icons';
+
+const RadioPlayerScreen: React.FC = () => {
+  useCellularGate();
+  const { t } = useTranslation();
+  const { id } = useLocalSearchParams<{ id: string }>();
+  const { formatTime } = useDateTime();
+
+  const colors = useAppStore((s) => s.colors);
+  const radioChannelId = useAppStore((s) => s.radioChannelId);
+  const radioIsPlaying = useAppStore((s) => s.radioIsPlaying);
+  const setRadioChannel = useAppStore((s) => s.setRadioChannel);
+  const setRadioPlaying = useAppStore((s) => s.setRadioPlaying);
+  const showToast = useAppStore((s) => s.showToast);
+
+  const { station, isLoading } = useRadioStationQuery(id);
+  const { stations } = useRadioStationsQuery();
+
+  const isActive = radioChannelId === id;
+  const isPlaying = isActive && radioIsPlaying;
+
+  // Select this station in the store on entry (idempotent — skip if already live).
+  useEffect(() => {
+    if (!station || radioChannelId === station.id) return;
+    setRadioChannel({
+      channelId: station.id,
+      streamUrl: station.streamUrl,
+      title: station.name,
+      artworkUrl: station.artworkUrl,
+    });
+  }, [station, radioChannelId, setRadioChannel]);
+
+  const { prevId, nextId } = useMemo(() => {
+    const i = stations.findIndex((s) => s.id === id);
+    if (i === -1) return { prevId: undefined, nextId: undefined };
+    return {
+      prevId: i > 0 ? stations[i - 1].id : undefined,
+      nextId: i < stations.length - 1 ? stations[i + 1].id : undefined,
+    };
+  }, [stations, id]);
+
+  if (isLoading && !station) {
+    return <FullScreenLoader />;
+  }
+  if (!station) {
+    return (
+      <ScreenLayout>
+        <TabHeader
+          title={t('radio.now_playing')}
+          isCentered
+          leftAction={
+            <IconButton onPress={() => router.back()} testID="radio-player-back">
+              <Icon as={ChevronLeftIcon} size={22} color={colors.text} />
+            </IconButton>
+          }
+        />
+      </ScreenLayout>
+    );
+  }
+
+  const togglePlay = () => {
+    if (isActive) {
+      setRadioPlaying(!radioIsPlaying);
+    } else {
+      setRadioChannel({
+        channelId: station.id,
+        streamUrl: station.streamUrl,
+        title: station.name,
+        artworkUrl: station.artworkUrl,
+      });
+    }
+  };
+
+  return (
+    <ScreenLayout>
+      <TabHeader
+        title={t('radio.now_playing')}
+        isCentered
+        leftAction={
+          <IconButton onPress={() => router.back()} testID="radio-player-back">
+            <Icon as={ChevronLeftIcon} size={22} color={colors.text} />
+          </IconButton>
+        }
+        rightAction={
+          <IconButton
+            onPress={() => showToast(t('radio.favorite_soon'))}
+            testID="radio-player-favorite"
+          >
+            <Icon as={StarIcon} size={20} color={colors.text} />
+          </IconButton>
+        }
+      />
+
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <RadioPlayer
+          station={station}
+          isPlaying={isPlaying}
+          onTogglePlay={togglePlay}
+          onPrev={prevId ? () => router.replace(`/(app)/radio/${prevId}`) : undefined}
+          onNext={nextId ? () => router.replace(`/(app)/radio/${nextId}`) : undefined}
+          hasPrev={Boolean(prevId)}
+          hasNext={Boolean(nextId)}
+        />
+
+        <View style={styles.programs}>
+          <SectionHeader title={t('radio.program')} />
+          <ProgramRow
+            title={station.genre}
+            meta={t('radio.live_now')}
+            time={formatTime(new Date().toISOString())}
+            state="now"
+            onPress={togglePlay}
+            testID="radio-program-now"
+          />
+        </View>
+      </ScrollView>
+    </ScreenLayout>
+  );
+};
+
+export default RadioPlayerScreen;
+
+const styles = StyleSheet.create({
+  content: {
+    paddingBottom: SPACING.space_40,
+  },
+  programs: {
+    paddingTop: SPACING.space_24,
+  },
+});

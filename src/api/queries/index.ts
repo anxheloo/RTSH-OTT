@@ -11,6 +11,7 @@ export { useEpgQuery } from './useEpgQuery';
 export { useCatchupItemQuery, useCatchupQuery } from './useCatchupQuery';
 
 // Radio
+export { useRadioStationQuery } from './useRadioStationQuery';
 export { useRadioStationsQuery } from './useRadioStationsQuery';
 
 // Streams

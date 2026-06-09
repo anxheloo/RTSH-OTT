@@ -14,3 +14,4 @@ export { default as GridIcon } from './grid.svg';
 export { default as LockIcon } from './lock.svg';
 export { default as GlobeIcon } from './globe.svg';
 export { default as RadioIcon } from './radio.svg';
+export { default as CloseIcon } from './close.svg';

@@ -112,6 +112,13 @@
     "guide_link": "Guida",
     "radio_stations": "Stacionet Radio"
   },
+  "radio": {
+    "title": "Radio",
+    "now_playing": "Po luan tani",
+    "program": "Programi i radios",
+    "live_now": "Po transmetohet",
+    "favorite_soon": "Të preferuarat vijnë së shpejti"
+  },
   "datetime": {
     "today": "Sot",
     "yesterday": "Dje",

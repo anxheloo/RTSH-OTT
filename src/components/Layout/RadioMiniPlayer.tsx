@@ -1,19 +1,27 @@
 /**
- * RadioMiniPlayer — 60px docked strip above the tab bar.
- * Reads PlayerSlice; renders nothing when no radio channel is active.
- * Tap navigates to the Radio tab; play/pause and close in-strip.
+ * RadioMiniPlayer — 60px docked strip above the tab bar (design dock). Reads
+ * `PlayerSlice`; renders nothing when no station is active. A scene tile + the
+ * station title, a live Equalizer while playing, then play/pause + close. Tap
+ * the strip to reopen the full player route. Audio is owned by `RadioAudioHost`,
+ * so the strip only flips store flags — playback continues across navigation.
  */
 import React from 'react';
 import { StyleSheet, TouchableOpacity, View } from 'react-native';
 
 import { router } from 'expo-router';
 
+import { BORDERRADIUS } from '@/theme/borders';
 import { FONTSIZE } from '@/theme/fonts';
 import { SPACING } from '@/theme/spacing';
 import { useAppStore } from '@/store/useAppStore';
+import { Icon } from '@/components/Icons';
 import ReusableText from '@/components/Inputs/ReusableText';
+import SceneBackground from '@/components/Media/SceneBackground';
+import Equalizer from '@/components/radio/Equalizer';
+import { CloseIcon, PauseIcon, PlayIcon, RadioIcon } from '@/assets/icons';
 
 const STRIP_HEIGHT = 60;
+const TILE = 40;
 
 const RadioMiniPlayer: React.FC = () => {
   const colors = useAppStore((s) => s.colors);
@@ -29,28 +37,18 @@ const RadioMiniPlayer: React.FC = () => {
   return (
     <TouchableOpacity
       style={[styles.strip, { backgroundColor: colors.surfaceElevated, borderTopColor: colors.border }]}
-      onPress={() => router.push('/(app)/(tabs)/radio')}
+      onPress={() => router.push(`/(app)/radio/${radioChannelId}`)}
       activeOpacity={0.9}
       testID="radio-mini-player"
     >
-      {/* Artwork dot */}
-      <View
-        style={[
-          styles.dot,
-          { backgroundColor: radioArtworkUrl ? 'transparent' : colors.primary },
-        ]}
-        testID="radio-mini-artwork"
-      >
-        {!radioArtworkUrl && (
-          <ReusableText fontSize={FONTSIZE.xs} themeColor="onPrimary">
-            ♪
-          </ReusableText>
-        )}
+      <View style={styles.tile} testID="radio-mini-artwork">
+        <SceneBackground source={radioArtworkUrl ?? undefined} />
+        <Icon as={RadioIcon} size={18} color={colors.onPrimary} />
       </View>
 
-      {/* Title */}
       <ReusableText
         fontSize={FONTSIZE.sm}
+        fontWeight="medium"
         themeColor="text"
         numberOfLines={1}
         style={styles.title}
@@ -58,7 +56,8 @@ const RadioMiniPlayer: React.FC = () => {
         {radioTitle ?? 'Radio'}
       </ReusableText>
 
-      {/* Play / pause */}
+      {radioIsPlaying ? <Equalizer height={14} barWidth={3} testID="radio-mini-eq" /> : null}
+
       <TouchableOpacity
         style={styles.iconBtn}
         onPress={() => setRadioPlaying(!radioIsPlaying)}
@@ -66,12 +65,9 @@ const RadioMiniPlayer: React.FC = () => {
         testID="radio-mini-toggle"
         hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
       >
-        <ReusableText fontSize={FONTSIZE.md} themeColor="text">
-          {radioIsPlaying ? '⏸' : '▶'}
-        </ReusableText>
+        <Icon as={radioIsPlaying ? PauseIcon : PlayIcon} size={20} color={colors.text} />
       </TouchableOpacity>
 
-      {/* Close */}
       <TouchableOpacity
         style={styles.iconBtn}
         onPress={clearRadio}
@@ -79,13 +75,13 @@ const RadioMiniPlayer: React.FC = () => {
         testID="radio-mini-close"
         hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
       >
-        <ReusableText fontSize={FONTSIZE.md} themeColor="textMuted">
-          ✕
-        </ReusableText>
+        <Icon as={CloseIcon} size={18} color={colors.textMuted} />
       </TouchableOpacity>
     </TouchableOpacity>
   );
 };
+
+export default RadioMiniPlayer;
 
 const styles = StyleSheet.create({
   strip: {
@@ -93,15 +89,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: SPACING.space_15,
-    gap: SPACING.space_10,
+    gap: SPACING.space_12,
     borderTopWidth: StyleSheet.hairlineWidth,
   },
-  dot: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: 'center',
+  tile: {
+    width: TILE,
+    height: TILE,
+    borderRadius: BORDERRADIUS.radius_12,
+    overflow: 'hidden',
     alignItems: 'center',
+    justifyContent: 'center',
     flexShrink: 0,
   },
   title: {
@@ -115,5 +112,3 @@ const styles = StyleSheet.create({
     flexShrink: 0,
   },
 });
-
-export default RadioMiniPlayer;

@@ -112,6 +112,13 @@
     "guide_link": "Guide",
     "radio_stations": "Radio Stations"
   },
+  "radio": {
+    "title": "Radio",
+    "now_playing": "Now playing",
+    "program": "Radio schedule",
+    "live_now": "On air",
+    "favorite_soon": "Favourites coming soon"
+  },
   "datetime": {
     "today": "Today",
     "yesterday": "Yesterday",

@@ -1,131 +1,156 @@
 /**
- * RadioPlayer — full-screen expo-audio radio player.
- * Sets background audio mode on mount, writes to PlayerSlice so the
- * RadioMiniPlayer strip stays in sync across tabs.
+ * RadioPlayer — the "now playing" core of the radio player screen (design
+ * `rp-art` + `.eq` + transport row): a square scene artwork with the radio
+ * glyph, the station name + "genre · NNN kbps" subtitle, a live Equalizer, and
+ * a prev / play-pause / next transport row.
  *
- * TODO(anx 2026-06-02): Lock-screen metadata (now-playing artwork / title)
- * requires iOS NowPlayingInfo bridge. expo-audio SDK 56 does not expose it
- * directly — wire when the native module is available or upgrade expo-audio.
+ * Presentational only. Audio playback lives in `RadioAudioHost` (driven by
+ * `PlayerSlice`); this component renders state and reports intent via callbacks.
  */
-import React, { useEffect } from 'react';
+import React from 'react';
 import { StyleSheet, TouchableOpacity, View } from 'react-native';
 
-import { setAudioModeAsync, useAudioPlayer } from 'expo-audio';
-
+import { BORDERRADIUS } from '@/theme/borders';
 import { FONTSIZE } from '@/theme/fonts';
 import { SPACING } from '@/theme/spacing';
 import { useAppStore } from '@/store/useAppStore';
+import { Icon } from '@/components/Icons';
 import ReusableText from '@/components/Inputs/ReusableText';
-import ReusableImage from '@/components/Media/ReusableImage';
+import SceneBackground from '@/components/Media/SceneBackground';
+import Equalizer from '@/components/radio/Equalizer';
+import type { RadioStation } from '@/types/domain';
+import { ChevronLeftIcon, ChevronRightIcon, PauseIcon, PlayIcon, RadioIcon } from '@/assets/icons';
 
-export type RadioPlayerProps = {
-  channelId: string;
-  streamUrl: string;
-  title: string;
-  artworkUri?: string;
-};
+export interface RadioPlayerProps {
+  station: RadioStation;
+  isPlaying: boolean;
+  onTogglePlay: () => void;
+  onPrev?: () => void;
+  onNext?: () => void;
+  hasPrev?: boolean;
+  hasNext?: boolean;
+}
 
 const RadioPlayer: React.FC<RadioPlayerProps> = ({
-  channelId,
-  streamUrl,
-  title,
-  artworkUri,
+  station,
+  isPlaying,
+  onTogglePlay,
+  onPrev,
+  onNext,
+  hasPrev = true,
+  hasNext = true,
 }) => {
   const colors = useAppStore((s) => s.colors);
-  const setRadioChannel = useAppStore((s) => s.setRadioChannel);
-  const setRadioPlaying = useAppStore((s) => s.setRadioPlaying);
-  const clearRadio = useAppStore((s) => s.clearRadio);
 
-  const player = useAudioPlayer({ uri: streamUrl });
-
-  useEffect(() => {
-    void setAudioModeAsync({
-      playsInSilentMode: true,
-      interruptionMode: 'doNotMix',
-    });
-
-    setRadioChannel({ channelId, streamUrl, title, artworkUrl: artworkUri });
-    player.play();
-
-    return () => {
-      player.pause();
-      clearRadio();
-    };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [channelId, streamUrl]);
-
-  const handleTogglePlay = () => {
-    if (player.playing) {
-      player.pause();
-      setRadioPlaying(false);
-    } else {
-      player.play();
-      setRadioPlaying(true);
-    }
-  };
+  const subtitle = station.bitrateKbps
+    ? `${station.genre} · ${station.bitrateKbps} kbps`
+    : station.genre;
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
-      {/* Artwork */}
-      {artworkUri ? (
-        <ReusableImage
-          source={artworkUri}
-          width={200}
-          height={200}
-          borderRadius={8}
-        />
-      ) : (
-        <View style={[styles.artworkPlaceholder, { backgroundColor: colors.surfaceElevated }]} />
-      )}
+    <View style={styles.container}>
+      <View style={styles.art}>
+        <SceneBackground source={station.artworkUrl} />
+        <Icon as={RadioIcon} size={60} color={colors.onPrimary} />
+      </View>
 
-      {/* Title */}
-      <ReusableText
-        variant="heading2"
-        themeColor="text"
-        textAlign="center"
-        style={styles.title}
-      >
-        {title}
-      </ReusableText>
-
-      {/* Play / pause */}
-      <TouchableOpacity
-        style={[styles.playBtn, { backgroundColor: colors.primary }]}
-        onPress={handleTogglePlay}
-        activeOpacity={0.8}
-        testID="radio-player-toggle"
-      >
-        <ReusableText fontSize={FONTSIZE.xl} themeColor="onPrimary">
-          {player.playing ? '⏸' : '▶'}
+      <View style={styles.meta}>
+        <ReusableText variant="heading2" themeColor="text" textAlign="center" numberOfLines={2}>
+          {station.name}
         </ReusableText>
-      </TouchableOpacity>
+        <ReusableText fontSize={FONTSIZE.sm} themeColor="textMuted" textAlign="center" style={styles.sub}>
+          {subtitle}
+        </ReusableText>
+      </View>
+
+      <View style={styles.eq}>
+        <Equalizer active={isPlaying} height={28} testID="radio-player-eq" />
+      </View>
+
+      <View style={styles.transport}>
+        <TouchableOpacity
+          style={[styles.sideBtn, { backgroundColor: colors.surfaceElevated }, !hasPrev && styles.disabled]}
+          onPress={onPrev}
+          disabled={!hasPrev}
+          activeOpacity={0.8}
+          testID="radio-prev"
+        >
+          <Icon as={ChevronLeftIcon} size={22} color={colors.text} />
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.playBtn, { backgroundColor: colors.primary }]}
+          onPress={onTogglePlay}
+          activeOpacity={0.85}
+          testID="radio-player-toggle"
+        >
+          <Icon as={isPlaying ? PauseIcon : PlayIcon} size={30} color={colors.onPrimary} />
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.sideBtn, { backgroundColor: colors.surfaceElevated }, !hasNext && styles.disabled]}
+          onPress={onNext}
+          disabled={!hasNext}
+          activeOpacity={0.8}
+          testID="radio-next"
+        >
+          <Icon as={ChevronRightIcon} size={22} color={colors.text} />
+        </TouchableOpacity>
+      </View>
     </View>
   );
 };
 
+export default RadioPlayer;
+
+const ART = 230;
+
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
-    justifyContent: 'center',
     alignItems: 'center',
-    gap: SPACING.space_24,
+  },
+  art: {
+    width: '62%',
+    maxWidth: ART,
+    aspectRatio: 1,
+    marginTop: SPACING.space_20,
+    borderRadius: BORDERRADIUS.radius_20,
+    overflow: 'hidden',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  meta: {
+    paddingTop: SPACING.space_24,
     paddingHorizontal: SPACING.space_24,
   },
-  artworkPlaceholder: {
-    width: 200,
-    height: 200,
-    borderRadius: 8,
+  sub: {
+    marginTop: SPACING.space_4,
   },
-  title: {
-    textAlign: 'center',
+  eq: {
+    paddingVertical: SPACING.space_12,
+    alignItems: 'center',
+  },
+  transport: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: SPACING.space_24,
+    paddingTop: SPACING.space_12,
+  },
+  sideBtn: {
+    width: 50,
+    height: 50,
+    borderRadius: BORDERRADIUS.full,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   playBtn: {
     width: 72,
     height: 72,
-    borderRadius: 36,
-    justifyContent: 'center',
+    borderRadius: BORDERRADIUS.full,
     alignItems: 'center',
+    justifyContent: 'center',
+  },
+  disabled: {
+    opacity: 0.4,
   },
 });
-
-export default RadioPlayer;
