@@ -30,6 +30,7 @@ const AppLayout: React.FC = () => {
             animation: 'fade',
           }}
         />
+        <Stack.Screen name="mosaic" />
         <Stack.Screen name="player-options" options={getModalScreenOptions()} />
         <Stack.Screen name="quality" options={getModalScreenOptions()} />
       </Stack>

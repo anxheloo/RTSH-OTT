@@ -9,8 +9,8 @@
 ## Status snapshot — 2026-06-09
 
 - **Done:** Phases 0–13 (tooling → store → API → hooks → UI → players → screens → auth-hardening → i18n), 18.2 (mock server), auth wizard (11.X), review fixes (11.Y "done now"), and **Phase 22.1–22.10** (design tokens/type/logo/icons, 4-tab nav, primitives, auth re-skin, domain types, Home, Guide, Search, Player+EPG+catch-up, sheet+Toast infra).
-- **Active:** **Phase 22** — next is **22.12 Mosaic**.
-- **Backlog:** deferred audit/infra items (`5.X.*`, `11.Y.4–11`), Telemetry (14), product features (15.2 geo / 15.4 mosaic / 15.5 PIP), Ads (16), Hardening (17), Handoff (18), Distribution (21), Quality gate (23). Remaining Phase 22 screens: 22.11–22.18.
+- **Active:** **Phase 22** — next is **22.13 Profile + Settings**.
+- **Backlog:** deferred audit/infra items (`5.X.*`, `11.Y.4–11`), Telemetry (14), product features (15.2 geo / 15.4 mosaic-snapshot-refresh / 15.5 PIP), Ads (16), Hardening (17), Handoff (18), Distribution (21), Quality gate (23). Remaining Phase 22 screens: 22.13–22.18.
 
 ---
 
@@ -191,7 +191,15 @@
 
 **Remaining (22.11–22.18):**
 - [x] **22.11** Radio. Moved the audio engine into a store-driven `RadioAudioHost` (mounted above the router in `(app)/_layout`) so playback survives navigation; routes/mini-player only mutate `PlayerSlice`. New `radio/index.tsx` (catalogue) + `radio/[id].tsx` (player) replace the old combined `radio.tsx`; new `Equalizer`, restyled `StationRow` (design `radio-item`) + `RadioMiniPlayer` (real icons + eq, nav → player); `RadioPlayer` repurposed as the presentational now-playing core. `useRadioStationQuery`, `radio` i18n, `close.svg`. Home/guide radio taps → player. **Gap:** no radio-EPG source → programme section shows only the live-now row. **Background-while-locked still needs 5.X.13 entitlements.** tsc + lint clean. (full entry → plan-archive.md)
-- [ ] **22.12** Mosaic (`mosaic`). **2-col** grid (mobile) of channel tiles (last-frame scene + LIVE badge), tap → player. Same column logic as 22.7 so 22.18 widens to wrapped rows. Spec 4/6/9 density — design shows 12 in a 2-col scroll; confirm density control. (Enables the Home mosaic button, currently `isDisabled`.)
+- [x] **22.12** Mosaic (`mosaic`). 2-col grid of channel tiles (last-frame scene + LIVE badge), tap → player; enabled the Home header grid button.
+  - **What:** New `MosaicTile` (memoized; `SceneBackground` + red LIVE badge + name-over-scrim, design `.mos`) + `(app)/mosaic.tsx` route (`TabHeader` back + centered "Mozaik", muted subtitle, 2-col `FlashList` of all `useChannelsQuery` channels → `openChannel`). Registered `mosaic` in `(app)/_layout` (default push). Home `home-mosaic-btn` un-disabled → `router.push('/(app)/mosaic')`. New `mosaic.{title,subtitle}` i18n in en/sq.
+  - **Why:** spec-mandated mosaic view (15.4) + design screen 14; un-blocks the previously-disabled Home grid button.
+  - **Confidence:** route + navigation wired [CERTAIN]; tsc + lint clean [CERTAIN]; visual match to mockup [MEDIUM — would raise to HIGH by `expo run:android` on a notched device].
+  - **Trade-offs / known gaps:**
+    1. **No 4/6/9 density control.** Design shows a flat 2-col scroll of channels; spec mentions 4/6/9 density. Followed design (decision: design wins on visuals). Raise by: confirming with product whether a density selector is wanted; if so add a `SegmentedChoice` header writing tile count.
+    2. **No live snapshots / periodic refresh.** Tiles use static `thumbnailUrl` (no backend snapshot feed). Same gap as `ChannelCard`. Raise by: a snapshot endpoint + `refetchInterval`.
+    3. LIVE badge uses `radius_8` (app-wide badge consistency) vs design's 4px — negligible.
+  - **Carry-overs:** density-control decision + live-snapshot refresh ride 15.4 / backend wiring. 2-col → wrapped rows widening ride 22.18.
 - [ ] **22.13** Profile + Settings. Profile (avatar initials, name/email, package badge, list rows → account/favorites/parental/settings/logout). Settings (Luajtja: cellular toggle, default-quality→sheet, parental toggle; Aplikacioni: language, notifications, cast, terms, version). Expand `SettingsSlice` (3.4) with the toggled fields. Folds the deferred `onboard` content (decision: T&C-as-checkbox over gate screens).
 - [ ] **22.14** Parental + Geo. Restyle `ParentalPin` to design (lock big-icon, 4-dot PIN, keypad) as a gate before locked-channel play. `geo` full-screen overlay (globe, copy, back-to-home) on streams geo-error / `geo`-flagged channel. Wire into `openChannel` (lock → PIN, geo → overlay) — both spec-mandated (15.2).
 - [~] **22.15** Overlays. **Partially done in 22.10:** (a) native route sheets — `getModalScreenOptions` (`presentation:'formSheet'` + `sheetAllowedDetents:'fitToContents'` + grabber + corner) + `SheetOptionRow` ✅; (b) `Toast` — `ToastSlice` + root `ToastHost` ✅. **Remaining:** (c) `AdOverlay` (creative + REKLAMË + skip countdown; app-open + channel-open slots, frequency-capped) — pairs with Phase 16; (d) SOLITAR in-sheet scaffold (SafeAreaView → keyboard → header → content) for keyboard-bearing sheets; (e) scrim/background-dimming polish. Alerts stay on `ModalSlice`/`ModalWrapper`.
@@ -222,7 +230,7 @@
 | 11 | Player + EPG + catch-up | `(app)/channel/[id]` | DONE | 22.10 |
 | 12 | Radio list | `(app)/radio` | NEW | 22.11 |
 | 13 | Radio player | `(app)/radio/[id]` | RESTYLE | 22.11 |
-| 14 | Mosaic | `(app)/mosaic` | NEW | 22.12 |
+| 14 | Mosaic | `(app)/mosaic` | DONE | 22.12 |
 | 15 | Parental (PIN) | `ParentalPinModal` gate | RESTYLE | 22.14 |
 | 16 | Geo-block | `(app)/geo` | NEW | 22.14 |
 
@@ -259,7 +267,7 @@
 | `toast` | `Toast` (`ToastSlice`/`ToastHost`) | DONE | 22.10/22.15 |
 | `center-pad`/`big-ic` | `CenteredMessage` (geo/parental) | NEW | 22.14 |
 | `pin`/`keypad` | `ParentalPinModal`/`ParentalPinPad` | RESTYLE | 22.14 |
-| `mos-grid`/`mos` | `MosaicTile` + grid | NEW | 22.12 |
+| `mos-grid`/`mos` | `MosaicTile` + grid | DONE | 22.12 |
 | `rp-art`/`eq` | `RadioPlayer` art + `Equalizer` | RESTYLE/NEW | 22.11 |
 | `radio-item` | `StationRow` | RESTYLE | 22.11 |
 | `adpop`/`ad-*` | `AdOverlay` | NEW | 22.15/Ph16 |

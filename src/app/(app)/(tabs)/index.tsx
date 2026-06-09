@@ -138,11 +138,10 @@ const HomeScreen: React.FC = () => {
         testID="home-header"
         rightSlot={
           <View style={styles.headerActions}>
-            {/* TODO(anx 2026-06-08): enable when the mosaic route lands (22.12). */}
             <IconButton
               size={40}
               backgroundColor={colors.surface}
-              isDisabled
+              onPress={() => router.push('/(app)/mosaic')}
               accessibilityLabel="Mozaik"
               testID="home-mosaic-btn"
             >

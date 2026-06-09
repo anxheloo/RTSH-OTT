@@ -119,6 +119,10 @@
     "live_now": "On air",
     "favorite_soon": "Favourites coming soon"
   },
+  "mosaic": {
+    "title": "Mosaic",
+    "subtitle": "The last broadcast frame for every channel, linked to the EPG."
+  },
   "datetime": {
     "today": "Today",
     "yesterday": "Yesterday",

@@ -119,6 +119,10 @@
     "live_now": "Po transmetohet",
     "favorite_soon": "Të preferuarat vijnë së shpejti"
   },
+  "mosaic": {
+    "title": "Mozaik",
+    "subtitle": "Imazhi i fundit i transmetuar për çdo kanal, i lidhur me EPG-në."
+  },
   "datetime": {
     "today": "Sot",
     "yesterday": "Dje",
