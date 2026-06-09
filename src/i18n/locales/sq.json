@@ -121,6 +121,13 @@
     "in_days_one": "Pas {{count}} dite",
     "in_days_other": "Pas {{count}} ditësh"
   },
+  "search": {
+    "back": "Kthehu",
+    "channels": "Kanale",
+    "programs": "Programe",
+    "recent": "Kërkime të fundit",
+    "no_results": "Asnjë rezultat për \"{{query}}\""
+  },
   "guide": {
     "title": "Guida",
     "toggle_tv": "TV",

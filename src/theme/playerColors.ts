@@ -25,6 +25,10 @@ export const PLAYER_COLORS = {
   scrimStrong: 'rgba(0,0,0,0.85)',
   /** Translucent control surface (e.g. play button). */
   controlBg: 'rgba(255,255,255,0.15)',
+  /** Glass chrome buttons over the video (design `.iconbtn.glass`). */
+  glass: 'rgba(0,0,0,0.4)',
   /** Seek-bar track (unfilled). */
   track: 'rgba(255,255,255,0.3)',
+  /** Knob glow ring (design `box-shadow` around the seek knob). */
+  knobGlow: 'rgba(235,18,47,0.3)',
 } as const;

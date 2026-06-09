@@ -7,4 +7,5 @@ export * from './useHaptic';
 export * from './useNetworkMonitor';
 export * from './useOrientation';
 export * from './useOTA';
+export * from './useSearch';
 

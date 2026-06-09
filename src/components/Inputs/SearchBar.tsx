@@ -25,6 +25,8 @@ export interface SearchBarProps {
   onChangeText?: (next: string) => void;
   /** Press handler (button mode → navigate to search). */
   onPress?: () => void;
+  /** Fired on the keyboard "search" return key (input mode). */
+  onSubmit?: () => void;
   autoFocus?: boolean;
   testID?: string;
 }
@@ -34,6 +36,7 @@ const SearchBar: React.FC<SearchBarProps> = ({
   value,
   onChangeText,
   onPress,
+  onSubmit,
   autoFocus,
   testID,
 }) => {
@@ -72,6 +75,7 @@ const SearchBar: React.FC<SearchBarProps> = ({
         placeholderTextColor={colors.textMuted}
         autoFocus={autoFocus}
         returnKeyType="search"
+        onSubmitEditing={onSubmit}
         style={[styles.flex, styles.input, { color: colors.text }]}
       />
     </View>

@@ -1,38 +1,36 @@
 /**
- * PlayerControls — auto-hide overlay for VideoPlayer.
- * Tap anywhere to show; hides after 3s of inactivity.
- * Supports both live (LIVE badge, no seek bar) and VOD (time + seek bar).
+ * PlayerControls — auto-hide overlay chrome for VideoPlayer, styled to the
+ * design's player (design `sPlayer`):
+ *  - top bar: glass back (left) + glass options (right) buttons
+ *  - centered title (channel/programme name) at the top
+ *  - persistent LIVE tag (top-left, stays visible when chrome auto-hides)
+ *  - bottom control row: play/pause + seek track (fill + knob) + fullscreen
  *
- * Controls are white on semi-transparent strips so they read on any content.
+ * Quality / audio / cast / PIP live in the options sheet (opened via the top
+ * options button → `onOpenOptions`), not in this chrome. Tap anywhere to reveal
+ * the chrome; it hides after 3s. Controls are white over a glass/scrim so they
+ * read on any frame. The player surface is always dark, so colors come from
+ * `PLAYER_COLORS`, not the theme.
  */
 import React, { useEffect, useRef, useState } from 'react';
-import {
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from 'react-native';
-import Animated, {
-  useAnimatedStyle,
-  useSharedValue,
-  withTiming,
-} from 'react-native-reanimated';
+import { StyleSheet, TouchableOpacity, View } from 'react-native';
+import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 
 import type { VideoPlayer } from 'expo-video';
 
 import { BORDERRADIUS } from '@/theme/borders';
-import { Fonts, FONTSIZE } from '@/theme/fonts';
+import { FONTSIZE } from '@/theme/fonts';
 import { PLAYER_COLORS } from '@/theme/playerColors';
 import { SPACING } from '@/theme/spacing';
 import { Icon } from '@/components/Icons';
+import ReusableText from '@/components/Inputs/ReusableText';
 import {
-  BackwardIcon,
-  ForwardIcon,
+  ChevronLeftIcon,
   FullscreenIcon,
   PauseIcon,
   PlayIcon,
+  SettingsIcon,
 } from '@/assets/icons';
-import { SEEK_STEP_S } from '@/constants/player';
 
 const AUTO_HIDE_MS = 3000;
 
@@ -44,15 +42,10 @@ export type PlayerControlsProps = {
   onToggleFullscreen?: () => void;
   isFullscreen?: boolean;
   onClose?: () => void;
+  /** Opens the player options sheet (quality/audio/subtitles/cast/PIP) — 22.10. */
+  onOpenOptions?: () => void;
   channelName?: string;
   programTitle?: string;
-};
-
-const formatTime = (seconds: number): string => {
-  const s = Math.max(0, Math.floor(seconds));
-  const mm = Math.floor(s / 60).toString().padStart(2, '0');
-  const ss = (s % 60).toString().padStart(2, '0');
-  return `${mm}:${ss}`;
 };
 
 const PlayerControls: React.FC<PlayerControlsProps> = ({
@@ -61,8 +54,8 @@ const PlayerControls: React.FC<PlayerControlsProps> = ({
   currentTime,
   duration,
   onToggleFullscreen,
-  isFullscreen = false,
   onClose,
+  onOpenOptions,
   channelName,
   programTitle,
 }) => {
@@ -104,21 +97,8 @@ const PlayerControls: React.FC<PlayerControlsProps> = ({
   }, [player]);
 
   const handleTogglePlay = () => {
-    if (player.playing) {
-      player.pause();
-    } else {
-      player.play();
-    }
-    show();
-  };
-
-  const handleSeekBack = () => {
-    player.seekBy(-SEEK_STEP_S);
-    show();
-  };
-
-  const handleSeekForward = () => {
-    player.seekBy(SEEK_STEP_S);
+    if (player.playing) player.pause();
+    else player.play();
     show();
   };
 
@@ -127,11 +107,12 @@ const PlayerControls: React.FC<PlayerControlsProps> = ({
     show();
   };
 
-  const overlayStyle = useAnimatedStyle(() => ({
-    opacity: opacity.value,
-  }));
+  const overlayStyle = useAnimatedStyle(() => ({ opacity: opacity.value }));
 
-  const progress = duration > 0 ? currentTime / duration : 0;
+  // Live with no measured duration sits at the live edge (full bar, no scrub).
+  const isSeekable = duration > 0;
+  const progress = isSeekable ? Math.min(Math.max(currentTime / duration, 0), 1) : isLive ? 1 : 0;
+  const title = channelName ?? programTitle;
 
   return (
     <TouchableOpacity
@@ -140,246 +121,198 @@ const PlayerControls: React.FC<PlayerControlsProps> = ({
       onPress={handleTapOverlay}
       testID="controls-tap-overlay"
     >
-      <Animated.View style={[StyleSheet.absoluteFill, overlayStyle]} pointerEvents={visible ? 'box-none' : 'none'}>
-        {/* Top strip */}
-        <View style={styles.topStrip}>
+      {/* Persistent LIVE tag — stays put when the chrome auto-hides. */}
+      {isLive ? (
+        <View style={styles.liveTag} testID="controls-live-badge">
+          <View style={styles.liveDot} />
+          <ReusableText fontSize={FONTSIZE.xxs} fontWeight="extraBold" style={styles.liveText}>
+            LIVE
+          </ReusableText>
+        </View>
+      ) : null}
+
+      <Animated.View
+        style={[StyleSheet.absoluteFill, overlayStyle]}
+        pointerEvents={visible ? 'box-none' : 'none'}
+      >
+        {/* Top bar: glass back + glass options */}
+        <View style={styles.topBar}>
           <TouchableOpacity
+            style={styles.glassBtn}
             onPress={onClose}
-            hitSlop={styles.hitSlop}
             activeOpacity={0.8}
+            accessibilityLabel="Back"
             testID="controls-close-btn"
           >
-            <Text style={styles.iconText}>✕</Text>
+            <Icon as={ChevronLeftIcon} size={22} color={PLAYER_COLORS.onSurface} />
           </TouchableOpacity>
 
-          <View style={styles.titleContainer}>
-            {channelName ? (
-              <Text style={styles.channelName} numberOfLines={1}>
-                {channelName}
-              </Text>
-            ) : null}
-            {programTitle ? (
-              <Text style={styles.programTitle} numberOfLines={1}>
-                {programTitle}
-              </Text>
-            ) : null}
-          </View>
-
-          {isLive ? (
-            <View style={styles.liveBadge} testID="controls-live-badge">
-              <Text style={styles.liveBadgeText}>LIVE</Text>
-            </View>
-          ) : null}
-
-          <TouchableOpacity
-            onPress={onToggleFullscreen}
-            hitSlop={styles.hitSlop}
-            activeOpacity={0.8}
-            testID="controls-fullscreen-btn"
-            accessibilityLabel={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
-          >
-            <Icon as={FullscreenIcon} size={24} />
-          </TouchableOpacity>
+          {onOpenOptions ? (
+            <TouchableOpacity
+              style={styles.glassBtn}
+              onPress={onOpenOptions}
+              activeOpacity={0.8}
+              accessibilityLabel="Player options"
+              testID="controls-options-btn"
+            >
+              <Icon as={SettingsIcon} size={20} color={PLAYER_COLORS.onSurface} />
+            </TouchableOpacity>
+          ) : (
+            <View style={styles.spacer} />
+          )}
         </View>
 
-        {/* Center controls */}
-        <View style={styles.centerRow}>
-          {!isLive ? (
-            <TouchableOpacity
-              onPress={handleSeekBack}
-              hitSlop={styles.hitSlop}
-              activeOpacity={0.8}
-              testID="controls-seek-back-btn"
-              accessibilityLabel={`Rewind ${SEEK_STEP_S} seconds`}
-            >
-              <Icon as={BackwardIcon} size={32} />
-            </TouchableOpacity>
-          ) : null}
+        {/* Centered title */}
+        {title ? (
+          <ReusableText
+            fontSize={FONTSIZE.md}
+            fontWeight="extraBold"
+            numberOfLines={1}
+            style={styles.title}
+          >
+            {title}
+          </ReusableText>
+        ) : null}
 
+        {/* Bottom controls: play/pause + track + fullscreen */}
+        <View style={styles.controlRow}>
           <TouchableOpacity
             onPress={handleTogglePlay}
-            style={styles.playButton}
+            hitSlop={styles.hitSlop}
             activeOpacity={0.8}
             testID="controls-play-pause-btn"
             accessibilityLabel={isPlaying ? 'Pause' : 'Play'}
           >
-            {isPlaying ? <Icon as={PauseIcon} size={28} /> : <Icon as={PlayIcon} size={28} />}
+            <Icon as={isPlaying ? PauseIcon : PlayIcon} size={22} color={PLAYER_COLORS.onSurface} />
           </TouchableOpacity>
 
-          {!isLive ? (
+          <View
+            style={styles.track}
+            testID="controls-seek-bar"
+            onLayout={(e) => setSeekBarWidth(e.nativeEvent.layout.width || 1)}
+            onTouchStart={(e) => {
+              if (!isSeekable) return;
+              const ratio = e.nativeEvent.locationX / seekBarWidth;
+              if (isFinite(ratio)) player.seekBy(ratio * duration - currentTime);
+            }}
+          >
+            <View style={[styles.fill, { width: `${progress * 100}%` }]} />
+            <View style={[styles.knob, { left: `${progress * 100}%` }]} />
+          </View>
+
+          {onToggleFullscreen ? (
             <TouchableOpacity
-              onPress={handleSeekForward}
+              onPress={onToggleFullscreen}
               hitSlop={styles.hitSlop}
               activeOpacity={0.8}
-              testID="controls-seek-forward-btn"
-              accessibilityLabel={`Forward ${SEEK_STEP_S} seconds`}
+              testID="controls-fullscreen-btn"
+              accessibilityLabel="Toggle fullscreen"
             >
-              <Icon as={ForwardIcon} size={32} />
+              <Icon as={FullscreenIcon} size={22} color={PLAYER_COLORS.onSurface} />
             </TouchableOpacity>
           ) : null}
-        </View>
-
-        {/* Bottom strip */}
-        <View style={styles.bottomStrip}>
-          {!isLive ? (
-            <>
-              <Text style={styles.timeText}>
-                {formatTime(currentTime)} / {formatTime(duration)}
-              </Text>
-              {/* Simple seek bar — touch only. Reanimated pan gesture lives in VodPlayer */}
-              <View
-                style={styles.seekBarTrack}
-                testID="controls-seek-bar"
-                onLayout={(e) => setSeekBarWidth(e.nativeEvent.layout.width || 1)}
-                onTouchStart={(e) => {
-                  const ratio = e.nativeEvent.locationX / seekBarWidth;
-                  if (duration > 0 && isFinite(ratio)) {
-                    player.seekBy(ratio * duration - currentTime);
-                  }
-                }}
-              >
-                <View style={[styles.seekBarFill, { width: `${progress * 100}%` }]} />
-              </View>
-            </>
-          ) : null}
-
-          <View style={styles.bottomActions}>
-            {/* Cast stub — spec mandated button, no functionality in v1 */}
-            <TouchableOpacity
-              disabled
-              activeOpacity={0.8}
-              accessibilityLabel="Cast (unavailable)"
-              testID="controls-cast-btn"
-            >
-              <Text style={[styles.iconText, styles.disabledIcon]}>⊡</Text>
-            </TouchableOpacity>
-
-            {/* Quality picker stub */}
-            <TouchableOpacity
-              activeOpacity={0.8}
-              onPress={() => {
-                // TODO(anx 2026-06-02): wire quality picker sheet (Phase 10)
-              }}
-              testID="controls-quality-btn"
-            >
-              <Text style={styles.qualityText}>AUTO</Text>
-            </TouchableOpacity>
-          </View>
         </View>
       </Animated.View>
     </TouchableOpacity>
   );
 };
 
+export default PlayerControls;
+
+const GLASS_BTN = 40;
+const KNOB = 13;
+
 const styles = StyleSheet.create({
-  topStrip: {
+  topBar: {
     position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
+    top: SPACING.space_10,
+    left: SPACING.space_10,
+    right: SPACING.space_10,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: SPACING.space_16,
-    paddingVertical: SPACING.space_12,
-    backgroundColor: PLAYER_COLORS.scrim,
-    gap: SPACING.space_12,
+    justifyContent: 'space-between',
   },
-  titleContainer: {
-    flex: 1,
-  },
-  channelName: {
-    color: PLAYER_COLORS.onSurface,
-    fontFamily: Fonts.display,
-    fontSize: FONTSIZE.xl,
-  },
-  programTitle: {
-    color: PLAYER_COLORS.onSurfaceDim,
-    fontFamily: Fonts.regular,
-    fontSize: FONTSIZE.sm,
-    marginTop: SPACING.space_2,
-  },
-  liveBadge: {
-    backgroundColor: PLAYER_COLORS.brand,
-    paddingHorizontal: SPACING.space_8,
-    paddingVertical: SPACING.space_4,
-    borderRadius: BORDERRADIUS.radius_8,
-  },
-  liveBadgeText: {
-    color: PLAYER_COLORS.onSurface,
-    fontFamily: Fonts.bold,
-    fontSize: FONTSIZE.xs,
-    letterSpacing: 1,
-  },
-  iconText: {
-    color: PLAYER_COLORS.onSurface,
-    fontSize: FONTSIZE.xl,
-  },
-  centerRow: {
-    position: 'absolute',
-    top: 0,
-    bottom: 0,
-    left: 0,
-    right: 0,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: SPACING.space_40,
-  },
-  playButton: {
-    width: 64,
-    height: 64,
+  glassBtn: {
+    width: GLASS_BTN,
+    height: GLASS_BTN,
     borderRadius: BORDERRADIUS.full,
-    backgroundColor: PLAYER_COLORS.controlBg,
+    backgroundColor: PLAYER_COLORS.glass,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  bottomStrip: {
+  spacer: {
+    width: GLASS_BTN,
+  },
+  title: {
     position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    paddingHorizontal: SPACING.space_16,
-    paddingVertical: SPACING.space_12,
-    backgroundColor: PLAYER_COLORS.scrim,
-    gap: SPACING.space_8,
-  },
-  timeText: {
-    color: PLAYER_COLORS.onSurfaceMuted,
-    fontFamily: Fonts.regular,
-    fontSize: FONTSIZE.xs,
-  },
-  seekBarTrack: {
-    height: 4,
-    backgroundColor: PLAYER_COLORS.track,
-    borderRadius: BORDERRADIUS.full,
-    overflow: 'hidden',
-  },
-  seekBarFill: {
-    height: '100%',
-    backgroundColor: PLAYER_COLORS.brand,
-    borderRadius: BORDERRADIUS.full,
-  },
-  bottomActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'flex-end',
-    gap: SPACING.space_16,
-  },
-  disabledIcon: {
-    opacity: 0.4,
-  },
-  qualityText: {
+    top: SPACING.space_16,
+    left: GLASS_BTN + SPACING.space_16,
+    right: GLASS_BTN + SPACING.space_16,
+    textAlign: 'center',
     color: PLAYER_COLORS.onSurface,
-    fontFamily: Fonts.medium,
-    fontSize: FONTSIZE.xs,
     letterSpacing: 0.5,
   },
+  liveTag: {
+    position: 'absolute',
+    top: SPACING.space_16 + GLASS_BTN + SPACING.space_8,
+    left: SPACING.space_15,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.space_4,
+    backgroundColor: PLAYER_COLORS.brand,
+    paddingHorizontal: SPACING.space_8,
+    paddingVertical: 3,
+    borderRadius: BORDERRADIUS.radius_8,
+  },
+  liveDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: PLAYER_COLORS.onSurface,
+  },
+  liveText: {
+    color: PLAYER_COLORS.onSurface,
+    letterSpacing: 0.5,
+  },
+  controlRow: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: SPACING.space_12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.space_12,
+    paddingHorizontal: SPACING.space_15,
+  },
+  track: {
+    flex: 1,
+    height: 4,
+    borderRadius: 3,
+    backgroundColor: PLAYER_COLORS.track,
+    justifyContent: 'center',
+  },
+  fill: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    backgroundColor: PLAYER_COLORS.brand,
+    borderRadius: 3,
+  },
+  knob: {
+    position: 'absolute',
+    width: KNOB,
+    height: KNOB,
+    borderRadius: KNOB / 2,
+    marginLeft: -KNOB / 2,
+    backgroundColor: PLAYER_COLORS.brand,
+    borderWidth: 3,
+    borderColor: PLAYER_COLORS.knobGlow,
+  },
   hitSlop: {
-    top: 8,
-    bottom: 8,
-    left: 8,
-    right: 8,
+    top: 10,
+    bottom: 10,
+    left: 10,
+    right: 10,
   },
 });
-
-export default PlayerControls;

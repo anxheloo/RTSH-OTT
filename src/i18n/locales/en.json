@@ -121,6 +121,13 @@
     "in_days_one": "in {{count}} day",
     "in_days_other": "in {{count}} days"
   },
+  "search": {
+    "back": "Back",
+    "channels": "Channels",
+    "programs": "Programs",
+    "recent": "Recent searches",
+    "no_results": "No results for \"{{query}}\""
+  },
   "guide": {
     "title": "Guide",
     "toggle_tv": "TV",
