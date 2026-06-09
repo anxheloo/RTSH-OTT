@@ -19,7 +19,7 @@ import { useAppStore } from '@/store/useAppStore';
 import { queryClient } from '@/api/client';
 import { useBootstrap } from '@/hooks/useBootstrap';
 import { BrandedSplash } from '@/components/Brand';
-import { TCGateOverlay } from '@/components/Layout';
+import { TCGateOverlay, ToastHost } from '@/components/Layout';
 import ModalWrapper from '@/components/ModalWrapper';
 
 // Start mock server before any React rendering so the first API call is intercepted.
@@ -75,6 +75,7 @@ function RootLayoutInner() {
       </Stack>
       <ModalWrapper />
       <TCGateOverlay />
+      <ToastHost />
     </>
   );
 }

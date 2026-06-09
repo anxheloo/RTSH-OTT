@@ -113,6 +113,7 @@ const ChannelScreen: React.FC = () => {
       channelName={channel?.name ?? channelId}
       isFullscreen={isFullscreen}
       onToggleFullscreen={() => setIsFullscreen((f) => !f)}
+      onOpenOptions={() => router.push('/(app)/player-options')}
       onClose={() => (isFullscreen ? setIsFullscreen(false) : router.back())}
     />
   );

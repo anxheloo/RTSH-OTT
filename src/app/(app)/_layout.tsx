@@ -8,6 +8,7 @@ import { StyleSheet, View } from 'react-native';
 import { Stack } from 'expo-router';
 
 import RadioMiniPlayer from '@/components/Layout/RadioMiniPlayer';
+import { getModalScreenOptions } from '@/utils/navigation';
 
 const AppLayout: React.FC = () => {
   return (
@@ -28,6 +29,8 @@ const AppLayout: React.FC = () => {
             animation: 'fade',
           }}
         />
+        <Stack.Screen name="player-options" options={getModalScreenOptions()} />
+        <Stack.Screen name="quality" options={getModalScreenOptions()} />
       </Stack>
       <RadioMiniPlayer />
     </View>

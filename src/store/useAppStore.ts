@@ -9,6 +9,7 @@ import { createParentalSlice, ParentalSlice } from './createParentalSlice';
 import { createPlayerSlice, PlayerSlice } from './createPlayerSlice';
 import { createSettingsSlice, SettingsSlice } from './createSettingsSlice';
 import { createThemeSlice, resolveColors, ThemeSlice } from './createThemeSlice';
+import { createToastSlice, ToastSlice } from './createToastSlice';
 import { createUserSlice, UserSlice } from './createUserSlice';
 import { zustandStorage } from './storage';
 
@@ -18,7 +19,8 @@ export type AppStore = UserSlice &
   ModalSlice &
   NetworkSlice &
   PlayerSlice &
-  ParentalSlice;
+  ParentalSlice &
+  ToastSlice;
 
 export const useAppStore = create<AppStore>()(
   persist(
@@ -29,6 +31,7 @@ export const useAppStore = create<AppStore>()(
       ...createModalSlice(...a),
       ...createNetworkSlice(...a),
       ...createParentalSlice(...a),
+      ...createToastSlice(...a),
 
       ...(createPlayerSlice as any)(...a),
     }),
