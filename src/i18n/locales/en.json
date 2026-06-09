@@ -156,30 +156,77 @@
   "profile": {
     "title": "Profile",
     "user_default": "User",
+    "package_badge": "{{package}} · {{count}} channels",
+    "package_default": "Base Package · 32 channels",
+    "account": {
+      "title": "Account details",
+      "subtitle": "Name, email, password",
+      "coming_soon": "Account editing coming soon"
+    },
+    "favorites": {
+      "title": "Favourites",
+      "subtitle": "Saved channels",
+      "coming_soon": "Favourites coming soon"
+    },
+    "parental": {
+      "title": "Parental controls",
+      "subtitle_active": "Active",
+      "subtitle_inactive": "Inactive"
+    },
+    "settings_row": {
+      "title": "Settings",
+      "subtitle": "Cellular data, language, notifications"
+    },
+    "logout": "Log out",
+    "logout_confirm_title": "Log out",
+    "logout_confirm_message": "Are you sure you want to log out?",
+    "logging_out": "Logging out..."
+  },
+  "settings": {
+    "title": "Settings",
+    "section_playback": "PLAYBACK",
+    "section_app": "APPLICATION",
+    "cellular": {
+      "title": "Cellular data",
+      "subtitle": "Allow streaming without WiFi"
+    },
+    "quality": {
+      "title": "Default quality",
+      "subtitle_auto": "Auto (ABR)"
+    },
+    "parental": {
+      "title": "Parental controls",
+      "subtitle_active": "Active",
+      "subtitle_inactive": "Inactive",
+      "disable_title": "Disable parental controls",
+      "disable_message": "This will remove your parental PIN. Are you sure?"
+    },
+    "language": {
+      "title": "Language",
+      "sq": "Albanian",
+      "en": "English"
+    },
+    "notifications": {
+      "title": "Notifications",
+      "subtitle": "Premieres & news"
+    },
+    "cast": {
+      "title": "Cast",
+      "subtitle": "To TV or device"
+    },
+    "terms": {
+      "title": "Terms of use"
+    },
     "theme": {
-      "label": "THEME",
+      "title": "Theme",
       "system": "System",
       "light": "Light",
       "dark": "Dark"
     },
-    "language": {
-      "label": "LANGUAGE"
-    },
-    "playback": {
-      "label": "PLAYBACK",
-      "autoplay": "Autoplay",
-      "cellular": "Allow cellular playback",
-      "data_saver": "Data saver"
-    },
-    "app_settings": {
-      "label": "APPLICATION",
-      "haptics": "Haptics",
-      "parental_pin": "Parental PIN",
-      "pin_active": "Active →",
-      "pin_set": "Set →"
-    },
-    "logout": "Logout",
-    "logging_out": "Logging out..."
+    "version": {
+      "title": "Version",
+      "subtitle": "RTSH TANI {{version}}"
+    }
   },
   "player": {
     "live": "LIVE",

@@ -156,30 +156,77 @@
   "profile": {
     "title": "Profili",
     "user_default": "Përdorues",
+    "package_badge": "{{package}} · {{count}} kanale",
+    "package_default": "Paketa Bazë · 32 kanale",
+    "account": {
+      "title": "Të dhënat e llogarisë",
+      "subtitle": "Emri, email, fjalëkalimi",
+      "coming_soon": "Ndryshimi i llogarisë vjen së shpejti"
+    },
+    "favorites": {
+      "title": "Të preferuarat",
+      "subtitle": "Kanalet e ruajtura",
+      "coming_soon": "Të preferuarat vijnë së shpejti"
+    },
+    "parental": {
+      "title": "Kontrolli prindëror",
+      "subtitle_active": "Aktiv",
+      "subtitle_inactive": "Joaktiv"
+    },
+    "settings_row": {
+      "title": "Cilësimet",
+      "subtitle": "Të dhëna celulare, gjuha, njoftimet"
+    },
+    "logout": "Dil nga llogaria",
+    "logout_confirm_title": "Dil nga llogaria",
+    "logout_confirm_message": "Jeni i sigurt që dëshironi të dilni?",
+    "logging_out": "Duke dalë..."
+  },
+  "settings": {
+    "title": "Cilësimet",
+    "section_playback": "LUAJTJA",
+    "section_app": "APLIKACIONI",
+    "cellular": {
+      "title": "Të dhënat celulare",
+      "subtitle": "Lejo transmetimin pa WiFi"
+    },
+    "quality": {
+      "title": "Cilësia e parazgjedhur",
+      "subtitle_auto": "Auto (ABR)"
+    },
+    "parental": {
+      "title": "Kontrolli prindëror",
+      "subtitle_active": "Aktiv",
+      "subtitle_inactive": "Joaktiv",
+      "disable_title": "Çaktivizo kontrollin prindëror",
+      "disable_message": "Ky veprim do të heqë PIN-in tuaj prindëror. Jeni i sigurt?"
+    },
+    "language": {
+      "title": "Gjuha",
+      "sq": "Shqip",
+      "en": "English"
+    },
+    "notifications": {
+      "title": "Njoftimet",
+      "subtitle": "Premierë & lajme"
+    },
+    "cast": {
+      "title": "Transmeto (Cast)",
+      "subtitle": "Në TV ose pajisje"
+    },
+    "terms": {
+      "title": "Kushtet e përdorimit"
+    },
     "theme": {
-      "label": "TEMA",
+      "title": "Tema",
       "system": "Sistemi",
       "light": "Ndritshme",
       "dark": "Errët"
     },
-    "language": {
-      "label": "GJUHA"
-    },
-    "playback": {
-      "label": "LUAJTJA",
-      "autoplay": "Luajtje automatike",
-      "cellular": "Lejo luajtje me rrjet celular",
-      "data_saver": "Kursim i të dhënave"
-    },
-    "app_settings": {
-      "label": "APLIKACIONI",
-      "haptics": "Vibrim",
-      "parental_pin": "PIN Prindëror",
-      "pin_active": "Aktiv →",
-      "pin_set": "Vendos →"
-    },
-    "logout": "Dil",
-    "logging_out": "Duke dalë..."
+    "version": {
+      "title": "Versioni",
+      "subtitle": "RTSH TANI {{version}}"
+    }
   },
   "player": {
     "live": "LIVE",

@@ -31,8 +31,11 @@ const AppLayout: React.FC = () => {
           }}
         />
         <Stack.Screen name="mosaic" />
+        <Stack.Screen name="settings" />
         <Stack.Screen name="player-options" options={getModalScreenOptions()} />
         <Stack.Screen name="quality" options={getModalScreenOptions()} />
+        <Stack.Screen name="language" options={getModalScreenOptions()} />
+        <Stack.Screen name="theme" options={getModalScreenOptions()} />
       </Stack>
       <RadioAudioHost />
       <RadioMiniPlayer />

@@ -1,236 +1,161 @@
 /**
- * Profile tab — user account, settings, logout.
+ * Profile tab — avatar, package badge, and navigation rows to account / favourites
+ * / parental / settings + a logout confirmation. All toggles live in Settings.
  */
-import React, { useState } from 'react';
-import { ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
+import React from 'react';
+import { ScrollView, StyleSheet, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
-import { BORDERRADIUS, FONTSIZE, SPACING } from '@/theme';
-import type { Locale } from '@/store/createSettingsSlice';
-import type { ThemeMode } from '@/store/createThemeSlice';
+import { router } from 'expo-router';
+
+import { BORDERRADIUS } from '@/theme/borders';
+import { FONTSIZE } from '@/theme/fonts';
+import { SPACING } from '@/theme/spacing';
 import { useAppStore } from '@/store/useAppStore';
 import { useLogoutMutation } from '@/api/mutations';
+import { Icon, IconButton } from '@/components/Icons';
 import ReusableText from '@/components/Inputs/ReusableText';
-import { ScreenLayout, TabHeader } from '@/components/Layout';
-import { ParentalPinModal } from '@/components/ParentalPin';
-import { setI18nLocale } from '@/i18n';
-
-type ToggleRowProps = {
-  label: string;
-  value: boolean;
-  onToggle: () => void;
-  testID?: string;
-};
-
-const ToggleRow: React.FC<ToggleRowProps> = ({ label, value, onToggle, testID }) => {
-  const colors = useAppStore((s) => s.colors);
-  return (
-    <TouchableOpacity
-      style={[styles.row, { borderBottomColor: colors.border }]}
-      onPress={onToggle}
-      activeOpacity={0.8}
-      testID={testID}
-    >
-      <ReusableText fontSize={FONTSIZE.regular} themeColor="text">
-        {label}
-      </ReusableText>
-      <View style={[styles.toggle, { backgroundColor: value ? colors.primary : colors.surfaceElevated }]}>
-        <View
-          style={[
-            styles.toggleThumb,
-            { backgroundColor: colors.onPrimary, transform: [{ translateX: value ? 18 : 2 }] },
-          ]}
-        />
-      </View>
-    </TouchableOpacity>
-  );
-};
+import { ListRow, ScreenLayout, TabHeader } from '@/components/Layout';
+import {
+  HeartIcon,
+  OutIcon,
+  SettingsIcon,
+  ShieldIcon,
+  UserIcon,
+} from '@/assets/icons';
 
 const ProfileScreen: React.FC = () => {
   const { t } = useTranslation();
   const colors = useAppStore((s) => s.colors);
-  const isPinSet = useAppStore((s) => s.isPinSet);
-  const [pinModalVisible, setPinModalVisible] = useState(false);
   const user = useAppStore((s) => s.user);
-  const mode = useAppStore((s) => s.mode);
-  const locale = useAppStore((s) => s.locale);
-  const setTheme = useAppStore((s) => s.setTheme);
-  const setLocale = useAppStore((s) => s.setLocale);
-  const autoplayEnabled = useAppStore((s) => s.autoplayEnabled);
-  const hapticsEnabled = useAppStore((s) => s.hapticsEnabled);
-  const cellularPlaybackAllowed = useAppStore((s) => s.cellularPlaybackAllowed);
-  const dataSaverEnabled = useAppStore((s) => s.dataSaverEnabled);
-  const setAutoplayEnabled = useAppStore((s) => s.setAutoplayEnabled);
-  const setHapticsEnabled = useAppStore((s) => s.setHapticsEnabled);
-  const setCellularPlaybackAllowed = useAppStore((s) => s.setCellularPlaybackAllowed);
-  const setDataSaverEnabled = useAppStore((s) => s.setDataSaverEnabled);
-  const { mutate: logout, isPending } = useLogoutMutation();
+  const isPinSet = useAppStore((s) => s.isPinSet);
+  const showToast = useAppStore((s) => s.showToast);
+  const updateModalSlice = useAppStore((s) => s.updateModalSlice);
+  const { mutate: logout } = useLogoutMutation();
 
-  const handleSetLocale = (value: Locale) => {
-    setLocale(value);
-    setI18nLocale(value);
+  const initials = user?.displayName
+    ? user.displayName
+        .split(' ')
+        .map((w) => w[0])
+        .join('')
+        .toUpperCase()
+        .slice(0, 2)
+    : 'U';
+
+  const packageBadge = user?.subscription
+    ? t('profile.package_badge', {
+        package: user.subscription.package,
+        count: user.subscription.channelCount,
+      })
+    : t('profile.package_default');
+
+  const handleLogout = () => {
+    updateModalSlice({
+      currentModal: 'confirmation',
+      modalData: {
+        title: t('profile.logout_confirm_title'),
+        description: t('profile.logout_confirm_message'),
+        button: t('profile.logout'),
+        action: () => logout(),
+        button2: t('common.cancel'),
+        action2: () => {},
+      },
+    });
   };
-
-  const THEME_OPTIONS: { labelKey: string; value: ThemeMode }[] = [
-    { labelKey: 'profile.theme.system', value: 'system' },
-    { labelKey: 'profile.theme.light', value: 'light' },
-    { labelKey: 'profile.theme.dark', value: 'dark' },
-  ];
-
-  const LANGUAGE_OPTIONS: { label: string; value: Locale }[] = [
-    { label: 'Shqip', value: 'sq' },
-    { label: 'English', value: 'en' },
-  ];
 
   return (
     <ScreenLayout>
-      <TabHeader title={t('profile.title')} />
-      <ScrollView
-        contentContainerStyle={styles.scroll}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* User info */}
-        <View style={[styles.section, { backgroundColor: colors.surface }]}>
+      <TabHeader
+        title={t('profile.title')}
+        rightAction={
+          <IconButton
+            onPress={() => router.push('/(app)/settings')}
+            accessibilityLabel={t('profile.settings_row.title')}
+            testID="profile-settings-btn"
+          >
+            <Icon as={SettingsIcon} size={20} color={colors.text} />
+          </IconButton>
+        }
+      />
+
+      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+        {/* Avatar + user info */}
+        <View style={styles.avatarBlock}>
           <View style={[styles.avatar, { backgroundColor: colors.primary }]}>
-            <ReusableText fontSize={FONTSIZE.xl} themeColor="onPrimary">
-              {user?.displayName?.charAt(0)?.toUpperCase() ?? 'U'}
+            <ReusableText fontSize={28} fontWeight="extraBold" themeColor="onPrimary">
+              {initials}
             </ReusableText>
           </View>
-          <ReusableText variant="heading3" themeColor="text" textAlign="center">
+          <ReusableText
+            variant="heading2"
+            themeColor="text"
+            style={styles.displayName}
+            numberOfLines={1}
+          >
             {user?.displayName ?? t('profile.user_default')}
           </ReusableText>
-          <ReusableText fontSize={FONTSIZE.sm} themeColor="textMuted" textAlign="center">
+          <ReusableText
+            fontSize={FONTSIZE.regular}
+            themeColor="textMuted"
+            style={styles.email}
+            numberOfLines={1}
+          >
             {user?.email ?? ''}
           </ReusableText>
-        </View>
-
-        {/* Theme */}
-        <ReusableText fontSize={FONTSIZE.xs} themeColor="textMuted" style={styles.sectionLabel}>
-          {t('profile.theme.label')}
-        </ReusableText>
-        <View style={[styles.section, { backgroundColor: colors.surface }]}>
-          <View style={styles.segmentRow}>
-            {THEME_OPTIONS.map(({ labelKey, value }) => (
-              <TouchableOpacity
-                key={value}
-                style={[
-                  styles.segment,
-                  { backgroundColor: mode === value ? colors.primary : colors.surfaceElevated },
-                ]}
-                onPress={() => setTheme(value)}
-                activeOpacity={0.8}
-                testID={`theme-option-${value}`}
-              >
-                <ReusableText
-                  fontSize={FONTSIZE.sm}
-                  themeColor={mode === value ? 'onPrimary' : 'textMuted'}
-                >
-                  {t(labelKey)}
-                </ReusableText>
-              </TouchableOpacity>
-            ))}
+          <View style={[styles.badge, { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}>
+            <ReusableText fontSize={FONTSIZE.sm} fontWeight="semiBold" themeColor="textMuted">
+              {packageBadge}
+            </ReusableText>
           </View>
         </View>
 
-        {/* Language */}
-        <ReusableText fontSize={FONTSIZE.xs} themeColor="textMuted" style={styles.sectionLabel}>
-          {t('profile.language.label')}
-        </ReusableText>
-        <View style={[styles.section, { backgroundColor: colors.surface }]}>
-          <View style={styles.segmentRow}>
-            {LANGUAGE_OPTIONS.map(({ label, value }) => (
-              <TouchableOpacity
-                key={value}
-                style={[
-                  styles.segment,
-                  { backgroundColor: locale === value ? colors.primary : colors.surfaceElevated },
-                ]}
-                onPress={() => handleSetLocale(value)}
-                activeOpacity={0.8}
-                testID={`lang-option-${value}`}
-              >
-                <ReusableText
-                  fontSize={FONTSIZE.sm}
-                  themeColor={locale === value ? 'onPrimary' : 'textMuted'}
-                >
-                  {label}
-                </ReusableText>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-
-        {/* Playback settings */}
-        <ReusableText fontSize={FONTSIZE.xs} themeColor="textMuted" style={styles.sectionLabel}>
-          {t('profile.playback.label')}
-        </ReusableText>
-        <View style={[styles.section, { backgroundColor: colors.surface }]}>
-          <ToggleRow
-            label={t('profile.playback.autoplay')}
-            value={autoplayEnabled}
-            onToggle={() => setAutoplayEnabled(!autoplayEnabled)}
-            testID="toggle-autoplay"
+        {/* Navigation rows */}
+        <View style={[styles.card, { backgroundColor: colors.surface }]}>
+          <ListRow
+            title={t('profile.account.title')}
+            subtitle={t('profile.account.subtitle')}
+            leading={<Icon as={UserIcon} size={20} color={colors.text} />}
+            onPress={() => showToast(t('profile.account.coming_soon'))}
+            testID="profile-account-row"
           />
-          <ToggleRow
-            label={t('profile.playback.cellular')}
-            value={cellularPlaybackAllowed}
-            onToggle={() => setCellularPlaybackAllowed(!cellularPlaybackAllowed)}
-            testID="toggle-cellular"
+          <ListRow
+            title={t('profile.favorites.title')}
+            subtitle={t('profile.favorites.subtitle')}
+            leading={<Icon as={HeartIcon} size={20} color={colors.text} />}
+            onPress={() => showToast(t('profile.favorites.coming_soon'))}
+            testID="profile-favorites-row"
           />
-          <ToggleRow
-            label={t('profile.playback.data_saver')}
-            value={dataSaverEnabled}
-            onToggle={() => setDataSaverEnabled(!dataSaverEnabled)}
-            testID="toggle-data-saver"
+          <ListRow
+            title={t('profile.parental.title')}
+            subtitle={isPinSet
+              ? t('profile.parental.subtitle_active')
+              : t('profile.parental.subtitle_inactive')}
+            leading={<Icon as={ShieldIcon} size={20} color={colors.text} />}
+            onPress={() => router.push('/(app)/settings')}
+            testID="profile-parental-row"
           />
-        </View>
-
-        {/* App settings */}
-        <ReusableText fontSize={FONTSIZE.xs} themeColor="textMuted" style={styles.sectionLabel}>
-          {t('profile.app_settings.label')}
-        </ReusableText>
-        <View style={[styles.section, { backgroundColor: colors.surface }]}>
-          <ToggleRow
-            label={t('profile.app_settings.haptics')}
-            value={hapticsEnabled}
-            onToggle={() => setHapticsEnabled(!hapticsEnabled)}
-            testID="toggle-haptics"
+          <ListRow
+            title={t('profile.settings_row.title')}
+            subtitle={t('profile.settings_row.subtitle')}
+            leading={<Icon as={SettingsIcon} size={20} color={colors.text} />}
+            onPress={() => router.push('/(app)/settings')}
+            showDivider={false}
+            testID="profile-settings-row"
           />
-          <TouchableOpacity
-            style={[styles.row, { borderBottomColor: 'transparent' }]}
-            onPress={() => setPinModalVisible(true)}
-            activeOpacity={0.8}
-            testID="parental-pin-row"
-          >
-            <ReusableText fontSize={FONTSIZE.regular} themeColor="text">
-              {t('profile.app_settings.parental_pin')}
-            </ReusableText>
-            <ReusableText fontSize={FONTSIZE.sm} themeColor={isPinSet ? 'primary' : 'textMuted'}>
-              {isPinSet ? t('profile.app_settings.pin_active') : t('profile.app_settings.pin_set')}
-            </ReusableText>
-          </TouchableOpacity>
         </View>
 
         {/* Logout */}
-        <TouchableOpacity
-          style={[styles.logoutBtn, { backgroundColor: colors.error }]}
-          onPress={() => logout()}
-          disabled={isPending}
-          activeOpacity={0.8}
-          testID="logout-btn"
-        >
-          <ReusableText fontSize={FONTSIZE.regular} themeColor="onPrimary" textAlign="center">
-            {isPending ? t('profile.logging_out') : t('profile.logout')}
-          </ReusableText>
-        </TouchableOpacity>
+        <View style={[styles.card, styles.cardLast, { backgroundColor: colors.surface }]}>
+          <ListRow
+            title={t('profile.logout')}
+            leading={<Icon as={OutIcon} size={20} color={colors.error} />}
+            titleColor="error"
+            onPress={handleLogout}
+            showDivider={false}
+            testID="profile-logout-row"
+          />
+        </View>
       </ScrollView>
-
-      <ParentalPinModal
-        visible={pinModalVisible}
-        mode="set"
-        onSuccess={() => setPinModalVisible(false)}
-        onDismiss={() => setPinModalVisible(false)}
-      />
     </ScreenLayout>
   );
 };
@@ -241,60 +166,38 @@ const styles = StyleSheet.create({
   scroll: {
     paddingHorizontal: SPACING.space_15,
     paddingBottom: SPACING.space_24,
-    gap: 0,
   },
-  sectionLabel: {
-    marginTop: SPACING.space_24,
-    marginBottom: SPACING.space_10,
-    marginLeft: 4,
-  },
-  section: {
-    borderRadius: BORDERRADIUS.radius_12,
-    overflow: 'hidden',
-    paddingHorizontal: SPACING.space_15,
+  avatarBlock: {
+    alignItems: 'center',
+    paddingTop: SPACING.space_20,
+    paddingBottom: SPACING.space_20,
   },
   avatar: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    justifyContent: 'center',
+    width: 84,
+    height: 84,
+    borderRadius: 42,
     alignItems: 'center',
-    alignSelf: 'center',
-    marginBottom: SPACING.space_10,
-    marginTop: SPACING.space_15,
-  },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: SPACING.space_15,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-  },
-  toggle: {
-    width: 42,
-    height: 24,
-    borderRadius: 12,
     justifyContent: 'center',
   },
-  toggleThumb: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
+  displayName: {
+    marginTop: SPACING.space_16,
   },
-  segmentRow: {
-    flexDirection: 'row',
-    gap: SPACING.space_10,
-    paddingVertical: SPACING.space_12,
+  email: {
+    marginTop: SPACING.space_4,
   },
-  segment: {
-    flex: 1,
-    paddingVertical: SPACING.space_10,
-    borderRadius: BORDERRADIUS.radius_8,
-    alignItems: 'center',
+  badge: {
+    marginTop: SPACING.space_10,
+    borderWidth: 1,
+    borderRadius: BORDERRADIUS.pill,
+    paddingHorizontal: SPACING.space_12,
+    paddingVertical: 5,
   },
-  logoutBtn: {
-    marginTop: SPACING.space_24,
-    borderRadius: BORDERRADIUS.radius_12,
-    paddingVertical: SPACING.space_15,
+  card: {
+    borderRadius: BORDERRADIUS.radius_14,
+    overflow: 'hidden',
+    marginBottom: SPACING.space_12,
+  },
+  cardLast: {
+    marginTop: SPACING.space_4,
   },
 });

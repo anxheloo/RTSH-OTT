@@ -68,7 +68,7 @@ Expo Router file-based. Root `_layout.tsx` uses `Stack.Protected` guards:
 
 Single `useAppStore` composed from slices (see `src/store/`):
 - `UserSlice` — auth state, user, access token (access in store, refresh in keychain)
-- `SettingsSlice` — locale, theme mode, haptics, autoplay, data-saver, T&C timestamp, cellular/background-video flags
+- `SettingsSlice` — locale, theme mode, haptics, autoplay, data-saver, T&C timestamp, cellular/background-video flags, default ABR quality, notifications flag
 - `ThemeSlice` — mode + colors (light/dark objects, swapped on toggle)
 - `ModalSlice` — single active modal (`currentModal` + `modalData`, RTSH/SOLITAR style; apiError, noInternet, notify, confirmation). One modal at a time; `updateModalSlice({ currentModal: null })` to close.
 - `NetworkSlice` — runtime connectivity (`isOnline`, `connectionType`), written by `useNetworkMonitor`; not persisted

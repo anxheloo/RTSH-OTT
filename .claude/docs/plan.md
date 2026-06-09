@@ -9,8 +9,8 @@
 ## Status snapshot — 2026-06-09
 
 - **Done:** Phases 0–13 (tooling → store → API → hooks → UI → players → screens → auth-hardening → i18n), 18.2 (mock server), auth wizard (11.X), review fixes (11.Y "done now"), and **Phase 22.1–22.10** (design tokens/type/logo/icons, 4-tab nav, primitives, auth re-skin, domain types, Home, Guide, Search, Player+EPG+catch-up, sheet+Toast infra).
-- **Active:** **Phase 22** — next is **22.13 Profile + Settings**.
-- **Backlog:** deferred audit/infra items (`5.X.*`, `11.Y.4–11`), Telemetry (14), product features (15.2 geo / 15.4 mosaic-snapshot-refresh / 15.5 PIP), Ads (16), Hardening (17), Handoff (18), Distribution (21), Quality gate (23). Remaining Phase 22 screens: 22.13–22.18.
+- **Active:** **Phase 22** — next is **22.14 Parental + Geo**.
+- **Backlog:** deferred audit/infra items (`5.X.*`, `11.Y.4–11`), Telemetry (14), product features (15.2 geo / 15.4 mosaic-snapshot-refresh / 15.5 PIP), Ads (16), Hardening (17), Handoff (18), Distribution (21), Quality gate (23). Remaining Phase 22 screens: 22.14, 22.15(c–e), 22.16–22.18.
 
 ---
 
@@ -200,12 +200,23 @@
     2. **No live snapshots / periodic refresh.** Tiles use static `thumbnailUrl` (no backend snapshot feed). Same gap as `ChannelCard`. Raise by: a snapshot endpoint + `refetchInterval`.
     3. LIVE badge uses `radius_8` (app-wide badge consistency) vs design's 4px — negligible.
   - **Carry-overs:** density-control decision + live-snapshot refresh ride 15.4 / backend wiring. 2-col → wrapped rows widening ride 22.18.
-- [ ] **22.13** Profile + Settings. Profile (avatar initials, name/email, package badge, list rows → account/favorites/parental/settings/logout). Settings (Luajtja: cellular toggle, default-quality→sheet, parental toggle; Aplikacioni: language, notifications, cast, terms, version). Expand `SettingsSlice` (3.4) with the toggled fields. Folds the deferred `onboard` content (decision: T&C-as-checkbox over gate screens).
+- [x] **22.13** Profile + Settings. Profile restyled to nav-only rows; new Settings route with grouped toggles/sheets; SettingsSlice expanded.
+  - **What:** `profile.tsx` rewritten — centered avatar (initials) + name/email + package badge, then `ListRow`s → account/favorites (coming-soon toast), parental/settings (→ settings), logout (confirmation modal). New `settings.tsx` — "Luajtja" (cellular `Switch`, default-quality row → quality sheet w/ `?target=default`, parental `Switch`) + "Aplikacioni" (language row → `language.tsx` sheet, notifications `Switch`, cast disabled-stub `Switch`, theme row → `theme.tsx` sheet, terms → `WebBrowser` `LINKS.TERMS`, version from `expo-constants`). New sheets `language.tsx`/`theme.tsx` (mirror `quality.tsx` + `SheetOptionRow`); `quality.tsx` gained a `target` param (default vs active player). `SettingsSlice` +`defaultQuality`/`notificationsEnabled` (+setters, persisted in partialize); `ParentalSlice` +`clearPin`. Routes registered in `(app)/_layout` (settings push; language/theme/quality as `getModalScreenOptions` sheets). 12 General icons added (shield/wifi/bell/doc/out/cast/quality/info/user + heart). Full `profile`/`settings` i18n in en+sq (verbatim Albanian, key parity verified).
+  - **Why:** spec-mandated Settings (CLAUDE.md product features) + design screens 9/10; moves all toggles out of the legacy profile into a dedicated screen; light theme (decision 6) needed a home after leaving profile.
+  - **Confidence:** tsc + lint clean, en/sq key parity verified [CERTAIN]; nav graph (profile→settings→sheets, parental set/clear) wired [HIGH]; parental binary-model matches spec/`ParentalSlice` [HIGH]; visual match to mockup [MEDIUM — `expo run:android` on device].
+  - **Trade-offs / known gaps:**
+    1. **`defaultQuality` has no effect yet** — stored + persisted but the player reads `PlayerSlice.videoQuality`, which isn't initialized from it on open. Raise by: seeding `videoQuality = defaultQuality` when a player route mounts (channel/[id] or PlayerSlice init). Ride 15.5 / player polish.
+    2. **Theme row uses `LayersIcon`** (no palette/appearance icon exists). Raise by: adding a dedicated theme icon from the design set; or accept Layers.
+    3. **Cast = disabled stub** (out of scope v1) and **notifications = stored flag, no native wiring** (no push setup). Both intentional; wire when those features land.
+    4. **Parental age-tiers (7/12/16/18) not implemented** — binary PIN gate only; the design's "12+" is cosmetic. Revisit if product wants per-age gating (would expand `ParentalSlice` + 22.14 gate).
+    5. Language/Theme as native sheets (design chev rows didn't specify the sub-UI) — reasonable faithful choice; confirm in 22.17.
+  - **Open questions:** none blocking. (Worker subagent stopped mid-step after profile/slices/icons/i18n; director finished settings.tsx + sheets + route wiring + fixed a profile font-family bug where inline `style.fontWeight` bypassed the Inter face → now uses `ReusableText` weight props.)
+  - **Carry-overs:** `defaultQuality`→player wiring (gap 1); onboard content (parental + cellular intro) is now covered by Settings, so the deferred `onboard` screen needs no separate build.
 - [ ] **22.14** Parental + Geo. Restyle `ParentalPin` to design (lock big-icon, 4-dot PIN, keypad) as a gate before locked-channel play. `geo` full-screen overlay (globe, copy, back-to-home) on streams geo-error / `geo`-flagged channel. Wire into `openChannel` (lock → PIN, geo → overlay) — both spec-mandated (15.2).
 - [~] **22.15** Overlays. **Partially done in 22.10:** (a) native route sheets — `getModalScreenOptions` (`presentation:'formSheet'` + `sheetAllowedDetents:'fitToContents'` + grabber + corner) + `SheetOptionRow` ✅; (b) `Toast` — `ToastSlice` + root `ToastHost` ✅. **Remaining:** (c) `AdOverlay` (creative + REKLAMË + skip countdown; app-open + channel-open slots, frequency-capped) — pairs with Phase 16; (d) SOLITAR in-sheet scaffold (SafeAreaView → keyboard → header → content) for keyboard-bearing sheets; (e) scrim/background-dimming polish. Alerts stay on `ModalSlice`/`ModalWrapper`.
 - [ ] **22.16** i18n sq copy. Lift exact Albanian strings from the mockup into `sq.json` (+ `en.json` parallels) for every screen; replace remaining hardcoded strings. (auth/home/guide/search/player/catchup/datetime sections already added during their builds.)
 - [ ] **22.17** QA + verification pass. `npx expo run:android` (+ iOS), notched safe-area on every screen, walk the mockup `go()` graph (login→ad→home; channel→ad→player; lock→PIN; geo→overlay; day→catch-up; home-toggle→radio), `lint` + `tsc` clean. Promote per-screen [MEDIUM] visual claims to [CERTAIN].
-- [~] **22.18** Tablet / iPad / **TV** large-screen pass (decisions 8 + TV scope). **Deferred until mobile (22.1–22.17) is complete + approved.** Same design, display adjustments only: `useWindowDimensions` breakpoints flip grids (22.7/22.12) 2-col → `flexWrap` rows; revisit gutters/hero/player width. **TV in v1 scope** (end-phase): focus/D-pad nav + 10-foot spacing on top of the large-screen layout (its own sub-pass after tablet). Build mobile first, then widen.
+- [~] **22.18** Tablet / iPad / **TV** large-screen pass (decisions 8 + TV scope). **Deferred until mobile (22.1–22.17) is complete + approved.** Same design, display adjustments only: `useWindowDimensions` breakpoints flip grids (22.7/22.12) 2-col → `flexWrap` rows; revisit gutters/hero/player width. **Mosaic density (4/6/9):** decided 2026-06-09 to keep a flat 2-col scroll on mobile and address density only here for iPad/tablet/TV (larger viewports earn the extra columns). **TV in v1 scope** (end-phase): focus/D-pad nav + 10-foot spacing on top of the large-screen layout (its own sub-pass after tablet). Build mobile first, then widen.
 
 ---
 
@@ -225,8 +236,8 @@
 | 6 | Home (Kreu) | `(app)/(tabs)/index` | DONE | 22.7 |
 | 7 | Guide (Guida) | `(app)/(tabs)/guide` | DONE | 22.8 |
 | 8 | Search (Kërko) | `(app)/(tabs)/search` | DONE | 22.9 |
-| 9 | Profile | `(app)/(tabs)/profile` | RESTYLE | 22.13 |
-| 10 | Settings | `(app)/settings` | NEW | 22.13 |
+| 9 | Profile | `(app)/(tabs)/profile` | DONE | 22.13 |
+| 10 | Settings | `(app)/settings` | DONE | 22.13 |
 | 11 | Player + EPG + catch-up | `(app)/channel/[id]` | DONE | 22.10 |
 | 12 | Radio list | `(app)/radio` | NEW | 22.11 |
 | 13 | Radio player | `(app)/radio/[id]` | RESTYLE | 22.11 |
@@ -260,7 +271,7 @@
 | `cubanner` | `CatchupBanner` | DONE | 22.10 |
 | `prog` | `ProgramRow` | DONE | 22.9/22.10 |
 | `gitem` (now/next) | `GuideRow` | DONE | 22.8 |
-| `list-item`+`tg` | `ListRow` + `Switch` | DONE/22.13 | 22.5 |
+| `list-item`+`tg` | `ListRow` + `Switch` | DONE | 22.5/22.13 |
 | `seg-choice` | `SegmentedChoice` | DONE | 22.5 |
 | `check`/`cbox` | `Checkbox` | DONE | 22.5 |
 | `sheet`/`opt-row` | `(app)` sheet routes + `getModalScreenOptions` + `SheetOptionRow` | DONE | 22.10/22.15 |

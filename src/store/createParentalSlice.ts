@@ -2,6 +2,10 @@
  * ParentalSlice — runtime state for the parental-PIN gate.
  * The PIN hash + salt live ONLY in keychain (never in MMKV or this slice).
  * This slice tracks: whether a PIN is set, failed-attempt count, and lockout timestamp.
+ *
+ * `clearPin` tears down the pin: sets isPinSet false and resets attempts. Callers
+ * (e.g. Settings) must also call `removeFromKeychain(PARENTAL_PIN_KEY)` before this
+ * to wipe the hash from secure storage.
  */
 import { StateCreator } from 'zustand';
 
@@ -14,6 +18,8 @@ export interface ParentalSlice {
   lockedUntil: number | null;
 
   setIsPinSet: (v: boolean) => void;
+  /** Wipes PIN state in the slice (caller must also remove keychain hash). */
+  clearPin: () => void;
   recordFailedAttempt: () => void;
   resetAttempts: () => void;
   isLocked: () => boolean;
@@ -29,6 +35,8 @@ export const createParentalSlice: StateCreator<ParentalSlice, [], [], ParentalSl
   lockedUntil: null,
 
   setIsPinSet: (v) => set({ isPinSet: v }),
+
+  clearPin: () => set({ isPinSet: false, failedAttempts: 0, lockedUntil: null }),
 
   recordFailedAttempt: () =>
     set((s) => {
