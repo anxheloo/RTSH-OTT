@@ -8,6 +8,8 @@ export interface ThemeColors {
   // brand
   primary: string;
   primaryBright: string; // accent/gradient end (design --red-2)
+  primarySoft: string; // translucent brand tint — catch-up banner / red-tinted surfaces
+  primaryBorder: string; // translucent brand border to pair with primarySoft
   onPrimary: string;
   // text
   text: string;
@@ -41,6 +43,8 @@ export const darkTheme: ThemeColors = {
   cardBackground: '#141417',
   primary: '#EB122F',
   primaryBright: '#FF3A52',
+  primarySoft: 'rgba(235,18,47,0.10)',
+  primaryBorder: 'rgba(235,18,47,0.28)',
   onPrimary: '#FFFFFF',
   text: '#FFFFFF',
   textMuted: '#9A9AA2',
@@ -71,6 +75,8 @@ export const lightTheme: ThemeColors = {
   cardBackground: '#FFFFFF',
   primary: '#EB122F',
   primaryBright: '#FF3A52',
+  primarySoft: 'rgba(235,18,47,0.08)',
+  primaryBorder: 'rgba(235,18,47,0.25)',
   onPrimary: '#FFFFFF',
   text: '#0B0B0F',
   textMuted: '#6B7280',

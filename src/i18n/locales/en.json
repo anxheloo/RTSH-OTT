@@ -121,6 +121,11 @@
     "in_days_one": "in {{count}} day",
     "in_days_other": "in {{count}} days"
   },
+  "catchup": {
+    "epg": "EPG",
+    "catchup_for": "Catch-up — {{day}}",
+    "banner": "Catch-up · {{day}} — recorded programmes"
+  },
   "search": {
     "back": "Back",
     "channels": "Channels",

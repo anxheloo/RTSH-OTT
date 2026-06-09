@@ -1,7 +1,9 @@
 /**
- * LivePlayer — HLS live TV player.
- * Wraps VideoPlayer (render-prop) + PlayerControls. Locks to landscape on mount.
- * Passes streamHeaders through for AES-128 key auth attempt.
+ * LivePlayer — HLS live TV player, rendered **inline** (16:9) inside the channel
+ * screen. Wraps VideoPlayer (render-prop) + PlayerControls. Fullscreen +
+ * orientation are owned by the parent screen (controlled via `isFullscreen` /
+ * `onToggleFullscreen`) so the player composes with the day-strip + EPG list
+ * below it. Passes streamHeaders through for AES-128 key auth attempt.
  *
  * TODO(anx 2026-06-02): Validate AES-128 key header forwarding on a real RTSH
  * stream. expo-video VideoSource.headers may not forward to key requests —
@@ -16,7 +18,6 @@ import { BORDERRADIUS } from '@/theme/borders';
 import { Fonts,FONTSIZE } from '@/theme/fonts';
 import { PLAYER_COLORS } from '@/theme/playerColors';
 import { SPACING } from '@/theme/spacing';
-import { useLockOrientationOnMount } from '@/hooks/useOrientation';
 import { FullScreenLoader } from '@/components/Layout';
 
 import PlayerControls from './PlayerControls';
@@ -31,6 +32,11 @@ export type LivePlayerProps = {
   currentProgramTitle?: string;
   currentProgramEnd?: Date;
   onClose?: () => void;
+  /** Controlled fullscreen state (orientation owned by the parent screen). */
+  isFullscreen?: boolean;
+  onToggleFullscreen?: () => void;
+  /** Opens the player options sheet (22.10 sub-step 3). */
+  onOpenOptions?: () => void;
   style?: StyleProp<ViewStyle>;
 };
 
@@ -40,13 +46,13 @@ const LivePlayer: React.FC<LivePlayerProps> = ({
   channelName,
   currentProgramTitle,
   onClose,
+  isFullscreen = false,
+  onToggleFullscreen,
+  onOpenOptions,
   style,
 }) => {
   const [hasError, setHasError] = useState(false);
   const [retryKey, setRetryKey] = useState(0);
-  const [isFullscreen, setIsFullscreen] = useState(false);
-
-  useLockOrientationOnMount();
 
   const handleStatusChange = (s: VideoStatus) => {
     if (s === 'error') setHasError(true);
@@ -60,7 +66,7 @@ const LivePlayer: React.FC<LivePlayerProps> = ({
 
   return (
     <View style={[styles.container, style]} testID="live-player-container">
-      <StatusBar hidden />
+      <StatusBar hidden={isFullscreen} />
 
       <VideoPlayer
         key={retryKey}
@@ -97,9 +103,10 @@ const LivePlayer: React.FC<LivePlayerProps> = ({
                 isLive
                 currentTime={currentTime}
                 duration={duration}
-                onToggleFullscreen={() => setIsFullscreen((f) => !f)}
+                onToggleFullscreen={onToggleFullscreen}
                 isFullscreen={isFullscreen}
                 onClose={onClose}
+                onOpenOptions={onOpenOptions}
                 channelName={channelName}
                 programTitle={currentProgramTitle}
               />

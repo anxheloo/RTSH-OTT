@@ -121,6 +121,11 @@
     "in_days_one": "Pas {{count}} dite",
     "in_days_other": "Pas {{count}} ditësh"
   },
+  "catchup": {
+    "epg": "EPG",
+    "catchup_for": "Catch-up — {{day}}",
+    "banner": "Catch-up · {{day}} — programe të regjistruara"
+  },
   "search": {
     "back": "Kthehu",
     "channels": "Kanale",
