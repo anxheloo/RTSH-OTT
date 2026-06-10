@@ -1,6 +1,7 @@
 import axios from 'axios';
 
 import type { User } from '@/types';
+import { authResponseSchema } from '@/types';
 import { ENV } from '@/config/env';
 import type { AuthStep, Gender } from '@/features/auth/schemas';
 
@@ -30,13 +31,16 @@ const refreshClient = axios.create({
 });
 
 export async function login(payload: LoginPayload): Promise<AuthResponse> {
-  const { data } = await apiClient.post<AuthResponse>(AUTH_ROUTES.LOGIN, payload);
-  return data;
+  const { data } = await apiClient.post(AUTH_ROUTES.LOGIN, payload);
+  // Validate before the caller persists the refresh token / logs in (5.X.2).
+  return authResponseSchema.parse(data) as AuthResponse;
 }
 
 export async function refresh(refreshToken: string): Promise<AuthResponse> {
-  const { data } = await refreshClient.post<AuthResponse>(AUTH_ROUTES.REFRESH, { refreshToken });
-  return data;
+  const { data } = await refreshClient.post(AUTH_ROUTES.REFRESH, { refreshToken });
+  // A malformed refresh response throws here → treated as a transient failure
+  // by `refreshAccessToken` (no keychain wipe), so the session survives.
+  return authResponseSchema.parse(data) as AuthResponse;
 }
 
 export async function logout(): Promise<void> {

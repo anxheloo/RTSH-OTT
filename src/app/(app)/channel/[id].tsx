@@ -19,6 +19,7 @@ import { useAppStore } from '@/store/useAppStore';
 import { useChannelQuery, useChannelStreamQuery, useEpgQuery } from '@/api/queries';
 import { useCellularGate } from '@/hooks/useCellularGate';
 import { useDateTime } from '@/hooks/useDateTime';
+import { useLiveParentalGuard } from '@/hooks/useLiveParentalGuard';
 import { CatchupBanner, DayStrip } from '@/components/catchup';
 import { ProgramRow } from '@/components/epg';
 import type { ProgramRowState } from '@/components/epg/ProgramRow';
@@ -28,7 +29,7 @@ import { CenteredMessage, FullScreenLoader, ScreenLayout, TabHeader } from '@/co
 import LivePlayer from '@/components/Media/LivePlayer';
 import { ParentalPinModal } from '@/components/ParentalPin';
 import type { CatchupDay, EpgItem } from '@/types/domain';
-import { ChevronLeftIcon, GlobeIcon } from '@/assets/icons';
+import { ChevronLeftIcon, GlobeIcon, LockIcon } from '@/assets/icons';
 
 const CATCHUP_DAYS_BACK = 7;
 
@@ -60,6 +61,17 @@ const ChannelScreen: React.FC = () => {
   // trigger is the streams/CDN geo error (451 / GEO_BLOCKED) — see plan 15.2.
   const geoBlocked = !!channel?.geoBlocked;
   const needsPin = !!channel?.isAdult && !pinUnlocked;
+
+  // Live program-level re-check (22.14c). Only for *clean* channels — an
+  // adult-flagged channel is already covered by the channel-level gate above,
+  // so we disable the live guard there to avoid double-prompting.
+  const live = useLiveParentalGuard(channelId, {
+    enabled: !channel?.isAdult && !geoBlocked,
+  });
+  const blockPlayer = needsPin || live.isBlocked;
+  // Blocked mid-watch and the user dismissed the prompt → keep the player
+  // blocked but offer a way back in (not a dead end).
+  const liveBlockedDismissed = live.isBlocked && !live.showPrompt;
 
   // Day strip — oldest → today (today rightmost). Built at local noon so the
   // localized weekday/date never slips across the day boundary by timezone.
@@ -144,9 +156,22 @@ const ChannelScreen: React.FC = () => {
     return <FullScreenLoader />;
   }
 
-  // Block playback until the PIN is verified (no audio/video leak behind the gate).
-  const player = needsPin ? (
-    <View style={styles.video} />
+  // Block playback while gated (channel-level adult, or a live adult programme).
+  // The player is unmounted — never just hidden — so no audio/video leaks behind
+  // the gate. When the live prompt was dismissed, show a re-unlock affordance.
+  const player = blockPlayer ? (
+    liveBlockedDismissed ? (
+      <CenteredMessage
+        icon={<Icon as={LockIcon} size={34} color={colors.textMuted} />}
+        title={t('parental.title')}
+        body={t('parental.live_blocked')}
+        actionLabel={t('parental.unlock')}
+        onAction={live.requestUnlock}
+        testID="live-parental-blocked"
+      />
+    ) : (
+      <View style={styles.blocked} />
+    )
   ) : (
     <LivePlayer
       channelId={channelId}
@@ -202,10 +227,10 @@ const ChannelScreen: React.FC = () => {
       </ScrollView>
 
       <ParentalPinModal
-        visible={needsPin}
+        visible={needsPin || live.showPrompt}
         mode="verify"
-        onSuccess={() => setPinUnlocked(true)}
-        onDismiss={() => router.back()}
+        onSuccess={needsPin ? () => setPinUnlocked(true) : live.onVerified}
+        onDismiss={needsPin ? () => router.back() : live.onDismiss}
       />
     </ScreenLayout>
   );
@@ -222,6 +247,9 @@ const styles = StyleSheet.create({
     width: '100%',
     aspectRatio: 16 / 9,
     backgroundColor: PLAYER_COLORS.surface,
+  },
+  blocked: {
+    flex: 1,
   },
   scroll: {
     paddingBottom: SPACING.space_24,

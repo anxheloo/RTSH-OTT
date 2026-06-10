@@ -8,6 +8,7 @@ import { StyleSheet, View } from 'react-native';
 import { Stack } from 'expo-router';
 
 import RadioMiniPlayer from '@/components/Layout/RadioMiniPlayer';
+import LaunchAdHost from '@/components/Media/LaunchAdHost';
 import RadioAudioHost from '@/components/Media/RadioAudioHost';
 import { getModalScreenOptions } from '@/utils/navigation';
 
@@ -39,6 +40,7 @@ const AppLayout: React.FC = () => {
       </Stack>
       <RadioAudioHost />
       <RadioMiniPlayer />
+      <LaunchAdHost />
     </View>
   );
 };

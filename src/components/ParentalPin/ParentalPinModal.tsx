@@ -17,6 +17,7 @@ import { BORDERRADIUS } from '@/theme/borders';
 import { FONTSIZE } from '@/theme/fonts';
 import { SPACING } from '@/theme/spacing';
 import { useAppStore } from '@/store/useAppStore';
+import { setParentalPin, verifyParentalPin } from '@/api/services/users';
 import { Icon, IconButton } from '@/components/Icons';
 import ReusableText from '@/components/Inputs/ReusableText';
 import { hashPin, verifyPin } from '@/utils/crypto';
@@ -49,14 +50,7 @@ const ParentalPinModal: React.FC<ParentalPinModalProps> = ({
   const [confirmPin, setConfirmPin] = useState<string | null>(null);
   const [error, setError] = useState('');
 
-  const handleVerify = async (pin: string) => {
-    const stored = await getFromKeychain(PARENTAL_PIN_KEY);
-    if (!stored) {
-      setError(t('parental.not_found'));
-      return;
-    }
-    const { hash, salt } = JSON.parse(stored) as { hash: string; salt: string };
-    const ok = await verifyPin(pin, hash, salt);
+  const settleVerify = (ok: boolean) => {
     if (ok) {
       resetAttempts();
       setIsWrong(false);
@@ -65,6 +59,31 @@ const ParentalPinModal: React.FC<ParentalPinModalProps> = ({
       setIsWrong(true);
       recordFailedAttempt();
       setTimeout(() => setIsWrong(false), 600);
+    }
+  };
+
+  /** Cache the verified PIN locally (keychain) for offline + fast live re-checks. */
+  const cachePinLocally = async (pin: string) => {
+    const { hash, salt } = await hashPin(pin);
+    await storeOnKeychain(PARENTAL_PIN_KEY, JSON.stringify({ hash, salt }));
+  };
+
+  const handleVerify = async (pin: string) => {
+    // Fast/offline path: a local keychain cache exists on devices that have
+    // verified at least once.
+    const stored = await getFromKeychain(PARENTAL_PIN_KEY);
+    if (stored) {
+      const { hash, salt } = JSON.parse(stored) as { hash: string; salt: string };
+      settleVerify(await verifyPin(pin, hash, salt));
+      return;
+    }
+    // Fresh device (no cache): the backend is authoritative; cache on success.
+    try {
+      const valid = await verifyParentalPin(pin);
+      if (valid) await cachePinLocally(pin);
+      settleVerify(valid);
+    } catch {
+      setError(t('parental.error'));
     }
   };
 
@@ -81,12 +100,18 @@ const ParentalPinModal: React.FC<ParentalPinModalProps> = ({
       setTimeout(() => setIsWrong(false), 600);
       return;
     }
-    const { hash, salt } = await hashPin(pin);
-    await storeOnKeychain(PARENTAL_PIN_KEY, JSON.stringify({ hash, salt }));
-    setIsPinSet(true);
-    setConfirmPin(null);
-    setError('');
-    onSuccess();
+    try {
+      // Backend is the source of truth (per-account); keychain mirrors it locally.
+      await setParentalPin(pin);
+      await cachePinLocally(pin);
+      setIsPinSet(true);
+      setConfirmPin(null);
+      setError('');
+      onSuccess();
+    } catch {
+      setConfirmPin(null);
+      setError(t('parental.error'));
+    }
   };
 
   const subtitle =

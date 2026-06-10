@@ -24,6 +24,10 @@ export const AUTH_ROUTES = {
 export const USERS_ROUTES = {
   ME: '/users/me',
   UPDATE_PROFILE: '/users/me',
+  /** Per-account parental PIN — set (POST) / clear (DELETE). */
+  PARENTAL_PIN: '/users/parental-pin',
+  /** Verify an entered PIN against the backend (POST). */
+  PARENTAL_PIN_VERIFY: '/users/parental-pin/verify',
 } as const;
 
 export const CHANNELS_ROUTES = {
@@ -61,4 +65,9 @@ export const STREAMS_ROUTES = {
 
 export const CONFIG_ROUTES = {
   APP_CONFIG: '/config',
+} as const;
+
+export const ADS_ROUTES = {
+  /** Ad creative for a slot (`launch` | `channelSwitch` | `scheduled`). */
+  MANIFEST: (slot: string) => `/ads/${slot}`,
 } as const;

@@ -29,13 +29,22 @@ apiClient.interceptors.request.use((config) => {
 
 let inflightRefresh: Promise<string | null> | null = null;
 
+/**
+ * Auth-endpoint 401s are credential errors, not stale-token signals, so they
+ * must NOT trigger a refresh: a wrong-password `/auth/login` should reject
+ * straight to the caller, and a logged-in step-up re-auth must never let a
+ * bad password wipe the active session. `/users/*` etc. stay refreshable.
+ * (`/auth/refresh` already bypasses this interceptor via `refreshClient`.)
+ */
+const isAuthRoute = (url?: string): boolean => !!url && url.startsWith('/auth/');
+
 apiClient.interceptors.response.use(
   (response) => response,
   async (error: AxiosError) => {
     const original = error.config as RetriableRequest | undefined;
     const status = error.response?.status;
 
-    if (status !== 401 || !original || original._retry || !refreshTokens) {
+    if (status !== 401 || !original || original._retry || !refreshTokens || isAuthRoute(original.url)) {
       return Promise.reject(error);
     }
 

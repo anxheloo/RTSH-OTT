@@ -7,7 +7,7 @@ export const mockAppConfig = {
   tcUrl: 'https://www.rtsh.al/termat',
   privacyUrl: 'https://www.rtsh.al/privatesia',
   ads: {
-    launchEnabled: false,
+    launchEnabled: true,
     channelSwitchEnabled: false,
     channelSwitchFrequency: 3,
     scheduledEnabled: false,

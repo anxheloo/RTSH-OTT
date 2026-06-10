@@ -22,15 +22,17 @@ This file complements (does not duplicate) CLAUDE.md. CLAUDE.md describes *what 
 - **Bare axios for refresh.** The interceptor blindly retries 401s through `inflightRefresh`. If the refresh call *itself* returns 401, awaiting `inflightRefresh` would deadlock the function on itself. Bare instance side-steps the trap entirely.
 - **Narrow logout trigger.** Original code wiped the keychain on every error — a subway commute could log a user out. Now only confirmed auth failures (401/403) clear the token.
 - **Access token in memory, refresh token in keychain.** Standard mobile pattern. Access token is short-lived and ephemeral; refresh token justifies hardware-backed storage.
+- **Why two tokens at all, when the user never logs out?** (Decided 2026-06-10.) Session length is set by the *refresh* token's lifetime (~30–60 d), not by having two tokens — a single token could live as long. The split buys two things that a long session makes *more* valuable, not less: **(1) blast radius** — the access token rides every API + stream request, so it's the one most likely to leak (logs, Sentry, a proxy, a CDN edge); keeping it short-lived (~15–30 min) makes a leaked copy near-worthless, whereas a single long-lived token on every wire stays valid for weeks if leaked once. **(2) revocation** — a stateless access JWT is validated by signature alone (no DB hit) but cannot be un-issued; you revoke the *refresh* token (opaque, server-side, rotating on use) to kill a session on logout-all / password-change / fraud, and the session dies at the next access expiry. A single token forces a choice between statelessness and revocability. The refresh rotates on every use (`authRefresh.ts`), so a replayed old token signals theft. Net: dual = stateless fast-path (access) + revocable cold-path (refresh). We'd only collapse to one token if the backend insisted on stateful DB-checked sessions anyway — and the backend is ours to define, so we keep dual.
+- **Zod at the auth boundary (22.14d).** `login` / `refresh` / `getMe` / `updateProfile` / register-completion parse their response through `authResponseSchema` / `userSchema` (`types/domain.ts`) before any token reaches the keychain or the store. A malformed payload (missing token, wrong envelope) is rejected at the edge instead of silently persisting `undefined`. The users endpoints return `{ user }` while the auth endpoints return the bare shape — the services unwrap accordingly (a prior `getMe` envelope bug had broken the manual-wipe recovery path).
 
 ### Known gaps (tracked in plan.md)
 
 - **One wasted 401 round-trip per cold boot.** Between `useCheckToken` resolving and the background refresh completing, the store has `isAuthenticated: true` but `token: null`. First real query hits 401, interceptor refreshes-and-retries. Acceptable trade for instant splash. Tracked: **5.X.5**.
-- **MMKV plaintext.** Persisted `user` blob is unencrypted on disk. Tracked: **5.X.10**.
+- **MMKV plaintext — accepted risk (5.X.10, decided 2026-06-10).** Not encrypting: real secrets are keychain/memory-only; the blob is low-sensitivity PII. See Persistence boundaries → Known gaps for the full rationale + invariant.
 - **iOS keychain accessibility = `WHEN_UNLOCKED`.** Background radio playback can't read the refresh token while device is locked. Tracked: **5.X.11**.
-- **No Zod validation at API boundary.** A backend `AuthResponse` shape change silently stores `undefined` as the access token. Tracked: **5.X.2**.
+- ~~**No Zod validation at API boundary.**~~ **Resolved for auth in 22.14d** (`authResponseSchema`/`userSchema`). Remaining for the other domain services + envelope unification. Tracked: **5.X.2 / 11.Y.5**.
 - **No domain-distinguishable errors in `useCheckToken`.** Returns `{ authenticated }` only — UI can't differentiate "no session" from "network failure" for smart retry UI. Tracked: **5.X.5**.
-- **Parental PIN feature entirely absent** from the store + keychain. Spec-mandated v1. Tracked: **5.X.15**.
+- ~~**Parental PIN feature entirely absent.**~~ **Built (22.14 / 22.14b):** per-account, backend source-of-truth + keychain cache. See the **Parental control** section below.
 
 ---
 
@@ -120,15 +122,15 @@ This file complements (does not duplicate) CLAUDE.md. CLAUDE.md describes *what 
 | Data | Storage | Why |
 |---|---|---|
 | Refresh token, parental PIN hash | Keychain (`expo-secure-store`) | Hardware-backed, never in JS heap |
-| User profile (`user`), settings, theme mode, T&C timestamp | MMKV (Zustand persist, **plaintext today**) | Fast sync read; persistence survives reinstalls per-platform behavior |
+| User profile (`user`), settings, theme mode, T&C timestamp | MMKV (Zustand persist, **plaintext by design** — see decision below) | Fast sync read; persistence survives reinstalls per-platform behavior |
 | Access token | In-memory only (Zustand) | Short-lived; survives only this app session |
 | Server data (channels, EPG, catch-up) | TanStack Query cache | Coming with `queries/` layer |
 | Resume positions per program | MMKV (separate key) | Frequent writes, no sync needed |
 
 ### Known gaps
 
-- **MMKV plaintext** — tracked: **5.X.10**.
-- **`user` blob unbounded** — whitelist fields once API contract is firm. Tracked: **5.X.17**.
+- **MMKV plaintext — accepted risk, won't encrypt (decided 2026-06-10, 5.X.10).** All real secrets are keychain-only (refresh token, parental PIN verifier) or memory-only (access token); the MMKV blob holds only low-sensitivity PII (email / displayName / subscription tier) + boolean settings, and the OS sandbox blocks other apps from reading it. Encryption would only defend a physical-device-compromise + file-extraction scenario, leaking non-credential data — not worth the async-boot refactor. **Invariant:** never persist a real secret into this plaintext blob (keep tokens/PIN in keychain). The lightweight guard is the `user` field-whitelist (5.X.17), not encryption.
+- **`user` blob unbounded** — whitelist persisted fields (`{ id, email, displayName, … }`) once the API contract is firm, so a future sensitive `User` field can't silently land in plaintext. Tracked: **5.X.17** (this is the chosen mitigation in place of encryption).
 - `clearAppStorage(keys)` now takes explicit keys to avoid nuking unrelated MMKV caches on logout — done in 5.5a.
 
 ---
@@ -155,7 +157,33 @@ This file complements (does not duplicate) CLAUDE.md. CLAUDE.md describes *what 
 
 ---
 
+## Parental control (content gate)
+
+### How it works today (post 22.14 / 22.14b / 22.14d)
+
+- **Per-account, backend is the source of truth.** The PIN belongs to the account, not the device, so the same login on a second device is already gated. `setParentalPin` → `POST /users/parental-pin`; `clearParentalPin` → `DELETE`. The backend stores it under a slow KDF + per-user salt and owns server-side attempt lockout. The raw 4-digit PIN travels only over TLS — correct for a low-entropy secret (10⁴), since shipping a fast hash to new devices would be trivially crackable.
+- **Keychain is a local cache, never MMKV.** After the first successful verify on a device, the PIN verifier (`SHA-256 + salt`, `hashPin`) is cached in keychain (`PARENTAL_PIN_KEY`) so the frequent live re-checks (22.14c) and offline gating don't round-trip. The PIN value is **never** put in the MMKV `user` blob (plaintext on disk).
+- **Verify is local-first.** `ParentalPinModal` checks the keychain cache first; only a *fresh* device with no cache hits the backend verify once, then caches. The store (`ParentalSlice`) holds only `isPinSet` + failed-attempt/lockout UX state (5-try client lockout layered on the authoritative server one).
+- **`isPinSet` hydration.** The backend returns `parentalPinSet: boolean` on the auth/`getMe` payload; `login()` seeds `ParentalSlice.isPinSet` from it, and `isPinSet` is itself persisted — so the gate is known before any network on a warm boot, and accurate on a fresh device.
+- **Disabling requires the PIN (22.14d).** Turning the gate off in Settings launches `ParentalPinModal mode="verify"`; only a correct PIN runs `clearParentalPin()` + keychain wipe + `clearPin()`. Otherwise a child could bypass the control by flipping the switch. Turning it on uses `mode="set"` (enter + confirm).
+- **Live program-level re-check (22.14c).** A clean live channel can roll into an 18+ programme mid-watch, so `useLiveParentalGuard(channelId)` watches today's EPG and re-gates on the transition. It derives the airing adult programme from a `nowTs` timestamp held in state (render stays pure), arms a single `setTimeout` to the next programme edge that chains boundary→boundary, and re-evaluates on app-foreground (RN timers throttle while backgrounded). On entry to an `isAdult` programme the player unmounts (no A/V leak) and the verify modal shows; cancel stays blocked with a re-unlock affordance; resolution is once-per-`programId`. Verification is local against the keychain cache (no network per boundary). The guard is disabled for already-adult channels (the channel-level gate covers those). VOD/catch-up keeps a single open-time check.
+
+### Why these choices
+
+- **Backend-authoritative, not local-only.** The user requirement is cross-device: a PIN set on a phone must already gate the tablet. Local-only keychain can't sync, so the backend owns the truth and the keychain is a performance/offline cache on top.
+- **Content-level, not app-entry.** The PIN gates adult-flagged content (channel/program `isAdult`), not app launch — the `(auth)`/`(app)` guard is separate and keys on `isAuthenticated` only. A FaceID/PIN app-lock is a deliberately deferred, separate gate.
+
+### Known gaps
+
+- **Geo trigger is the `geoBlocked` flag**, not the live CDN `451` — tracked **15.2 / 11.X.9**.
+- **Catch-up/VOD program-level gate** — `program/[id]` gates at channel level (22.14) but not yet on a recorded programme's own `isAdult`. Live is covered (22.14c); a single open-time check for VOD is a small follow-up.
+- **Backend KDF + lockout policy** are backend-owned; the client only needs the typed verify result + `parentalPinSet`. Reconcile endpoint shapes at **11.X.9**.
+
+---
+
 ## Update log
 
 - **2026-06-01** — Initial doc. Captures state after Phase 5.5a audit fixes + Phase 5.8 `useBootstrap` (offline-first boot).
 - **2026-06-09** — Added **Radio audio** section: store-driven `RadioAudioHost` above the router (22.11) — playback now survives navigation; routes/mini-player only mutate `PlayerSlice`.
+- **2026-06-10** — Auth-flow review (22.14d): documented the **dual-token rationale** (why access+refresh even with always-on sessions), added **Zod at the auth boundary** + the `getMe` envelope fix, and added the **Parental control** section. Refreshed the stale "PIN absent" / "no Zod" gaps. **Decided 5.X.10: MMKV encryption is an accepted risk (won't encrypt)** — secrets are keychain/memory-only; field-whitelist (5.X.17) is the chosen lightweight guard.
+- **2026-06-10** — Parental **live re-check (22.14c)**: added `useLiveParentalGuard` (boundary-timer + foreground re-eval) to the Parental control section; live programme transitions now re-gate. Closed the "live re-check" gap; added a VOD-program-gate follow-up note.

@@ -280,11 +280,19 @@
     "confirm": "Konfirmo PIN-in",
     "not_found": "PIN nuk u gjet. Vendos PIN-in nga cilësimet.",
     "mismatch": "PIN-et nuk përputhen. Provo sërish.",
-    "locked": "Shumë përpjekje. Provo pas {{seconds}}s."
+    "locked": "Shumë përpjekje. Provo pas {{seconds}}s.",
+    "error": "Diçka shkoi keq. Provoni sërish.",
+    "live_blocked": "Ky program është i kufizuar (18+). Vendos PIN-in për të vazhduar.",
+    "unlock": "Vendos PIN-in"
   },
   "geo": {
     "title": "Jo i disponueshëm në rajonin tuaj",
     "body": "Ky shërbim nuk është i disponueshëm në rajonin tuaj për arsye të të drejtave të transmetimit.",
     "back_home": "Kthehu te kreu"
+  },
+  "ads": {
+    "label": "REKLAMË",
+    "skip": "Kalo reklamën",
+    "skip_in": "Kalo pas {{seconds}}s"
   }
 }

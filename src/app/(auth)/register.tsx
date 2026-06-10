@@ -30,6 +30,8 @@ import {
   RegisterForm,
   StepHeader,
 } from '@/components/auth';
+import type { User } from '@/types';
+import { authResponseSchema } from '@/types';
 import { REFRESH_TOKEN_KEY } from '@/config/auth';
 import { authErrorMessage } from '@/features/auth/errors';
 import type { RegisterFormData } from '@/features/auth/schemas';
@@ -48,9 +50,22 @@ const RegisterScreen: React.FC = () => {
   /** Move forward from a step response (or finalize + log in when it completes). */
   const advance = async (res: AuthStepResponse) => {
     if (res.user && res.accessToken && res.refreshToken) {
-      await storeOnKeychain(REFRESH_TOKEN_KEY, res.refreshToken);
+      // Validate the completion payload before any token touches the keychain (5.X.2).
+      const parsed = authResponseSchema.safeParse({
+        user: res.user,
+        accessToken: res.accessToken,
+        refreshToken: res.refreshToken,
+      });
+      if (!parsed.success) {
+        useAppStore.getState().updateModalSlice({
+          currentModal: 'apiError',
+          modalData: { description: t('errors.api_default') },
+        });
+        return;
+      }
+      await storeOnKeychain(REFRESH_TOKEN_KEY, parsed.data.refreshToken);
       useAppStore.getState().acceptTC(); // the form's accept-terms checkbox is the acceptance
-      useAppStore.getState().login(res.user, res.accessToken);
+      useAppStore.getState().login(parsed.data.user as User, parsed.data.accessToken);
       return;
     }
     if (res.email) setEmail(res.email);

@@ -83,7 +83,7 @@ Persist via MMKV (`zustandStorage`). `partialize` controls what persists. `onReh
 
 | Data | Where |
 |------|-------|
-| Refresh token, parental PIN hash | Keychain (`expo-secure-store`) |
+| Refresh token; parental PIN **verifier cache** | Keychain (`expo-secure-store`). PIN source of truth = **backend** (per-account); keychain mirrors a `SHA-256+salt` verifier for offline/fast local verify |
 | User, settings, theme, favorites, reminders | MMKV (Zustand persist) |
 | Server data (channels, EPG, catch-up, programs) | TanStack Query cache (selective MMKV persist for slow-changing) |
 | Resume positions (per-program) | MMKV (separate key) |
@@ -166,9 +166,9 @@ Beyond the architecture scaffold, these features are spec-mandated for v1 — do
 - **Cellular-data gate** — confirmation modal before playback over cellular when `settings.cellularPlaybackAllowed === false`.
 - **Mosaic view** — grid of 4/6/9 channel thumbnails (live snapshots) refreshing periodically. Tap to switch channel.
 - **PIP + iOS background video** — `expo-video` config plugin toggled by `settings.backgroundVideoAllowed`. Auto-PIP on background per user setting.
-- **Ads** — three slots: launch, channel-switch (frequency-capped), time-scheduled (from `/config`). Single `AdOverlay` component using a second `expo-video` instance.
+- **Ads** — three slots: launch, channel-switch (frequency-capped), time-scheduled (from `/config`). Single `AdOverlay` component (`components/Media/AdOverlay.tsx`, design `adpop`). **v1 creatives are static** (image / brand surface + copy + CTA + skip countdown); a second `expo-video` instance for video ads is a later capability. Component built in 22.15; slot orchestration is Phase 16.
 - **Quality picker** — manual ABR selection in player settings menu.
-- **Parental control** — 4-digit PIN, hashed (SHA-256 + salt) in keychain. Gates content flagged adult by EPG metadata.
+- **Parental control** — 4-digit PIN, **per-account, backend source of truth** (KDF + salt + server lockout); keychain holds a `SHA-256+salt` verifier cache for offline/fast local verify. Gates adult-flagged content (channel/program `isAdult`); **disabling the gate requires entering the PIN**. Rationale + flow: `rules/ARCHITECTURE.md → Parental control`.
 - **Background audio for radio** — `expo-audio` lock-screen controls + Android foreground service.
 
 ## Out of scope for v1

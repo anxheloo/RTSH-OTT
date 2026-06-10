@@ -17,6 +17,7 @@ import { BORDERRADIUS } from '@/theme/borders';
 import { FONTSIZE } from '@/theme/fonts';
 import { SPACING } from '@/theme/spacing';
 import { useAppStore } from '@/store/useAppStore';
+import { clearParentalPin } from '@/api/services/users';
 import { Icon, IconButton } from '@/components/Icons';
 import { Switch } from '@/components/Inputs';
 import ReusableText from '@/components/Inputs/ReusableText';
@@ -52,34 +53,29 @@ const SettingsScreen: React.FC = () => {
   const mode = useAppStore((s) => s.mode);
   const isPinSet = useAppStore((s) => s.isPinSet);
   const clearPin = useAppStore((s) => s.clearPin);
-  const updateModalSlice = useAppStore((s) => s.updateModalSlice);
 
-  const [pinModalVisible, setPinModalVisible] = useState(false);
+  // null = closed · 'set' = create a PIN · 'verify' = confirm PIN before disabling.
+  const [pinMode, setPinMode] = useState<'set' | 'verify' | null>(null);
 
   const qualityLabel =
     defaultQuality === 'auto'
       ? t('settings.quality.subtitle_auto')
       : (QUALITY_OPTIONS.find((q) => q.id === defaultQuality)?.label ?? defaultQuality);
 
-  const handleParentalToggle = (next: boolean) => {
-    if (next) {
-      setPinModalVisible(true);
-      return;
+  // Turning the gate ON → set a PIN. Turning it OFF → require the PIN first, so a
+  // child can't simply flip the switch to bypass the control.
+  const handleParentalToggle = (next: boolean) => setPinMode(next ? 'set' : 'verify');
+
+  const handlePinSuccess = async () => {
+    if (pinMode === 'verify') {
+      // PIN confirmed → tear down. Backend is source of truth; also drop the
+      // local keychain cache so the gate can't be re-verified offline.
+      await clearParentalPin();
+      await removeFromKeychain(PARENTAL_PIN_KEY);
+      clearPin();
     }
-    updateModalSlice({
-      currentModal: 'confirmation',
-      modalData: {
-        title: t('settings.parental.disable_title'),
-        description: t('settings.parental.disable_message'),
-        button: t('common.ok'),
-        action: async () => {
-          await removeFromKeychain(PARENTAL_PIN_KEY);
-          clearPin();
-        },
-        button2: t('common.cancel'),
-        action2: () => {},
-      },
-    });
+    // 'set' marks isPinSet inside the modal itself; nothing more to do here.
+    setPinMode(null);
   };
 
   const version = Constants.expoConfig?.version ?? '';
@@ -208,10 +204,10 @@ const SettingsScreen: React.FC = () => {
       </ScrollView>
 
       <ParentalPinModal
-        visible={pinModalVisible}
-        mode="set"
-        onSuccess={() => setPinModalVisible(false)}
-        onDismiss={() => setPinModalVisible(false)}
+        visible={pinMode !== null}
+        mode={pinMode ?? 'set'}
+        onSuccess={handlePinSuccess}
+        onDismiss={() => setPinMode(null)}
       />
     </ScreenLayout>
   );

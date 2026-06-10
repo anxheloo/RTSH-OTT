@@ -16,3 +16,6 @@ export { useRadioStationsQuery } from './useRadioStationsQuery';
 
 // Streams
 export { useCatchupStreamQuery, useChannelStreamQuery, useRadioStreamQuery } from './useStreamQueries';
+
+// Ads
+export { useAdQuery } from './useAdQuery';

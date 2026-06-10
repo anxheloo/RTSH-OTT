@@ -47,6 +47,40 @@ function generateDayEpg(channelId: string, channelName: string, dateStr: string)
   return items;
 }
 
+/** Local `YYYY-MM-DD` (matches the channel screen + live-guard date keys). */
+function localTodayKey(): string {
+  const d = new Date();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${d.getFullYear()}-${m}-${day}`;
+}
+
+/**
+ * A short 18+ programme starting ~2 min from now on RTSH 1 (clean channel), so
+ * the live parental re-check (22.14c) is demonstrable on cue — open RTSH 1 and
+ * the gate fires when this programme starts — without waiting for the fixed
+ * afternoon adult slot. Scoped to one channel (see `getMockEpg`) so it never
+ * surprises other channels; today only. Plausible title (reads as real EPG).
+ */
+const LIVE_RECHECK_CHANNEL = 'ch1';
+
+function lateNightAdultProgram(channelId: string, channelName: string) {
+  const start = new Date(Date.now() + 2 * 60_000);
+  const end = new Date(start.getTime() + 30 * 60_000);
+  return {
+    id: `epg-${channelId}-late18`,
+    channelId,
+    channelName,
+    title: 'Kinema e Natës (18+)',
+    description: 'Film me përmbajtje për të rritur — kërkohet kodi prindëror.',
+    startTime: start.toISOString(),
+    endTime: end.toISOString(),
+    isAdult: true,
+    isLive: false,
+    thumbnail: 'https://placehold.co/320x180/212121/fff?text=18%2B',
+  };
+}
+
 function getDateStrings(daysBack: number, daysForward: number): string[] {
   const dates: string[] = [];
   const today = new Date();
@@ -64,10 +98,14 @@ export function getMockEpg(channelId?: string, date?: string): object[] {
     ? mockChannels.filter((c) => c.id === channelId)
     : mockChannels;
 
+  const today = localTodayKey();
   const items: object[] = [];
   for (const ch of channels) {
     for (const d of dates) {
       items.push(...generateDayEpg(ch.id, ch.name, d));
+      if (d === today && ch.id === LIVE_RECHECK_CHANNEL) {
+        items.push(lateNightAdultProgram(ch.id, ch.name));
+      }
     }
   }
   return items;

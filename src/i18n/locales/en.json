@@ -280,11 +280,19 @@
     "confirm": "Confirm PIN",
     "not_found": "No PIN found. Set one in Settings.",
     "mismatch": "PINs don't match. Try again.",
-    "locked": "Too many attempts. Try again in {{seconds}}s."
+    "locked": "Too many attempts. Try again in {{seconds}}s.",
+    "error": "Something went wrong. Please try again.",
+    "live_blocked": "This programme is restricted (18+). Enter your PIN to keep watching.",
+    "unlock": "Enter PIN"
   },
   "geo": {
     "title": "Not available in your region",
     "body": "This service is not available in your region due to broadcasting rights.",
     "back_home": "Back to home"
+  },
+  "ads": {
+    "label": "AD",
+    "skip": "Skip ad",
+    "skip_in": "Skip in {{seconds}}s"
   }
 }

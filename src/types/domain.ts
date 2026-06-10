@@ -5,6 +5,7 @@
  * Continue / Subscription shapes are design-inferred — validate against the real
  * backend contract when it lands (no query backs them yet).
  */
+import { z } from 'zod';
 
 export interface User {
   id: string;
@@ -13,6 +14,12 @@ export interface User {
   avatarUrl?: string;
   /** Active package + entitlement (design profile badge "Paketa Bazë · 32 kanale"). */
   subscription?: Subscription;
+  /**
+   * Whether a per-account parental PIN exists on the backend (source of truth).
+   * Hydrates `ParentalSlice.isPinSet` on login so a fresh device knows to gate.
+   * The PIN itself is never sent down — only this flag. See plan 22.14b.
+   */
+  parentalPinSet?: boolean;
 }
 
 /** A user's package entitlement (design profile/settings badge). */
@@ -139,6 +146,62 @@ export interface QualityOption {
   /** Secondary description (design `Përshtatet me lidhjen (ABR)`). */
   description?: string;
 }
+
+/* ===========================================================================
+ * Ads (design `adpop`). v1 creatives are static (image / brand gradient + copy
+ * + CTA); video creatives are a later capability. The `AdOverlay` component
+ * renders an `AdCreative`; the slot orchestration (when/where, frequency cap,
+ * scheduling) is Phase 16, driven by `AppConfig.ads` + an ad-manifest service.
+ * =========================================================================== */
+
+/** Where an ad is triggered. Orchestration lives in Phase 16. */
+export type AdSlot = 'launch' | 'channelSwitch' | 'scheduled';
+
+/** A single promotional creative shown in the AdOverlay. */
+export interface AdCreative {
+  id: string;
+  /** Advertiser name shown in the brand row (design "NOVA"). */
+  brand: string;
+  /** Monogram fallback when there's no `brandLogoUrl` (design white "N" tile). */
+  brandMonogram?: string;
+  brandLogoUrl?: string;
+  /** Eyebrow above the headline (design "Ofertë speciale"). */
+  tag: string;
+  headline: string;
+  subtitle?: string;
+  /** Call-to-action label (design "Mëso më shumë"). */
+  ctaLabel: string;
+  /** Clickthrough URL opened on CTA tap. */
+  ctaUrl?: string;
+  /** Creative art; falls back to the brand gradient when absent. */
+  imageUrl?: string;
+}
+
+/* ===========================================================================
+ * Runtime validation (Zod) — auth boundary guards (plan 5.X.2).
+ * The interfaces above are the full design contract; these schemas are the
+ * runtime guard for the fields the session flow actually depends on. A backend
+ * shape change (e.g. a missing token) is now rejected at the boundary instead
+ * of silently persisting `undefined`. `looseObject` keeps unknown backend fields
+ * (e.g. `subscription`) rather than stripping them, so the contract can grow
+ * without breaking validation. `avatarUrl` is `.nullish()` because the backend
+ * may send `null`.
+ * =========================================================================== */
+
+export const userSchema = z.looseObject({
+  id: z.string().min(1),
+  email: z.string().min(1),
+  displayName: z.string().min(1),
+  avatarUrl: z.string().nullish(),
+  parentalPinSet: z.boolean().optional(),
+});
+
+/** Login + refresh + register-completion payload. Validated before any token touches the keychain. */
+export const authResponseSchema = z.object({
+  user: userSchema,
+  accessToken: z.string().min(1),
+  refreshToken: z.string().min(1),
+});
 
 export interface AppConfig {
   version: string;

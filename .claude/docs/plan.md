@@ -9,8 +9,9 @@
 ## Status snapshot — 2026-06-09
 
 - **Done:** Phases 0–13 (tooling → store → API → hooks → UI → players → screens → auth-hardening → i18n), 18.2 (mock server), auth wizard (11.X), review fixes (11.Y "done now"), and **Phase 22.1–22.10** (design tokens/type/logo/icons, 4-tab nav, primitives, auth re-skin, domain types, Home, Guide, Search, Player+EPG+catch-up, sheet+Toast infra).
-- **Active:** **Phase 22** — 22.14 (parental+geo client) done; next is **22.14b** (backend-synced per-account PIN, mock-first) then **22.14c** (live program-change re-check).
-- **Backlog:** deferred audit/infra items (`5.X.*`, `11.Y.4–11`), Telemetry (14), product features (15.2 geo-CDN / 15.4 mosaic-snapshot-refresh / 15.5 PIP), Ads (16), Hardening (17), Handoff (18), Distribution (21), Quality gate (23). Remaining Phase 22 screens: 22.14b/14c, 22.15(c–e), 22.16–22.18.
+- **Active:** **Phase 22** — 22.14/22.14b/**22.14c**/**22.14d** (parental+geo client, backend-synced PIN, live re-check, auth-flow hardening) done; next is **22.15(c–e)** / **22.16–22.18**.
+- **Backlog:** deferred audit/infra items (`5.X.*`, `11.Y.4–11`), Telemetry (14), product features (15.2 geo-CDN / 15.4 mosaic-snapshot-refresh / 15.5 PIP), Ads (16), Hardening (17), Handoff (18), Distribution (21), Quality gate (23), **Store readiness & submission (24)**. Remaining Phase 22 screens: 22.14b/14c, 22.15(c–e), 22.16–22.18.
+- **End-to-end execution order (user 2026-06-10):** mobile run/test/fix (22.17) → large-screen pass (22.18: portrait-lock browse + landscape player on phone/tablet/iPad; TV = separate always-landscape + D-pad target) → backend wiring (11.X.9) → final audit + plan sync (23) → store readiness & submit (24 requirements + 21 pipeline).
 
 ---
 
@@ -72,11 +73,11 @@
 **Done:** [x] **5.X.1** domain types + services retyped · [x] **5.X.3** TanStack query hooks (channels/epg/catchup/radio/streams) + screens wired · [x] **5.X.6** semantic color tokens · [x] **5.X.7** `SHADOWS`/`OPACITY`/`Z_INDEX`/`ANIMATION` + `BORDERRADIUS` expanded · [x] **5.X.8** spacing reconciliation · [x] **5.X.11** iOS keychain accessibility · [x] **5.X.14** OTA channel explicit in `app.config.ts` · [x] **5.X.15** parental PIN (done in 12.2).
 
 **Deferred (forward backlog):**
-- [~] **5.X.2** Zod schemas at the API boundary (auth + streams first). Unblocks when real contract lands; relates to 11.Y.4.
+- [~] **5.X.2** Zod schemas at the API boundary. **Auth slice DONE in 22.14d** (`userSchema`/`authResponseSchema`; `login`/`refresh`/`getMe`/`updateProfile`/register-completion validated). **Remaining:** streams + the other domain services; reconcile envelope (11.Y.5) when the real contract lands.
 - [~] **5.X.4** Per-call timeout overrides (`streamClient` 5s for manifests; longer for bulk EPG).
 - [~] **5.X.5** `useCheckToken` rich result `{ authenticated, reason }` so UI can tell "no session" from "network error" (also resolves the 8.2 guard limbo).
 - [~] **5.X.9** Decide `predictiveBackGestureEnabled` on Android.
-- [~] **5.X.10** MMKV encryption (H1) — choose key-mgmt: EAS secret → native plugin → JS, or SecureStore-generate on first launch. Affects native build config.
+- [x] **5.X.10** MMKV encryption — **DECIDED: accepted risk, won't encrypt (2026-06-10).** Rationale: every real secret is keychain-only (refresh token, parental PIN verifier) or memory-only (access token); the MMKV blob holds only low-sensitivity PII (email/displayName/subscription tier) + boolean settings, and the OS sandbox already blocks other apps from reading it. Encryption would defend only a physical-device-compromise + file-extraction scenario, leaking non-credential data — poor cost/benefit vs the async-boot refactor it requires. **Invariant that keeps this safe:** never persist a real secret into the plaintext MMKV blob (enforced lightweight by **5.X.17** field-whitelist, not encryption).
 - [~] **5.X.12** Sentry init — DSN as EAS secret, init before `<Stack/>`, replace `__DEV__ console.warn` patterns. Pairs with Phase 14 / 11.Y.6.
 - [~] **5.X.13** Background audio + PiP entitlements in `app.config.ts` (iOS `UIBackgroundModes:['audio']`, Android `foregroundServiceType`). **Prereq for 15.5 PIP + 22.11 background radio.**
 - [~] **5.X.16** Re-evaluate the TypeScript pin (`~6.0.3` ahead of SDK 56 baseline); run `expo-doctor`, pin if issues surface.
@@ -150,9 +151,9 @@
 - [x] **15.6** Foreground refresh — channels + EPG invalidated on app foreground.
 
 ### Phase 16 — Ad Infrastructure
-- [ ] **16.1** `services/ads.ts` — `getAdManifest(slot)`.
-- [ ] **16.2** `components/Media/AdOverlay.tsx` — second expo-video instance, countdown, skip, clickthrough. (Design `adpop` → built with **22.15**.)
-- [ ] **16.3** Launch ad — fetched in `useBootstrap`, before first screen.
+- [x] **16.1** `services/ads.ts` — `getAdManifest(slot)` returns the slot's `AdCreative` or null; **server-authoritative** (mock gates on `config.ads.launchEnabled`). Endpoint `ADS_ROUTES.MANIFEST(slot)`, `useAdQuery(slot)`, `fixtures/ads.ts` (NOVA launch creative — static, design `adpop`). Real manifest/targeting → backend.
+- [x] **16.2** `AdOverlay` — design `adpop` static image creative + REKLAMË + skip countdown (built in **22.15c**). (Second `expo-video` instance = future video-ad capability, not v1.)
+- [x] **16.3** Launch ad — `LaunchAdHost` (mounted above the router in `(app)/_layout`) shows the `launch` creative once per session via `useAdQuery('launch')`. (Pre-demo wiring; `useBootstrap`-prefetch is an optional refinement.)
 - [ ] **16.4** Channel-switch ad — frequency-capped via `playerSlice.adsLastShownAt`.
 - [ ] **16.5** Scheduled ads — timer from `/config` triggers `AdOverlay`.
 - [ ] **16.6** Analytics: impression, skip, complete, clickthrough.
@@ -222,19 +223,21 @@
     2. **Open-gate uses channel-level `isAdult`.** Program-level live re-check is 22.14c. Cancel → leave channel (channel-level); the "stay blocked, pick another program" UX is the live-program path (22.14c).
     3. **Verify still keychain-only** (per-account backend sync is 22.14b).
   - **Carry-overs:** 22.14b (backend PIN), 22.14c (live re-check). `CenteredMessage` now available for other empty/blocked states.
-- [ ] **22.14b** Backend-synced parental PIN (mock-first). PIN is **per-account**, synced across devices → backend is source of truth; keychain becomes an offline/fast-recheck cache.
-  - **What:** `ParentalPinModal` set → `POST /users/parental-pin` (raw PIN over TLS; backend KDF-hashes); verify → **backend-authoritative** with **server-side attempt lockout**; clear → `DELETE /users/parental-pin`. `parentalPinSet: boolean` lands on the profile/`getMe()` response so a fresh device knows a PIN exists. Add mock handlers + service + mutation/query. Keep keychain (`SHA-256+salt`) as a **local cache**: after first successful verify on a device, cache locally so the frequent live re-checks (22.14c) and offline gating don't round-trip. Keep the client 5-try lockout as a UX layer on top of the authoritative server lockout.
-  - **Why:** user requirement — same account on another device must already have the PIN. Supersedes the keychain-only model (ARCHITECTURE "Parental"). Security: a 4-digit PIN is low-entropy (10⁴); a leaked fast hash cracks instantly, so the backend must use a slow KDF (argon2id/bcrypt) + salt + server lockout. Sending the raw PIN over TLS to a KDF+rate-limited endpoint is **more** secure for a low-entropy secret than shipping a crackable hash to new devices.
-  - **Approach (when real backend lands, 11.X.9):** confirm endpoint shapes + envelope; until then mock posts/verifies against an in-memory PIN. **On completion update `ARCHITECTURE.md` (Parental: backend source-of-truth + keychain cache + per-account) + `CLAUDE.md` (parental bullet + persistence table: PIN now backend + keychain-cache, not keychain-only) + add the 3 endpoints + `parentalPinSet` to the `API.md` draft (18.1).**
-  - **Open questions:** none blocking (per-account confirmed). Real KDF choice + lockout policy are backend-owned; client only needs the typed verify result + `parentalPinSet`.
-- [ ] **22.14c** Live parental re-check (program-change re-prompt). Live programs change over time → a clean channel can roll into an 18+ program mid-watch.
-  - **What:** `useLiveParentalGuard(channelId)` driven by the EPG query: compute the **next program boundary**, schedule **one timer** to it (not a poll), re-evaluate on the boundary **and** on app-foreground (RN timers throttle when backgrounded — reuse the `AppState`/`useAppResumeGuard` pattern). On transition into an `isAdult` program → pause + `ParentalPinModal` verify; success resumes, cancel stays on the channel blocked. Verify **once per `programId`** (don't re-prompt for the same program). Live = recurring; VOD/catch-up = single check at open (22.14). Binary `isAdult` for v1 (age tiers later). Add a restricted program to the mock EPG so it's testable.
-  - **Why:** real gap not in the original spec; surfaced + agreed 2026-06-09. Without it, the gate is bypassed by waiting for a channel's adult program to start.
-  - **Approach:** local verify via the keychain cache from 22.14b (no network on each boundary). Hook returns a stable shape; wired into the live player screen.
-- [~] **22.15** Overlays. **Partially done in 22.10:** (a) native route sheets — `getModalScreenOptions` (`presentation:'formSheet'` + `sheetAllowedDetents:'fitToContents'` + grabber + corner) + `SheetOptionRow` ✅; (b) `Toast` — `ToastSlice` + root `ToastHost` ✅. **Remaining:** (c) `AdOverlay` (creative + REKLAMË + skip countdown; app-open + channel-open slots, frequency-capped) — pairs with Phase 16; (d) SOLITAR in-sheet scaffold (SafeAreaView → keyboard → header → content) for keyboard-bearing sheets; (e) scrim/background-dimming polish. Alerts stay on `ModalSlice`/`ModalWrapper`.
+- [x] **22.14b** Backend-synced parental PIN (mock-first). PIN is **per-account** → backend is source of truth, keychain is an offline/fast-recheck cache. `ParentalPinModal` set → `POST /users/parental-pin`; verify → backend-authoritative on a fresh device then keychain-cached; clear → `DELETE /users/parental-pin`. `parentalPinSet: boolean` rides the auth/`getMe` response → hydrates `isPinSet` so a fresh device gates. Mock handlers + `fixtures/parental.ts` (stateful) + service + endpoints added. Security rationale: a 4-digit PIN is low-entropy (10⁴) → ship the raw PIN over TLS to a KDF + server-lockout endpoint rather than a crackable hash to new devices. Real KDF/lockout policy is backend-owned (confirm at 11.X.9). (full entry → plan-archive.md)
+- [x] **22.14d** Auth-flow hardening (brainstorm 2026-06-10). Three surgical fixes from the auth-flow review:
+  - **(1) PIN-gated parental disable.** Turning the gate OFF in Settings now requires entering the current PIN (`ParentalPinModal mode="verify"`) before `clearParentalPin()` + keychain wipe — a child could previously bypass the control by flipping the switch. Replaced the confirmation modal with the verify gate.
+  - **(2) Zod at the auth boundary (5.X.2, auth slice).** `userSchema` + `authResponseSchema` (`z.looseObject`, keeps unknown fields, `avatarUrl` nullish) in `types/domain.ts`; `login()` + `refresh()` validate before any token reaches the keychain; register-completion `safeParse`s → `apiError` modal on a malformed payload. A missing/garbage token is now rejected at the boundary instead of silently persisting `undefined`.
+  - **(3) `getMe`/`updateProfile` envelope fix.** Users endpoints return `{ user }` (vs the bare auth shape) — both services now unwrap `.user` + validate. This repaired the **manual-wipe recovery path** (`useCheckToken` state-3 → `getMe`), which was handing back the envelope as the user.
+  - **Token-model decision (documented, no code):** keep **dual access+refresh** even with always-on sessions — short-lived access JWT (stateless fast-path) + revocable rotating refresh (cold-path). Rationale lives in `ARCHITECTURE.md → Auth flow`.
+  - tsc + lint clean. Docs synced (`ARCHITECTURE.md` auth+parental, `CLAUDE.md` parental bullet + persistence table). Real KDF/lockout + endpoint envelope reconcile at 11.X.9.
+- [x] **22.14c** Live parental re-check (program-change re-prompt). `useLiveParentalGuard(channelId)` watches **today's** EPG for the channel: derives the airing adult programme from a `nowTs` state timestamp (pure render; no wall-clock read in render — satisfies `react-hooks/purity`), arms **one** `setTimeout` to the next programme edge (+250 ms) that chains boundary→boundary, and re-evaluates on **app-foreground** (`useAppState`, since RN timers throttle backgrounded). On transition into an `isAdult` programme → player unmounts (no A/V leak) + `ParentalPinModal mode="verify"`; success resumes, **cancel stays blocked** with a `CenteredMessage` re-unlock affordance (not a dead end). Resolves **once per `programId`** (verified stays unlocked; the next programme re-locks naturally as the id changes). **Overlap-safe:** scans *all* airing entries so an 18+ slot can't hide behind a clean one. Disabled for already-adult channels (channel-level gate covers them). Local verify via the 22.14b keychain cache (no network per boundary). Mock EPG gains a today-only 18+ test programme (~2 min out) so the re-check is observable in any session. New `parental.live_blocked`/`unlock` i18n (en+sq). Wired into `channel/[id]`. tsc + lint clean, i18n parity verified. **VOD/catch-up** stays a single open-time check (out of scope here).
+- [~] **22.15** Overlays. **Done:** (a) native route sheets — `getModalScreenOptions` (`presentation:'formSheet'` + `sheetAllowedDetents:'fitToContents'` + grabber + corner) + `SheetOptionRow` (22.10) ✅; (b) `Toast` — `ToastSlice` + root `ToastHost` (22.10) ✅; (c) **`AdOverlay` component** (design `adpop`) ✅ — `components/Media/AdOverlay.tsx`: centered 3:4 creative card (brand row + tag/headline/subtitle + white CTA over creative art or a brand-dark surface), top-right `REKLAMË` label, bottom-right skip control with a mount-anchored countdown (`useSkipCountdown` — timestamp-derived, lint-pure) that flips to a red, tappable "skip" at 0. Prop-driven (`AdCreative` + `AdSlot` types in `domain.ts`); CTA → `onClickthrough` or in-app browser; `onComplete` on skip. New `ads` i18n (en+sq). **v1 creative is static** (image/brand surface) — the CLAUDE.md "second expo-video instance" is a later video-ad capability, not v1 (design wins). tsc + lint + i18n parity clean. **Remaining:** the **slot orchestration** — launch (16.3, in `useBootstrap`), channel-switch frequency-capped via `playerSlice.adsLastShownAt` (16.4), scheduled from `/config` (16.5), + `getAdManifest` service (16.1) + analytics (16.6) — all **Phase 16**; (d) SOLITAR in-sheet scaffold (SafeAreaView → keyboard → header → content) — **deferred, no keyboard-bearing sheet exists yet**; (e) native-sheet scrim/dimming polish — minor, deferred. Alerts stay on `ModalSlice`/`ModalWrapper`.
 - [ ] **22.16** i18n sq copy. Lift exact Albanian strings from the mockup into `sq.json` (+ `en.json` parallels) for every screen; replace remaining hardcoded strings. (auth/home/guide/search/player/catchup/datetime sections already added during their builds.)
 - [ ] **22.17** QA + verification pass. `npx expo run:android` (+ iOS), notched safe-area on every screen, walk the mockup `go()` graph (login→ad→home; channel→ad→player; lock→PIN; geo→overlay; day→catch-up; home-toggle→radio), `lint` + `tsc` clean. Promote per-screen [MEDIUM] visual claims to [CERTAIN].
 - [~] **22.18** Tablet / iPad / **TV** large-screen pass (decisions 8 + TV scope). **Deferred until mobile (22.1–22.17) is complete + approved.** Same design, display adjustments only: `useWindowDimensions` breakpoints flip grids (22.7/22.12) 2-col → `flexWrap` rows; revisit gutters/hero/player width. **Mosaic density (4/6/9):** decided 2026-06-09 to keep a flat 2-col scroll on mobile and address density only here for iPad/tablet/TV (larger viewports earn the extra columns). **TV in v1 scope** (end-phase): focus/D-pad nav + 10-foot spacing on top of the large-screen layout (its own sub-pass after tablet). Build mobile first, then widen.
+  - **Orientation scope — decided 2026-06-10 (the rule to execute):** browsing UI is **portrait-locked on ALL touch devices** (phone *and* tablet *and* iPad); the **only** landscape surface is the **fullscreen player** (live/VOD). Industry standard (Netflix/Disney+/YouTube): lists/tab-bar/cards are designed for a tall viewport and look broken forced into landscape. So the responsive pass is *scale the portrait layout up* for bigger screens (wider margins, larger type, 3-up grids) — **not** design new landscape browse layouts. Accepted trade: a portrait-locked iPad held sideways shows letterboxing / blown-up phone UI.
+  - **TV is the explicit exception:** a TV is a fixed-landscape display with **no portrait/rotation** — so the *entire* TV browse UI is landscape by definition and needs **D-pad/focus navigation**. TV is therefore a **separate build target** (not a variation of the phone rule): always-landscape layout + focus engine, built after the tablet/iPad sub-pass.
+  - **Implementation seam:** `useOrientation` (5.5) + `expo-screen-orientation` already exist — lock app to portrait, unlock→landscape only on player fullscreen enter, re-lock on exit (the player already owns fullscreen/orientation per 22.10). Per-target matrix: **Phone** portrait browse / landscape player · **Tablet+iPad** portrait browse (scaled up) / landscape player · **TV** always-landscape browse + D-pad / native-landscape player.
 
 ---
 
@@ -299,7 +302,7 @@
 | `mos-grid`/`mos` | `MosaicTile` + grid | DONE | 22.12 |
 | `rp-art`/`eq` | `RadioPlayer` art + `Equalizer` | RESTYLE/NEW | 22.11 |
 | `radio-item` | `StationRow` | RESTYLE | 22.11 |
-| `adpop`/`ad-*` | `AdOverlay` | NEW | 22.15/Ph16 |
+| `adpop`/`ad-*` | `AdOverlay` | DONE (component; slots → Ph16) | 22.15 |
 | mini-player dock | `RadioMiniPlayer` | RESTYLE | 22.11 |
 
 ### D. Inputs / controls
@@ -333,6 +336,34 @@
 - [~] **23.7** Performance — `FlashList` for long lists; `React.memo`+`displayName` only where it pays; stable callbacks; `expo-image`; selector subscriptions; reanimated on UI thread.
 - [~] **23.8** Consistency & a11y — one pattern per concern; `testID` on interactive leaves; a11y labels/roles; RTL-safe; light+dark; safe-area on notch+tablet.
 - [~] **23.9** Verification gate — `lint` + `tsc` + tests green; `expo-doctor` clean; cold-boot + full `go()`-graph on iOS+Android device; no red-box. Promote Phase 22 [MEDIUM] visual claims to [CERTAIN].
+
+---
+
+## Phase 24 — Store readiness & submission (App Store + Play Store)
+
+> **Goal (user 2026-06-10):** after mobile QA (22.17), the large-screen pass (22.18), and backend wiring (11.X.9), do a final cross-cut so the app is **submittable** to both stores. This phase is the publishing checklist + compliance work that has **code/asset consequences** (privacy manifests, data-safety forms, content rating, account deletion, age gate) — start accruing takeaways here *as we hit them*, don't discover them at upload. Runs alongside / after Phase 21 (the EAS build + submit mechanics); 24 is the *requirements*, 21 is the *pipeline*.
+
+**Apple — App Store**
+- [ ] **24.1** **Privacy manifest** — `PrivacyInfo.xcprivacy` declaring data types collected (email, displayName, subscription tier, any analytics) + **required-reason APIs** (UserDefaults/MMKV file timestamp, keychain). Expo: config-plugin or manual; verify in the prebuild output.
+- [ ] **24.2** **App Privacy "nutrition label"** in App Store Connect — must match 24.1 + actual backend collection. Tie to the real `/config` + analytics decision (Phase 14).
+- [ ] **24.3** **ATT (App Tracking Transparency)** — only if analytics/ads do cross-app tracking. v1 ads are first-party static creatives → likely **no IDFA / no ATT prompt**; confirm when ad targeting is defined (Phase 16). Document the "no tracking" stance either way.
+- [ ] **24.4** **Account deletion (mandatory)** — Apple requires in-app account deletion for any app with account creation. Needs a backend `DELETE /users/me` + a Profile/Settings entry. **Has code consequences** — surface early.
+- [ ] **24.5** **Age rating / content** — the 18+ parental content drives the questionnaire; ensure the parental gate is demonstrable to review (App Review will test it). Provide a **demo account** + note the PIN flow in review notes.
+- [ ] **24.6** **Sign in / data minimization, export-compliance (uses HTTPS → encryption declaration), 3rd-party SDK disclosures** (Sentry), and required marketing assets (icon, screenshots per device class — incl. iPad if we ship iPad, TV if we ship tvOS later).
+
+**Google — Play Store**
+- [ ] **24.7** **Data safety form** — Play's equivalent of 24.2; must match actual collection. Keep one source-of-truth data inventory feeding both 24.2 + 24.7.
+- [ ] **24.8** **Content rating (IARC questionnaire)** — driven by the 18+ content; gate must be present.
+- [ ] **24.9** **Account deletion** — Play also requires a deletion path **and** a public web URL to request deletion (not just in-app). Pairs with 24.4.
+- [ ] **24.10** **Target API level + 16KB page size + foreground-service declaration** — RN 0.85/SDK 56 should satisfy target API; the **radio foreground service** (5.X.13) needs a Play **foreground-service-type justification** + privacy-policy mention.
+- [ ] **24.11** **Closed testing requirement** — new personal Play accounts need **14-day / ≥12-tester** closed testing before production (already noted in 21). Sequence this early — it's a 2-week wall-clock gate.
+
+**Cross-cutting**
+- [ ] **24.12** **Privacy policy + Terms URLs** — public, reachable, wired from `/config` into Profile (overlaps 17.5 / 15.1). Both stores require a privacy-policy URL.
+- [ ] **24.13** **Single data-inventory doc** (`docs/PRIVACY.md`) — what we collect / why / where stored / retention — the source feeding 24.1/24.2/24.7. Write once, reuse in both consoles.
+- [ ] **24.14** **Demo/review credentials + reviewer notes** — mock-free build pointing at staging, a test account, and notes explaining the parental PIN, geo overlay, and any region-locked content so reviewers aren't blocked.
+
+> **Key takeaway for a future session:** the items with *code/asset consequences* (24.1 privacy manifest, 24.4/24.9 account deletion, 24.5/24.8 age gate, 24.10 foreground-service justification, 24.12 policy URLs) must be resolved **before** the final builds in Phase 21 — discovering them at upload re-opens feature phases. Treat 24.13 (data inventory) as the first task; everything else references it.
 
 ---
 

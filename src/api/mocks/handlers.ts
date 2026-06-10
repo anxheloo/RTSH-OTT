@@ -4,6 +4,9 @@
  */
 import { InternalAxiosRequestConfig } from 'axios';
 
+import type { AdSlot } from '@/types/domain';
+
+import { mockAdCreatives } from './fixtures/ads';
 import { mockAuthResponse, mockUser } from './fixtures/auth';
 import {
   mockRegisterDetails,
@@ -18,6 +21,12 @@ import { MOCK_LIVE_STREAM,mockChannels } from './fixtures/channels';
 import { mockAppConfig } from './fixtures/config';
 import { getMockEpg } from './fixtures/epg';
 import { mockContinueWatching, mockHeroes } from './fixtures/home';
+import {
+  clearMockParentalPin,
+  isMockParentalPinSet,
+  setMockParentalPin,
+  verifyMockParentalPin,
+} from './fixtures/parental';
 import { mockRadioStations } from './fixtures/radio';
 
 type MockResponse = { status?: number; data: unknown };
@@ -41,17 +50,23 @@ function parseBody<T>(data: unknown): T {
   return (data ?? {}) as T;
 }
 
+/**
+ * Stamps the live `parentalPinSet` flag (from the parental mock) onto any user
+ * payload so the client can hydrate `isPinSet` on login / profile fetch (22.14b).
+ */
+const userWithPin = () => ({ ...mockUser, parentalPinSet: isMockParentalPinSet() });
+
 export const handlers: Handler[] = [
   // ── Auth ──────────────────────────────────────────────────────────────────
   {
     method: 'post',
     test: (u) => u.endsWith('/auth/login'),
-    respond: () => ({ data: mockAuthResponse }),
+    respond: () => ({ data: { ...mockAuthResponse, user: userWithPin() } }),
   },
   {
     method: 'post',
     test: (u) => u.endsWith('/auth/refresh'),
-    respond: () => ({ data: mockAuthResponse }),
+    respond: () => ({ data: { ...mockAuthResponse, user: userWithPin() } }),
   },
   {
     method: 'post',
@@ -118,7 +133,36 @@ export const handlers: Handler[] = [
   {
     method: 'patch',
     test: (u) => u.endsWith('/users/me'),
-    respond: (cfg) => ({ data: { user: { ...mockUser, ...(cfg.data as object) } } }),
+    respond: (cfg) => ({ data: { user: { ...userWithPin(), ...(cfg.data as object) } } }),
+  },
+
+  // ── Parental PIN (per-account; backend is source of truth — plan 22.14b) ────
+  {
+    method: 'post',
+    test: (u) => u.endsWith('/users/parental-pin/verify'),
+    delay: 300,
+    respond: (cfg) => {
+      const { pin } = parseBody<{ pin?: string }>(cfg.data);
+      return { data: { valid: verifyMockParentalPin(pin) } };
+    },
+  },
+  {
+    method: 'post',
+    test: (u) => u.endsWith('/users/parental-pin'),
+    delay: 300,
+    respond: (cfg) => {
+      const { pin } = parseBody<{ pin?: string }>(cfg.data);
+      setMockParentalPin(pin);
+      return { data: { success: true } };
+    },
+  },
+  {
+    method: 'delete',
+    test: (u) => u.endsWith('/users/parental-pin'),
+    respond: () => {
+      clearMockParentalPin();
+      return { data: { success: true } };
+    },
   },
 
   // ── Home feed ──────────────────────────────────────────────────────────────
@@ -210,5 +254,21 @@ export const handlers: Handler[] = [
     method: 'get',
     test: (u) => u === '/config',
     respond: () => ({ data: mockAppConfig }),
+  },
+
+  // ── Ads (server-authoritative slot gating — plan 16.1) ──────────────────────
+  {
+    method: 'get',
+    test: (u) => /^\/ads\/[^/]+$/.test(u),
+    delay: 200,
+    respond: (cfg) => {
+      const slot = cfg.url?.split('/').pop() as AdSlot | undefined;
+      // Launch slot is gated on the config flag; other slots are Phase 16.
+      const ad =
+        slot === 'launch' && mockAppConfig.ads.launchEnabled
+          ? (mockAdCreatives.launch ?? null)
+          : null;
+      return { data: { ad } };
+    },
   },
 ];
