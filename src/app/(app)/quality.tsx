@@ -1,11 +1,12 @@
 /**
- * Quality sheet (design `openQuality`). A native form sheet of ABR options.
+ * Quality sheet (design `openQuality`). A native form sheet of resolution options.
  * `target=default` (opened from Settings) writes the persisted
- * `SettingsSlice.defaultQuality`; otherwise it writes the active player's
- * `PlayerSlice` quality. Today only `auto` is enforced (expo-video does ABR
- * automatically and can't cap a variant) — the choice is stored for when the
- * player engine supports capping (plan 15.5 / 22.10: switch to react-native-video
- * if manual capping is required).
+ * `SettingsSlice.defaultQuality` and lists every option (a channel-independent
+ * preference). Otherwise it writes the active player's `PlayerSlice.videoQuality`
+ * and lists Auto + only the renditions the current stream actually offers
+ * (`availableQualities`) — Auto only when the stream is a single/master source.
+ * Manual selection swaps the player source (the resolver handles the URL); see
+ * `utils/resolveStreamSource`.
  */
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
@@ -28,12 +29,19 @@ const QualitySheet: React.FC = () => {
   const colors = useAppStore((s) => s.colors);
   const videoQuality = useAppStore((s) => s.videoQuality);
   const defaultQuality = useAppStore((s) => s.defaultQuality);
+  const availableQualities = useAppStore((s) => s.availableQualities);
   const setVideoQuality = useAppStore((s) => s.setVideoQuality);
   const setDefaultQuality = useAppStore((s) => s.setDefaultQuality);
   const showToast = useAppStore((s) => s.showToast);
   const insets = useSafeAreaInsets();
 
   const current = isDefault ? defaultQuality : videoQuality;
+
+  // Default target → every option (preference, channel-independent). Active player
+  // → Auto + only the qualities this stream can actually be pinned to.
+  const options = isDefault
+    ? QUALITY_OPTIONS
+    : QUALITY_OPTIONS.filter((q) => q.id === 'auto' || availableQualities.includes(q.id));
 
   const select = (id: QualityId, label: string) => {
     if (isDefault) {
@@ -56,7 +64,7 @@ const QualitySheet: React.FC = () => {
         {t('player.quality_title')}
       </ReusableText>
 
-      {QUALITY_OPTIONS.map((q) => (
+      {options.map((q) => (
         <SheetOptionRow
           key={q.id}
           label={q.label}

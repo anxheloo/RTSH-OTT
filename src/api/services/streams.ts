@@ -1,8 +1,19 @@
+import type { Rendition } from '@/types/domain';
+
 import { apiClient } from '../client';
 import { STREAMS_ROUTES } from '../endpoints';
 
 export interface StreamManifest {
+  /**
+   * Always present — the player's fallback source. A master (multivariant)
+   * playlist when available, else a single rendition. A lone source plays through
+   * this field alone, so the app works even with one test URL.
+   */
   hlsUrl: string;
+  /** Explicit master playlist. When present, `auto` uses it → native ABR. */
+  masterUrl?: string;
+  /** Per-rendition child URLs. When present, manual quality pinning is enabled. */
+  renditions?: Rendition[];
   drmKeyUrl?: string;
   headers?: Record<string, string>;
 }

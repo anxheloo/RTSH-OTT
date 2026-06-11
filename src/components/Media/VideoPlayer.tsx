@@ -9,7 +9,7 @@
  * key requests on iOS/Android. Validate on a real RTSH stream before
  * shipping. Fallback: react-native-video if headers don't propagate.
  */
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
 
 import { useKeepAwake } from 'expo-keep-awake';
@@ -68,6 +68,18 @@ function VideoPlayer({
       p.play();
     }
   });
+
+  // In-place source swap on quality change. `useVideoPlayer` only consumes the
+  // source at creation, so a quality switch (new `source` URL) is applied via
+  // `player.replace` — this avoids a full remount, so fullscreen/PiP survive. A
+  // last-URI ref skips the redundant initial replace (source already loaded).
+  const lastUriRef = useRef(source);
+  useEffect(() => {
+    if (source === lastUriRef.current) return;
+    lastUriRef.current = source;
+    player.replace(source ? { uri: source, headers: headers ?? {} } : null);
+    if (autoPlay && source) player.play();
+  }, [player, source, headers, autoPlay]);
 
   useEffect(() => {
     const statusSub = player.addListener('statusChange', ({ status: s }) => {

@@ -10,11 +10,12 @@
  */
 import React from 'react';
 import { StyleSheet } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { BlurView } from 'expo-blur';
 import { Tabs } from 'expo-router';
 
-import { TabBar } from '@/theme/tabBar';
+import { TAB_BAR_BASE_HEIGHT, TabBar } from '@/theme/tabBar';
 import { useAppStore } from '@/store/useAppStore';
 import { Icon } from '@/components/Icons';
 import { GuideIcon, HomeIcon, ProfileIcon, SearchIcon } from '@/assets/icons';
@@ -22,6 +23,7 @@ import { GuideIcon, HomeIcon, ProfileIcon, SearchIcon } from '@/assets/icons';
 const TabsLayout: React.FC = () => {
   const colors = useAppStore((s) => s.colors);
   const mode = useAppStore((s) => s.mode);
+  const insets = useSafeAreaInsets();
 
   return (
     <Tabs
@@ -29,13 +31,22 @@ const TabsLayout: React.FC = () => {
         headerShown: false,
         tabBarActiveTintColor: colors.text,
         tabBarInactiveTintColor: colors.mutedDim,
-        tabBarStyle: { ...TabBar.tabBarStyle, borderTopColor: colors.tabBarBorder },
+        tabBarStyle: {
+          ...TabBar.tabBarStyle,
+          // Lift the floating bar above the bottom inset (home indicator / gesture area).
+          height: TAB_BAR_BASE_HEIGHT + insets.bottom,
+          paddingBottom: insets.bottom,
+          borderTopColor: colors.tabBarBorder,
+        },
         tabBarLabelStyle: TabBar.tabBarLabelStyle,
         tabBarItemStyle: TabBar.tabBarItemStyle,
         tabBarBackground: () => (
           <BlurView
             tint={mode === 'light' ? 'light' : 'dark'}
-            intensity={24}
+            intensity={40}
+            // Android renders no blur without an explicit method; iOS blurs natively.
+            // Sdk31Plus uses the performant native blur on Android 12+, none below.
+            blurMethod="dimezisBlurViewSdk31Plus"
             style={[StyleSheet.absoluteFill, { backgroundColor: colors.tabBar }]}
           />
         ),

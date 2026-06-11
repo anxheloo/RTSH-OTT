@@ -52,6 +52,10 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     icon: './assets/images/icon.png',
     scheme: 'rtshtani',
     userInterfaceStyle: 'automatic',
+    // Brand-black root window background (expo-system-ui). Kills the white flash
+    // shown by the RN root view before the first JS frame paints — the boot gap
+    // now reads as black, seamless into the native splash + BrandedSplash.
+    backgroundColor: '#000000',
     ios: {
       bundleIdentifier,
       infoPlist: {

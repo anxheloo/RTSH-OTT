@@ -18,8 +18,15 @@ export interface PlayerSlice {
   radioTitle: string | null;
   radioArtworkUrl: string | null;
 
-  // Video quality (selected in the quality sheet, read by the player)
+  // Video quality (selected in the quality sheet, read by the player). Session
+  // state, not persisted — seeded from `settings.defaultQuality` on player mount.
   videoQuality: QualityId;
+  /**
+   * Rendition ids the active stream can be pinned to (runtime, not persisted).
+   * Written by the channel screen when the stream loads; read by the quality
+   * sheet so it only offers qualities the stream actually provides.
+   */
+  availableQualities: QualityId[];
 
   // Actions
   setRadioChannel: (params: {
@@ -31,6 +38,7 @@ export interface PlayerSlice {
   setRadioPlaying: (isPlaying: boolean) => void;
   clearRadio: () => void;
   setVideoQuality: (quality: QualityId) => void;
+  setAvailableQualities: (qualities: QualityId[]) => void;
 }
 
 export const createPlayerSlice: StateCreator<PlayerSlice, [], [], PlayerSlice> = (set) => ({
@@ -40,6 +48,7 @@ export const createPlayerSlice: StateCreator<PlayerSlice, [], [], PlayerSlice> =
   radioTitle: null,
   radioArtworkUrl: null,
   videoQuality: DEFAULT_QUALITY,
+  availableQualities: [],
 
   setRadioChannel: ({ channelId, streamUrl, title, artworkUrl }) =>
     set({
@@ -62,4 +71,6 @@ export const createPlayerSlice: StateCreator<PlayerSlice, [], [], PlayerSlice> =
     }),
 
   setVideoQuality: (quality) => set({ videoQuality: quality }),
+
+  setAvailableQualities: (qualities) => set({ availableQualities: qualities }),
 });

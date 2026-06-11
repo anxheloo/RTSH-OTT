@@ -9,4 +9,5 @@ export * from './useNetworkMonitor';
 export * from './useOrientation';
 export * from './useOTA';
 export * from './useSearch';
+export * from './useTabBarHeight';
 

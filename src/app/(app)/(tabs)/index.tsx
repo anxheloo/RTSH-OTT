@@ -16,12 +16,13 @@ import { router } from 'expo-router';
 import { SPACING } from '@/theme/spacing';
 import { useAppStore } from '@/store/useAppStore';
 import { useChannelsQuery, useHomeFeedQuery, useRadioStationsQuery } from '@/api/queries';
+import { useTabBarHeight } from '@/hooks';
 import { BrandHeader } from '@/components/Brand';
 import ChannelCard from '@/components/channels/ChannelCard';
 import { ContinueRow, HeroCarousel } from '@/components/home';
 import { Icon, IconButton } from '@/components/Icons';
-import { FilterChipRow, SearchBar, SegmentedToggle } from '@/components/Inputs';
-import { ScreenLayout, SectionHeader } from '@/components/Layout';
+import { FilterChipRow } from '@/components/Inputs';
+import { BrowseControls, ScreenLayout, SectionHeader } from '@/components/Layout';
 import StationRow from '@/components/radio/StationRow';
 import type { Channel, RadioStation } from '@/types/domain';
 import { GridIcon, ProfileIcon } from '@/assets/icons';
@@ -38,6 +39,7 @@ const HomeScreen: React.FC = () => {
   const { t } = useTranslation();
   const colors = useAppStore((s) => s.colors);
   const activeStationId = useAppStore((s) => s.radioChannelId);
+  const tabBarHeight = useTabBarHeight();
 
   const [mode, setMode] = useState<HomeMode>('tv');
   const [pkg, setPkg] = useState<PackageFilter>('all');
@@ -61,28 +63,8 @@ const HomeScreen: React.FC = () => {
 
   const openChannel = (id: string) => router.push(`/(app)/channel/${id}`);
 
-  const controls = (
-    <View style={styles.controls}>
-      <SearchBar
-        placeholder={t('home.search_placeholder')}
-        onPress={() => router.push('/(app)/(tabs)/search')}
-        testID="home-search"
-      />
-      <SegmentedToggle
-        options={[
-          { label: t('home.toggle_tv'), value: 'tv' },
-          { label: t('home.toggle_radio'), value: 'radio' },
-        ]}
-        value={mode}
-        onChange={setMode}
-        testID="home-mode-toggle"
-      />
-    </View>
-  );
-
   const tvHeader = (
     <View>
-      {controls}
       <View style={styles.heroWrap}>
         <HeroCarousel items={heroes} onPressItem={openChannel} testID="home-hero" />
       </View>
@@ -105,7 +87,6 @@ const HomeScreen: React.FC = () => {
 
   const radioHeader = (
     <View>
-      {controls}
       <SectionHeader title={t('home.radio_stations')} />
     </View>
   );
@@ -160,6 +141,20 @@ const HomeScreen: React.FC = () => {
         }
       />
 
+      {/* Pinned (not in the list header) so toggling TV↔Radio — which re-keys
+          the FlashList — never remounts or jolts the search + toggle. */}
+      <BrowseControls
+        searchPlaceholder={t('home.search_placeholder')}
+        onSearchPress={() => router.push('/(app)/(tabs)/search')}
+        toggleOptions={[
+          { label: t('home.toggle_tv'), value: 'tv' },
+          { label: t('home.toggle_radio'), value: 'radio' },
+        ]}
+        toggleValue={mode}
+        onToggleChange={setMode}
+        testID="home-browse-controls"
+      />
+
       {mode === 'tv' ? (
         <FlashList
           key="tv"
@@ -169,7 +164,7 @@ const HomeScreen: React.FC = () => {
           numColumns={2}
           ListHeaderComponent={tvHeader}
           ItemSeparatorComponent={() => <View style={styles.rowGap} />}
-          contentContainerStyle={styles.listContent}
+          contentContainerStyle={[styles.listContent, { paddingBottom: tabBarHeight + SPACING.space_24 }]}
           showsVerticalScrollIndicator={false}
           testID="home-tv-grid"
         />
@@ -180,7 +175,10 @@ const HomeScreen: React.FC = () => {
           renderItem={renderStation}
           keyExtractor={(item) => item.id}
           ListHeaderComponent={radioHeader}
-          contentContainerStyle={styles.listContentRadio}
+          contentContainerStyle={[
+            styles.listContentRadio,
+            { paddingBottom: tabBarHeight + SPACING.space_24 },
+          ]}
           showsVerticalScrollIndicator={false}
           testID="home-radio-list"
         />
@@ -195,11 +193,6 @@ const styles = StyleSheet.create({
   headerActions: {
     flexDirection: 'row',
     gap: SPACING.space_8,
-  },
-  controls: {
-    gap: SPACING.space_12,
-    paddingHorizontal: SPACING.space_18,
-    paddingTop: SPACING.space_4,
   },
   heroWrap: {
     paddingTop: SPACING.space_16,

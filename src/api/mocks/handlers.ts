@@ -17,7 +17,7 @@ import {
   mockResetVerify,
 } from './fixtures/authFlow';
 import { mockCatchupItems } from './fixtures/catchup';
-import { MOCK_LIVE_STREAM,mockChannels } from './fixtures/channels';
+import { mockChannels } from './fixtures/channels';
 import { mockAppConfig } from './fixtures/config';
 import { getMockEpg } from './fixtures/epg';
 import { mockContinueWatching, mockHeroes } from './fixtures/home';
@@ -28,6 +28,7 @@ import {
   verifyMockParentalPin,
 } from './fixtures/parental';
 import { mockRadioStations } from './fixtures/radio';
+import { buildMockStreamManifest } from './fixtures/streams';
 
 type MockResponse = { status?: number; data: unknown };
 
@@ -189,10 +190,12 @@ export const handlers: Handler[] = [
   },
 
   // ── Streams ────────────────────────────────────────────────────────────────
+  // Manifest shape is driven by `MOCK_STREAM_SHAPE` (fixtures/streams.ts) — flip
+  // it to test single-URL / master-only / 4-renditions / full against the resolver.
   {
     method: 'get',
     test: (u) => /^\/streams\//.test(u),
-    respond: () => ({ data: { hlsUrl: MOCK_LIVE_STREAM, headers: {} } }),
+    respond: () => ({ data: buildMockStreamManifest() }),
   },
 
   // ── EPG ────────────────────────────────────────────────────────────────────

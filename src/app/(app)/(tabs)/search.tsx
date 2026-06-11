@@ -17,6 +17,7 @@ import { useAppStore } from '@/store/useAppStore';
 import { useChannelsQuery, useEpgQuery } from '@/api/queries';
 import { useDateTime } from '@/hooks/useDateTime';
 import { useSearch } from '@/hooks/useSearch';
+import { useTabBarHeight } from '@/hooks/useTabBarHeight';
 import ChannelCard from '@/components/channels/ChannelCard';
 import { ProgramRow } from '@/components/epg';
 import { Icon, IconButton } from '@/components/Icons';
@@ -32,6 +33,7 @@ const SearchScreen: React.FC = () => {
   const { t } = useTranslation();
   const colors = useAppStore((s) => s.colors);
   const insets = useSafeAreaInsets();
+  const tabBarHeight = useTabBarHeight();
   const { formatTime } = useDateTime();
   const { query, debouncedQuery, setQuery } = useSearch();
   const [recent, setRecent] = useState<string[]>([]);
@@ -92,7 +94,7 @@ const SearchScreen: React.FC = () => {
       </View>
 
       <ScrollView
-        contentContainerStyle={styles.body}
+        contentContainerStyle={[styles.body, { paddingBottom: tabBarHeight + SPACING.space_24 }]}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >

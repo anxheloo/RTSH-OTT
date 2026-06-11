@@ -16,6 +16,7 @@ import { SPACING } from '@/theme/spacing';
 import { useAppStore } from '@/store/useAppStore';
 import { useChannelsQuery, useEpgQuery, useRadioStationsQuery } from '@/api/queries';
 import { useDateTime } from '@/hooks/useDateTime';
+import { useTabBarHeight } from '@/hooks/useTabBarHeight';
 import { GuideRow } from '@/components/epg';
 import { Icon } from '@/components/Icons';
 import { SegmentedToggle } from '@/components/Inputs';
@@ -43,6 +44,7 @@ const GuideScreen: React.FC = () => {
   const { t } = useTranslation();
   const { formatTime } = useDateTime();
   const colors = useAppStore((s) => s.colors);
+  const tabBarHeight = useTabBarHeight();
   const [mode, setMode] = useState<GuideMode>('tv');
   // Snapshot at mount: now/next selection + progress are a point-in-time view
   // (matches the design's static bars). A periodic tick can refresh it later.
@@ -152,7 +154,7 @@ const GuideScreen: React.FC = () => {
           />
         )}
         ListHeaderComponent={overline}
-        contentContainerStyle={styles.listContent}
+        contentContainerStyle={[styles.listContent, { paddingBottom: tabBarHeight + SPACING.space_24 }]}
         showsVerticalScrollIndicator={false}
         testID="guide-list"
       />

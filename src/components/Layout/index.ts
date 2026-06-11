@@ -2,6 +2,7 @@
  * Layout components barrel — screen chrome and full-screen surfaces.
  * Import from '@/components/Layout' instead of individual files.
  */
+export { default as BrowseControls } from './BrowseControls';
 export { default as CenteredMessage } from './CenteredMessage';
 export { default as FullScreenLoader } from './FullScreenLoader';
 export { default as ListRow } from './ListRow';

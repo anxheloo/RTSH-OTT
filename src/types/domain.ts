@@ -147,6 +147,21 @@ export interface QualityOption {
   description?: string;
 }
 
+/**
+ * A single selectable resolution of a stream. `url` is the rendition's own
+ * (child) HLS playlist — manual quality selection works by swapping the player
+ * source to it, since `expo-video` cannot pin a variant within a master. A
+ * non-`auto` `QualityId` only appears here when the backend gives us its URL.
+ */
+export interface Rendition {
+  id: Exclude<QualityId, 'auto'>;
+  url: string;
+  /** Peak bitrate in bits/s, if known (display / future analytics). */
+  bitrate?: number;
+  width?: number;
+  height?: number;
+}
+
 /* ===========================================================================
  * Ads (design `adpop`). v1 creatives are static (image / brand gradient + copy
  * + CTA); video creatives are a later capability. The `AdOverlay` component

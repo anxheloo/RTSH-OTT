@@ -28,6 +28,7 @@ import ReusableText from '@/components/Inputs/ReusableText';
 import { CenteredMessage, FullScreenLoader, ScreenLayout, TabHeader } from '@/components/Layout';
 import LivePlayer from '@/components/Media/LivePlayer';
 import { ParentalPinModal } from '@/components/ParentalPin';
+import { availableQualityIds, resolveStreamSource } from '@/utils';
 import type { CatchupDay, EpgItem } from '@/types/domain';
 import { ChevronLeftIcon, GlobeIcon, LockIcon } from '@/assets/icons';
 
@@ -50,6 +51,30 @@ const ChannelScreen: React.FC = () => {
 
   const { stream, isLoading: streamLoading } = useChannelStreamQuery(channelId);
   const { channel } = useChannelQuery(channelId);
+
+  // Quality: `videoQuality` is the active (session) pick; on mount we seed it from
+  // the persisted `defaultQuality` preference (closes plan gap 1). The resolver
+  // maps it + the manifest to the URL to play; `auto` prefers the master (native
+  // ABR) and degrades gracefully to a single source.
+  const videoQuality = useAppStore((s) => s.videoQuality);
+  const defaultQuality = useAppStore((s) => s.defaultQuality);
+  const setVideoQuality = useAppStore((s) => s.setVideoQuality);
+  const setAvailableQualities = useAppStore((s) => s.setAvailableQualities);
+
+  useEffect(() => {
+    setVideoQuality(defaultQuality);
+    // Seed once per channel open; intentionally not reacting to defaultQuality changes mid-watch.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [channelId]);
+
+  // Publish the stream's selectable renditions so the quality sheet only offers
+  // qualities this stream actually provides (Auto-only when there are none).
+  useEffect(() => {
+    setAvailableQualities(availableQualityIds(stream));
+    return () => setAvailableQualities([]);
+  }, [stream, setAvailableQualities]);
+
+  const streamSource = stream ? resolveStreamSource(stream, videoQuality) : '';
 
   const [nowMs] = useState(() => Date.now());
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -175,7 +200,8 @@ const ChannelScreen: React.FC = () => {
   ) : (
     <LivePlayer
       channelId={channelId}
-      streamUrl={stream?.hlsUrl ?? ''}
+      streamUrl={streamSource}
+      streamHeaders={stream?.headers}
       channelName={channel?.name ?? channelId}
       isFullscreen={isFullscreen}
       onToggleFullscreen={() => setIsFullscreen((f) => !f)}

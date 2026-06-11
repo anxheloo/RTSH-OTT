@@ -5,6 +5,7 @@
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
 
+import { NavigationBar } from 'expo-navigation-bar';
 import { Stack } from 'expo-router';
 
 import RadioMiniPlayer from '@/components/Layout/RadioMiniPlayer';
@@ -15,6 +16,12 @@ import { getModalScreenOptions } from '@/utils/navigation';
 const AppLayout: React.FC = () => {
   return (
     <View style={styles.root}>
+      {/*
+        Android immersive mode: hide the system nav bar so it can't collide with
+        our bottom tab bar (SDK 56 forces edge-to-edge). Declarative — the native
+        side manages the transient swipe-reveal + auto-rehide. No-op on iOS.
+      */}
+      <NavigationBar hidden />
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen

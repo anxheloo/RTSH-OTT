@@ -13,6 +13,7 @@ import { FONTSIZE } from '@/theme/fonts';
 import { SPACING } from '@/theme/spacing';
 import { useAppStore } from '@/store/useAppStore';
 import { useLogoutMutation } from '@/api/mutations';
+import { useTabBarHeight } from '@/hooks/useTabBarHeight';
 import { Icon, IconButton } from '@/components/Icons';
 import ReusableText from '@/components/Inputs/ReusableText';
 import { ListRow, ScreenLayout, TabHeader } from '@/components/Layout';
@@ -27,6 +28,7 @@ import {
 const ProfileScreen: React.FC = () => {
   const { t } = useTranslation();
   const colors = useAppStore((s) => s.colors);
+  const tabBarHeight = useTabBarHeight();
   const user = useAppStore((s) => s.user);
   const isPinSet = useAppStore((s) => s.isPinSet);
   const showToast = useAppStore((s) => s.showToast);
@@ -78,7 +80,10 @@ const ProfileScreen: React.FC = () => {
         }
       />
 
-      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={[styles.scroll, { paddingBottom: tabBarHeight + SPACING.space_24 }]}
+        showsVerticalScrollIndicator={false}
+      >
         {/* Avatar + user info */}
         <View style={styles.avatarBlock}>
           <View style={[styles.avatar, { backgroundColor: colors.primary }]}>

@@ -7,9 +7,12 @@ export const DEFAULT_QUALITY: QualityId = 'auto';
 
 /**
  * Quality picker entries (design `QUAL`). `label` is the technical name (not
- * translated); `descriptionKey` resolves the localized blurb. Today only `auto`
- * is enforced (expo-video does ABR automatically and can't cap a variant); the
- * stored choice is informational until the player engine supports capping.
+ * translated); `descriptionKey` resolves the localized blurb. The full list is
+ * the *menu of possible* qualities; the active quality sheet filters it down to
+ * Auto + the renditions a stream actually offers (`PlayerSlice.availableQualities`).
+ * Manual selection swaps the player source to the rendition URL (expo-video can't
+ * cap a variant); `auto` prefers the master playlist for native ABR. See
+ * `utils/resolveStreamSource`.
  */
 export const QUALITY_OPTIONS = [
   { id: 'auto', label: 'Auto', descriptionKey: 'player.quality_auto' },
