@@ -17,22 +17,25 @@ import {
 
 import { BORDERRADIUS } from '@/theme/borders';
 import { FONTSIZE } from '@/theme/fonts';
-import { SPACING } from '@/theme/spacing';
+import { SCREEN_PADDING, SPACING } from '@/theme/spacing';
 import { useAppStore } from '@/store/useAppStore';
 import ReusableText from '@/components/Inputs/ReusableText';
+import Skeleton from '@/components/Layout/Skeleton';
 import SceneBackground from '@/components/Media/SceneBackground';
 import type { HeroItem } from '@/types/domain';
 
 export interface HeroCarouselProps {
   items: HeroItem[];
   onPressItem: (channelId: string) => void;
+  /** Shows a card-sized Skeleton while the feed loads (only when `items` is empty). */
+  isLoading?: boolean;
   testID?: string;
 }
 
-const H_MARGIN = SPACING.space_18;
+const H_MARGIN = SCREEN_PADDING;
 const HERO_HEIGHT = 178;
 
-const HeroCarousel: React.FC<HeroCarouselProps> = ({ items, onPressItem, testID }) => {
+const HeroCarousel: React.FC<HeroCarouselProps> = ({ items, onPressItem, isLoading = false, testID }) => {
   const colors = useAppStore((s) => s.colors);
   const { width } = useWindowDimensions();
   const [index, setIndex] = useState(0);
@@ -44,7 +47,14 @@ const HeroCarousel: React.FC<HeroCarouselProps> = ({ items, onPressItem, testID 
     setIndex(Math.round(e.nativeEvent.contentOffset.x / pageWidth));
   };
 
-  if (items.length === 0) return null;
+  if (items.length === 0) {
+    if (!isLoading) return null;
+    return (
+      <View style={styles.skeletonWrap} testID={testID ? `${testID}-skeleton` : undefined}>
+        <Skeleton height={HERO_HEIGHT} borderRadius={BORDERRADIUS.radius_20} />
+      </View>
+    );
+  }
 
   return (
     <View testID={testID}>
@@ -113,6 +123,9 @@ const HeroCarousel: React.FC<HeroCarouselProps> = ({ items, onPressItem, testID 
 export default HeroCarousel;
 
 const styles = StyleSheet.create({
+  skeletonWrap: {
+    paddingHorizontal: H_MARGIN,
+  },
   card: {
     height: HERO_HEIGHT,
     borderRadius: BORDERRADIUS.radius_20,

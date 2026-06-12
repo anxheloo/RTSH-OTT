@@ -31,6 +31,9 @@ const ResetRequestForm: React.FC<ResetRequestFormProps> = ({
     defaultValues: { email: '' },
   });
 
+  // Zod error messages are i18n keys (RTSH pattern) — resolve at render time.
+  const tr = (key?: string) => (key ? t(key) : undefined);
+
   return (
     <>
       <ReusableText variant="bodySmall" themeColor="textMuted">
@@ -49,7 +52,7 @@ const ResetRequestForm: React.FC<ResetRequestFormProps> = ({
             keyboardType="email-address"
             autoCapitalize="none"
             autoComplete="email"
-            errorText={error?.message}
+            errorText={tr(error?.message)}
             testID="forgot-email-input"
           />
         )}

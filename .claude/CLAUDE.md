@@ -55,6 +55,8 @@ Private (EAS dashboard only): `SENTRY_DSN`, `MMKV_ENCRYPTION_KEY`.
 - preview: `al.rtsh.tani.preview`
 - dev: `al.rtsh.tani.dev`
 
+It also reads `APP_PLATFORM` (optional; `androidstb`) → `extra.devicePlatform`, the build-time platform override for operator STB builds (runtime can't distinguish an STB from retail Android TV). Consumed by `getDevicePlatform()` in `utils/device.ts`.
+
 ## Architecture
 
 ### Navigation (`src/app/`)
@@ -70,7 +72,7 @@ Single `useAppStore` composed from slices (see `src/store/`):
 - `UserSlice` — auth state, user, access token (access in store, refresh in keychain)
 - `SettingsSlice` — locale, theme mode, haptics, autoplay, data-saver, T&C timestamp, cellular/background-video flags, default ABR quality, notifications flag
 - `ThemeSlice` — mode + colors (light/dark objects, swapped on toggle)
-- `ModalSlice` — single active modal (`currentModal` + `modalData`, RTSH/SOLITAR style; apiError, noInternet, notify, confirmation). One modal at a time; `updateModalSlice({ currentModal: null })` to close.
+- `ModalSlice` — single active modal (`currentModal` + `modalData`, RTSH/SOLITAR style; apiError, noInternet, notify, confirmation, forceUpdate). One modal at a time; `updateModalSlice({ currentModal: null })` to close (`forceUpdate` is blocking and never closes).
 - `NetworkSlice` — runtime connectivity (`isOnline`, `connectionType`), written by `useNetworkMonitor`; not persisted
 - `PlayerSlice` — current playback state (channelId, position, isPlaying, isFullscreen)
 - `ParentalSlice` — PIN-set flag, failed attempts, lockout
@@ -90,9 +92,9 @@ Persist via MMKV (`zustandStorage`). `partialize` controls what persists. `onReh
 
 ### Networking (`src/api/`)
 
-- `client.ts` — single `apiClient` (axios) + `queryClient`. Request interceptor injects token from store. Response interceptor refreshes on 401 (single-flight queue) or logs out on refresh-failure.
+- `client.ts` — single `apiClient` (axios) + `queryClient`. Request interceptor injects token + `Accept-Language` from store. Response interceptor refreshes on 401 (single-flight lives inside `refreshAccessToken`, shared with the boot refresh) — it never logs out itself; only a confirmed 401/403 inside `refreshAccessToken` wipes the session. 426 → blocking `forceUpdate` modal. Static `X-Device-Id` / `X-Device-Platform` / `X-App-Version` headers are stamped at boot by `useDeviceIdentity`, which also fire-and-forgets the `PUT /users/me/device` registration upsert whenever `isAuthenticated` flips true (see `rules/ARCHITECTURE.md` → Device identity; contract in `docs/API.md`).
 - `endpoints.ts` — string constants for routes (`AUTH_ROUTES`, `CHANNELS_ROUTES`, etc).
-- `services/*.ts` — domain-grouped axios calls (`auth.ts`, `channels.ts`, `epg.ts`, `catchup.ts`, `radio.ts`, `streams.ts`, `users.ts`, `config.ts`).
+- `services/*.ts` — domain-grouped axios calls (`auth.ts`, `channels.ts`, `epg.ts`, `catchup.ts`, `radio.ts`, `streams.ts`, `users.ts`, `config.ts`, `devices.ts`).
 - `queries/*.ts` — TanStack Query hooks wrapping services.
 - `mutations/*.ts` — TanStack Mutation hooks.
 - `mocks/` — **custom axios-adapter mock** (not MSW) + fixtures, active when `EXPO_PUBLIC_API_MODE=mock`. `handlers.ts` is an array of `{ method, test(url), delay?, respond(config) }`; `server.ts` swaps it into the axios adapter.
@@ -137,6 +139,15 @@ Everything cross-cutting (auth, theme, boot/splash, network state, persistence b
 - `docs/API.md` — backend contract (source of truth for `src/api/`)
 - `docs/PLAYER.md` — HLS + AES-128 spec + fallback decision
 
+## Doc sync (mandatory)
+
+Every change that affects documented behavior must update the docs in the same turn — never leave them stale:
+
+- **Cross-cutting flow changed** (auth, theme, boot/splash, network, persistence, radio audio, parental, navigation) → update `rules/ARCHITECTURE.md` (how it works / why / known gaps).
+- **Convention or pattern changed** → update `rules/STYLE_GUIDE.md`.
+- **Feature added/removed, scope or stack changed** → update this file (CLAUDE.md).
+- **Plan step done/superseded** → update `docs/plan.md` (and mark stale references in older entries).
+
 ## Working preferences (Anxhelo)
 
 - Direct, sharp, precise. No fluff. Best solution first, root cause first.
@@ -164,7 +175,7 @@ Beyond the architecture scaffold, these features are spec-mandated for v1 — do
 - **T&C acceptance** — first-launch gate after register/login. Settings flag `tcAcceptedAt`.
 - **Geoblocking overlay** — streams endpoint returns geo-error → full-screen overlay (RTSH branded). Checked on every channel open.
 - **Cellular-data gate** — confirmation modal before playback over cellular when `settings.cellularPlaybackAllowed === false`.
-- **Mosaic view** — grid of 4/6/9 channel thumbnails (live snapshots) refreshing periodically. Tap to switch channel.
+- ~~**Mosaic view**~~ — **cut from v1 by user decision (2026-06-11, plan 22.14f)**; route + components removed.
 - **PIP + iOS background video** — `expo-video` config plugin toggled by `settings.backgroundVideoAllowed`. Auto-PIP on background per user setting.
 - **Ads** — three slots: launch, channel-switch (frequency-capped), time-scheduled (from `/config`). Single `AdOverlay` component (`components/Media/AdOverlay.tsx`, design `adpop`). **v1 creatives are static** (image / brand surface + copy + CTA + skip countdown); a second `expo-video` instance for video ads is a later capability. Component built in 22.15; slot orchestration is Phase 16.
 - **Quality picker** — manual ABR selection in player settings menu.

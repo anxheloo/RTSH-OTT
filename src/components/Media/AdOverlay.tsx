@@ -13,7 +13,7 @@
  * The creative is its own brand surface — text colours are fixed (white / brand)
  * and theme-independent, since the card always sits over dark art.
  */
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { Modal, Pressable, StyleSheet, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
@@ -22,6 +22,7 @@ import * as WebBrowser from 'expo-web-browser';
 import { BORDERRADIUS } from '@/theme/borders';
 import { FONTSIZE } from '@/theme/fonts';
 import { SPACING } from '@/theme/spacing';
+import { useCountdown } from '@/hooks';
 import { Icon } from '@/components/Icons';
 import ReusableText from '@/components/Inputs/ReusableText';
 import ReusableImage from '@/components/Media/ReusableImage';
@@ -54,24 +55,6 @@ export interface AdOverlayProps {
   testID?: string;
 }
 
-/**
- * Mount-anchored skip countdown. Derives `remaining` purely from a ticking
- * timestamp (no wall-clock read during render), so it stays clear of the
- * impure-render / set-state-in-effect lint rules.
- */
-function useSkipCountdown(seconds: number) {
-  const [start] = useState(() => Date.now());
-  const [nowTs, setNowTs] = useState(() => Date.now());
-
-  useEffect(() => {
-    const id = setInterval(() => setNowTs(Date.now()), 500);
-    return () => clearInterval(id);
-  }, []);
-
-  const remaining = Math.max(0, seconds - Math.floor((nowTs - start) / 1000));
-  return { remaining, canSkip: remaining <= 0 };
-}
-
 const AdOverlay: React.FC<AdOverlayProps> = ({
   creative,
   skipAfter = DEFAULT_SKIP_AFTER,
@@ -80,7 +63,12 @@ const AdOverlay: React.FC<AdOverlayProps> = ({
   testID,
 }) => {
   const { t } = useTranslation();
-  const { remaining, canSkip } = useSkipCountdown(skipAfter);
+  // Paused while backgrounded: the skip delay means "seconds actually viewed",
+  // so flipping to the home screen must not burn the countdown.
+  const { remaining, isDone: canSkip } = useCountdown(skipAfter, {
+    proceedInBackground: false,
+    tickMs: 500,
+  });
 
   const handleCta = () => {
     if (onClickthrough) {

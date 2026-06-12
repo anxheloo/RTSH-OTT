@@ -3,14 +3,18 @@
  * A single hidden `TextInput` drives the six display boxes (no per-box ref
  * juggling); auto-submits when full, with a resend countdown. Adapted from the
  * RTSH `OneTimePass` + `OTP` + `CountDown` components.
+ *
+ * The resend cooldown uses `useCountdown` (wall-clock default): the cooldown is
+ * a server-side constraint, so time backgrounded still counts toward it.
  */
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { Pressable, StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
 import { BORDERRADIUS } from '@/theme/borders';
 import { SPACING } from '@/theme/spacing';
 import { useAppStore } from '@/store/useAppStore';
+import { useCountdown } from '@/hooks';
 import ReusableBtn from '@/components/Buttons/ReusableBtn';
 import ReusableText from '@/components/Inputs/ReusableText';
 
@@ -42,13 +46,7 @@ const OtpVerify: React.FC<OtpVerifyProps> = ({
   const colors = useAppStore((s) => s.colors);
   const inputRef = useRef<TextInput>(null);
   const [code, setCode] = useState('');
-  const [seconds, setSeconds] = useState(resendSeconds);
-
-  useEffect(() => {
-    if (seconds <= 0) return;
-    const id = setInterval(() => setSeconds((s) => (s <= 1 ? 0 : s - 1)), 1000);
-    return () => clearInterval(id);
-  }, [seconds]);
+  const { remaining: seconds, isDone: canResend, restart } = useCountdown(resendSeconds);
 
   const handleChange = (text: string) => {
     const digits = text.replace(/\D/g, '').slice(0, length);
@@ -59,11 +57,9 @@ const OtpVerify: React.FC<OtpVerifyProps> = ({
   const handleResend = () => {
     onResend();
     setCode('');
-    setSeconds(resendSeconds);
+    restart();
     inputRef.current?.focus();
   };
-
-  const canResend = seconds <= 0;
 
   return (
     <View style={styles.container} testID={testID}>
@@ -130,10 +126,14 @@ const OtpVerify: React.FC<OtpVerifyProps> = ({
       >
         <ReusableText
           variant="bodySmall"
-          themeColor={canResend ? 'primary' : 'textMuted'}
+          themeColor={canResend && !isResending ? 'primary' : 'textMuted'}
           textAlign="center"
         >
-          {canResend ? t('auth.otp.resend') : t('auth.otp.resend_in', { seconds })}
+          {isResending
+            ? t('auth.otp.resending')
+            : canResend
+              ? t('auth.otp.resend')
+              : t('auth.otp.resend_in', { seconds })}
         </ReusableText>
       </TouchableOpacity>
     </View>

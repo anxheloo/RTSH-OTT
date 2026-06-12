@@ -370,6 +370,7 @@ Schemas live in `types/` alongside domain types, not inside form files.
 - Expo Router v7 file-based routing. No `useNavigation` + stack manipulation.
 - Auth guard via `Stack.Protected` in root `_layout.tsx` — no guard `useEffect`.
 - Full-screen player routes are root-level modals: `player/[id]`, `channel/[id]`.
+- **Transitions:** pushed screens use `animation: 'slide_from_right'` (stack-level `screenOptions` default in both the auth and app stacks); full-screen player modals (`channel/[id]`, `program/[id]`) use `slide_from_bottom`. Sheets animate natively via `formSheet`.
 - Platform-specific presentation where it matters:
 
 ```ts
@@ -404,7 +405,15 @@ useAppStore.getState().updateModalSlice({ currentModal: null });
 
 ---
 
-## Keychain / Storage
+## Loading States — Skeleton Strategy
+
+Data screens never block on a full-screen spinner. Navigation is instant: the screen renders its chrome (header, strips, toggles) immediately and swaps each **data-driven region** for a skeleton while its query is in flight.
+
+- **`Skeleton` (`components/Layout/Skeleton.tsx`) is the only pulsing primitive** — theme `colors.skeleton`, Reanimated opacity pulse. Compose it; never hand-roll shimmer.
+- **Every list row component gets an `XSkeleton` sibling in the same folder** (`ChannelCardSkeleton`, `StationRowSkeleton`, `GuideRowSkeleton`, `ProgramRowSkeleton`) mirroring the real row's footprint — same paddings, tile sizes, hairline divider — so data swaps in with no layout jump. Use `FONTSIZE` tokens as text-line heights.
+- **Lists:** pass the skeleton stack as `ListEmptyComponent` while `isLoading` (FlashList), or via `AnimatedFlashList`'s `skeletonComponent` prop. Headers/toggles stay live.
+- **Detail screens with heavy children** (channel player): mount the heavy component only when its inputs are resolved; until then a `Skeleton` holds its exact slot. Never gate the route on the query. If the child is gated content (adult/geo), wait for **all** gating inputs before mounting — a skeleton must never be replaced by a frame of gated content.
+- **`FullScreenLoader` is reserved** for full-screen player surfaces (live/VOD buffering overlays, `program/[id]`) and boot — not for data screens.
 
 A three-function wrapper in `services/keychain.ts` is the only way to interact with `expo-secure-store`. Nothing calls it directly.
 
@@ -533,9 +542,11 @@ Branch naming: `feat/<scope>-<short>`, `fix/<scope>-<short>`.
 | `Alert.alert` | `ModalSlice` + `ModalWrapper` |
 | `console.log` in commits | Sentry breadcrumb or remove |
 | Navigation guard in `useEffect` | `Stack.Protected` |
+| `FullScreenLoader` gating a data screen | Skeleton strategy (see Loading States) |
 | `useEffect` reacting to query `data`/`error` | `onSuccess`/`onError` in mutation options |
 | Direct `expo-secure-store` calls | `services/keychain.ts` wrapper |
 | Context for theme | `useAppStore((s) => s.colors)` |
 | Inline `StyleSheet` objects in JSX | `styles.xxx` from `StyleSheet.create()` |
 | Magic numbers for spacing/font/radius | Token files (`SPACING`, `FONTSIZE`, `BORDERRADIUS`) |
 | `React.memo` on non-list components | Memoize only in lists or high-frequency renders |
+| Ad-hoc `setInterval` countdown in a component | `useCountdown` (`hooks/useCountdown.ts`) — deadline-based, background-aware (`proceedInBackground: false` to pause while backgrounded) |

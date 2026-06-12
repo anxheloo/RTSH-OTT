@@ -28,7 +28,6 @@
     },
     "register": {
       "title": "Create account",
-      "display_name_placeholder": "Display Name",
       "email_label": "Email",
       "email_placeholder": "name@example.com",
       "username_label": "Username",
@@ -37,22 +36,18 @@
       "password_placeholder": "••••••••",
       "confirm_password_label": "Confirm password",
       "confirm_password_placeholder": "••••••••",
-      "age_label": "Age",
-      "age_placeholder": "e.g. 28",
-      "location_label": "City / Country",
-      "location_placeholder": "Tirana, Albania",
+      "birthday_label": "Birth date",
+      "city_label": "City",
+      "country_label": "Country",
       "accept_terms_prefix": "I accept the",
       "accept_terms_link": "terms of use",
       "submit": "Register",
       "failed": "Registration failed. Please try again.",
       "have_account": "Already have an account?",
       "sign_in": "Sign in",
-      "continue": "Continue",
-      "details_title": "Tell us about you",
       "birthday_placeholder": "Birthday (YYYY-MM-DD)",
       "city_placeholder": "City",
       "country_placeholder": "Country",
-      "education_placeholder": "Education (optional)",
       "gender_label": "Gender",
       "gender": {
         "male": "Male",
@@ -63,19 +58,23 @@
     },
     "errors": {
       "email": "Invalid email address",
-      "username": "Username must be at least 2 characters",
+      "username": "Username must be at least 3 characters",
       "password_min": "Password must be at least 8 characters",
       "password_match": "Passwords do not match",
-      "age_required": "Age is required",
-      "age_invalid": "Enter a valid age",
-      "location_required": "City / Country is required",
       "gender_required": "Select a gender",
-      "terms_required": "You must accept the terms of use"
+      "terms_required": "You must accept the terms of use",
+      "password_max": "Password must be at most 30 characters",
+      "birthday_required": "Birth date is required",
+      "birthday_invalid": "Enter a valid date (YYYY-MM-DD)",
+      "city_required": "City is required",
+      "country_required": "Country is required",
+      "otp_length": "Enter the 6-digit code"
     },
     "otp": {
       "sent": "Enter the {{length}}-digit code sent to {{email}}",
       "verify": "Verify",
       "resend": "Resend code",
+      "resending": "Sending…",
       "resend_in": "Resend code in {{seconds}}s",
       "invalid": "Invalid or expired code."
     },
@@ -107,9 +106,7 @@
     "search_placeholder": "Search channels, programs…",
     "toggle_tv": "Television",
     "toggle_radio": "Radio",
-    "continue_watching": "Continue watching",
     "tv_channels": "TV Channels",
-    "guide_link": "Guide",
     "radio_stations": "Radio Stations"
   },
   "radio": {
@@ -118,10 +115,6 @@
     "program": "Radio schedule",
     "live_now": "On air",
     "favorite_soon": "Favourites coming soon"
-  },
-  "mosaic": {
-    "title": "Mosaic",
-    "subtitle": "The last broadcast frame for every channel, linked to the EPG."
   },
   "datetime": {
     "today": "Today",
@@ -160,13 +153,13 @@
     "package_default": "Base Package · 32 channels",
     "account": {
       "title": "Account details",
-      "subtitle": "Name, email, password",
-      "coming_soon": "Account editing coming soon"
-    },
-    "favorites": {
-      "title": "Favourites",
-      "subtitle": "Saved channels",
-      "coming_soon": "Favourites coming soon"
+      "subtitle": "Username, email, age, location",
+      "username": "Username",
+      "email": "Email",
+      "age": "Age",
+      "location": "Location",
+      "gender": "Gender",
+      "empty": "—"
     },
     "parental": {
       "title": "Parental controls",
@@ -271,6 +264,11 @@
     "api_default": "Something went wrong",
     "network": "No internet connection",
     "session_expired": "Session expired"
+  },
+  "update": {
+    "title": "Update required",
+    "message": "This version of RTSH Tani is no longer supported. Please update to continue watching.",
+    "cta": "Update"
   },
   "parental": {
     "title": "Parental control",

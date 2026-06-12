@@ -7,7 +7,7 @@
 import { ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
 
 import { BORDERRADIUS } from '@/theme/borders';
-import { SPACING } from '@/theme/spacing';
+import { SCREEN_PADDING, SPACING } from '@/theme/spacing';
 import { useAppStore } from '@/store/useAppStore';
 
 import ReusableText from './ReusableText';
@@ -72,7 +72,7 @@ export default FilterChipRow;
 const styles = StyleSheet.create({
   content: {
     gap: SPACING.space_8,
-    paddingHorizontal: SPACING.space_18,
+    paddingHorizontal: SCREEN_PADDING,
     paddingVertical: SPACING.space_4,
   },
   chip: {

@@ -9,7 +9,7 @@
  * driven by `focused`, the label by `tabBarActiveTintColor`.
  */
 import React from 'react';
-import { StyleSheet } from 'react-native';
+import { Platform, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { BlurView } from 'expo-blur';
@@ -40,16 +40,22 @@ const TabsLayout: React.FC = () => {
         },
         tabBarLabelStyle: TabBar.tabBarLabelStyle,
         tabBarItemStyle: TabBar.tabBarItemStyle,
-        tabBarBackground: () => (
-          <BlurView
-            tint={mode === 'light' ? 'light' : 'dark'}
-            intensity={40}
-            // Android renders no blur without an explicit method; iOS blurs natively.
-            // Sdk31Plus uses the performant native blur on Android 12+, none below.
-            blurMethod="dimezisBlurViewSdk31Plus"
-            style={[StyleSheet.absoluteFill, { backgroundColor: colors.tabBar }]}
-          />
-        ),
+        tabBarIconStyle: TabBar.tabBarIconStyle,
+        // iOS blurs natively. Android's blur needs a `blurTarget` ref to a
+        // BlurTargetView wrapping the content BEHIND the bar — impossible from
+        // `tabBarBackground` (it renders inside the navigator that owns the
+        // screens), so Android gets a near-opaque solid instead of a silent
+        // fallback + warning.
+        tabBarBackground: () =>
+          Platform.OS === 'ios' ? (
+            <BlurView
+              tint={mode === 'light' ? 'light' : 'dark'}
+              intensity={40}
+              style={[StyleSheet.absoluteFill, { backgroundColor: colors.tabBar }]}
+            />
+          ) : (
+            <View style={[StyleSheet.absoluteFill, { backgroundColor: colors.tabBarSolid }]} />
+          ),
       }}
     >
       <Tabs.Screen

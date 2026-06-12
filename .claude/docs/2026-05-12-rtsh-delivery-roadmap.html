@@ -1,0 +1,1342 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>RTSH OTT — Delivery Roadmap</title>
+<style>
+  :root{
+    --bg:#0e1117; --panel:#161b22; --panel-2:#1f2630; --border:#2a313c;
+    --text:#e6edf3; --muted:#8b949e; --accent:#58a6ff;
+    --ok:#3fb950; --warn:#d29922; --bad:#f85149; --gray:#6e7681;
+    --ok-bg:rgba(63,185,80,.12); --warn-bg:rgba(210,153,34,.14);
+    --bad-bg:rgba(248,81,73,.14); --gray-bg:rgba(110,118,129,.14);
+    --plain-bg:rgba(88,166,255,.08); --plain-border:rgba(88,166,255,.25);
+    --phase-bg:linear-gradient(180deg,rgba(88,166,255,.06),rgba(88,166,255,.01));
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font:14px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+  .wrap{max-width:1200px;margin:0 auto;padding:24px 22px 80px}
+  header{border-bottom:1px solid var(--border);padding-bottom:18px;margin-bottom:18px}
+  h1{font-size:22px;margin:0 0 6px;letter-spacing:-.01em}
+  .sub{color:var(--muted);font-size:13px}
+  .meta{display:flex;flex-wrap:wrap;gap:14px;font-size:12px;color:var(--muted);margin-top:8px}
+  .meta b{color:var(--text);font-weight:600}
+
+  .risks{background:linear-gradient(180deg,rgba(248,81,73,.08),rgba(248,81,73,.02));border:1px solid rgba(248,81,73,.35);border-radius:10px;padding:14px 16px;margin:18px 0 18px}
+  .risks h3{margin:0 0 8px;font-size:12px;color:var(--bad);letter-spacing:.04em;text-transform:uppercase}
+  .risks ol{margin:0;padding-left:18px}
+  .risks li{margin:5px 0;font-size:13px}
+  .risks li b{color:#ffb4ad}
+
+  .stats{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin:14px 0}
+  .stat{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:10px 14px}
+  .stat .n{font-size:20px;font-weight:600;line-height:1;color:#fff}
+  .stat .l{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-top:5px}
+
+  .tabs{display:flex;gap:4px;border-bottom:1px solid var(--border);margin:16px 0 0;position:sticky;top:0;background:var(--bg);z-index:6;padding-top:4px}
+  .tab{cursor:pointer;background:transparent;color:var(--muted);border:0;padding:10px 18px;font-size:13.5px;font-weight:600;border-bottom:2px solid transparent;margin-bottom:-1px}
+  .tab:hover{color:var(--text)}
+  .tab.active{color:var(--accent);border-bottom-color:var(--accent)}
+
+  .controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:14px 0 18px;position:sticky;top:42px;background:var(--bg);padding:8px 0;z-index:5;border-bottom:1px solid var(--border)}
+  .btn{cursor:pointer;border:1px solid var(--border);background:var(--panel);color:var(--text);padding:6px 10px;border-radius:6px;font-size:12px}
+  .btn:hover{border-color:#3b4754}
+  .btn.primary{background:var(--accent);color:#0b0f15;border-color:var(--accent);font-weight:600}
+  .filter-label{color:var(--muted);font-size:11.5px;text-transform:uppercase;letter-spacing:.06em;margin-right:4px}
+  .select{background:var(--panel);border:1px solid var(--border);color:var(--text);padding:6px 8px;border-radius:6px;font-size:12px}
+
+  .tab-content{display:none}
+  .tab-content.active{display:block}
+
+  .phase{background:var(--phase-bg);border:1px solid var(--border);border-radius:12px;margin:14px 0;overflow:hidden}
+  .phase-header{padding:16px 18px;cursor:pointer;display:grid;grid-template-columns:auto 1fr auto;gap:14px;align-items:center;user-select:none;background:rgba(0,0,0,.15)}
+  .phase-header:hover{background:rgba(0,0,0,.25)}
+  .phase-num{font:700 14px/1 ui-monospace,SFMono-Regular,Menlo,monospace;background:var(--accent);color:#0b0f15;padding:8px 10px;border-radius:6px;letter-spacing:.04em;min-width:62px;text-align:center}
+  .phase-title h2{margin:0 0 4px;font-size:16px;color:#fff;letter-spacing:-.01em;display:flex;align-items:center;gap:8px}
+  .phase-title .goal{color:var(--muted);font-size:13px;line-height:1.4}
+  .phase-meta{display:flex;flex-direction:column;align-items:flex-end;gap:4px;font-size:11.5px;color:var(--muted)}
+  .phase-meta .duration{color:#fff;font-weight:600;font-size:12px;background:var(--panel-2);padding:3px 8px;border-radius:5px;border:1px solid var(--border)}
+  .phase-meta .deps{font-style:italic}
+  .phase-body{padding:0 18px 14px;display:none}
+  .phase.open .phase-body{display:block}
+  .phase-header::after{content:"";display:none}
+
+  .phase-intro{background:var(--plain-bg);border:1px solid var(--plain-border);border-radius:8px;padding:10px 12px;margin:12px 0;font-size:12.5px;line-height:1.55}
+  .phase-intro b{color:#fff}
+
+  .steps{display:flex;flex-direction:column;gap:8px;margin-top:8px}
+  .step{background:var(--panel);border:1px solid var(--border);border-radius:8px;overflow:hidden}
+  .step.hide{display:none}
+  .step-header{padding:10px 14px;cursor:pointer;display:grid;grid-template-columns:auto 1fr auto auto;gap:12px;align-items:center;user-select:none}
+  .step-header:hover{background:rgba(255,255,255,.02)}
+  .step-num{font:600 11.5px/1 ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--muted);min-width:44px}
+  .step-title{font-weight:600;font-size:13px;color:#fff}
+  .step-est{font-size:11px;color:var(--muted);font:600 11px/1 ui-monospace,SFMono-Regular,Menlo,monospace;background:var(--panel-2);padding:3px 6px;border-radius:5px;border:1px solid var(--border)}
+  .badge{display:inline-flex;align-items:center;gap:6px;font-size:10.5px;padding:3px 7px;border-radius:5px;font-weight:600;letter-spacing:.02em;white-space:nowrap}
+  .badge.ok{background:var(--ok-bg);color:var(--ok);border:1px solid rgba(63,185,80,.3)}
+  .badge.warn{background:var(--warn-bg);color:var(--warn);border:1px solid rgba(210,153,34,.35)}
+  .badge.bad{background:var(--bad-bg);color:var(--bad);border:1px solid rgba(248,81,73,.35)}
+  .badge.gray{background:var(--gray-bg);color:var(--muted);border:1px solid rgba(110,118,129,.35)}
+  .step-body{padding:0 14px 12px;display:none;border-top:1px dashed var(--border);margin-top:0}
+  .step.open .step-body{display:flex;flex-direction:column;gap:10px;padding-top:10px}
+  .step-row{display:flex;flex-direction:column;gap:4px}
+  .step-row.plain{background:var(--plain-bg);border:1px solid var(--plain-border);border-radius:6px;padding:8px 10px}
+  .step-row.prompt{background:rgba(63,185,80,.06);border:1px solid rgba(63,185,80,.25);border-radius:6px;padding:8px 10px}
+  .step-label{font:600 10px/1 ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.1em;color:var(--muted);text-transform:uppercase}
+  .step-row.plain .step-label{color:var(--accent)}
+  .step-row.prompt .step-label{color:var(--ok)}
+  .step-content{font-size:12.5px;line-height:1.6}
+  .step-content p{margin:0 0 5px}
+  .step-content p:last-child{margin-bottom:0}
+  .step-content ul{margin:3px 0;padding-left:18px}
+  .step-content li{margin:2px 0}
+  .step-content code{background:var(--panel-2);color:#a5d6ff;padding:1px 5px;border-radius:4px;font:600 11.5px/1 ui-monospace,SFMono-Regular,Menlo,monospace;border:1px solid var(--border)}
+  .step-content .danger{color:#ffb4ad}
+  .step-content .spec{color:var(--muted);font-style:italic;font-size:12px;border-left:2px solid var(--border);padding:2px 0 2px 8px;margin:4px 0}
+  .step-row.prompt .step-content{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11.5px;color:#cce5ff;background:rgba(0,0,0,.25);padding:8px 10px;border-radius:5px;border:1px solid var(--border);white-space:pre-wrap}
+  .copy-btn{background:transparent;border:1px solid var(--border);color:var(--muted);padding:2px 7px;border-radius:4px;font-size:10.5px;cursor:pointer;margin-left:8px}
+  .copy-btn:hover{color:var(--text);border-color:#3b4754}
+  .copy-btn.copied{color:var(--ok);border-color:var(--ok)}
+
+  /* Backend tab styling */
+  .backend-card{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin:10px 0}
+  .backend-card h3{margin:0 0 8px;font-size:14px;color:#fff;display:flex;align-items:center;gap:10px}
+  .backend-card h3 .b-num{font:700 12px/1 ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--accent);background:var(--panel-2);padding:5px 8px;border-radius:5px;border:1px solid var(--border)}
+  .backend-card .b-sub{color:var(--muted);font-size:12px;margin-bottom:8px}
+  .backend-card .b-content{font-size:13px}
+  .backend-card .b-content p{margin:4px 0}
+  .backend-card .b-content ul{margin:5px 0;padding-left:20px}
+  .backend-card .b-content li{margin:2px 0}
+  .backend-card .b-content code{background:var(--panel-2);color:#a5d6ff;padding:1px 5px;border-radius:4px;font:600 12px/1 ui-monospace,SFMono-Regular,Menlo,monospace;border:1px solid var(--border)}
+  .backend-card .b-owner{margin-top:8px;padding-top:8px;border-top:1px dashed var(--border);font-size:11.5px;color:var(--muted)}
+  .backend-card .b-owner b{color:#fff}
+  .arch-diagram{background:#0a0d12;border:1px solid var(--border);border-radius:8px;padding:14px;margin:14px 0;font:600 11.5px/1.6 ui-monospace,SFMono-Regular,Menlo,monospace;color:#a5d6ff;white-space:pre;overflow-x:auto}
+
+  .footer-note{margin-top:32px;padding:14px 16px;background:var(--panel);border:1px solid var(--border);border-radius:8px;font-size:12.5px;color:var(--muted)}
+  .footer-note b{color:#fff}
+
+  @media print{
+    body{background:#fff;color:#000}
+    .controls,.tabs,.copy-btn{display:none}
+    .tab-content{display:block !important}
+    .tab-content[data-tab="backend"]::before{content:"BACKEND OVERVIEW";display:block;font-weight:700;margin-top:30px;padding-top:20px;border-top:2px solid #000}
+    .phase,.step,.backend-card,.stat,.risks{break-inside:avoid;background:#fff !important;border-color:#ccc !important;color:#000 !important}
+    .phase.open .phase-body,.step.open .step-body{display:flex !important;flex-direction:column}
+    .step-row.plain,.step-row.prompt,.phase-intro{background:#f6faff !important;border-color:#bcd6f5 !important}
+    .step-content code,.backend-card .b-content code{background:#f4f4f4 !important;color:#000 !important;border-color:#ccc !important}
+    .arch-diagram{background:#f8f8f8 !important;color:#000 !important;border-color:#ccc !important}
+  }
+  @media (max-width:780px){.stats{grid-template-columns:repeat(2,1fr)} .phase-header{grid-template-columns:auto 1fr} .phase-meta{grid-column:1/-1;flex-direction:row;justify-content:flex-start}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>RTSH OTT — Delivery Roadmap</h1>
+  <div class="sub">End-to-end delivery plan. Phased structure mirrors how the work happens chronologically — each step is one Jira ticket. Click any phase or step to expand. Use the Frontend tab for your day-to-day work; the Backend tab is a high-level overview so you understand the full system.</div>
+  <div class="meta">
+    <span>Project: <b>"Shërbimi i Platformës OTT për RTSH-në"</b> · ref REF-45590-10-12-2022</span>
+    <span>Contract: <b>48 months</b></span>
+    <span>Go-live: <b>60 days from signing</b></span>
+    <span>Owner of frontend: <b>Anxhelo (RN Expo + React.js)</b></span>
+    <span>Stack target: <b>Expo SDK 55, RN 0.83</b></span>
+  </div>
+</header>
+
+<div class="risks">
+  <h3>Critical risks — escalate at team meeting</h3>
+  <ol>
+    <li><b>Min OS versions are 2014–2016 era.</b> iOS 9.3, Android 5.0, Tizen 2.3, WebOS 2.0 are pre-modern-stack. Renegotiate to iOS 14+ / Android 8+ / Tizen 5.0+ / WebOS 4.0+ before signing.</li>
+    <li><b>Tizen + WebOS are not React Native.</b> They are separate React web apps packaged with vendor SDKs. Decide TV ownership: solo, TV specialist, or phased.</li>
+    <li><b>60-day go-live across 8 platforms is unrealistic solo.</b> Phase the delivery: mobile first, TV after. Or staff up.</li>
+    <li><b>Spec App.4 mandates Samsung + LG accounts named "RTSH TANI", credentials handed to RTSH.</b> DUNS is the blocking long-lead — apply day 1.</li>
+  </ol>
+</div>
+
+<div class="stats">
+  <div class="stat"><div class="n">9</div><div class="l">Phases (frontend)</div></div>
+  <div class="stat"><div class="n">78</div><div class="l">Steps total</div></div>
+  <div class="stat"><div class="n">~16 wk</div><div class="l">Build duration</div></div>
+  <div class="stat"><div class="n">48 mo</div><div class="l">Contract span</div></div>
+  <div class="stat"><div class="n">8</div><div class="l">Backend areas</div></div>
+</div>
+
+<div class="tabs">
+  <button class="tab active" data-tab="frontend">Frontend (detailed)</button>
+  <button class="tab" data-tab="backend">Backend overview</button>
+</div>
+
+<div class="controls">
+  <span class="filter-label">View:</span>
+  <button class="btn primary" id="expand-phases">Expand all phases</button>
+  <button class="btn" id="expand-steps">Expand all steps</button>
+  <button class="btn" id="collapse-all">Collapse all</button>
+  <button class="btn" id="print-btn">Print / PDF</button>
+  <span style="flex:1"></span>
+  <span class="filter-label">Status:</span>
+  <select class="select" id="status-filter">
+    <option value="all">All</option>
+    <option value="todo">Todo</option>
+    <option value="doing">In progress</option>
+    <option value="done">Done</option>
+  </select>
+</div>
+
+<!-- ================================================================ -->
+<!-- FRONTEND TAB                                                      -->
+<!-- ================================================================ -->
+<div class="tab-content active" data-tab="frontend">
+
+<!-- ============================ SPEC ALIGNMENT ============================ -->
+<div class="phase" id="alignment">
+  <div class="phase-header" onclick="togglePhase(this)">
+    <div class="phase-num">✓</div>
+    <div class="phase-title">
+      <h2>Spec Alignment &amp; 2026 Modernization</h2>
+      <div class="goal">Final cross-check vs. the 2022 client spec (4._DST_-_OTT.docx). Every spec requirement is mapped to a roadmap step. Stack picks updated to current 2026 reality.</div>
+    </div>
+    <div class="phase-meta">
+      <span class="duration">Reference</span>
+      <span class="deps">Read first</span>
+    </div>
+  </div>
+  <div class="phase-body">
+
+    <div class="phase-intro"><b>Why this section:</b> The client spec is from October 2022. Hardware, OS minimums, React Native stack, and Expo's first-party module catalog have all moved on. Below: (1) confirmation that every spec requirement is covered, (2) the explicit modernization decisions we've made versus the spec's 2022 baseline, (3) open clarifications that need RTSH answers, (4) company-level requirements that affect contract delivery (for our awareness, not our engineering work).</div>
+
+    <div class="steps">
+
+      <div class="step open" data-status="todo">
+        <div class="step-header" onclick="toggleStep(this)">
+          <div class="step-num">A.1</div>
+          <div class="step-title">Spec coverage matrix — every requirement → roadmap step</div>
+          <span class="badge ok">VERIFIED</span>
+          <span class="step-est">reference</span>
+        </div>
+        <div class="step-body">
+          <div class="step-row plain"><div class="step-label">Application (Shtojca 5 §1, items 1–24)</div><div class="step-content"><ul>
+            <li><b>App.1.1–1.8</b> Multi-platform install (8 OS targets) → Phases P0 (account setup), P2 (mobile), P3 (Android TV/STB), P4 (Tizen/WebOS)</li>
+            <li><b>App.2</b> Albanian UI → <a href="#phase-2">P2.1</a></li>
+            <li><b>App.3</b> Logo + ordered channel list from backend → <a href="#phase-2">P2.6</a></li>
+            <li><b>App.4</b> Samsung + LG accounts "RTSH TANI" → <a href="#phase-0">P0.10, P0.11</a></li>
+            <li><b>App.5</b> Same channel order across devices → P2.6</li>
+            <li><b>App.6</b> Refresh on app open → P2.7</li>
+            <li><b>App.7</b> Auto ABR + manual quality picker → P2.9</li>
+            <li><b>App.8</b> Channel logos visible (system + app) → P2.6</li>
+            <li><b>App.9</b> Server-driven graphics → P2.1</li>
+            <li><b>App.10</b> Channel grouping into packages → P2.6</li>
+            <li><b>App.11</b> TV / Radio separate lists → P2.6 + P2.18</li>
+            <li><b>App.12</b> Mobile data toggle → P2.11</li>
+            <li><b>App.13</b> Parental control (PIN + age gate) → P2.15</li>
+            <li><b>App.14–15</b> EPG integration (TV + Radio) → P2.12</li>
+            <li><b>App.16</b> EPG XMLTV import via FTP → Backend <a href="#" onclick="document.querySelector('.tab[data-tab=backend]').click();return false">B.4</a></li>
+            <li><b>App.17</b> Catch-up up to 7 days → P2.13</li>
+            <li><b>App.18</b> Configurable catch-up window → P2.13</li>
+            <li><b>App.19</b> Catch-up on all ABR profiles → P2.13</li>
+            <li><b>App.20</b> Mosaic view (live thumbnails + EPG) → P2.14</li>
+            <li><b>App.21</b> User registration form → P2.3, P2.4</li>
+            <li><b>App.22</b> T&amp;C acceptance → P2.2</li>
+            <li><b>App.23–24</b> Ad infrastructure + launch/switch/scheduled ads → P2.16, P2.17</li>
+          </ul></div></div>
+          <div class="step-row plain"><div class="step-label">Middleware app-side impact (Shtojca 5 §3)</div><div class="step-content"><ul>
+            <li><b>MW.3</b> Geoblocking notification overlay → P2.10</li>
+            <li><b>MW.5</b> Per-device stream URLs → P2.8 (header injection)</li>
+            <li><b>MW.10</b> Persistent login + refresh-token → P2.5</li>
+            <li><b>MW.14</b> Analytics events from client → P2.20</li>
+          </ul></div></div>
+          <div class="step-row plain"><div class="step-label">Streaming &amp; DRM (Shtojca 5 §4)</div><div class="step-content"><ul>
+            <li><b>Distr.8</b> AES-128 DRM playback → P2.8 + player package P1.6</li>
+            <li><b>Enc.2, Distr.12</b> Adaptive bitrate → P2.9</li>
+          </ul></div></div>
+          <div class="step-row plain"><div class="step-label">Fully backend (no frontend touch)</div><div class="step-content"><ul>
+            <li>Encoding farm (Shtojca 5 §2, 12 items) → Backend B.1</li>
+            <li>Stream distribution / CDN (§4, 16 items) → Backend B.3</li>
+            <li>Central monitoring / NOC (§5, 8 items) → Backend B.6</li>
+            <li>SLA / Ops (§6, 8 items: 99.5% uptime, 24/7 support, etc.) → Backend B.8</li>
+            <li>EPG XMLTV ingestion via FTP (§1.16) → Backend B.4</li>
+            <li>Catch-up recording + retention (§1.17–19) → Backend B.5</li>
+            <li>Most of Middleware (§3 items 1, 2, 4, 6–9, 11–13) → Backend B.2</li>
+          </ul></div></div>
+          <div class="step-row"><div class="step-label">Result</div><div class="step-content"><p><b>100% of Shtojca 5 (technical specification) is mapped.</b> Every requirement either lives in a Frontend roadmap step or is explicitly owned by a Backend area.</p></div></div>
+        </div>
+      </div>
+
+      <div class="step open" data-status="todo">
+        <div class="step-header" onclick="toggleStep(this)">
+          <div class="step-num">A.2</div>
+          <div class="step-title">2026 modernization deltas vs 2022 spec assumptions</div>
+          <span class="badge warn">DECISIONS</span>
+          <span class="step-est">reference</span>
+        </div>
+        <div class="step-body">
+          <div class="step-row plain"><div class="step-label">OS minimums (must renegotiate)</div><div class="step-content"><ul>
+            <li>iOS 9.3 (2016) → <b>iOS 14+</b> (covers iPhone 6s and newer, ~99% of active devices in 2026). Modern Expo requires iOS 13.4+.</li>
+            <li>iPadOS 10 (2016) → <b>iPadOS 14+</b> (same rationale).</li>
+            <li>Android 5.0 (2014) → <b>Android 8+</b> (API 26, covers ~95% of active devices). Modern Expo requires API 23+, Play Store target API 35 in 2026.</li>
+            <li>Android TV 9.0 → kept (already reasonable).</li>
+            <li>Android STB 5.0 → <b>Android 7+</b> ideally (depends on RTSH-issued hardware — confirm in P0.12).</li>
+            <li>Tizen 2.3 (2015) → <b>Tizen 5.0+</b> (2019+). Tizen 2.3 era ships ES5-only engines that won't run modern React without aggressive transpilation.</li>
+            <li>WebOS 2.0 (2014) → <b>WebOS 4.0+</b> (2018+). WebOS 6+ uses Chromium and is dramatically easier to target.</li>
+          </ul></div></div>
+          <div class="step-row plain"><div class="step-label">Stack picks: 2022 default → 2026 first-party</div><div class="step-content"><ul>
+            <li>React Native &lt;0.70 + manual ABI builds → <b>Expo SDK 55 + RN 0.83</b> with EAS Build cloud CI</li>
+            <li><code>react-native-video</code> → <b><code>expo-video</code></b> (Expo first-party, GA SDK 51, built on AVPlayer + ExoPlayer; supports HLS + AES-128 + Widevine/PlayReady/ClearKey via drmOptions). Fallback to react-native-video if header injection on AES-128 key requests is insufficient.</li>
+            <li><code>react-native-track-player</code> → <b><code>expo-audio</code></b> (SDK 54+, lock-screen controls via <code>setActiveForLockScreen</code>, background audio config plugin).</li>
+            <li><code>react-native-orientation-locker</code> → <b><code>expo-screen-orientation</code></b> (Expo first-party).</li>
+            <li><code>react-native-device-info</code> → <b><code>expo-device</code></b> (Expo first-party).</li>
+            <li>React Native legacy → <b>New Architecture (Fabric + TurboModules + Bridgeless)</b> enabled by default in modern Expo. Hermes ON.</li>
+            <li>Manual JS hotfix delivery → <b>EAS Update</b> for JS-only OTA hotfixes (no store review needed for JS changes).</li>
+            <li>Android TV with separate bare RN repo → <b>Expo + react-native-tvos as the RN dependency</b> (officially supported by Expo since SDK 54). Same Expo workflow.</li>
+            <li>No analytics opinion → <b>Sentry for crash/errors</b> + standardized event interface in <code>packages/analytics</code> with swappable provider (Mixpanel / PostHog / self-hosted).</li>
+            <li><code>moment.js</code> (if implied) → <b><code>date-fns</code> or <code>luxon</code></b> (smaller bundle, no global mutation).</li>
+            <li>Class components / context spaghetti → <b>react-hook-form + zod + zustand + TanStack Query</b> (the modern composable stack).</li>
+          </ul></div></div>
+          <div class="step-row plain"><div class="step-label">DRM: spec mandates AES-128 — modern context</div><div class="step-content"><p>AES-128 HLS encryption is the lightest DRM tier — handled natively by every mainstream HLS player including expo-video. Acceptable for public broadcast (RTSH's case) but <b>NOT studio-grade</b>. Determined attackers can intercept the key over HTTPS and decrypt. For premium content (movies, paid sports), 2026 industry standard is Widevine L1/L3 (Android) + FairPlay (Apple) + PlayReady (Tizen/WebOS). Roadmap supports AES-128 today + leaves the player abstraction in <code>packages/player</code> so we can upgrade to Widevine/FairPlay later without rewriting screens.</p></div></div>
+          <div class="step-row plain"><div class="step-label">Store policy changes since 2022</div><div class="step-content"><ul>
+            <li><b>Google Play 14-day testing rule</b> (effective 2024 for new orgs): 12 closed testers × 14 days before production launch. Plan calendar accordingly (P0.9, P6.4).</li>
+            <li><b>Apple App Tracking Transparency (ATT) + Privacy Manifests</b>: required for any cross-app tracking. With anonymous IP-based geo and no fine-location, we likely sidestep ATT prompts — confirm during P5.1 GDPR audit.</li>
+            <li><b>Android target API 35</b> (Android 15) required for new apps by mid-2026. Expo SDK 55 covers this automatically.</li>
+            <li><b>Samsung Tizen Game Hub vs TV Apps</b>: distinct review tracks since 2024 — we submit to TV Apps.</li>
+            <li><b>Apple Sign in with Apple</b> mandate: still applies if we add any third-party social login later.</li>
+          </ul></div></div>
+        </div>
+      </div>
+
+      <div class="step open" data-status="todo">
+        <div class="step-header" onclick="toggleStep(this)">
+          <div class="step-num">A.3</div>
+          <div class="step-title">Open clarifications — RTSH input required</div>
+          <span class="badge warn">BEFORE SCOPE LOCK</span>
+          <span class="step-est">meeting outcome</span>
+        </div>
+        <div class="step-body">
+          <div class="step-row plain"><div class="step-label">Items needing RTSH or legal/team decisions</div><div class="step-content"><ul>
+            <li><b>Minimum OS versions:</b> renegotiate to 2026 reality (see A.2). Spec wording suggests these are floors — confirm RTSH accepts modern minimums.</li>
+            <li><b>STB hardware model:</b> which STB(s) does RTSH actually distribute? Determines Phase 0.12 distribution path and Phase 3.5 perf tuning.</li>
+            <li><b>App name on iOS + Android:</b> spec only mandates "RTSH TANI" for Samsung/LG (App.4). What goes on App Store + Play? Same? "RTSH"? Confirm with brand.</li>
+            <li><b>Account handover policy:</b> Samsung + LG accounts hand over to RTSH per spec. Apple + Google accounts — does RTSH want those too at end of contract, or do we keep them?</li>
+            <li><b>Username field</b> (App.21): spec separates username from email. Is username login-capable, or just a display name? Affects auth API design.</li>
+            <li><b>Package subscription model</b> (App.10): are channel packages free for all users, or gated by subscription? Affects auth + entitlement design.</li>
+            <li><b>Catch-up pre-roll ad:</b> spec ambiguous. Does each catch-up event get a pre-roll, or only live launch?</li>
+            <li><b>Analytics provider:</b> self-hosted (Matomo / PostHog) preferred for GDPR + Albanian Law 9887, or hosted SaaS (Mixpanel / Amplitude) acceptable?</li>
+            <li><b>Privacy + T&amp;C hosting:</b> on RTSH's domain (<code>rtsh.al/tani/privacy</code>) or app sub-domain?</li>
+            <li><b>TV ownership:</b> Anxhelo owns all 4 TV targets, or hire a Tizen/WebOS specialist, or phase TVs to a later milestone?</li>
+            <li><b>60-day go-live SLA</b>: realistic for solo developer across 8 platforms, or phase delivery (mobile first → TVs after)?</li>
+          </ul></div></div>
+        </div>
+      </div>
+
+      <div class="step open" data-status="todo">
+        <div class="step-header" onclick="toggleStep(this)">
+          <div class="step-num">A.4</div>
+          <div class="step-title">Company-level requirements (Shtojca 8) — for awareness, not engineering</div>
+          <span class="badge gray">CONTRACT CONTEXT</span>
+          <span class="step-est">reference</span>
+        </div>
+        <div class="step-body">
+          <div class="step-row plain"><div class="step-label">Bidding company must hold</div><div class="step-content"><p>These are qualification criteria the bidder (your company) must satisfy at tender submission. Not your engineering work, but they shape the team and contract:</p><ul>
+            <li><b>ISO 9001:2015</b> — Quality Management System</li>
+            <li><b>ISO 20000-1</b> — IT Service Management</li>
+            <li><b>ISO 27001</b> — Information Security Management</li>
+            <li>All three from an accredited body recognized by Albania.</li>
+          </ul></div></div>
+          <div class="step-row plain"><div class="step-label">Staffing minimum (5 engineers)</div><div class="step-content"><p>The spec requires at least 5 engineers with diplomas in Telecom / Electronics / IT or related, each certified in at least one of:</p><ul>
+            <li>Computer network administration</li>
+            <li>Network security</li>
+            <li>IT infrastructure services management</li>
+            <li>Database administration</li>
+            <li>Storage equipment management</li>
+            <li>Project management</li>
+          </ul><p>Employment relationship ≥ 3 months provable via E-Sig payroll records. Implication: this is not a solo project — at minimum 5 certified engineers must be on contract.</p></div></div>
+          <div class="step-row plain"><div class="step-label">Financial &amp; experience</div><div class="step-content"><ul>
+            <li>Annual turnover ≥ 100% of contract value (€1.45M) in at least one of 2019/2020/2021.</li>
+            <li>Prior similar contracts ≥ 40% of contract value within last 3 years, evidenced by public-entity confirmations or tax invoices.</li>
+          </ul></div></div>
+          <div class="step-row plain"><div class="step-label">Technical attestations</div><div class="step-content"><ul>
+            <li><b>Manufacturer authorization</b> for every hardware + software product used in the service — original or notarized translation, valid at bid opening.</li>
+            <li><b>Maintenance attestation</b> from manufacturer/distributor — guarantees quality maintenance for the full 48 months.</li>
+            <li><b>DDoS protection plan</b> — self-declaration to deliver a written guarantee at service hand-off proving DDoS resilience.</li>
+            <li><b>Bank guarantee / insurance security</b> for tender submission and contract execution.</li>
+          </ul></div></div>
+          <div class="step-row"><div class="step-label">Implication for you</div><div class="step-content"><p>None of this is your engineering work, but: (1) the contract presumes a multi-engineer team — not a solo developer, (2) the DDoS plan + manufacturer authorizations are owed to RTSH at delivery, (3) the ISO 27001 cert means your code must respect a documented information security policy (token handling, no PII in logs, encrypted credentials, etc. — all already in the roadmap). Coordinate with your company's compliance lead so these don't ambush you at delivery.</p></div></div>
+        </div>
+      </div>
+
+      <div class="step open" data-status="todo">
+        <div class="step-header" onclick="toggleStep(this)">
+          <div class="step-num">A.5</div>
+          <div class="step-title">Contractual obligations to RTSH at end of build</div>
+          <span class="badge bad">DELIVERABLES</span>
+          <span class="step-est">reference</span>
+        </div>
+        <div class="step-body">
+          <div class="step-row plain"><div class="step-label">Hard deliverables (spec-mandated)</div><div class="step-content"><ul>
+            <li>Samsung Tizen Seller account credentials (App.4, spec mandate)</li>
+            <li>LG Seller Lounge account credentials (App.4, spec mandate)</li>
+            <li>All apps live and approved in 4 stores under name "RTSH TANI" on Samsung + LG</li>
+            <li>Service active within 60 days from contract signing (Gen.8 SLA)</li>
+            <li>99.5% monthly uptime guarantee in writing (Gen.2)</li>
+            <li>DDoS protection plan + delivered platform (Shtojca 8 §2.3.7)</li>
+            <li>24/7 phone + email support (Gen.4)</li>
+            <li>Tech, legal, finance contact persons documented (Gen.3)</li>
+          </ul></div></div>
+          <div class="step-row plain"><div class="step-label">Best-practice deliverables (we add for professionalism)</div><div class="step-content"><ul>
+            <li>Credentials inventory document (Phase 7.3) covering all accounts beyond the spec-mandated Samsung/LG</li>
+            <li>Operations runbooks (Phase 7.4): incident response, EAS Update hot-fix, OS upgrade, cert renewal, store rejection</li>
+            <li>RTSH training session (Phase 7.5) on CMS, Sentry, crash triage</li>
+            <li>Source code + repo access transfer at contract end (Phase 8.6)</li>
+            <li>OS upgrade history + ADRs (architecture decision records) for year-4 handover (Phase 8.6)</li>
+          </ul></div></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ============================ PHASE 0 ============================ -->
+<div class="phase" id="phase-0">
+  <div class="phase-header" onclick="togglePhase(this)">
+    <div class="phase-num">P0</div>
+    <div class="phase-title">
+      <h2>Pre-Flight &amp; Account Setup</h2>
+      <div class="goal">Unblock everything with lead-time — DUNS, store accounts, vault, hardware, Expo/Sentry. Parallel to engineering.</div>
+    </div>
+    <div class="phase-meta">
+      <span class="duration">Week 0</span>
+      <span class="deps">No deps</span>
+    </div>
+  </div>
+  <div class="phase-body">
+    <div class="phase-intro"><b>Why now:</b> DUNS (1–2 wk), store reviews (2–6 wk), hardware procurement (1–3 wk), and Samsung/LG cert generation all run in calendar time, not engineering time. Start every administrative item on day 1 so they're ready when engineering needs them.<br><b>Done when:</b> all 4 store accounts active, credentials in vault, hardware ordered or in-hand, Expo + Sentry orgs created, RTSH-confirmed STB model, Privacy/T&amp;C URL plan agreed.</div>
+
+    <div class="steps">
+
+      <div class="step" data-status="todo">
+        <div class="step-header" onclick="toggleStep(this)">
+          <div class="step-num">0.1</div>
+          <div class="step-title">Run scope-lock meeting with team</div>
+          <span class="badge warn">BLOCKING</span>
+          <span class="step-est">0.5 d</span>
+        </div>
+        <div class="step-body">
+          <div class="step-row plain"><div class="step-label">What &amp; Why</div><div class="step-content"><p>Walk team through the scope analysis. Get explicit decisions on the open items: min OS renegotiation, TV ownership (you / specialist / phased), 60-day SLA realism, STB hardware model, analytics provider, Apple/Google account handover policy.</p></div></div>
+          <div class="step-row"><div class="step-label">How</div><div class="step-content"><p>Use the existing scope analysis as the meeting deck. Record decisions in the project MEMORY.md immediately after.</p></div></div>
+          <div class="step-row"><div class="step-label">Definition of Done</div><div class="step-content"><ul><li>Renegotiated min OS versions documented</li><li>TV ownership decided</li><li>STB model confirmed by RTSH</li><li>Delivery phasing approved (mobile first vs all-at-once)</li><li>Decisions written into MEMORY.md</li></ul></div></div>
+        </div>
+      </div>
+
+      <div class="step" data-status="todo">
+        <div class="step-header" onclick="toggleStep(this)">
+          <div class="step-num">0.2</div>
+          <div class="step-title">Apply for DUNS Number</div>
+          <span class="badge warn">BLOCKING — 1–2 wk</span>
+          <span class="step-est">0.5 d work + 1–2 wk wait</span>
+        </div>
+        <div class="step-body">
+          <div class="step-row plain"><div class="step-label">What &amp; Why</div><div class="step-content"><p>Free 9-digit company identifier required by Apple, Samsung, and LG for Organization-tier enrollment. 1–2 week processing wait — this gates three of the four store registrations.</p></div></div>
+          <div class="step-row"><div class="step-label">How</div><div class="step-content"><p>Owner (not necessarily you): admin or business operations. Go to <code>dnb.com</code> → "Get a D-U-N-S Number" → fill company legal name, address, tax ID. Use EXACT same legal entity name across all future registrations.</p></div></div>
+          <div class="step-row"><div class="step-label">Definition of Done</div><div class="step-content"><ul><li>DUNS number issued + recorded in credentials vault</li><li>Number propagated to Apple's lookup (24–48h after issuance)</li></ul></div></div>
+          <div class="step-row"><div class="step-label">Watch out</div><div class="step-content"><ul><li>If company already has a DUNS, look it up first — don't apply twice.</li><li>Mismatched legal entity names = rejection downstream.</li></ul></div></div>
+        </div>
+      </div>
+
+      <div class="step" data-status="todo">
+        <div class="step-header" onclick="toggleStep(this)">
+          <div class="step-num">0.3</div>
+          <div class="step-title">Set up team credentials vault</div>
+          <span class="badge ok">REQUIRED</span>
+          <span class="step-est">0.5 d</span>
+        </div>
+        <div class="step-body">
+          <div class="step-row plain"><div class="step-label">What &amp; Why</div><div class="step-content"><p>1Password Business or Bitwarden Business — shared vault for every store account password, certificate password, signing key, API token, OAuth secret. All store accounts you'll create live here. This is the source of truth for the credentials inventory you hand to RTSH at end of contract.</p></div></div>
+          <div class="step-row"><div class="step-label">How</div><div class="step-content"><p>Create company vault, add Anxhelo + lead backend + project manager. Folder structure: <code>Stores/Apple</code>, <code>Stores/Google</code>, <code>Stores/Samsung</code>, <code>Stores/LG</code>, <code>Tooling/Expo</code>, <code>Tooling/Sentry</code>, <code>Certs/Tizen</code>, <code>Certs/WebOS</code>, <code>API-keys/</code>.</p></div></div>
+          <div class="step-row"><div class="step-label">Definition of Done</div><div class="step-content"><ul><li>Vault active with team access</li><li>2FA enforced on all team accounts</li><li>Backup recovery procedure documented</li></ul></div></div>
+        </div>
+      </div>
+
+      <div class="step" data-status="todo">
+        <div class="step-header" onclick="toggleStep(this)">
+          <div class="step-num">0.4</div>
+          <div class="step-title">Order hardware test devices</div>
+          <span class="badge warn">LEAD TIME</span>
+          <span class="step-est">0.5 d + 1–3 wk shipping</span>
+        </div>
+        <div class="step-body">
+          <div class="step-row plain"><div class="step-label">What &amp; Why</div><div class="step-content"><p>Real devices for QA. Emulators are insufficient for video, DRM, focus, lock-screen audio, and TV-vendor quirks. Need them before serious player work in Phase 2.</p></div></div>
+          <div class="step-row"><div class="step-label">How / inventory</div><div class="step-content"><ul><li>1× recent iPhone (e.g. iPhone 15)</li><li>1× iPad (10th gen or newer)</li><li>1× recent Android phone (Pixel 8 or Samsung S24)</li><li>1× Android tablet (Pixel Tablet or Galaxy Tab S9)</li><li>1× Android TV box (Chromecast with Google TV or Nvidia Shield)</li><li>2–3× Android STB matching RTSH's distribution (ask RTSH)</li><li>1× Samsung Tizen TV — model year matching firmware floor</li><li>1× LG WebOS TV — same</li></ul></div></div>
+          <div class="step-row"><div class="step-label">Definition of Done</div><div class="step-content"><ul><li>POs placed</li><li>Samsung Remote Test Lab account registered for supplementary cloud TVs</li></ul></div></div>
+        </div>
+      </div>
+
+      <div class="step" data-status="todo">
+        <div class="step-header" onclick="toggleStep(this)">
+          <div class="step-num">0.5</div>
+          <div class="step-title">Create Expo / EAS organization</div>
+          <span class="badge ok">REQUIRED</span>
+          <span class="step-est">0.5 d</span>
+        </div>
+        <div class="step-body">
+          <div class="step-row plain"><div class="step-label">What &amp; Why</div><div class="step-content"><p>Cloud build + OTA platform for Expo apps. Single source of truth for builds, signing credentials, and JS-only hotfixes. Free Hobby tier insufficient for production — plan Production plan ($99/mo).</p></div></div>
+          <div class="step-row"><div class="step-label">How</div><div class="step-content"><p>1. Register Expo org at <code>expo.dev</code> with shared company email. 2. Invite teammates with appropriate roles. 3. Choose Production plan. 4. Install <code>eas-cli</code> locally + on CI.</p></div></div>
+          <div class="step-row"><div class="step-label">Definition of Done</div><div class="step-content"><ul><li>Expo org created</li><li>Team invited + roles set</li><li>Plan selected + billing in place</li></ul></div></div>
+        </div>
+      </div>
+
+      <div class="step" data-status="todo">
+        <div class="step-header" onclick="toggleStep(this)">
+          <div class="step-num">0.6</div>
+          <div class="step-title">Create Sentry organization</div>
+          <span class="badge ok">RECOMMENDED</span>
+          <span class="step-est">0.5 d</span>
+        </div>
+        <div class="step-body">
+          <div class="step-row plain"><div class="step-label">What &amp; Why</div><div class="step-content"><p>Crash + JS error monitoring across mobile + TV. Without it you only learn about bugs from user complaints and miss most production issues during the 48-month maintenance window.</p></div></div>
+          <div class="step-row"><div class="step-label">How</div><div class="step-content"><p>Sign up at <code>sentry.io</code> with company email. Create projects: <code>rtsh-tani-mobile</code>, <code>rtsh-tani-tv-android</code>, <code>rtsh-tani-tv-web</code>. Note Auth tokens in vault. Free tier OK for early dev; upgrade to paid before production launch.</p></div></div>
+          <div class="step-row"><div class="step-label">Definition of Done</div><div class="step-content"><ul><li>Org + 3 projects created</li><li>Auth tokens in vault</li><li>Slack/email alert routes configured</li></ul></div></div>
+        </div>
+      </div>
+
+      <div class="step" data-status="todo">
+        <div class="step-header" onclick="toggleStep(this)">
+          <div class="step-num">0.7</div>
+          <div class="step-title">Reserve app package name + bundle ID</div>
+          <span class="badge ok">REQUIRED</span>
+          <span class="step-est">0.5 d</span>
+        </div>
+        <div class="step-body">
+          <div class="step-row plain"><div class="step-label">What &amp; Why</div><div class="step-content"><p>Bundle/package identifier (e.g. <code>al.rtsh.tani</code>) is permanent once published. Pick once, register across all stores. Should match the app's identity in the URL of the Privacy Policy.</p></div></div>
+          <div class="step-row"><div class="step-label">How</div><div class="step-content"><p>Decide: iOS bundle ID + Android package name (typically the same: <code>al.rtsh.tani</code>). Document in CLAUDE.md. Same identifier in app.json (Expo), iOS Info.plist, Android manifest, store listings.</p></div></div>
+          <div class="step-row"><div class="step-label">Definition of Done</div><div class="step-content"><ul><li>Bundle ID + package name agreed with RTSH (matches their domain)</li><li>Domain confirmation: <code>rtsh.al</code> or sub-domain for store assets, privacy URL, T&amp;C URL</li></ul></div></div>
+        </div>
+      </div>
+
+      <div class="step" data-status="todo">
+        <div class="step-header" onclick="toggleStep(this)">
+          <div class="step-num">0.8</div>
+          <div class="step-title">Enroll Apple Developer Program (Org tier)</div>
+          <span class="badge ok">REQUIRED — DUNS-blocked</span>
+          <span class="step-est">0.5 d + Apple review 1–2 wk</span>
+        </div>
+        <div class="step-body">
+          <div class="step-row plain"><div class="step-label">What &amp; Why</div><div class="step-content"><p>$99/yr Organization-tier membership. Covers iOS + iPad. Blocked by DUNS (0.2).</p></div></div>
+          <div class="step-row"><div class="step-label">How</div><div class="step-content"><p>1. Wait 24–48h after DUNS propagation. 2. <code>developer.apple.com/enroll</code> — verify legal entity. 3. Pay $99. 4. Once approved, create App Store Connect record. 5. Add team members + assign roles. 6. Generate App Store Connect API key for CI.</p></div></div>
+          <div class="step-row"><div class="step-label">Definition of Done</div><div class="step-content"><ul><li>Apple Developer membership active</li><li>App Store Connect record created (app name, bundle ID)</li><li>API key + Issuer ID in vault</li></ul></div></div>
+        </div>
+      </div>
+
+      <div class="step" data-status="todo">
+        <div class="step-header" onclick="toggleStep(this)">
+          <div class="step-num">0.9</div>
+          <div class="step-title">Register Google Play Console (Org tier)</div>
+          <span class="badge ok">REQUIRED</span>
+          <span class="step-est">0.5 d + Google verify ~3 d</span>
+        </div>
+        <div class="step-body">
+          <div class="step-row plain"><div class="step-label">What &amp; Why</div><div class="step-content"><p>$25 one-time fee. Covers Android phone, tablet, and Android TV (TV needs Leanback declaration + banner in store listing).</p></div></div>
+          <div class="step-row"><div class="step-label">How</div><div class="step-content"><p>1. <code>play.google.com/console</code> → register as Organization. 2. Submit business docs for ID verification. 3. Pay $25. 4. <b>Enable Play App Signing</b> — non-negotiable. 5. Create draft app for the bundle ID. 6. Add team members.</p></div></div>
+          <div class="step-row"><div class="step-label">Definition of Done</div><div class="step-content"><ul><li>Play Console active</li><li>Draft app created with bundle ID</li><li>Play App Signing enabled</li><li>Service account JSON generated for CI auto-submit</li></ul></div></div>
+          <div class="step-row"><div class="step-label">Watch out</div><div class="step-content"><ul><li><span class="danger">12 closed testers × 14 days required before production launch.</span> Recruit testers early.</li></ul></div></div>
+        </div>
+      </div>
+
+      <div class="step" data-status="todo">
+        <div class="step-header" onclick="toggleStep(this)">
+          <div class="step-num">0.10</div>
+          <div class="step-title">Register Samsung Tizen Seller (Smart Hub Partner)</div>
+          <span class="badge bad">REQUIRED BY CONTRACT — DUNS-blocked</span>
+          <span class="step-est">1 d + Samsung review 2–6 wk</span>
+        </div>
+        <div class="step-body">
+          <div class="step-row plain"><div class="step-label">What &amp; Why</div><div class="step-content"><div class="spec">Spec App.4: "Operatori Ofertues duhet të krijojë llogaritë… emrin RTSH TANI… kredencialet i dorëzohen RTSH-së."</div><p>Contractual requirement: app named "<b>RTSH TANI</b>", credentials handed to RTSH at delivery.</p></div></div>
+          <div class="step-row"><div class="step-label">How</div><div class="step-content"><p>1. Apply at <code>seller.samsungapps.com</code> (company info, tax docs, contacts). 2. Wait for Samsung approval. 3. Install Tizen Studio locally. 4. Generate Author + Distributor certs via Certificate Manager. 5. Add app name "RTSH TANI" in Seller Office.</p></div></div>
+          <div class="step-row"><div class="step-label">Definition of Done</div><div class="step-content"><ul><li>Seller account approved</li><li>Author + Distributor certs generated, password in vault</li><li>App entry created with name "RTSH TANI"</li></ul></div></div>
+        </div>
+      </div>
+
+      <div class="step" data-status="todo">
+        <div class="step-header" onclick="toggleStep(this)">
+          <div class="step-num">0.11</div>
+          <div class="step-title">Register LG Seller Lounge (webOS)</div>
+          <span class="badge bad">REQUIRED BY CONTRACT — DUNS-blocked</span>
+          <span class="step-est">1 d + LG review 2–4 wk</span>
+        </div>
+        <div class="step-body">
+          <div class="step-row plain"><div class="step-label">What &amp; Why</div><div class="step-content"><div class="spec">Spec App.4: same as Samsung — app "RTSH TANI", credentials to RTSH.</div></div></div>
+          <div class="step-row"><div class="step-label">How</div><div class="step-content"><p>1. Apply at <code>seller.lgappstv.com</code>. 2. Wait LG verification. 3. Install webOS TV CLI (<code>ares-cli</code>). 4. Generate dev cert via <code>ares-generate-cert</code>. 5. Get Distributor signing key from Seller Lounge.</p></div></div>
+          <div class="step-row"><div class="step-label">Definition of Done</div><div class="step-content"><ul><li>LG Seller account approved</li><li>Dev cert + signing key in vault</li><li>App entry created with name "RTSH TANI"</li></ul></div></div>
+        </div>
+      </div>
+
+      <div class="step" data-status="todo">
+        <div class="step-header" onclick="toggleStep(this)">
+          <div class="step-num">0.12</div>
+          <div class="step-title">Confirm STB distribution channel with RTSH</div>
+          <span class="badge warn">RTSH DECISION</span>
+          <span class="step-est">1 d</span>
+        </div>
+        <div class="step-body">
+          <div class="step-row plain"><div class="step-label">What &amp; Why</div><div class="step-content"><p>STBs typically don't have Play Store. Three possible paths: (a) RTSH pre-installs APK on subscriber STBs, (b) self-hosted APK download + in-app updater, (c) OEM channel with STB manufacturer. RTSH must decide.</p></div></div>
+          <div class="step-row"><div class="step-label">How</div><div class="step-content"><p>1. Ask RTSH which STB model(s) they distribute. 2. Ask whether RTSH pre-installs or users self-install. 3. Document path in CLAUDE.md + project MEMORY.</p></div></div>
+          <div class="step-row"><div class="step-label">Definition of Done</div><div class="step-content"><ul><li>STB model identified</li><li>Distribution path agreed</li><li>If self-hosted: download URL planned with backend team</li></ul></div></div>
+        </div>
+      </div>
+
+      <div class="step" data-status="todo">
+        <div class="step-header" onclick="toggleStep(this)">
+          <div class="step-num">0.13</div>
+          <div class="step-title">Plan Privacy Policy + T&amp;C public URLs</div>
+          <span class="badge warn">REQUIRED — ALL 4 STORES</span>
+          <span class="step-est">1 d</span>
+        </div>
+        <div class="step-body">
+          <div class="step-row plain"><div class="step-label">What &amp; Why</div><div class="step-content"><p>Every store rejects submissions without resolvable Privacy Policy + T&amp;C URLs. Content from RTSH legal; hosting on RTSH or app domain. Must comply with GDPR + Albanian Law 9887.</p></div></div>
+          <div class="step-row"><div class="step-label">How</div><div class="step-content"><p>1. Get legal-approved text from RTSH (markdown). 2. Agree URL pattern: <code>rtsh.al/tani/privacy</code> + <code>rtsh.al/tani/terms</code> or app domain. 3. Coordinate hosting with backend/marketing team. 4. Version each doc; store accepted version per user.</p></div></div>
+          <div class="step-row"><div class="step-label">Definition of Done</div><div class="step-content"><ul><li>URLs reserved + return 200 HTML (even placeholder)</li><li>Content ownership: RTSH legal</li><li>Hosting ownership: agreed</li></ul></div></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ============================ PHASE 1 ============================ -->
+<div class="phase" id="phase-1">
+  <div class="phase-header" onclick="togglePhase(this)">
+    <div class="phase-num">P1</div>
+    <div class="phase-title">
+      <h2>Architecture &amp; Foundation</h2>
+      <div class="goal">Monorepo, scaffolds, shared packages, tooling, CI, design tokens, API contract draft.</div>
+    </div>
+    <div class="phase-meta">
+      <span class="duration">Week 1</span>
+      <span class="deps">Needs P0.5 (Expo), P0.6 (Sentry)</span>
+    </div>
+  </div>
+  <div class="phase-body">
+    <div class="phase-intro"><b>Why now:</b> A solid foundation pays off compounding over 48 months. Get the repo layout, linting, CI, and shared packages right before any feature code.<br><b>Done when:</b> monorepo runs `pnpm install && pnpm dev` cleanly across all apps, CI builds preview artifacts on every PR, design tokens flow from Figma, backend has the API contract draft.</div>
+
+    <div class="steps">
+
+      <div class="step" data-status="todo">
+        <div class="step-header" onclick="toggleStep(this)">
+          <div class="step-num">1.1</div>
+          <div class="step-title">Initialize pnpm + turborepo monorepo</div>
+          <span class="badge ok">FOUNDATION</span>
+          <span class="step-est">0.5 d</span>
+        </div>
+        <div class="step-body">
+          <div class="step-row plain"><div class="step-label">What &amp; Why</div><div class="step-content"><p>Monorepo enables code sharing across mobile, Android TV, and TV web while keeping each app's build pipeline independent. pnpm workspaces + turborepo gives fast incremental builds + dep deduplication.</p></div></div>
+          <div class="step-row"><div class="step-label">How</div><div class="step-content"><p>Top-level: <code>package.json</code> with workspaces, <code>turbo.json</code> with build/lint/test pipelines, <code>pnpm-workspace.yaml</code>. Folder layout: <code>apps/{mobile,tv-android,tv-web}</code> + <code>packages/{core,player,ui,i18n,analytics}</code>.</p></div></div>
+          <div class="step-row"><div class="step-label">Definition of Done</div><div class="step-content"><ul><li><code>pnpm install</code> works at root</li><li><code>pnpm turbo build</code> orchestrates per-package builds</li><li>README documents layout</li></ul></div></div>
+          <div class="step-row prompt"><div class="step-label">Claude Code prompt seed <button class="copy-btn" onclick="copyPrompt(this)">Copy</button></div><div class="step-content">Set up a pnpm + turborepo monorepo at the repo root. Workspaces: apps/* and packages/*. Create empty placeholder folders for apps/mobile, apps/tv-android, apps/tv-web, packages/core, packages/player, packages/ui, packages/i18n, packages/analytics. Each package has its own package.json with name @rtsh-tani/{name}. Add turbo.json with build, lint, type-check, test pipelines. Add root tsconfig.base.json. No actual app code yet — just the scaffolding.</div></div>
+        </div>
+      </div>
+
+      <div class="step" data-status="todo">
+        <div class="step-header" onclick="toggleStep(this)">
+          <div class="step-num">1.2</div>
+          <div class="step-title">Scaffold apps/mobile (Expo SDK 55)</div>
+          <span class="badge ok">FOUNDATION</span>
+          <span class="step-est">0.5 d</span>
+        </div>
+        <div class="step-body">
+          <div class="step-row plain"><div class="step-label">What &amp; Why</div><div class="step-content"><p>The mobile app for iOS phone, iPad, Android phone, Android tablet. Single binary, single codebase, served via App Store + Play Store.</p></div></div>
+          <div class="step-row"><div class="step-label">How</div><div class="step-content"><p><code>pnpm dlx create-expo-app apps/mobile --template tabs@sdk-55</code>. Configure <code>app.json</code> with bundle ID <code>al.rtsh.tani</code>. Wire expo-router. New Architecture enabled. Hermes ON.</p></div></div>
+          <div class="step-row"><div class="step-label">Definition of Done</div><div class="step-content"><ul><li><code>pnpm --filter mobile start</code> opens the dev menu</li><li>iOS Simulator + Android Emulator boot a blank tab nav</li></ul></div></div>
+        </div>
+      </div>
+
+      <div class="step" data-status="todo">
+        <div class="step-header" onclick="toggleStep(this)">
+          <div class="step-num">1.3</div>
+          <div class="step-title">Scaffold apps/tv-android (Expo + react-native-tvos)</div>
+          <span class="badge warn">STRETCH</span>
+          <span class="step-est">1 d</span>
+        </div>
+        <div class="step-body">
+          <div class="step-row plain"><div class="step-label">What &amp; Why</div><div class="step-content"><p>Android TV + STB target. Officially supported by Expo since SDK 54 by swapping the <code>react-native</code> dependency to <code>react-native-tvos</code>.</p></div></div>
+          <div class="step-row"><div class="step-label">How</div><div class="step-content"><p>Duplicate apps/mobile structure. In <code>package.json</code>, replace <code>react-native</code> with <code>react-native-tvos@latest</code>. Add config plugin for Leanback launcher. Add TV banner asset (320×180). <code>app.json</code> with android.tv.enabled.</p></div></div>
+          <div class="step-row"><div class="step-label">Definition of Done</div><div class="step-content"><ul><li>Boots on Android TV emulator</li><li>D-pad navigation works on starter tab nav</li></ul></div></div>
+        </div>
+      </div>
+
+      <div class="step" data-status="todo">
+        <div class="step-header" onclick="toggleStep(this)">
+          <div class="step-num">1.4</div>
+          <div class="step-title">Scaffold apps/tv-web (React + Vite, legacy build)</div>
+          <span class="badge bad">SEPARATE TRACK</span>
+          <span class="step-est">1 d</span>
+        </div>
+        <div class="step-body">
+          <div class="step-row plain"><div class="step-label">What &amp; Why</div><div class="step-content"><p>React web app for Tizen + WebOS. NOT React Native. Reuses packages/core, packages/player (with hls.js path), packages/ui (web-shimmed).</p></div></div>
+          <div class="step-row"><div class="step-label">How</div><div class="step-content"><p>Vite + React 17 (compat with older TV engines). Babel preset-env targeting ES5. core-js polyfills. Add Tizen + WebOS build scripts (<code>tizen package</code>, <code>ares-package</code>) to package.json.</p></div></div>
+          <div class="step-row"><div class="step-label">Definition of Done</div><div class="step-content"><ul><li>Vite dev server runs in browser at 1920×1080</li><li>ES5 bundle output verified (no async/await in dist)</li><li>Tizen + WebOS packaging scripts produce .wgt and .ipk artifacts</li></ul></div></div>
+        </div>
+      </div>
+
+      <div class="step" data-status="todo">
+        <div class="step-header" onclick="toggleStep(this)">
+          <div class="step-num">1.5</div>
+          <div class="step-title">Build packages/core — API client + types</div>
+          <span class="badge ok">FOUNDATION</span>
+          <span class="step-est">1 d</span>
+        </div>
+        <div class="step-body">
+          <div class="step-row plain"><div class="step-label">What &amp; Why</div><div class="step-content"><p>One source of truth for backend types, API client, auth flow, token refresh. Used by all three apps.</p></div></div>
+          <div class="step-row"><div class="step-label">How</div><div class="step-content"><p>TypeScript-only package. Generate types from backend's OpenAPI spec (or hand-write if no spec yet). Wrap fetch with interceptors: auth header, 401 → refresh → retry, error normalization. Export typed methods: <code>getChannels()</code>, <code>getEpg()</code>, <code>login()</code>, <code>register()</code>, <code>getStream(channelId, deviceClass)</code>, etc.</p></div></div>
+          <div class="step-row"><div class="step-label">Definition of Done</div><div class="step-content"><ul><li>Package exports typed API surface</li><li>Refresh-token flow tested with mock</li><li>No platform-specific code — pure TS</li></ul></div></div>
+          <div class="step-row prompt"><div class="step-label">Claude Code prompt seed <button class="copy-btn" onclick="copyPrompt(this)">Copy</button></div><div class="step-content">In packages/core, build a TypeScript API client. Use fetch under the hood (no axios). Expose typed methods for: getChannels, getEpg(channelId, day), getCatchupUrl(eventId), login(email, password), register(payload), refresh(refreshToken), getTheme, getConfig, getAds(channel, timestamp). Auth uses Bearer JWT. Build an interceptor pattern that on 401 calls refresh and retries the original request once. Use Zod schemas to validate every response. Throw typed AppError for known failures (NetworkError, AuthError, GeoBlockedError). No React, no platform dependencies.</div></div>
+        </div>
+      </div>
+
+      <div class="step" data-status="todo">
+        <div class="step-header" onclick="toggleStep(this)">
+          <div class="step-num">1.6</div>
+          <div class="step-title">Build packages/player — HLS abstraction</div>
+          <span class="badge ok">FOUNDATION</span>
+          <span class="step-est">1 d</span>
+        </div>
+        <div class="step-body">
+          <div class="step-row plain"><div class="step-label">What &amp; Why</div><div class="step-content"><p>One Player interface used by all three apps. Implementations: expo-video (mobile + Android TV), hls.js (TV web). AES-128 DRM handled automatically when stream contains <code>#EXT-X-KEY</code>.</p></div></div>
+          <div class="step-row"><div class="step-label">How</div><div class="step-content"><p>Abstract Player component with props: <code>source, headers, autoPlay, onError, onQualityChange</code>. Two implementations behind same interface. Quality picker as separate component. Error mapping: 403 → GeoBlockedError, network → NetworkError.</p></div></div>
+          <div class="step-row"><div class="step-label">Definition of Done</div><div class="step-content"><ul><li>Same JSX API works on mobile + TV web</li><li>Prototype playback against a public HLS test stream</li><li><span class="danger">VERIFY:</span> expo-video forwards <code>headers</code> to the AES-128 key fetch (open question from CLAUDE.md)</li></ul></div></div>
+        </div>
+      </div>
+
+      <div class="step" data-status="todo">
+        <div class="step-header" onclick="toggleStep(this)">
+          <div class="step-num">1.7</div>
+          <div class="step-title">Build packages/ui — shared atoms</div>
+          <span class="badge ok">FOUNDATION</span>
+          <span class="step-est">1 d</span>
+        </div>
+        <div class="step-body">
+          <div class="step-row plain"><div class="step-label">What &amp; Why</div><div class="step-content"><p>Buttons, text, inputs, modal, channel card, EPG cell — common atoms used across mobile + TV. Two backing implementations where the platform diverges (TV needs focusable wrappers).</p></div></div>
+          <div class="step-row"><div class="step-label">How</div><div class="step-content"><p>Design tokens (colors, spacing, font sizes) imported from Figma. NativeWind for mobile + Android TV. Plain CSS modules or styled-components for tv-web. Same component names across both — different internals.</p></div></div>
+          <div class="step-row"><div class="step-label">Definition of Done</div><div class="step-content"><ul><li>10–15 base atoms working on mobile</li><li>Same atoms work on tv-android with focus rings</li><li>Same atoms work in browser (tv-web)</li></ul></div></div>
+        </div>
+      </div>
+
+      <div class="step" data-status="todo">
+        <div class="step-header" onclick="toggleStep(this)">
+          <div class="step-num">1.8</div>
+          <div class="step-title">Build packages/i18n — Albanian translations baseline</div>
+          <span class="badge ok">FOUNDATION</span>
+          <span class="step-est">0.5 d</span>
+        </div>
+        <div class="step-body">
+          <div class="step-row plain"><div class="step-label">What &amp; Why</div><div class="step-content"><p>One translation source (<code>sq.json</code>) loaded by all three apps via i18next. Force locale to <code>sq</code>; structure for future locales.</p></div></div>
+          <div class="step-row"><div class="step-label">How</div><div class="step-content"><p>i18next + react-i18next. Namespaced keys: <code>auth.login.title</code>, <code>player.error.geoblocked</code>, etc. Provider at app root. Helper hook <code>useT()</code>. Optional: fetch overrides from backend via <code>i18next-http-backend</code> so RTSH can edit copy without app release.</p></div></div>
+          <div class="step-row"><div class="step-label">Definition of Done</div><div class="step-content"><ul><li>sq.json scaffolded with auth + player + common namespaces</li><li>Works on all three apps</li></ul></div></div>
+        </div>
+      </div>
+
+      <div class="step" data-status="todo">
+        <div class="step-header" onclick="toggleStep(this)">
+          <div class="step-num">1.9</div>
+          <div class="step-title">Build packages/analytics — event interface</div>
+          <span class="badge ok">FOUNDATION</span>
+          <span class="step-est">0.5 d</span>
+        </div>
+        <div class="step-body">
+          <div class="step-row plain"><div class="step-label">What &amp; Why</div><div class="step-content"><p>Single <code>track(event, props)</code> interface. Underlying SDK swappable (Sentry, PostHog, custom backend). Decouples app code from analytics provider choice.</p></div></div>
+          <div class="step-row"><div class="step-label">How</div><div class="step-content"><p>Define standard event types: <code>app_open, login, channel_view, playback_start, playback_end, ad_impression, error</code>. Each carries device class (mobile/tv/stb), OS, version. Pluggable provider behind a simple interface.</p></div></div>
+          <div class="step-row"><div class="step-label">Definition of Done</div><div class="step-content"><ul><li>Standard event schema documented</li><li>Default provider sends to backend ingestion endpoint</li><li>Sentry tag enrichment hooked in</li></ul></div></div>
+        </div>
+      </div>
+
+      <div class="step" data-status="todo">
+        <div class="step-header" onclick="toggleStep(this)">
+          <div class="step-num">1.10</div>
+          <div class="step-title">Lint + format + TypeScript baseline</div>
+          <span class="badge ok">FOUNDATION</span>
+          <span class="step-est">0.5 d</span>
+        </div>
+        <div class="step-body">
+          <div class="step-row plain"><div class="step-label">What &amp; Why</div><div class="step-content"><p>ESLint + Prettier + strict TS keep code consistent across 48 months of contributors.</p></div></div>
+          <div class="step-row"><div class="step-label">How</div><div class="step-content"><p>Shared <code>eslint.config.js</code> at root extending <code>@react-native/eslint-config</code> + custom rules. Prettier with project config. TS <code>strict: true</code>, <code>noUncheckedIndexedAccess</code>, <code>noImplicitOverride</code>. Husky + lint-staged on pre-commit.</p></div></div>
+          <div class="step-row"><div class="step-label">Definition of Done</div><div class="step-content"><ul><li>pnpm lint, pnpm type-check, pnpm format all pass</li><li>Pre-commit hook blocks bad commits</li></ul></div></div>
+        </div>
+      </div>
+
+      <div class="step" data-status="todo">
+        <div class="step-header" onclick="toggleStep(this)">
+          <div class="step-num">1.11</div>
+          <div class="step-title">CI pipeline + EAS Build profiles</div>
+          <span class="badge ok">FOUNDATION</span>
+          <span class="step-est">1 d</span>
+        </div>
+        <div class="step-body">
+          <div class="step-row plain"><div class="step-label">What &amp; Why</div><div class="step-content"><p>Every PR builds preview artifacts, runs tests, uploads source maps to Sentry. Production builds gated behind main branch.</p></div></div>
+          <div class="step-row"><div class="step-label">How</div><div class="step-content"><p>GitHub Actions: lint, type-check, test on every PR. EAS Build profiles in <code>eas.json</code>: development (simulator), preview (internal), production (store). EAS Update channels: preview / production. Sentry source-map upload via EAS post-build hook.</p></div></div>
+          <div class="step-row"><div class="step-label">Definition of Done</div><div class="step-content"><ul><li>PR → green CI in &lt;10 min</li><li>Merge to main → EAS preview build per platform</li><li>Sentry source-maps automatic</li></ul></div></div>
+        </div>
+      </div>
+
+      <div class="step" data-status="todo">
+        <div class="step-header" onclick="toggleStep(this)">
+          <div class="step-num">1.12</div>
+          <div class="step-title">Draft API contract with backend team</div>
+          <span class="badge warn">CROSS-TEAM</span>
+          <span class="step-est">1–2 d</span>
+        </div>
+        <div class="step-body">
+          <div class="step-row plain"><div class="step-label">What &amp; Why</div><div class="step-content"><p>Lock the endpoints + payloads before either side starts coding. OpenAPI/Swagger spec or hand-written .md. Endpoints needed: auth (register, login, refresh, forgot-password, reset), channels, EPG, catch-up URL, streams (per device class), theme, config (catchupDays, ad rules), ads (active for channel/time), T&amp;C version, analytics ingestion, geoblocking response shape.</p></div></div>
+          <div class="step-row"><div class="step-label">How</div><div class="step-content"><p>Meeting with backend lead. Agree on JSON shapes. Use Zod schemas as the executable spec — share with backend so both sides validate.</p></div></div>
+          <div class="step-row"><div class="step-label">Definition of Done</div><div class="step-content"><ul><li>API spec documented (OpenAPI or markdown)</li><li>Zod schemas in packages/core</li><li>Backend agrees endpoint list + payloads</li></ul></div></div>
+        </div>
+      </div>
+
+      <div class="step" data-status="todo">
+        <div class="step-header" onclick="toggleStep(this)">
+          <div class="step-num">1.13</div>
+          <div class="step-title">Import design tokens from Figma</div>
+          <span class="badge ok">FOUNDATION</span>
+          <span class="step-est">0.5 d</span>
+        </div>
+        <div class="step-body">
+          <div class="step-row plain"><div class="step-label">What &amp; Why</div><div class="step-content"><p>Colors, spacing, font sizes, radii live in Figma. Import as JSON via Figma Tokens / Style Dictionary. Used by packages/ui.</p></div></div>
+          <div class="step-row"><div class="step-label">How</div><div class="step-content"><p>Use Figma Variables export. Generate TS constants in packages/ui/tokens.ts. CI step revalidates tokens against Figma when designer updates.</p></div></div>
+          <div class="step-row"><div class="step-label">Definition of Done</div><div class="step-content"><ul><li>Tokens importable as TS</li><li>Both NativeWind theme + tv-web CSS variables driven by tokens</li></ul></div></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ============================ PHASE 2 ============================ -->
+<div class="phase" id="phase-2">
+  <div class="phase-header" onclick="togglePhase(this)">
+    <div class="phase-num">P2</div>
+    <div class="phase-title">
+      <h2>Mobile App — iOS + Android phone/tablet</h2>
+      <div class="goal">Build the full mobile experience: auth, channels, player with DRM/ABR/ads, EPG, catch-up, mosaic, parental, radio. This is the bulk of the work.</div>
+    </div>
+    <div class="phase-meta">
+      <span class="duration">Weeks 2–6</span>
+      <span class="deps">Needs P1 complete</span>
+    </div>
+  </div>
+  <div class="phase-body">
+    <div class="phase-intro"><b>Why now:</b> Mobile is the largest user base and the lowest-risk platform (well-known stack). Land mobile first, then port the same logic to Android TV in Phase 3.<br><b>Done when:</b> a user can register, log in, watch live TV with quality switching, browse EPG, play catch-up, hear ads, see geoblock messages, listen to radio in background, manage parental control — all in Albanian.</div>
+
+    <div class="steps">
+
+      <div class="step" data-status="todo"><div class="step-header" onclick="toggleStep(this)"><div class="step-num">2.1</div><div class="step-title">Theme provider + Albanian copy baseline</div><span class="badge ok">SETUP</span><span class="step-est">0.5 d</span></div><div class="step-body"><div class="step-row plain"><div class="step-label">What &amp; Why</div><div class="step-content"><p>Server-driven theme (logos, colors, banners) loaded at app start. i18next initialized with sq locale.</p><div class="spec">Spec App.9, App.2</div></div></div><div class="step-row"><div class="step-label">How</div><div class="step-content"><p>Fetch <code>/theme</code> on cold start with TanStack Query, hydrate zustand theme store. Default theme baked in as fallback.</p></div></div><div class="step-row"><div class="step-label">Definition of Done</div><div class="step-content"><ul><li>App boots with default theme even without network</li><li>Theme swap on receipt of /theme response (no flash)</li><li>All visible text from sq.json</li></ul></div></div></div></div>
+
+      <div class="step" data-status="todo"><div class="step-header" onclick="toggleStep(this)"><div class="step-num">2.2</div><div class="step-title">Onboarding flow — T&amp;C acceptance</div><span class="badge ok">FEATURE</span><span class="step-est">0.5 d</span></div><div class="step-body"><div class="step-row plain"><div class="step-label">What &amp; Why</div><div class="step-content"><p>First-launch screen: T&amp;C + privacy policy with checkbox + accept. Re-prompt on version bump.</p><div class="spec">Spec App.22</div></div></div><div class="step-row"><div class="step-label">How</div><div class="step-content"><p>Render markdown from <code>/legal/terms</code> + <code>/legal/privacy</code> backend endpoints. Persist accepted version in expo-secure-store. On app open: compare accepted version to current; re-prompt if newer.</p></div></div><div class="step-row"><div class="step-label">Definition of Done</div><div class="step-content"><ul><li>Block app entry until accepted</li><li>Version bump triggers re-prompt</li><li>Acceptance record sent to backend (audit)</li></ul></div></div></div></div>
+
+      <div class="step" data-status="todo"><div class="step-header" onclick="toggleStep(this)"><div class="step-num">2.3</div><div class="step-title">Registration form</div><span class="badge ok">FEATURE</span><span class="step-est">1 d</span></div><div class="step-body"><div class="step-row plain"><div class="step-label">What &amp; Why</div><div class="step-content"><p>Multi-section form: email, username, password×2, age, city/state, gender, optional education. + T&amp;C consent.</p><div class="spec">Spec App.21</div></div></div><div class="step-row"><div class="step-label">How</div><div class="step-content"><p>react-hook-form + zod schema. Albanian validation messages from i18n. expo-secure-store on submit. Email verification flow via deep link (handled in 2.6).</p></div></div><div class="step-row"><div class="step-label">Definition of Done</div><div class="step-content"><ul><li>All fields validated client + server</li><li>Password strength meter visible</li><li>Email verification link works</li><li>GDPR consent logged</li></ul></div></div><div class="step-row prompt"><div class="step-label">Claude Code prompt <button class="copy-btn" onclick="copyPrompt(this)">Copy</button></div><div class="step-content">Build the user registration screen in apps/mobile. Use react-hook-form + zod. Fields: email (required, email format), username (required, 3-20 chars), password (required, 8+ chars, mix), confirmPassword (must match), age (required, 13-120), city (required), gender (required, radio: M/F/Other), education (optional, select: low/medium/high), tcAccepted (required, checkbox). All labels in sq via i18next. On submit, call api.register from packages/core. Store refresh token in expo-secure-store. Navigate to email verification screen.</div></div></div></div>
+
+      <div class="step" data-status="todo"><div class="step-header" onclick="toggleStep(this)"><div class="step-num">2.4</div><div class="step-title">Login + remember me + forgot password</div><span class="badge ok">FEATURE</span><span class="step-est">1 d</span></div><div class="step-body"><div class="step-row plain"><div class="step-label">What &amp; Why</div><div class="step-content"><p>Email + password login. "Remember me" persists refresh token. Forgot password = email reset link.</p><div class="spec">Spec App.21</div></div></div><div class="step-row"><div class="step-label">How</div><div class="step-content"><p>react-hook-form + zod. Refresh token stored in expo-secure-store. Forgot password screen calls <code>/auth/forgot</code>, shows confirmation. Reset link opens deep link to reset screen.</p></div></div><div class="step-row"><div class="step-label">Definition of Done</div><div class="step-content"><ul><li>Wrong creds → error message in sq</li><li>Successful login → stash tokens → navigate to home</li><li>"Remember me" checked: skips login on next app open</li><li>Forgot password end-to-end works</li></ul></div></div></div></div>
+
+      <div class="step" data-status="todo"><div class="step-header" onclick="toggleStep(this)"><div class="step-num">2.5</div><div class="step-title">Persistent session + token refresh</div><span class="badge ok">FEATURE</span><span class="step-est">0.5 d</span></div><div class="step-body"><div class="step-row plain"><div class="step-label">What &amp; Why</div><div class="step-content"><p>User logs in once on a device, never sees login again until logout.</p><div class="spec">Spec MW.10</div></div></div><div class="step-row"><div class="step-label">How</div><div class="step-content"><p>API interceptor catches 401, calls <code>/auth/refresh</code> with refresh token, retries original request once. Refresh token rotates on every use. Logout button revokes server-side + clears expo-secure-store.</p></div></div><div class="step-row"><div class="step-label">Definition of Done</div><div class="step-content"><ul><li>Access token expiry handled transparently</li><li>Refresh rotation works</li><li>Logout clears all auth state</li></ul></div></div></div></div>
+
+      <div class="step" data-status="todo"><div class="step-header" onclick="toggleStep(this)"><div class="step-num">2.6</div><div class="step-title">Channel list (TV + Radio separate tabs)</div><span class="badge ok">FEATURE</span><span class="step-est">1 d</span></div><div class="step-body"><div class="step-row plain"><div class="step-label">What &amp; Why</div><div class="step-content"><p>Two tabs: TV channels + Radio channels. Fetched from backend, ordered server-side, grouped into packages, logo + name.</p><div class="spec">Spec App.3, App.5, App.10, App.11</div></div></div><div class="step-row"><div class="step-label">How</div><div class="step-content"><p>expo-router tabs. FlashList for each tab. Channel cards rendered from server data. TanStack Query with staleWhileRevalidate. Logos via expo-image with disk cache. AsyncStorage cache for offline cold start.</p></div></div><div class="step-row"><div class="step-label">Definition of Done</div><div class="step-content"><ul><li>TV tab shows all TV channels in spec order</li><li>Radio tab shows all radio channels</li><li>Channel cards link to player</li><li>Offline cold start renders cached list with banner</li></ul></div></div></div></div>
+
+      <div class="step" data-status="todo"><div class="step-header" onclick="toggleStep(this)"><div class="step-num">2.7</div><div class="step-title">Refresh on app foreground</div><span class="badge ok">FEATURE</span><span class="step-est">0.25 d</span></div><div class="step-body"><div class="step-row plain"><div class="step-label">What &amp; Why</div><div class="step-content"><p>Every cold start + foreground returns refetches channel list, EPG, theme, config.</p><div class="spec">Spec App.6</div></div></div><div class="step-row"><div class="step-label">How</div><div class="step-content"><p>AppState listener invalidates relevant TanStack Query keys on 'active'. Debounced to avoid storms.</p></div></div><div class="step-row"><div class="step-label">Definition of Done</div><div class="step-content"><ul><li>App resume from background → silent refetch</li><li>UI never blocks on refetch</li></ul></div></div></div></div>
+
+      <div class="step" data-status="todo"><div class="step-header" onclick="toggleStep(this)"><div class="step-num">2.8</div><div class="step-title">Live player — HLS + AES-128 DRM</div><span class="badge ok">FEATURE — CRITICAL</span><span class="step-est">2 d</span></div><div class="step-body"><div class="step-row plain"><div class="step-label">What &amp; Why</div><div class="step-content"><p>Core playback experience. expo-video plays HLS with built-in AES-128 decryption. Token-gated key endpoint via VideoSource.headers.</p><div class="spec">Spec Distr.8, App.7</div></div></div><div class="step-row"><div class="step-label">How</div><div class="step-content"><p>Wrap expo-video in packages/player. Per-device stream URL via MW.5 header. Pass auth headers on VideoSource. <span class="danger">Prototype FIRST</span>: confirm headers reach the AES-128 key fetch (open question). Fall back to react-native-video if expo-video can't.</p></div></div><div class="step-row"><div class="step-label">Definition of Done</div><div class="step-content"><ul><li>Live channel plays on iOS + Android</li><li>AES-128 encrypted stream plays with key auth</li><li>Geoblocked response shows overlay (not broken video)</li><li>Network failure shows retry UI</li></ul></div></div><div class="step-row prompt"><div class="step-label">Claude Code prompt <button class="copy-btn" onclick="copyPrompt(this)">Copy</button></div><div class="step-content">In packages/player, create a Player React component (mobile + Android TV impl) wrapping expo-video. Props: source (m3u8 URL), headers (Record&lt;string, string&gt; for auth), onError. Player should: 1) build a VideoSource with source + headers, 2) hand to VideoView, 3) parse errors — HTTP 403 with reason=geoblocked emits GeoBlockedError. Quality picker as a separate hook useQualityPicker() that returns { available, current, setQuality }. Verify expo-video forwards headers to the AES-128 key request — write a small test that points at an encrypted HLS stream and check that the key endpoint receives the Authorization header. If it doesn't, swap implementation to react-native-video with explicit DRM props.</div></div></div></div>
+
+      <div class="step" data-status="todo"><div class="step-header" onclick="toggleStep(this)"><div class="step-num">2.9</div><div class="step-title">Quality picker (manual ABR selection)</div><span class="badge ok">FEATURE</span><span class="step-est">0.5 d</span></div><div class="step-body"><div class="step-row plain"><div class="step-label">What &amp; Why</div><div class="step-content"><p>Auto ABR by default. User can force a specific quality.</p><div class="spec">Spec App.7</div></div></div><div class="step-row"><div class="step-label">How</div><div class="step-content"><p>Read <code>availableVideoTracks</code> from expo-video. Render selection sheet. Persist last-chosen quality per channel in AsyncStorage.</p></div></div><div class="step-row"><div class="step-label">Definition of Done</div><div class="step-content"><ul><li>Auto / 1080 / 720 / 576 / 360 options shown</li><li>Selection persists across sessions per channel</li></ul></div></div></div></div>
+
+      <div class="step" data-status="todo"><div class="step-header" onclick="toggleStep(this)"><div class="step-num">2.10</div><div class="step-title">Geoblocking overlay</div><span class="badge ok">FEATURE</span><span class="step-est">0.25 d</span></div><div class="step-body"><div class="step-row plain"><div class="step-label">What &amp; Why</div><div class="step-content"><p>When backend refuses the stream with reason=geoblocked, show a clean message + optional image instead of broken playback.</p><div class="spec">Spec MW.3</div></div></div><div class="step-row"><div class="step-label">How</div><div class="step-content"><p>Player onError → if GeoBlockedError → render overlay with backend-provided message (editable by RTSH staff via CMS).</p></div></div><div class="step-row"><div class="step-label">Definition of Done</div><div class="step-content"><ul><li>Overlay replaces player surface entirely</li><li>Message string driven by backend (not hardcoded)</li></ul></div></div></div></div>
+
+      <div class="step" data-status="todo"><div class="step-header" onclick="toggleStep(this)"><div class="step-num">2.11</div><div class="step-title">Mobile data toggle (cellular gate)</div><span class="badge ok">FEATURE</span><span class="step-est">0.5 d</span></div><div class="step-body"><div class="step-row plain"><div class="step-label">What &amp; Why</div><div class="step-content"><p>User setting: "Stream over cellular". If disabled and on cellular, block playback with a modal.</p><div class="spec">Spec App.12</div></div></div><div class="step-row"><div class="step-label">How</div><div class="step-content"><p>@react-native-community/netinfo for connection type. Setting in Profile. Player checks setting + current connection before starting.</p></div></div><div class="step-row"><div class="step-label">Definition of Done</div><div class="step-content"><ul><li>Setting persists</li><li>Playback gated when conditions match</li><li>Recovery on Wi-Fi reconnect</li></ul></div></div></div></div>
+
+      <div class="step" data-status="todo"><div class="step-header" onclick="toggleStep(this)"><div class="step-num">2.12</div><div class="step-title">EPG — horizontal timeline</div><span class="badge ok">FEATURE — COMPLEX</span><span class="step-est">2 d</span></div><div class="step-body"><div class="step-row plain"><div class="step-label">What &amp; Why</div><div class="step-content"><p>TV-guide style grid: channels Y-axis, time X-axis. Tap event for details + play (live or catch-up).</p><div class="spec">Spec App.14–15</div></div></div><div class="step-row"><div class="step-label">How</div><div class="step-content"><p>Custom component on top of FlashList. Two-axis scroll sync via Reanimated shared values. Page-by-day, not all-7-days. Snap to "now" on open. Time in user's local tz; backend serves UTC.</p></div></div><div class="step-row"><div class="step-label">Definition of Done</div><div class="step-content"><ul><li>Smooth scroll across 30 channels × 24h</li><li>Current event highlighted</li><li>Tap event → details modal with play / catch-up actions</li></ul></div></div></div></div>
+
+      <div class="step" data-status="todo"><div class="step-header" onclick="toggleStep(this)"><div class="step-num">2.13</div><div class="step-title">Catch-up playback</div><span class="badge ok">FEATURE</span><span class="step-est">1 d</span></div><div class="step-body"><div class="step-row plain"><div class="step-label">What &amp; Why</div><div class="step-content"><p>Watch a past event from EPG. HLS VOD with seekbar. Persist resume position.</p><div class="spec">Spec App.17–19</div></div></div><div class="step-row"><div class="step-label">How</div><div class="step-content"><p>EPG event in past + within catchupDays window → "Watch" button. Calls <code>/catchup?eventId=</code>. expo-video plays VOD with full seekbar. AsyncStorage persists position keyed by eventId.</p></div></div><div class="step-row"><div class="step-label">Definition of Done</div><div class="step-content"><ul><li>Past event playback works</li><li>Seek bar functional</li><li>Resume on revisit</li><li>Respects config.catchupDays</li></ul></div></div></div></div>
+
+      <div class="step" data-status="todo"><div class="step-header" onclick="toggleStep(this)"><div class="step-num">2.14</div><div class="step-title">Mosaic view — live channel thumbnails</div><span class="badge ok">FEATURE</span><span class="step-est">1 d</span></div><div class="step-body"><div class="step-row plain"><div class="step-label">What &amp; Why</div><div class="step-content"><p>Grid of live thumbnails (one per channel) with current EPG title. Tap to switch.</p><div class="spec">Spec App.20</div></div></div><div class="step-row"><div class="step-label">How</div><div class="step-content"><p>FlashList grid. expo-image with cache=reload + cache-buster query for refresh. Backend pushes thumbs every 10–30s via WebSocket or polling.</p></div></div><div class="step-row"><div class="step-label">Definition of Done</div><div class="step-content"><ul><li>Grid renders 19 TV channels + 13 radio</li><li>Thumbs update on schedule</li><li>Tap → player + EPG drawer</li></ul></div></div></div></div>
+
+      <div class="step" data-status="todo"><div class="step-header" onclick="toggleStep(this)"><div class="step-num">2.15</div><div class="step-title">Parental control — PIN + age gate</div><span class="badge ok">FEATURE</span><span class="step-est">1 d</span></div><div class="step-body"><div class="step-row plain"><div class="step-label">What &amp; Why</div><div class="step-content"><p>Parent sets age limit + PIN. EPG event with higher rating triggers PIN gate before playback.</p><div class="spec">Spec App.13</div></div></div><div class="step-row"><div class="step-label">How</div><div class="step-content"><p>Off by default. Profile setting toggles. PIN stored as SHA-256 hash in expo-secure-store via expo-crypto. Rate-limit failed attempts. Forgot-PIN via email reset.</p></div></div><div class="step-row"><div class="step-label">Definition of Done</div><div class="step-content"><ul><li>PIN never stored plaintext</li><li>5 failed attempts → 60s lockout</li><li>Correct PIN → grant for session</li></ul></div></div></div></div>
+
+      <div class="step" data-status="todo"><div class="step-header" onclick="toggleStep(this)"><div class="step-num">2.16</div><div class="step-title">Ad infrastructure (overlay component)</div><span class="badge ok">FEATURE</span><span class="step-est">1 d</span></div><div class="step-body"><div class="step-row plain"><div class="step-label">What &amp; Why</div><div class="step-content"><p>Reusable AdOverlay component. Backend serves ad config; client renders. Image or video.</p><div class="spec">Spec App.23, App.24.a–e</div></div></div><div class="step-row"><div class="step-label">How</div><div class="step-content"><p>Props: <code>{ type, url, durationMs, skipAfterMs }</code>. expo-video for video ads, expo-image for image. Skip button reveals at 4s. Auto-close at min(duration, 10s). Track impression + completion events via packages/analytics.</p></div></div><div class="step-row"><div class="step-label">Definition of Done</div><div class="step-content"><ul><li>Component handles image + video</li><li>Skip after 4s, auto-close at 10s</li><li>Pre-load before showing</li></ul></div></div></div></div>
+
+      <div class="step" data-status="todo"><div class="step-header" onclick="toggleStep(this)"><div class="step-num">2.17</div><div class="step-title">Launch ad + channel-switch ad + time-scheduled ads</div><span class="badge ok">FEATURE</span><span class="step-est">1 d</span></div><div class="step-body"><div class="step-row plain"><div class="step-label">What &amp; Why</div><div class="step-content"><p>Three ad trigger points wired to backend.</p><div class="spec">Spec App.24.a–e</div></div></div><div class="step-row"><div class="step-label">How</div><div class="step-content"><p>Post-splash launch ad. Frequency-capped channel-switch ad (rule from backend). Time-slot ad per channel served by <code>/ads?channel=&amp;at=</code>.</p></div></div><div class="step-row"><div class="step-label">Definition of Done</div><div class="step-content"><ul><li>5s launch ad on cold start</li><li>Capped channel-switch ads</li><li>Time-of-day ad scheduling works</li><li>Hard timeout if ad fails to load (don't block app)</li></ul></div></div></div></div>
+
+      <div class="step" data-status="todo"><div class="step-header" onclick="toggleStep(this)"><div class="step-num">2.18</div><div class="step-title">Radio player + background audio</div><span class="badge ok">FEATURE</span><span class="step-est">1 d</span></div><div class="step-body"><div class="step-row plain"><div class="step-label">What &amp; Why</div><div class="step-content"><p>Radio playback continues when app is backgrounded or screen locks. Lock-screen controls (play/pause, channel name).</p><div class="spec">Spec App.11</div></div></div><div class="step-row"><div class="step-label">How</div><div class="step-content"><p>expo-audio with <code>setActiveForLockScreen(true)</code> + <code>updateLockScreenMetadata</code>. iOS Info.plist UIBackgroundModes: audio. Android foreground service via expo-audio config plugin. setAudioModeAsync with playback category + doNotMix.</p></div></div><div class="step-row"><div class="step-label">Definition of Done</div><div class="step-content"><ul><li>Audio continues 10+ min in background</li><li>Lock screen shows artwork + channel name</li><li>Play/pause from lock screen works</li><li>Bluetooth controls work</li></ul></div></div></div></div>
+
+      <div class="step" data-status="todo"><div class="step-header" onclick="toggleStep(this)"><div class="step-num">2.19</div><div class="step-title">Settings + Profile screens</div><span class="badge ok">FEATURE</span><span class="step-est">1 d</span></div><div class="step-body"><div class="step-row plain"><div class="step-label">What &amp; Why</div><div class="step-content"><p>User-facing settings: cellular toggle (2.11), parental PIN (2.15), language (sq only for v1), logout, T&amp;C view, privacy view, app version, build number, analytics opt-out.</p></div></div><div class="step-row"><div class="step-label">How</div><div class="step-content"><p>Standard settings UI. expo-application for version info. Profile shows user email + edit-profile button.</p></div></div><div class="step-row"><div class="step-label">Definition of Done</div><div class="step-content"><ul><li>All toggles persist</li><li>Logout clears everything</li><li>Analytics opt-out respected</li></ul></div></div></div></div>
+
+      <div class="step" data-status="todo"><div class="step-header" onclick="toggleStep(this)"><div class="step-num">2.20</div><div class="step-title">Analytics events wired</div><span class="badge ok">FEATURE</span><span class="step-est">0.5 d</span></div><div class="step-body"><div class="step-row plain"><div class="step-label">What &amp; Why</div><div class="step-content"><p>Emit standardized events on key actions. Backend aggregates for RTSH dashboards.</p><div class="spec">Spec MW.14, Mon.6</div></div></div><div class="step-row"><div class="step-label">How</div><div class="step-content"><p>Call <code>analytics.track()</code> from packages/analytics on app_open, login, channel_view, playback_start/end, ad_impression, error. Device info via expo-device. Country via backend IP-geo (no permission prompt).</p></div></div><div class="step-row"><div class="step-label">Definition of Done</div><div class="step-content"><ul><li>Events arrive at backend ingestion</li><li>No PII (email, token) in payloads</li><li>Opt-out respected</li></ul></div></div></div></div>
+
+      <div class="step" data-status="todo"><div class="step-header" onclick="toggleStep(this)"><div class="step-num">2.21</div><div class="step-title">iOS Picture-in-Picture + background video</div><span class="badge ok">FEATURE</span><span class="step-est">0.5 d</span></div><div class="step-body"><div class="step-row plain"><div class="step-label">What &amp; Why</div><div class="step-content"><p>iOS users expect PiP for video. expo-video has built-in support.</p></div></div><div class="step-row"><div class="step-label">How</div><div class="step-content"><p>Enable <code>allowsPictureInPicture</code> + <code>startsPictureInPictureAutomaticallyFromInline</code> on VideoView. Info.plist UIBackgroundModes: audio + picture-in-picture if needed.</p></div></div><div class="step-row"><div class="step-label">Definition of Done</div><div class="step-content"><ul><li>PiP triggers on home-button press</li><li>Audio continues</li><li>Tap PiP to return to app</li></ul></div></div></div></div>
+
+      <div class="step" data-status="todo"><div class="step-header" onclick="toggleStep(this)"><div class="step-num">2.22</div><div class="step-title">Error handling + offline UX</div><span class="badge ok">POLISH</span><span class="step-est">1 d</span></div><div class="step-body"><div class="step-row plain"><div class="step-label">What &amp; Why</div><div class="step-content"><p>Network failures, server errors, expired tokens, missing data — all handled gracefully with retry UX and Albanian copy.</p></div></div><div class="step-row"><div class="step-label">How</div><div class="step-content"><p>Global error boundary. TanStack Query retry strategy. Offline banner. Cached data shown stale-but-usable.</p></div></div><div class="step-row"><div class="step-label">Definition of Done</div><div class="step-content"><ul><li>No raw error JSON visible to user</li><li>All errors localized in sq</li><li>Cold start with no network shows cached channels</li></ul></div></div></div></div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ============================ PHASE 3 ============================ -->
+<div class="phase" id="phase-3">
+  <div class="phase-header" onclick="togglePhase(this)">
+    <div class="phase-num">P3</div>
+    <div class="phase-title">
+      <h2>Android TV + STB</h2>
+      <div class="goal">Adapt the mobile codebase for D-pad navigation, 10-foot UI, Leanback launcher, and STB performance constraints.</div>
+    </div>
+    <div class="phase-meta">
+      <span class="duration">Weeks 7–9</span>
+      <span class="deps">Needs P2 features stable</span>
+    </div>
+  </div>
+  <div class="phase-body">
+    <div class="phase-intro"><b>Why now:</b> Mobile features are the source of truth. TV reuses most logic but needs focus management + larger UI + perf tuning. Don't try in parallel with mobile — refactoring mobile mid-flight kills both.<br><b>Done when:</b> the app is fully navigable by D-pad on Android TV + STB hardware, performance acceptable on weakest STB, sideload path validated.</div>
+
+    <div class="steps">
+
+      <div class="step" data-status="todo"><div class="step-header" onclick="toggleStep(this)"><div class="step-num">3.1</div><div class="step-title">Switch RN dep to react-native-tvos</div><span class="badge warn">SETUP</span><span class="step-est">0.5 d</span></div><div class="step-body"><div class="step-row plain"><div class="step-label">What &amp; Why</div><div class="step-content"><p>apps/tv-android uses the TV fork as its <code>react-native</code> dependency. Expo officially supports this since SDK 54.</p></div></div><div class="step-row"><div class="step-label">How</div><div class="step-content"><p>In apps/tv-android/package.json, replace <code>react-native</code> with <code>react-native-tvos</code>. Run Expo Prebuild. Confirm Android manifest includes Leanback launcher + banner.</p></div></div><div class="step-row"><div class="step-label">Definition of Done</div><div class="step-content"><ul><li>Boots on Android TV emulator</li><li>Same UI as mobile (focus may be broken — fixed in 3.2)</li></ul></div></div></div></div>
+
+      <div class="step" data-status="todo"><div class="step-header" onclick="toggleStep(this)"><div class="step-num">3.2</div><div class="step-title">Spatial focus management</div><span class="badge warn">CRITICAL</span><span class="step-est">2 d</span></div><div class="step-body"><div class="step-row plain"><div class="step-label">What &amp; Why</div><div class="step-content"><p>Every clickable element needs a visible focus ring + predictable D-pad traversal. Hardest part of TV development.</p></div></div><div class="step-row"><div class="step-label">How</div><div class="step-content"><p>@noriginmedia/norigin-spatial-navigation. Wrap focusable atoms in packages/ui with FocusableComponent. Define focus paths per screen.</p></div></div><div class="step-row"><div class="step-label">Definition of Done</div><div class="step-content"><ul><li>D-pad navigates all screens predictably</li><li>Focus ring visible on every focusable element</li><li>Back button works on every screen</li></ul></div></div></div></div>
+
+      <div class="step" data-status="todo"><div class="step-header" onclick="toggleStep(this)"><div class="step-num">3.3</div><div class="step-title">10-foot UI redesign</div><span class="badge ok">FEATURE</span><span class="step-est">2 d</span></div><div class="step-body"><div class="step-row plain"><div class="step-label">What &amp; Why</div><div class="step-content"><p>TV is viewed from 3m away. Type +50–100%, hit targets +200%, fewer items per screen, horizontal-first layouts.</p></div></div><div class="step-row"><div class="step-label">How</div><div class="step-content"><p>Conditional layouts in shared atoms keyed off Platform / device class. TV-specific design tokens (font scale, spacing scale).</p></div></div><div class="step-row"><div class="step-label">Definition of Done</div><div class="step-content"><ul><li>All screens legible from 3m</li><li>EPG grid optimized for landscape TV aspect</li></ul></div></div></div></div>
+
+      <div class="step" data-status="todo"><div class="step-header" onclick="toggleStep(this)"><div class="step-num">3.4</div><div class="step-title">Leanback launcher + TV banner</div><span class="badge ok">SETUP</span><span class="step-est">0.5 d</span></div><div class="step-body"><div class="step-row plain"><div class="step-label">What &amp; Why</div><div class="step-content"><p>Without these, the app is invisible on Android TV home screen.</p></div></div><div class="step-row"><div class="step-label">How</div><div class="step-content"><p>AndroidManifest: add LEANBACK_LAUNCHER intent filter. Ship 320×180 banner image. Disable touchscreen=required.</p></div></div><div class="step-row"><div class="step-label">Definition of Done</div><div class="step-content"><ul><li>App tile appears on Android TV home</li><li>Play Console Android TV listing complete</li></ul></div></div></div></div>
+
+      <div class="step" data-status="todo"><div class="step-header" onclick="toggleStep(this)"><div class="step-num">3.5</div><div class="step-title">STB performance tuning</div><span class="badge warn">CRITICAL</span><span class="step-est">2 d</span></div><div class="step-body"><div class="step-row plain"><div class="step-label">What &amp; Why</div><div class="step-content"><p>STBs often have 1GB RAM and old chipsets. Mobile defaults will crash or stutter.</p></div></div><div class="step-row"><div class="step-label">How</div><div class="step-content"><p>Profile heap, JS bundle size, GPU. Strip unused fonts/locales/assets. Reduce ABR top tier on STB. Disable expensive Reanimated animations on weakest devices.</p></div></div><div class="step-row"><div class="step-label">Definition of Done</div><div class="step-content"><ul><li>App runs on RTSH-issued STB without crashes</li><li>EPG scroll smooth at 30fps minimum</li><li>Memory under 400MB during playback</li></ul></div></div></div></div>
+
+      <div class="step" data-status="todo"><div class="step-header" onclick="toggleStep(this)"><div class="step-num">3.6</div><div class="step-title">Android 5.0 root CA + TLS</div><span class="badge warn">RISK</span><span class="step-est">0.5 d</span></div><div class="step-body"><div class="step-row plain"><div class="step-label">What &amp; Why</div><div class="step-content"><p>Android 5.0 (API 21) has outdated root CAs. Modern HTTPS endpoints may fail. Affects STBs only.</p></div></div><div class="step-row"><div class="step-label">How</div><div class="step-content"><p>Ship Conscrypt as a TLS provider or pin certs at the network layer. Verify against backend's actual cert chain.</p></div></div><div class="step-row"><div class="step-label">Definition of Done</div><div class="step-content"><ul><li>HTTPS works on Android 5.0 STB</li><li>No SSL handshake failures in Sentry</li></ul></div></div></div></div>
+
+      <div class="step" data-status="todo"><div class="step-header" onclick="toggleStep(this)"><div class="step-num">3.7</div><div class="step-title">Sideload distribution + in-app updater</div><span class="badge warn">FEATURE</span><span class="step-est">1 d</span></div><div class="step-body"><div class="step-row plain"><div class="step-label">What &amp; Why</div><div class="step-content"><p>STBs don't have Play Store. Need a way to ship new APK versions.</p></div></div><div class="step-row"><div class="step-label">How</div><div class="step-content"><p>Check for new version on app open against backend version endpoint. If newer, download APK from RTSH-hosted URL, prompt user, launch system installer Intent.</p></div></div><div class="step-row"><div class="step-label">Definition of Done</div><div class="step-content"><ul><li>Update prompt shown when newer version available</li><li>Install flow tested end-to-end on STB</li></ul></div></div></div></div>
+
+      <div class="step" data-status="todo"><div class="step-header" onclick="toggleStep(this)"><div class="step-num">3.8</div><div class="step-title">Real-device QA on Android TV + STB</div><span class="badge warn">QA</span><span class="step-est">2 d</span></div><div class="step-body"><div class="step-row plain"><div class="step-label">What &amp; Why</div><div class="step-content"><p>Emulators lie. Test on Chromecast with Google TV + RTSH-issued STB. Profile playback, focus, perf.</p></div></div><div class="step-row"><div class="step-label">How</div><div class="step-content"><p>Test plan: register, log in, watch live, switch channels, EPG, catch-up, mosaic, ads, parental gate, settings, logout. Repeat on each device.</p></div></div><div class="step-row"><div class="step-label">Definition of Done</div><div class="step-content"><ul><li>All flows pass on Android TV box</li><li>All flows pass on STB</li><li>No crash in Sentry over 1h soak test</li></ul></div></div></div></div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ============================ PHASE 4 ============================ -->
+<div class="phase" id="phase-4">
+  <div class="phase-header" onclick="togglePhase(this)">
+    <div class="phase-num">P4</div>
+    <div class="phase-title">
+      <h2>TV Web — Tizen + WebOS</h2>
+      <div class="goal">Separate React web app, packaged via Tizen Studio + webOS CLI. Reuse packages/core, packages/player (hls.js path).</div>
+    </div>
+    <div class="phase-meta">
+      <span class="duration">Weeks 10–13</span>
+      <span class="deps">P0.10 + P0.11 (TV accounts), P1.4 (tv-web scaffold), P3.2 (focus lib proven)</span>
+    </div>
+  </div>
+  <div class="phase-body">
+    <div class="phase-intro"><b>Why now:</b> Tizen + WebOS are a totally different track from RN. Worth tackling after mobile + Android TV are solid so the shared packages are battle-tested.<br><b>Done when:</b> apps signed, packaged, installed on real Samsung + LG TVs, all core flows work, performance acceptable on the oldest supported firmware.</div>
+
+    <div class="steps">
+
+      <div class="step" data-status="todo"><div class="step-header" onclick="toggleStep(this)"><div class="step-num">4.1</div><div class="step-title">Build feature-parity in tv-web</div><span class="badge bad">PORT</span><span class="step-est">5 d</span></div><div class="step-body"><div class="step-row plain"><div class="step-label">What &amp; Why</div><div class="step-content"><p>Port the mobile feature set to React web: auth, channels, player, EPG, catch-up, mosaic, ads. Reuse packages/core for business logic.</p></div></div><div class="step-row"><div class="step-label">How</div><div class="step-content"><p>React 17 (compat with old engines). Same screen structure. Use packages/ui web variants. hls.js for playback.</p></div></div><div class="step-row"><div class="step-label">Definition of Done</div><div class="step-content"><ul><li>All core flows work in modern browser at 1920×1080</li><li>Builds to ES5 successfully</li></ul></div></div></div></div>
+
+      <div class="step" data-status="todo"><div class="step-header" onclick="toggleStep(this)"><div class="step-num">4.2</div><div class="step-title">Spatial navigation for TV remote</div><span class="badge warn">CRITICAL</span><span class="step-est">2 d</span></div><div class="step-body"><div class="step-row plain"><div class="step-label">What &amp; Why</div><div class="step-content"><p>TV remote = D-pad + OK + Back. Same library as Android TV: norigin-spatial-navigation works in both contexts.</p></div></div><div class="step-row"><div class="step-label">How</div><div class="step-content"><p>Wrap every clickable in FocusableComponent. Register remote keys via Tizen tvinputdevice API + LG Magic Remote events. LG also supports pointer + scroll — handle gracefully.</p></div></div><div class="step-row"><div class="step-label">Definition of Done</div><div class="step-content"><ul><li>D-pad nav predictable on both Tizen + LG</li><li>Magic Remote pointer works on LG without breaking focus</li></ul></div></div></div></div>
+
+      <div class="step" data-status="todo"><div class="step-header" onclick="toggleStep(this)"><div class="step-num">4.3</div><div class="step-title">hls.js player with AES-128 + auth headers</div><span class="badge warn">FEATURE</span><span class="step-est">1 d</span></div><div class="step-body"><div class="step-row plain"><div class="step-label">What &amp; Why</div><div class="step-content"><p>Browser HLS playback with the same encrypted streams as mobile.</p></div></div><div class="step-row"><div class="step-label">How</div><div class="step-content"><p>hls.js with <code>xhrSetup</code> hook to inject auth headers on every request including the AES-128 key URL. Quality picker via <code>currentLevel</code>.</p></div></div><div class="step-row"><div class="step-label">Definition of Done</div><div class="step-content"><ul><li>Encrypted stream plays</li><li>Quality switching works</li><li>Error states map to GeoBlockedError/NetworkError consistently with mobile</li></ul></div></div></div></div>
+
+      <div class="step" data-status="todo"><div class="step-header" onclick="toggleStep(this)"><div class="step-num">4.4</div><div class="step-title">Engine compatibility polyfills</div><span class="badge bad">RISK</span><span class="step-est">2 d</span></div><div class="step-body"><div class="step-row plain"><div class="step-label">What &amp; Why</div><div class="step-content"><p>Tizen 2.3 (2015) + WebOS 2.0 (2014) JS engines predate ES6. Modern React requires polyfills.</p></div></div><div class="step-row"><div class="step-label">How</div><div class="step-content"><p>babel preset-env targeting ES5. core-js polyfills. Test bundle in oldest-supported emulator. Possibly fall back to React 16 if React 17 unstable on old engines.</p></div></div><div class="step-row"><div class="step-label">Definition of Done</div><div class="step-content"><ul><li>App boots on oldest supported firmware</li><li>No "undefined is not a function" errors</li></ul></div></div></div></div>
+
+      <div class="step" data-status="todo"><div class="step-header" onclick="toggleStep(this)"><div class="step-num">4.5</div><div class="step-title">Tizen Studio packaging</div><span class="badge bad">RELEASE</span><span class="step-est">1 d</span></div><div class="step-body"><div class="step-row plain"><div class="step-label">What &amp; Why</div><div class="step-content"><p>Package the web bundle into a Samsung-signed .wgt for the Tizen TV store.</p></div></div><div class="step-row"><div class="step-label">How</div><div class="step-content"><p><code>tizen package -t wgt -s &lt;profile&gt; -- ./dist</code>. Author + Distributor cert configured. Test install on real Samsung TV via tizen sdb.</p></div></div><div class="step-row"><div class="step-label">Definition of Done</div><div class="step-content"><ul><li>.wgt builds clean</li><li>Installs on real Samsung TV</li><li>Launches from Smart Hub</li></ul></div></div></div></div>
+
+      <div class="step" data-status="todo"><div class="step-header" onclick="toggleStep(this)"><div class="step-num">4.6</div><div class="step-title">webOS CLI packaging</div><span class="badge bad">RELEASE</span><span class="step-est">1 d</span></div><div class="step-body"><div class="step-row plain"><div class="step-label">What &amp; Why</div><div class="step-content"><p>Same idea for LG: package into .ipk via ares-package.</p></div></div><div class="step-row"><div class="step-label">How</div><div class="step-content"><p><code>ares-package ./dist</code>. <code>ares-install -d &lt;tv&gt; *.ipk</code>. Test on real LG TV.</p></div></div><div class="step-row"><div class="step-label">Definition of Done</div><div class="step-content"><ul><li>.ipk builds clean</li><li>Installs on real LG TV</li><li>Launches from Content Store</li></ul></div></div></div></div>
+
+      <div class="step" data-status="todo"><div class="step-header" onclick="toggleStep(this)"><div class="step-num">4.7</div><div class="step-title">Real-device QA — Samsung + LG TVs</div><span class="badge warn">QA</span><span class="step-est">2 d</span></div><div class="step-body"><div class="step-row plain"><div class="step-label">What &amp; Why</div><div class="step-content"><p>Final pass on real hardware before store submission. Test multiple firmware eras if supporting Tizen 2.3 + Tizen 6+.</p></div></div><div class="step-row"><div class="step-label">How</div><div class="step-content"><p>Test plan from Phase 3.8. Add: remote-key behavior, back-button consistency, focus loss after popup dismiss, app re-entry from Smart Hub.</p></div></div><div class="step-row"><div class="step-label">Definition of Done</div><div class="step-content"><ul><li>All flows pass on Samsung Tizen TV (lowest + highest firmware in scope)</li><li>All flows pass on LG WebOS TV (lowest + highest firmware in scope)</li></ul></div></div></div></div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ============================ PHASE 5 ============================ -->
+<div class="phase" id="phase-5">
+  <div class="phase-header" onclick="togglePhase(this)">
+    <div class="phase-num">P5</div>
+    <div class="phase-title">
+      <h2>Hardening, Security &amp; Compliance</h2>
+      <div class="goal">GDPR + Albanian Law 9887 audit, security review, accessibility, performance budgets.</div>
+    </div>
+    <div class="phase-meta">
+      <span class="duration">Week 14</span>
+      <span class="deps">All features built (P2 + P3 + P4)</span>
+    </div>
+  </div>
+  <div class="phase-body">
+    <div class="phase-intro"><b>Why now:</b> Pre-store-submission gate. Apple/Google/Samsung/LG all check parts of this during review. Catching issues here saves rejection rounds.<br><b>Done when:</b> security checklist signed off, GDPR audit complete, a11y + perf budgets met, Albanian copy reviewed.</div>
+
+    <div class="steps">
+
+      <div class="step" data-status="todo"><div class="step-header" onclick="toggleStep(this)"><div class="step-num">5.1</div><div class="step-title">GDPR + Law 9887 data audit</div><span class="badge warn">COMPLIANCE</span><span class="step-est">1 d</span></div><div class="step-body"><div class="step-row plain"><div class="step-label">What &amp; Why</div><div class="step-content"><p>List every PII touch point. Confirm consent, minimization, deletion support.</p></div></div><div class="step-row"><div class="step-label">How</div><div class="step-content"><p>Spreadsheet: collection point → purpose → consent mechanism → retention → deletion path. Review with RTSH legal.</p></div></div><div class="step-row"><div class="step-label">Definition of Done</div><div class="step-content"><ul><li>Audit reviewed by RTSH legal</li><li>Privacy nutrition labels (Apple) drafted</li><li>Data deletion request flow documented</li></ul></div></div></div></div>
+
+      <div class="step" data-status="todo"><div class="step-header" onclick="toggleStep(this)"><div class="step-num">5.2</div><div class="step-title">Security review — token + key flow</div><span class="badge warn">CRITICAL</span><span class="step-est">1 d</span></div><div class="step-body"><div class="step-row plain"><div class="step-label">What &amp; Why</div><div class="step-content"><p>End-to-end review: token refresh rotation, AES-128 key URL auth, no PII in logs, no secrets in bundle.</p></div></div><div class="step-row"><div class="step-label">How</div><div class="step-content"><p>Checklist: refresh-token rotation, key URL HTTPS + token-gated, no localStorage for tokens (use secure-store), no tokens in Sentry breadcrumbs, package not bundling Sentry DSN as PII, dev URLs scrubbed.</p></div></div><div class="step-row"><div class="step-label">Definition of Done</div><div class="step-content"><ul><li>Checklist signed off</li><li>Penetration smoke test passed</li></ul></div></div></div></div>
+
+      <div class="step" data-status="todo"><div class="step-header" onclick="toggleStep(this)"><div class="step-num">5.3</div><div class="step-title">Accessibility audit</div><span class="badge ok">A11Y</span><span class="step-est">1 d</span></div><div class="step-body"><div class="step-row plain"><div class="step-label">What &amp; Why</div><div class="step-content"><p>Screen reader labels, dynamic text sizing, focus order, contrast.</p></div></div><div class="step-row"><div class="step-label">How</div><div class="step-content"><p>iOS VoiceOver + Android TalkBack pass. Dynamic Type respected. WCAG contrast on all text. Focus order matches reading order.</p></div></div><div class="step-row"><div class="step-label">Definition of Done</div><div class="step-content"><ul><li>VoiceOver navigates every screen meaningfully</li><li>TalkBack same</li><li>Text scales with system font size</li></ul></div></div></div></div>
+
+      <div class="step" data-status="todo"><div class="step-header" onclick="toggleStep(this)"><div class="step-num">5.4</div><div class="step-title">Performance budget validation</div><span class="badge warn">PERF</span><span class="step-est">1 d</span></div><div class="step-body"><div class="step-row plain"><div class="step-label">What &amp; Why</div><div class="step-content"><p>Targets: cold start &lt;2s mobile / &lt;4s STB, 60fps mobile / 30fps STB, RAM &lt;400MB during playback.</p></div></div><div class="step-row"><div class="step-label">How</div><div class="step-content"><p>Flashlight (Android) + Xcode Instruments. EPG scroll perf trace. Cold start measured on weakest device.</p></div></div><div class="step-row"><div class="step-label">Definition of Done</div><div class="step-content"><ul><li>Budgets met on every required platform</li><li>Profiling report archived</li></ul></div></div></div></div>
+
+      <div class="step" data-status="todo"><div class="step-header" onclick="toggleStep(this)"><div class="step-num">5.5</div><div class="step-title">Albanian copy review</div><span class="badge ok">QA</span><span class="step-est">0.5 d</span></div><div class="step-body"><div class="step-row plain"><div class="step-label">What &amp; Why</div><div class="step-content"><p>Native speaker review of every string. RTSH brand voice.</p></div></div><div class="step-row"><div class="step-label">How</div><div class="step-content"><p>Send sq.json + screenshots to RTSH copy reviewer. Apply edits. Sign-off recorded.</p></div></div><div class="step-row"><div class="step-label">Definition of Done</div><div class="step-content"><ul><li>RTSH-approved sq.json</li><li>No layout breaks from longer Albanian translations</li></ul></div></div></div></div>
+
+      <div class="step" data-status="todo"><div class="step-header" onclick="toggleStep(this)"><div class="step-num">5.6</div><div class="step-title">Privacy &amp; T&amp;C content finalization</div><span class="badge warn">COMPLIANCE</span><span class="step-est">0.5 d</span></div><div class="step-body"><div class="step-row plain"><div class="step-label">What &amp; Why</div><div class="step-content"><p>Real legal-reviewed content live at the agreed URLs. Required for every store submission.</p></div></div><div class="step-row"><div class="step-label">How</div><div class="step-content"><p>Coordinate with RTSH legal + web team. Verify URLs return 200 + correct content. Both rendered correctly inside app.</p></div></div><div class="step-row"><div class="step-label">Definition of Done</div><div class="step-content"><ul><li>URLs live with final content</li><li>App version + acceptance flow tested with new content</li></ul></div></div></div></div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ============================ PHASE 6 ============================ -->
+<div class="phase" id="phase-6">
+  <div class="phase-header" onclick="togglePhase(this)">
+    <div class="phase-num">P6</div>
+    <div class="phase-title">
+      <h2>Store Submission</h2>
+      <div class="goal">All four apps submitted, reviewed, approved.</div>
+    </div>
+    <div class="phase-meta">
+      <span class="duration">Week 15 + parallel review periods</span>
+      <span class="deps">P5 complete; submissions can overlap reviews</span>
+    </div>
+  </div>
+  <div class="phase-body">
+    <div class="phase-intro"><b>Why now:</b> Review periods are calendar time, not engineering time. Submit Samsung + LG FIRST since they're slowest. Apple + Google can submit in parallel.<br><b>Done when:</b> all four apps approved + ready for production rollout.</div>
+
+    <div class="steps">
+
+      <div class="step" data-status="todo"><div class="step-header" onclick="toggleStep(this)"><div class="step-num">6.1</div><div class="step-title">Samsung Tizen submission</div><span class="badge bad">FIRST — SLOWEST</span><span class="step-est">1 d work + 2–6 wk review</span></div><div class="step-body"><div class="step-row plain"><div class="step-label">What &amp; Why</div><div class="step-content"><p>2–6 week review. Submit early. App name "RTSH TANI", screenshots, T&amp;C URL, privacy URL, age rating.</p></div></div><div class="step-row"><div class="step-label">How</div><div class="step-content"><p>Seller Office submission form. Attach .wgt + signed certs. Provide reviewer demo account.</p></div></div><div class="step-row"><div class="step-label">Definition of Done</div><div class="step-content"><ul><li>App approved in Tizen Smart Hub</li><li>Live on Samsung Smart Hub partner store</li></ul></div></div></div></div>
+
+      <div class="step" data-status="todo"><div class="step-header" onclick="toggleStep(this)"><div class="step-num">6.2</div><div class="step-title">LG WebOS submission</div><span class="badge bad">FIRST — SLOW</span><span class="step-est">1 d work + 2–4 wk review</span></div><div class="step-body"><div class="step-row plain"><div class="step-label">What &amp; Why</div><div class="step-content"><p>Same as Samsung — submit early. App name "RTSH TANI".</p></div></div><div class="step-row"><div class="step-label">How</div><div class="step-content"><p>Seller Lounge submission form. Attach .ipk + Distributor signing. Reviewer demo account.</p></div></div><div class="step-row"><div class="step-label">Definition of Done</div><div class="step-content"><ul><li>App approved in LG Content Store</li></ul></div></div></div></div>
+
+      <div class="step" data-status="todo"><div class="step-header" onclick="toggleStep(this)"><div class="step-num">6.3</div><div class="step-title">App Store Connect submission</div><span class="badge ok">STANDARD</span><span class="step-est">1 d work + 1–3 d review</span></div><div class="step-body"><div class="step-row plain"><div class="step-label">What &amp; Why</div><div class="step-content"><p>iOS + iPad single submission. Screenshots, privacy nutrition labels, demo creds.</p></div></div><div class="step-row"><div class="step-label">How</div><div class="step-content"><p>EAS Submit to App Store Connect. TestFlight beta first → Production. Phased rollout (1%, 10%, 100%).</p></div></div><div class="step-row"><div class="step-label">Definition of Done</div><div class="step-content"><ul><li>App approved + ready for release</li><li>TestFlight beta tested with internal team</li></ul></div></div></div></div>
+
+      <div class="step" data-status="todo"><div class="step-header" onclick="toggleStep(this)"><div class="step-num">6.4</div><div class="step-title">Play Console submission (phone + tablet + TV)</div><span class="badge ok">STANDARD</span><span class="step-est">1 d work + 14-day testing requirement</span></div><div class="step-body"><div class="step-row plain"><div class="step-label">What &amp; Why</div><div class="step-content"><p>New-org rule: 12 closed testers × 14 days before production. Plan timeline.</p></div></div><div class="step-row"><div class="step-label">How</div><div class="step-content"><p>EAS Submit to Play Console. Internal Testing → Closed Beta (12 testers, 14 days) → Production. Android TV variant: separate listing or universal store entry depending on RTSH preference.</p></div></div><div class="step-row"><div class="step-label">Definition of Done</div><div class="step-content"><ul><li>14-day closed testing complete</li><li>App approved for production</li><li>Android TV banner + Leanback declaration validated</li></ul></div></div></div></div>
+
+      <div class="step" data-status="todo"><div class="step-header" onclick="toggleStep(this)"><div class="step-num">6.5</div><div class="step-title">STB APK distribution</div><span class="badge warn">RTSH COORDINATION</span><span class="step-est">0.5 d</span></div><div class="step-body"><div class="step-row plain"><div class="step-label">What &amp; Why</div><div class="step-content"><p>Per Phase 0.12 decision: hand APK to RTSH for pre-install OR upload to self-hosted URL.</p></div></div><div class="step-row"><div class="step-label">How</div><div class="step-content"><p>Build production APK. Same signing as Play (Play App Signing). Hand to RTSH or upload + tag version in update endpoint.</p></div></div><div class="step-row"><div class="step-label">Definition of Done</div><div class="step-content"><ul><li>APK live in chosen distribution channel</li><li>In-app updater wired to version endpoint</li></ul></div></div></div></div>
+
+      <div class="step" data-status="todo"><div class="step-header" onclick="toggleStep(this)"><div class="step-num">6.6</div><div class="step-title">Rejection-handling buffer</div><span class="badge warn">BUFFER</span><span class="step-est">≤1 wk reserved</span></div><div class="step-body"><div class="step-row plain"><div class="step-label">What &amp; Why</div><div class="step-content"><p>First submissions to ALL four stores almost always get a rejection round. Reserve a buffer week.</p></div></div><div class="step-row"><div class="step-label">How</div><div class="step-content"><p>Plan capacity for revisions. Most common: missing privacy URL, vague background-audio claim, incomplete metadata. Address per store, resubmit.</p></div></div><div class="step-row"><div class="step-label">Definition of Done</div><div class="step-content"><ul><li>All four apps approved for production</li></ul></div></div></div></div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ============================ PHASE 7 ============================ -->
+<div class="phase" id="phase-7">
+  <div class="phase-header" onclick="togglePhase(this)">
+    <div class="phase-num">P7</div>
+    <div class="phase-title">
+      <h2>Launch &amp; Handover</h2>
+      <div class="goal">Production cutover, runbooks, credentials inventory, monitoring dashboards, RTSH training.</div>
+    </div>
+    <div class="phase-meta">
+      <span class="duration">Week 16+</span>
+      <span class="deps">P6 complete (all apps approved)</span>
+    </div>
+  </div>
+  <div class="phase-body">
+    <div class="phase-intro"><b>Why now:</b> Going live and handing over is its own work. Don't skip the runbooks — they're what makes the next 48 months survivable.<br><b>Done when:</b> apps live in production, RTSH has credentials + runbooks, Sentry dashboards monitoring everything, on-call rotation defined.</div>
+
+    <div class="steps">
+
+      <div class="step" data-status="todo"><div class="step-header" onclick="toggleStep(this)"><div class="step-num">7.1</div><div class="step-title">Phased production rollout</div><span class="badge ok">RELEASE</span><span class="step-est">1 wk</span></div><div class="step-body"><div class="step-row plain"><div class="step-label">What &amp; Why</div><div class="step-content"><p>Roll out iOS 1% → 10% → 100% over a few days. Same for Android. Monitor Sentry between bumps.</p></div></div><div class="step-row"><div class="step-label">How</div><div class="step-content"><p>App Store Connect phased release. Play Console staged rollout. EAS Update channels: only "production" channel updated after each gate.</p></div></div><div class="step-row"><div class="step-label">Definition of Done</div><div class="step-content"><ul><li>100% rollout with crash rate &lt;1%</li></ul></div></div></div></div>
+
+      <div class="step" data-status="todo"><div class="step-header" onclick="toggleStep(this)"><div class="step-num">7.2</div><div class="step-title">Sentry dashboards + alerts</div><span class="badge ok">OPS</span><span class="step-est">0.5 d</span></div><div class="step-body"><div class="step-row plain"><div class="step-label">What &amp; Why</div><div class="step-content"><p>Crash spike, error rate, top failing devices — automated alerts to on-call.</p></div></div><div class="step-row"><div class="step-label">How</div><div class="step-content"><p>Sentry release alerts. Slack/email integration. Dashboard per platform: crash-free rate, top errors, sessions per device class.</p></div></div><div class="step-row"><div class="step-label">Definition of Done</div><div class="step-content"><ul><li>Alerts firing on test crashes</li><li>Dashboards usable by RTSH ops team</li></ul></div></div></div></div>
+
+      <div class="step" data-status="todo"><div class="step-header" onclick="toggleStep(this)"><div class="step-num">7.3</div><div class="step-title">Credentials inventory document</div><span class="badge bad">SPEC HANDOVER</span><span class="step-est">1 d</span></div><div class="step-body"><div class="step-row plain"><div class="step-label">What &amp; Why</div><div class="step-content"><p>Spec App.4 mandates Samsung + LG credentials hand-over. Document covers ALL accounts as a complete inventory.</p></div></div><div class="step-row"><div class="step-label">How</div><div class="step-content"><p>Spreadsheet with: account name, login URL, username, password location (vault entry), 2FA backup codes location, certs + expiry, who has access, what the account controls. Encrypted PDF for handover.</p></div></div><div class="step-row"><div class="step-label">Definition of Done</div><div class="step-content"><ul><li>Inventory reviewed by your project manager</li><li>Encrypted file handed to RTSH</li><li>Samsung + LG credentials transferred per spec</li></ul></div></div></div></div>
+
+      <div class="step" data-status="todo"><div class="step-header" onclick="toggleStep(this)"><div class="step-num">7.4</div><div class="step-title">Runbooks</div><span class="badge warn">OPS</span><span class="step-est">1–2 d</span></div><div class="step-body"><div class="step-row plain"><div class="step-label">What &amp; Why</div><div class="step-content"><p>Documented playbooks for: incident response, hot-fix via EAS Update, OS upgrade (yearly), cert renewal, store rejection, key rotation, end-of-contract handover.</p></div></div><div class="step-row"><div class="step-label">How</div><div class="step-content"><p>One markdown file per runbook in <code>docs/runbooks/</code>. Each has: trigger, prereqs, step-by-step, rollback path, contacts.</p></div></div><div class="step-row"><div class="step-label">Definition of Done</div><div class="step-content"><ul><li>≥7 runbooks written</li><li>Dry-run of "hot-fix via EAS Update" executed successfully</li></ul></div></div></div></div>
+
+      <div class="step" data-status="todo"><div class="step-header" onclick="toggleStep(this)"><div class="step-num">7.5</div><div class="step-title">RTSH internal training session</div><span class="badge ok">HANDOVER</span><span class="step-est">0.5 d</span></div><div class="step-body"><div class="step-row plain"><div class="step-label">What &amp; Why</div><div class="step-content"><p>Walk RTSH team through: CMS for channels + ads + theme, Sentry dashboards, how to read crash reports, who to call when something breaks.</p></div></div><div class="step-row"><div class="step-label">How</div><div class="step-content"><p>2-hour session with screen share. Record video. Q&amp;A. Hand out CMS user guide.</p></div></div><div class="step-row"><div class="step-label">Definition of Done</div><div class="step-content"><ul><li>Session held + recorded</li><li>RTSH ops team can take basic actions independently</li></ul></div></div></div></div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ============================ PHASE 8 ============================ -->
+<div class="phase" id="phase-8">
+  <div class="phase-header" onclick="togglePhase(this)">
+    <div class="phase-num">P8</div>
+    <div class="phase-title">
+      <h2>Maintenance (48 months)</h2>
+      <div class="goal">Keep all apps current with OS releases, cert renewals, store policy changes, hot-fixes.</div>
+    </div>
+    <div class="phase-meta">
+      <span class="duration">Ongoing — 48 months</span>
+      <span class="deps">P7 complete</span>
+    </div>
+  </div>
+  <div class="phase-body">
+    <div class="phase-intro"><b>Why now:</b> Spec App.1 + MW.13 obligate ongoing maintenance for the full 48 months. Plan capacity quarterly.<br><b>Done when:</b> contract ends with clean handover to whoever continues.</div>
+
+    <div class="steps">
+
+      <div class="step" data-status="todo"><div class="step-header" onclick="toggleStep(this)"><div class="step-num">8.1</div><div class="step-title">Quarterly OS-compat sprint</div><span class="badge warn">RECURRING</span><span class="step-est">1 sprint × 16</span></div><div class="step-body"><div class="step-row plain"><div class="step-label">What &amp; Why</div><div class="step-content"><p>Reserve a sprint per quarter for OS upgrades, library bumps, deprecations.</p></div></div><div class="step-row"><div class="step-label">How</div><div class="step-content"><p>Calendar quarters around platform release windows: WWDC (Jun), Google I/O (May), Samsung CES (Jan). Each sprint: upgrade Expo SDK, run full regression, ship.</p></div></div></div></div>
+
+      <div class="step" data-status="todo"><div class="step-header" onclick="toggleStep(this)"><div class="step-num">8.2</div><div class="step-title">Yearly Expo SDK upgrade</div><span class="badge warn">RECURRING</span><span class="step-est">1 sprint × 4</span></div><div class="step-body"><div class="step-row plain"><div class="step-label">What &amp; Why</div><div class="step-content"><p>Don't lag &gt;1 major SDK version. Yearly bump keeps modern, secure, supported.</p></div></div><div class="step-row"><div class="step-label">How</div><div class="step-content"><p><code>expo upgrade</code>. Follow migration guide. Full regression. Tag release.</p></div></div></div></div>
+
+      <div class="step" data-status="todo"><div class="step-header" onclick="toggleStep(this)"><div class="step-num">8.3</div><div class="step-title">Cert expiration tracking</div><span class="badge warn">RECURRING</span><span class="step-est">ongoing</span></div><div class="step-body"><div class="step-row plain"><div class="step-label">What &amp; Why</div><div class="step-content"><p>Apple cert (1y), Samsung Distributor (2y), Samsung Author (10y), LG dev (1y). Missed renewal = locked out.</p></div></div><div class="step-row"><div class="step-label">How</div><div class="step-content"><p>Calendar reminders: 60d, 30d, day-of for every cert. Document in credentials inventory.</p></div></div></div></div>
+
+      <div class="step" data-status="todo"><div class="step-header" onclick="toggleStep(this)"><div class="step-num">8.4</div><div class="step-title">Store policy monitoring</div><span class="badge warn">RECURRING</span><span class="step-est">ongoing</span></div><div class="step-body"><div class="step-row plain"><div class="step-label">What &amp; Why</div><div class="step-content"><p>Apple, Google, Samsung, LG ship policy updates that may require code changes (target API bumps, new privacy declarations, deprecated APIs).</p></div></div><div class="step-row"><div class="step-label">How</div><div class="step-content"><p>Subscribe to dev newsletters per platform. Quarterly compliance check.</p></div></div></div></div>
+
+      <div class="step" data-status="todo"><div class="step-header" onclick="toggleStep(this)"><div class="step-num">8.5</div><div class="step-title">Hot-fix capability via EAS Update</div><span class="badge warn">RECURRING</span><span class="step-est">ongoing</span></div><div class="step-body"><div class="step-row plain"><div class="step-label">What &amp; Why</div><div class="step-content"><p>JS-only hotfixes ship in &lt;1 day without store review. Native fixes need full submit.</p></div></div><div class="step-row"><div class="step-label">How</div><div class="step-content"><p>Pre-defined process per runbook (7.4). EAS Update channel: production.</p></div></div></div></div>
+
+      <div class="step" data-status="todo"><div class="step-header" onclick="toggleStep(this)"><div class="step-num">8.6</div><div class="step-title">Year-4 contract-end handover prep</div><span class="badge warn">END-OF-CONTRACT</span><span class="step-est">1–2 wk in year 4</span></div><div class="step-body"><div class="step-row plain"><div class="step-label">What &amp; Why</div><div class="step-content"><p>If contract isn't renewed, hand the full system to whoever inherits. Comprehensive package: code, docs, credentials, runbooks, OS upgrade history.</p></div></div><div class="step-row"><div class="step-label">How</div><div class="step-content"><p>Repo access transfer. Final credentials inventory. Architecture decision records. Lessons-learned doc.</p></div></div></div></div>
+
+    </div>
+  </div>
+</div>
+
+</div>
+
+<!-- ================================================================ -->
+<!-- BACKEND TAB                                                       -->
+<!-- ================================================================ -->
+<div class="tab-content" data-tab="backend">
+
+<div class="phase-intro">
+  <b>This is overview only.</b> Backend, encoding, CDN, and ops are handled by other teammates. This page is here so you understand the full system you're integrating with — when something breaks, where it lives, and who owns it. Detail intentionally light.
+</div>
+
+<div class="arch-diagram">┌─────────────────────────────────────────────────────────────────┐
+│                                                                  │
+│   Studio Signal Sources         EPG Source (FTP / XMLTV)         │
+│     SDI · TSoIP (MPTS)              ↓                            │
+│         │                       ┌────────────┐                    │
+│         ▼                       │ EPG Parser │                    │
+│   ┌─────────────┐               └─────┬──────┘                    │
+│   │  Encoder    │  primary             │                          │
+│   │  Farm (ABR) │  ↔  backup          ▼                          │
+│   └──────┬──────┘                ┌──────────┐                     │
+│          │ HLS m3u8 + chunks     │  Middle  │  ←── CMS (RTSH ops) │
+│          ▼                       │   ware   │       (geoblock,    │
+│   ┌─────────────┐                │  + Auth  │        ads, theme,  │
+│   │   Origin    │  ←── catch-up  └────┬─────┘        T&amp;C, channel │
+│   │   Server    │      recorder       │              reorder...)  │
+│   └──────┬──────┘                     │                           │
+│          │                            │                           │
+│          ▼                            │                           │
+│   ┌─────────────┐    AES-128 key     │                           │
+│   │  CDN Edges  │  ←── endpoint  ────┘                           │
+│   │  (EU + US)  │       (token-gated)                            │
+│   └──────┬──────┘                                                 │
+│          │                                                        │
+│          ▼                          Analytics Aggregation         │
+│   ┌─────────────────────────┐       ┌──────────────────┐         │
+│   │  Mobile / TV / STB apps │ ───── │  Event ingest +  │         │
+│   │       (frontend)        │       │   dashboards     │         │
+│   └─────────────────────────┘       └──────────────────┘         │
+│                                                                   │
+│                       ┌──────────────────┐                       │
+│                       │  Central NOC     │ ←── alarms, metrics   │
+│                       │  (multiviewer)   │     real-time stats   │
+│                       └──────────────────┘                       │
+│                                                                   │
+└─────────────────────────────────────────────────────────────────┘</div>
+
+<div class="backend-card">
+  <h3><span class="b-num">B.1</span> Encoding pipeline</h3>
+  <div class="b-sub">Convert broadcast signals into ABR HLS streams.</div>
+  <div class="b-content">
+    <ul>
+      <li>SDI + TSoIP (UDP MPTS) signal ingest from RTSH studio</li>
+      <li>Primary + backup encoder farm with &lt;1min failover (spec Enc.5)</li>
+      <li>ABR ladders per channel: HD 1080/720/576/360, SD 2×576+360, Radio audio-only</li>
+      <li>Codecs: H.264 + H.265 video, AAC / HE-AAC / MP3 / AC3 / MPGA audio</li>
+      <li>Per-channel bitrate config editable by RTSH staff</li>
+      <li>Output: HLS playlists + segmented chunks to origin</li>
+    </ul>
+  </div>
+  <div class="b-owner"><b>Owner:</b> broadcast engineering team · <b>Spec ref:</b> Shtojca 5 §2 (12 items)</div>
+</div>
+
+<div class="backend-card">
+  <h3><span class="b-num">B.2</span> Middleware (auth, entitlement, geoblock, ads, CMS)</h3>
+  <div class="b-sub">Business logic layer + admin tools for RTSH ops staff.</div>
+  <div class="b-content">
+    <p><b>App-facing APIs:</b></p>
+    <ul>
+      <li><code>POST /auth/register</code>, <code>POST /auth/login</code>, <code>POST /auth/refresh</code>, <code>POST /auth/forgot-password</code>, <code>POST /auth/reset</code></li>
+      <li><code>GET /channels</code> — ordered list with logos, packages, per-device stream URLs</li>
+      <li><code>GET /epg?channel=&amp;day=</code> — events with rating, title, start, end</li>
+      <li><code>GET /catchup?eventId=</code> — VOD URL (HLS, AES-128)</li>
+      <li><code>GET /stream/{channelId}?device=mobile|tv|stb</code> — device-class-specific manifest URL</li>
+      <li><code>GET /theme</code> — colors, logos, banners (server-driven UI)</li>
+      <li><code>GET /config</code> — catchupDays, ad rules, T&amp;C version, parental defaults</li>
+      <li><code>GET /ads?channel=&amp;at=ISOTimestamp</code> — active ad for channel + time slot</li>
+      <li><code>POST /analytics</code> — event ingestion endpoint</li>
+      <li><code>GET /legal/{terms|privacy}?version=</code> — versioned legal text</li>
+    </ul>
+    <p><b>Admin CMS (RTSH-facing):</b> user management, geoblocking per channel/event GUI, channel reorder, ad scheduling, theme tokens, T&amp;C editor.</p>
+    <p><b>Security:</b> JWT issuance, refresh-token rotation, AES-128 key endpoint (HTTPS, token-gated, rate-limited).</p>
+  </div>
+  <div class="b-owner"><b>Owner:</b> backend team · <b>Spec ref:</b> Shtojca 5 §3 (14 items)</div>
+</div>
+
+<div class="backend-card">
+  <h3><span class="b-num">B.3</span> Stream distribution / CDN</h3>
+  <div class="b-sub">Origin → edges → end users globally.</div>
+  <div class="b-content">
+    <ul>
+      <li>Origin server generates m3u8 + chunks</li>
+      <li>Geo-distributed edge fleet (EU + US per spec Distr.16)</li>
+      <li>AES-128 key delivery endpoint (token-gated, rate-limited, periodic rotation)</li>
+      <li>Adaptive bitrate routing — edge serves closest user</li>
+      <li>IP + domain blocking</li>
+      <li>DDoS protection at origin + edge</li>
+      <li>Auto-scaling on traffic spikes</li>
+      <li>Edge-middleware integration for geoblocking (token validation includes geo-region)</li>
+    </ul>
+  </div>
+  <div class="b-owner"><b>Owner:</b> infra / DevOps team · <b>Spec ref:</b> Shtojca 5 §4 (16 items)</div>
+</div>
+
+<div class="backend-card">
+  <h3><span class="b-num">B.4</span> EPG ingestion</h3>
+  <div class="b-sub">Pull XMLTV from RTSH FTP, parse, expose JSON.</div>
+  <div class="b-content">
+    <ul>
+      <li>Scheduled FTP poll for new XMLTV files</li>
+      <li>Parse + normalize to consistent JSON (UTC timestamps, age ratings, categories)</li>
+      <li>Store with channel + day index</li>
+      <li>Expose via middleware <code>GET /epg</code> endpoint</li>
+      <li>Validation: reject malformed XMLTV before publishing (it would break the entire UI)</li>
+    </ul>
+  </div>
+  <div class="b-owner"><b>Owner:</b> backend team · <b>Spec ref:</b> Shtojca 5 §1.16</div>
+</div>
+
+<div class="backend-card">
+  <h3><span class="b-num">B.5</span> Catch-up recording</h3>
+  <div class="b-sub">Continuous channel recording → VOD packaging.</div>
+  <div class="b-content">
+    <ul>
+      <li>Continuous recording per channel (24/7)</li>
+      <li>Rolling 7-day retention (configurable per Spec App.18)</li>
+      <li>Generate per-event HLS VOD playlists keyed by EPG event ID</li>
+      <li>Same AES-128 DRM as live streams</li>
+      <li>Same ABR ladders as live</li>
+    </ul>
+  </div>
+  <div class="b-owner"><b>Owner:</b> backend + storage team · <b>Spec ref:</b> Shtojca 5 §1.17–19</div>
+</div>
+
+<div class="backend-card">
+  <h3><span class="b-num">B.6</span> Central monitoring (NOC)</h3>
+  <div class="b-sub">24/7 operational dashboard for RTSH operators.</div>
+  <div class="b-content">
+    <ul>
+      <li>Multiviewer: every channel preview in one screen</li>
+      <li>Alarm log retention: 1 year minimum</li>
+      <li>Health checks: audio + video presence per channel, bitrate, origin status</li>
+      <li>Real-time user stats: count, geolocation, audience by channel, platforms (mobile/TV/STB)</li>
+      <li>CDN traffic reports: bandwidth per edge, traffic over time</li>
+      <li>IP-gated dashboard URL (only accessible from RTSH IP range)</li>
+      <li>Always-on (24h × 365 days)</li>
+    </ul>
+  </div>
+  <div class="b-owner"><b>Owner:</b> NOC / operations team · <b>Spec ref:</b> Shtojca 5 §5 (8 items)</div>
+</div>
+
+<div class="backend-card">
+  <h3><span class="b-num">B.7</span> Analytics aggregation</h3>
+  <div class="b-sub">Frontend events → RTSH dashboards.</div>
+  <div class="b-content">
+    <ul>
+      <li>Event ingestion endpoint (your app POSTs here)</li>
+      <li>Aggregation pipeline: channel views, time-of-day, device class, country, retention</li>
+      <li>Dashboards for RTSH staff: daily / weekly / monthly / custom range</li>
+      <li>24h freshness SLA (spec Mon.7.g — graphs available within 24h)</li>
+      <li>IP-based country geo (no client permission needed)</li>
+    </ul>
+  </div>
+  <div class="b-owner"><b>Owner:</b> backend + data team · <b>Spec ref:</b> Shtojca 5 §3.14, §5.6</div>
+</div>
+
+<div class="backend-card">
+  <h3><span class="b-num">B.8</span> Operations &amp; SLA</h3>
+  <div class="b-sub">Contractual obligations + ops infrastructure.</div>
+  <div class="b-content">
+    <ul>
+      <li>99.5% monthly uptime SLA (spec Gen.2)</li>
+      <li>24/7 phone + email support (spec Gen.4)</li>
+      <li>Network/storage/accessories sourcing — vendor provides (spec Gen.5)</li>
+      <li>RTSH-site internet links provided by vendor (spec Gen.6)</li>
+      <li>GB-based traffic metering (spec Gen.7)</li>
+      <li>60-day go-live SLA from contract signing (spec Gen.8)</li>
+      <li>Tech / legal / finance support contacts named (spec Gen.3)</li>
+    </ul>
+  </div>
+  <div class="b-owner"><b>Owner:</b> operations + sales/legal · <b>Spec ref:</b> Shtojca 5 §6 (8 items)</div>
+</div>
+
+<div class="footer-note">
+  <b>How frontend depends on backend (in priority order):</b><br>
+  1. API contract locked (Phase 1.12) — your work blocks without it.<br>
+  2. Test environment + sample data — to dev locally.<br>
+  3. AES-128 stream available — to validate player + DRM.<br>
+  4. EPG endpoint live — to validate timeline + catch-up.<br>
+  5. CMS for theme + ads — to validate server-driven UI.<br>
+  Sync with backend lead weekly during Phase 2 to keep these unblocked.
+</div>
+
+</div>
+
+<div class="footer-note">
+  <b>How to use this doc:</b><br>
+  Each step in the Frontend tab maps 1:1 to a Jira ticket. Copy the step title + "What &amp; Why" + "How" + "Definition of Done" into the ticket. For coding steps, the "Claude Code prompt" block is a ready-to-paste seed — refine it before pasting to give Claude Code the project-specific context (file paths, design choices, etc.).<br><br>
+  Update the status dropdown per step as work progresses (todo → doing → done). The filter at the top shows only matching status.
+</div>
+
+<script>
+  function togglePhase(el){ el.parentElement.classList.toggle('open'); }
+  function toggleStep(el){ el.parentElement.classList.toggle('open'); }
+
+  document.querySelectorAll('.tab').forEach(t=>{
+    t.addEventListener('click', ()=>{
+      document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+      t.classList.add('active');
+      document.querySelectorAll('.tab-content').forEach(c=>c.classList.remove('active'));
+      document.querySelector(`.tab-content[data-tab="${t.dataset.tab}"]`).classList.add('active');
+    });
+  });
+
+  document.getElementById('expand-phases').addEventListener('click', ()=>{
+    document.querySelectorAll('.phase').forEach(p=>p.classList.add('open'));
+  });
+  document.getElementById('expand-steps').addEventListener('click', ()=>{
+    document.querySelectorAll('.phase, .step').forEach(p=>p.classList.add('open'));
+  });
+  document.getElementById('collapse-all').addEventListener('click', ()=>{
+    document.querySelectorAll('.phase, .step').forEach(p=>p.classList.remove('open'));
+  });
+  document.getElementById('print-btn').addEventListener('click', ()=>window.print());
+
+  document.getElementById('status-filter').addEventListener('change', e=>{
+    const v = e.target.value;
+    document.querySelectorAll('.step').forEach(s=>{
+      s.classList.toggle('hide', v !== 'all' && s.dataset.status !== v);
+    });
+  });
+
+  function copyPrompt(btn){
+    const text = btn.closest('.step-row').querySelector('.step-content').innerText;
+    navigator.clipboard.writeText(text).then(()=>{
+      btn.textContent = 'Copied';
+      btn.classList.add('copied');
+      setTimeout(()=>{ btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 1500);
+    });
+  }
+
+  // Auto-open phase from URL hash (deep link from Jira tickets)
+  if (location.hash) {
+    const el = document.querySelector(location.hash);
+    if (el) {
+      if (el.classList.contains('phase')) el.classList.add('open');
+      if (el.classList.contains('step')) {
+        el.classList.add('open');
+        el.closest('.phase').classList.add('open');
+      }
+      el.scrollIntoView({ behavior:'smooth', block:'start' });
+    }
+  }
+</script>
+
+</div>
+</body>
+</html>

@@ -11,6 +11,16 @@ export interface User {
   id: string;
   email: string;
   displayName: string;
+  /**
+   * Profile details collected at registration (design "Të dhënat e llogarisë").
+   * Optional — older accounts / partial backends may omit them; the account
+   * screen renders a placeholder for missing values. `gender` mirrors the
+   * register form's GENDERS union (`features/auth/schemas`).
+   */
+  username?: string;
+  age?: number;
+  location?: string;
+  gender?: 'male' | 'female' | 'other' | 'unspecified';
   avatarUrl?: string;
   /** Active package + entitlement (design profile badge "Paketa Bazë · 32 kanale"). */
   subscription?: Subscription;
@@ -39,7 +49,7 @@ export interface Channel {
   id: string;
   name: string;
   logoUrl: string;
-  /** Scene / last-frame artwork for cards + mosaic tiles (design `scene`). */
+  /** Scene / last-frame artwork for cards (design `scene`). */
   thumbnailUrl?: string;
   /** Package the channel belongs to (design chip filter). */
   package: ChannelPackage;
@@ -68,22 +78,6 @@ export interface HeroItem {
   imageUrl: string;
   /** Channel opened on tap. */
   channelId: string;
-}
-
-/**
- * Continue-watching card on Home (design `.hcard` + `.pgbar`). Derived from
- * resume positions joined with the program; `progress` is the watched fraction.
- */
-export interface ContinueItem {
-  id: string;
-  channelId: string;
-  /** Channel name shown as the card subtitle (design `.sub`). */
-  channelName: string;
-  /** Program title shown as the card title (design `.ttl`). */
-  title: string;
-  thumbnailUrl: string;
-  /** Watched fraction 0–1 (design progress bar width). */
-  progress: number;
 }
 
 export interface EpgItem {
@@ -193,29 +187,91 @@ export interface AdCreative {
 }
 
 /* ===========================================================================
- * Runtime validation (Zod) — auth boundary guards (plan 5.X.2).
- * The interfaces above are the full design contract; these schemas are the
- * runtime guard for the fields the session flow actually depends on. A backend
- * shape change (e.g. a missing token) is now rejected at the boundary instead
- * of silently persisting `undefined`. `looseObject` keeps unknown backend fields
- * (e.g. `subscription`) rather than stripping them, so the contract can grow
- * without breaking validation. `avatarUrl` is `.nullish()` because the backend
- * may send `null`.
+ * Runtime validation (Zod) — auth boundary guards (plan 5.X.2 / 11.X.9).
+ * The backend speaks `UserDTO` (int64 id, `username`, UPPERCASE enums); the app
+ * speaks the `User` interface above. `userDtoSchema` validates the wire shape
+ * AND transforms it into the domain shape in one parse, so a backend change
+ * (missing token, renamed field) is rejected at the boundary instead of
+ * silently persisting `undefined`.
  * =========================================================================== */
 
-export const userSchema = z.looseObject({
-  id: z.string().min(1),
-  email: z.string().min(1),
-  displayName: z.string().min(1),
-  avatarUrl: z.string().nullish(),
-  parentalPinSet: z.boolean().optional(),
-});
+/** Backend gender/education enums ⇄ domain unions. */
+const GENDER_FROM_DTO = {
+  MALE: 'male',
+  FEMALE: 'female',
+  OTHER: 'other',
+  UNSPECIFIED: 'unspecified',
+} as const;
 
-/** Login + refresh + register-completion payload. Validated before any token touches the keychain. */
+export type GenderDto = keyof typeof GENDER_FROM_DTO;
+
+export const toGenderDto = (gender: User['gender'] & string): GenderDto =>
+  gender.toUpperCase() as GenderDto;
+
+const ageFromBirthDate = (birthDate?: string | null): number | undefined => {
+  if (!birthDate) return undefined;
+  const born = new Date(birthDate);
+  if (Number.isNaN(born.getTime())) return undefined;
+  const now = new Date();
+  const beforeBirthday =
+    now.getMonth() < born.getMonth() ||
+    (now.getMonth() === born.getMonth() && now.getDate() < born.getDate());
+  return now.getFullYear() - born.getFullYear() - (beforeBirthday ? 1 : 0);
+};
+
+/**
+ * Backend `UserDTO` → domain `User`. `id` may arrive as int64 → stringified;
+ * `displayName` falls back to `username` (no display-name field on the wire);
+ * `birthDate` / `city` + `country` are derived into the profile screen's
+ * `age` / `location`. `parentalPinSet` is a pending backend addition (the
+ * parental gate hydrates from it) — optional until it lands.
+ */
+export const userDtoSchema = z
+  .looseObject({
+    id: z.union([z.string(), z.number()]),
+    email: z.string().min(1),
+    username: z.string().min(1),
+    birthDate: z.string().nullish(),
+    city: z.string().nullish(),
+    country: z.string().nullish(),
+    gender: z.enum(['MALE', 'FEMALE', 'OTHER', 'UNSPECIFIED']).nullish(),
+    educationLevel: z.enum(['HIGH', 'MEDIUM', 'LOW']).nullish(),
+    avatarUrl: z.string().nullish(),
+    parentalPinSet: z.boolean().optional(),
+  })
+  .transform(
+    (dto): User => ({
+      id: String(dto.id),
+      email: dto.email,
+      displayName: dto.username,
+      username: dto.username,
+      age: ageFromBirthDate(dto.birthDate),
+      location: [dto.city, dto.country].filter(Boolean).join(', ') || undefined,
+      gender: dto.gender ? GENDER_FROM_DTO[dto.gender] : undefined,
+      avatarUrl: dto.avatarUrl ?? undefined,
+      parentalPinSet: dto.parentalPinSet,
+    }),
+  );
+
+/** Login + register-verify payload. Validated before any token touches the keychain. */
 export const authResponseSchema = z.object({
-  user: userSchema,
+  user: userDtoSchema,
   accessToken: z.string().min(1),
   refreshToken: z.string().min(1),
+});
+
+/**
+ * Refresh response carries ONLY a new access token (no user, no rotation —
+ * the refresh token is static until expiry; backend decision 2026-06-12).
+ * Extra wire fields (`tokenType`, `expiresInSeconds`) are ignored.
+ */
+export const refreshResponseSchema = z.looseObject({
+  accessToken: z.string().min(1),
+});
+
+/** Reset step 2 — the one-time token that authorizes the new-password POST. */
+export const resetVerifyResponseSchema = z.object({
+  resetToken: z.string().min(1),
 });
 
 export interface AppConfig {
@@ -234,4 +290,47 @@ export interface AppConfig {
   };
   geoRestricted: boolean;
   supportedLocales: string[];
+}
+
+/**
+ * Backend platform discriminator (`X-Device-Platform` header + `/app/version`
+ * query param). The backend uses it to pick the stream manifest / ABR ladder.
+ * `tizen` / `webos` exist in the contract but are served by separate web apps.
+ */
+export type DevicePlatform = 'ios' | 'android' | 'androidtv' | 'androidstb' | 'tizen' | 'webos';
+
+/** `GET /app/version?platform=…` — version gate / STB self-update check. */
+export interface AppVersionInfo {
+  platform: DevicePlatform;
+  latestVersion: string;
+  minSupportedVersion: string;
+  /** Direct APK URL for sideloaded platforms (androidstb). Absent on store builds. */
+  downloadUrl?: string;
+}
+
+/**
+ * Form-factor + OS discriminator for the device registry (`PUT /users/me/device`).
+ * Confirmed from the OpenAPI `DeviceInfoDTO` enum (2026-06-12). `TIZEN_TV` /
+ * `WEBOS_TV` belong to the separate web apps — this client never sends them.
+ */
+export type DeviceType =
+  | 'PHONE_IOS'
+  | 'PHONE_ANDROID'
+  | 'TABLET_IPADOS'
+  | 'TABLET_ANDROID'
+  | 'ANDROID_TV'
+  | 'STB_ANDROID'
+  | 'TIZEN_TV'
+  | 'WEBOS_TV';
+
+/**
+ * `PUT /users/me/device` body — registers/upserts this device for the logged-in
+ * account. `deviceKey` is the same keychain UUID sent as `X-Device-Id`.
+ */
+export interface DeviceRegistration {
+  deviceKey: string;
+  type: DeviceType;
+  model: string;
+  operatingSystem: string;
+  appVersion: string;
 }

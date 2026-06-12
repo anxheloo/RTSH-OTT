@@ -13,6 +13,7 @@ import { useTranslation } from 'react-i18next';
 
 import { BORDERRADIUS, SPACING } from '@/theme';
 import { useAppStore } from '@/store/useAppStore';
+import { openStoreListing } from '@/utils/device';
 
 import ReusableBtn from './Buttons/ReusableBtn';
 import ReusableText from './Inputs/ReusableText';
@@ -29,6 +30,9 @@ const ModalWrapper: React.FC = () => {
   const close = () => updateModalSlice({ currentModal: null });
   // Force a choice on confirmation/notify; alerts dismiss on backdrop tap.
   const dismissable = currentModal === 'apiError' || currentModal === 'noInternet';
+  // 426 force-update is the one modal the user can never leave — the CTA opens
+  // the store listing and the modal stays up until the app is updated.
+  const blocking = currentModal === 'forceUpdate';
 
   const title =
     modalData.title ||
@@ -36,7 +40,9 @@ const ModalWrapper: React.FC = () => {
       ? t('common.error')
       : currentModal === 'noInternet'
         ? t('offline.title')
-        : '');
+        : currentModal === 'forceUpdate'
+          ? t('update.title')
+          : '');
 
   const description =
     modalData.description ||
@@ -44,11 +50,13 @@ const ModalWrapper: React.FC = () => {
       ? t('errors.api_default')
       : currentModal === 'noInternet'
         ? t('offline.message')
-        : '');
+        : currentModal === 'forceUpdate'
+          ? t('update.message')
+          : '');
 
   const run = (action?: () => void | Promise<void>) => async () => {
     await action?.();
-    close();
+    if (!blocking) close();
   };
 
   // Primary first, then optional secondaries. Single button → full width;
@@ -59,11 +67,18 @@ const ModalWrapper: React.FC = () => {
   if (modalData.button3) secondaries.push({ label: modalData.button3, action: modalData.action3 });
 
   const sideBySide = secondaries.length === 1;
-  const primaryLabel = modalData.button ?? t('common.ok');
+  const primaryLabel = modalData.button ?? (blocking ? t('update.cta') : t('common.ok'));
+  const primaryAction = modalData.action ?? (blocking ? openStoreListing : undefined);
   const showIconStrip = currentModal === 'apiError' || currentModal === 'noInternet';
 
   return (
-    <Modal transparent animationType="fade" visible onRequestClose={close} statusBarTranslucent>
+    <Modal
+      transparent
+      animationType="fade"
+      visible
+      onRequestClose={blocking ? () => {} : close}
+      statusBarTranslucent
+    >
       <TouchableOpacity
         style={[styles.backdrop, { backgroundColor: colors.overlay }]}
         activeOpacity={1}
@@ -103,7 +118,7 @@ const ModalWrapper: React.FC = () => {
                 size="medium"
                 isFullWidth={!sideBySide}
                 style={sideBySide ? styles.actionBtn : undefined}
-                onPress={run(modalData.action)}
+                onPress={run(primaryAction)}
               />
             </View>
           </View>

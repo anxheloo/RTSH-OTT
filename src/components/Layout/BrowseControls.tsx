@@ -12,7 +12,7 @@
  */
 import { StyleSheet, View } from 'react-native';
 
-import { SPACING } from '@/theme/spacing';
+import { SCREEN_PADDING, SPACING } from '@/theme/spacing';
 import { SearchBar, SegmentedToggle } from '@/components/Inputs';
 import type { SegmentedToggleOption } from '@/components/Inputs/SegmentedToggle';
 
@@ -63,7 +63,7 @@ export default BrowseControls;
 const styles = StyleSheet.create({
   container: {
     gap: SPACING.space_12,
-    paddingHorizontal: SPACING.space_18,
+    paddingHorizontal: SCREEN_PADDING,
     paddingTop: SPACING.space_4,
     paddingBottom: SPACING.space_12,
   },

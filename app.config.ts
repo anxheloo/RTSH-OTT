@@ -83,12 +83,24 @@ export default ({ config }: ConfigContext): ExpoConfig => {
       [
         'expo-splash-screen',
         {
-          // RTSH brand mark on brand-black. The native splash hands off to the
-          // branded splash (BrandedSplash) on first paint — both share this bg
-          // so the transition is seamless.
+          // Native phase shows the logo from frame zero (user decision
+          // 2026-06-12, supersedes the transparent-icon approach); the JS
+          // BrandedSplash (lockup + progress bar) takes over once React mounts.
+          // iOS gets the full lockup at the same 160pt width the JS clone
+          // renders, so the handoff is pixel-identical. Android 12+ constrains
+          // the splash icon to a ~192dp circle — the wide lockup can't survive
+          // that, so Android shows the square mark instead (128dp: its diagonal
+          // ~181dp fits inside the circle uncropped) and hands off to the
+          // lockup in JS.
           backgroundColor: '#000000',
-          image: './assets/images/splash-logo.png',
-          imageWidth: 180,
+          ios: {
+            image: './assets/images/splash-lockup.png',
+            imageWidth: 160,
+          },
+          android: {
+            image: './assets/images/splash-logo.png',
+            imageWidth: 128,
+          },
         },
       ],
       [
@@ -113,6 +125,11 @@ export default ({ config }: ConfigContext): ExpoConfig => {
       eas: {
         projectId: '19f4d236-ba4f-4208-bf8b-4a0c229e027c',
       },
+      // Build-time platform override for distributions the runtime can't
+      // detect — operator STBs (`APP_PLATFORM=androidstb`) look identical to
+      // retail Android TV at runtime. Unset on mobile builds; consumed by
+      // `getDevicePlatform()` (utils/device.ts) for the X-Device-Platform header.
+      devicePlatform: process.env.APP_PLATFORM,
     },
     owner: 'anxheloo',
     updates: {

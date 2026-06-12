@@ -28,7 +28,6 @@
     },
     "register": {
       "title": "Krijo llogari",
-      "display_name_placeholder": "Emri i ekranit",
       "email_label": "Email",
       "email_placeholder": "emri@shembull.com",
       "username_label": "Përdoruesi",
@@ -37,22 +36,18 @@
       "password_placeholder": "••••••••",
       "confirm_password_label": "Përsërit fjalëkalimin",
       "confirm_password_placeholder": "••••••••",
-      "age_label": "Mosha",
-      "age_placeholder": "p.sh. 28",
-      "location_label": "Qyteti / Shteti",
-      "location_placeholder": "Tiranë, Shqipëri",
+      "birthday_label": "Datëlindja",
+      "city_label": "Qyteti",
+      "country_label": "Shteti",
       "accept_terms_prefix": "Pranoj",
       "accept_terms_link": "kushtet e përdorimit",
       "submit": "Regjistrohu",
       "failed": "Regjistrimi dështoi. Provoni përsëri.",
       "have_account": "Keni tashmë llogari?",
       "sign_in": "Identifikohu",
-      "continue": "Vazhdo",
-      "details_title": "Na trego për veten",
       "birthday_placeholder": "Datëlindja (VVVV-MM-DD)",
       "city_placeholder": "Qyteti",
       "country_placeholder": "Shteti",
-      "education_placeholder": "Arsimi (opsionale)",
       "gender_label": "Gjinia",
       "gender": {
         "male": "Mashkull",
@@ -63,19 +58,23 @@
     },
     "errors": {
       "email": "Email i pavlefshëm",
-      "username": "Përdoruesi duhet të ketë të paktën 2 shkronja",
+      "username": "Përdoruesi duhet të ketë të paktën 3 shkronja",
       "password_min": "Fjalëkalimi duhet të ketë të paktën 8 shkronja",
       "password_match": "Fjalëkalimet nuk përputhen",
-      "age_required": "Mosha kërkohet",
-      "age_invalid": "Shkruani një moshë të vlefshme",
-      "location_required": "Qyteti / Shteti kërkohet",
       "gender_required": "Zgjidhni gjininë",
-      "terms_required": "Duhet të pranoni kushtet e përdorimit"
+      "terms_required": "Duhet të pranoni kushtet e përdorimit",
+      "password_max": "Fjalëkalimi duhet të ketë më së shumti 30 shkronja",
+      "birthday_required": "Datëlindja kërkohet",
+      "birthday_invalid": "Shkruani një datë të vlefshme (VVVV-MM-DD)",
+      "city_required": "Qyteti kërkohet",
+      "country_required": "Shteti kërkohet",
+      "otp_length": "Shkruani kodin 6-shifror"
     },
     "otp": {
       "sent": "Shkruani kodin {{length}}-shifror dërguar te {{email}}",
       "verify": "Verifiko",
       "resend": "Ridërgo kodin",
+      "resending": "Duke dërguar…",
       "resend_in": "Ridërgo pas {{seconds}}s",
       "invalid": "Kod i pavlefshëm ose i skaduar."
     },
@@ -107,9 +106,7 @@
     "search_placeholder": "Kërko kanale, programe…",
     "toggle_tv": "Televizion",
     "toggle_radio": "Radio",
-    "continue_watching": "Vazhdo të shikosh",
     "tv_channels": "Kanalet TV",
-    "guide_link": "Guida",
     "radio_stations": "Stacionet Radio"
   },
   "radio": {
@@ -118,10 +115,6 @@
     "program": "Programi i radios",
     "live_now": "Po transmetohet",
     "favorite_soon": "Të preferuarat vijnë së shpejti"
-  },
-  "mosaic": {
-    "title": "Mozaik",
-    "subtitle": "Imazhi i fundit i transmetuar për çdo kanal, i lidhur me EPG-në."
   },
   "datetime": {
     "today": "Sot",
@@ -160,13 +153,13 @@
     "package_default": "Paketa Bazë · 32 kanale",
     "account": {
       "title": "Të dhënat e llogarisë",
-      "subtitle": "Emri, email, fjalëkalimi",
-      "coming_soon": "Ndryshimi i llogarisë vjen së shpejti"
-    },
-    "favorites": {
-      "title": "Të preferuarat",
-      "subtitle": "Kanalet e ruajtura",
-      "coming_soon": "Të preferuarat vijnë së shpejti"
+      "subtitle": "Përdoruesi, email, mosha, vendndodhja",
+      "username": "Përdoruesi",
+      "email": "Email",
+      "age": "Mosha",
+      "location": "Vendndodhja",
+      "gender": "Gjinia",
+      "empty": "—"
     },
     "parental": {
       "title": "Kontrolli prindëror",
@@ -271,6 +264,11 @@
     "api_default": "Diçka shkoi keq",
     "network": "Nuk ka lidhje me internetin",
     "session_expired": "Sesioni skadoi"
+  },
+  "update": {
+    "title": "Kërkohet përditësim",
+    "message": "Ky version i RTSH Tani nuk mbështetet më. Ju lutemi përditësojeni për të vazhduar.",
+    "cta": "Përditëso"
   },
   "parental": {
     "title": "Kontroll prindëror",

@@ -226,6 +226,8 @@ select.inp{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns
 .radio-item{display:flex;align-items:center;gap:14px;padding:14px 18px;border-bottom:1px solid #141417;cursor:pointer}
 .radio-ic{width:50px;height:50px;border-radius:13px;display:flex;align-items:center;justify-content:center;flex:0 0 auto;position:relative;overflow:hidden}
 .radio-ic svg{width:22px;height:22px;fill:none;stroke:#fff;stroke-width:1.7;position:relative;z-index:3}
+.srch-thumb{width:72px;height:46px;border-radius:10px;position:relative;overflow:hidden;flex:0 0 auto}
+.srch-thumb .clogo{position:absolute;left:6px;top:6px;height:17px;padding:2px 6px;font-size:8px}
 
 /* ===== overlays: sheet, ad, toast ===== */
 .scrim{position:absolute;inset:0;background:rgba(0,0,0,.6);backdrop-filter:blur(2px);z-index:90;display:none}
@@ -365,7 +367,7 @@ function renderAll(){
  document.getElementById('screens').innerHTML=[
   sSplash(),sLogin(),sRegister(),sTerms(),sOnboard(),
   sHome(),sGuide(),sSearch(),sProfile(),
-  sPlayer(),sRadioList(),sRadioPlayer(),sMosaic(),sSettings(),sParental(),sGeo()
+  sPlayer(),sRadioList(),sRadioPlayer(),sSettings(),sParental(),sGeo()
  ].join('');
  buildNav();
 }
@@ -377,7 +379,7 @@ function sLogin(){return `<div class="screen" id="sc-login"><div class="safe-top
   <div class="scroll" style="display:flex;flex-direction:column">
    <div class="spacer"></div>
    <div style="padding:0 18px 10px"><h2 style="font-size:25px;font-weight:800;color:#fff">Mirë se vini</h2><p style="color:#8a8a92;font-size:14px;margin-top:4px">Hyni në llogarinë tuaj RTSH TANI.</p></div>
-   <div class="field"><div class="pill-input">${ic('mail')}<input placeholder="Email" value="arben.hoxha@gmail.com"></div></div>
+   <div class="field"><div class="pill-input">${ic('mail')}<input placeholder="Email" value="emer.mbiemer@gmail.com"></div></div>
    <div class="field"><div class="pill-input">${ic('key')}<input type="password" placeholder="Fjalëkalimi" value="••••••••"></div></div>
    <div class="field" style="display:flex;align-items:center;justify-content:space-between">
      <label class="check" onclick="this.querySelector('.cbox').classList.toggle('off')"><span class="cbox">${ic('check')}</span><span style="color:#cfcfd6;font-size:14px;font-weight:500">Më mbaj mend</span></label>
@@ -421,7 +423,7 @@ function sOnboard(){return `<div class="screen" id="sc-onboard"><div class="safe
 /* HOME */
 function sHome(){return `<div class="screen" id="sc-home"><div class="safe-top"></div>
   <div class="hdr"><span class="logo" data-logo></span>
-    <div style="display:flex;gap:8px"><button class="pfp" onclick="go('mosaic')">${ic('grid')}</button><button class="pfp" onclick="go('profile')">${ic('user')}</button></div></div>
+    <button class="pfp" onclick="go('profile')">${ic('user')}</button></div>
   <div class="scroll has-nav" id="homeScroll">
     <div style="display:flex;gap:10px;align-items:center;padding:2px 18px 0">
       <div class="searchbar" style="flex:1;margin:0;cursor:pointer" onclick="go('search')">${ic('search')}<span style="color:#7a7a82;font-size:15px">Kërko kanale, programe…</span></div>
@@ -430,11 +432,6 @@ function sHome(){return `<div class="screen" id="sc-home"><div class="safe-top">
     <div id="tvHome">
       <div class="hero scene g1" onclick="openChannel('RTSH Film')">${art()}<div class="cap"><span class="kick">PREMIERË SONTE</span><div class="t">Historia që nuk e dini</div><div class="meta">RTSH Film · 20:45 · Dokumentar</div></div></div>
       <div class="dots"><i class="on"></i><i></i><i></i></div>
-      <div class="sec-h"><b>Vazhdo të shikosh</b></div>
-      <div class="hrow">
-        ${[['RTSH Sport HD','Magazina Sportive','g4',62],['RTSH 1 HD','Edicioni i Lajmeve','g1',30],['RTSH Film','Të Dashuruarit','g5',8]].map(c=>`<div class="hcard" onclick="openChannel('${c[0]}')"><div class="thumb scene ${c[2]}">${art()}<div class="play-badge">${ic('play')}</div><div class="pgbar"><i style="width:${c[3]}%"></i></div></div><div class="ttl">${c[1]}</div><div class="sub">${c[0]}</div></div>`).join('')}
-      </div>
-      <div class="chiprow" id="pkgChips">${PKGS.map((p,i)=>`<div class="chip ${i===0?'on':''}" onclick="filterPkg(this,'${p}')">${p}</div>`).join('')}</div>
       <div class="sec-h"><b>Kanalet TV</b><a onclick="go('guide')">Guida</a></div>
       <div class="grid2" id="tvGrid">${tvCards('Të gjitha')}</div>
     </div>
@@ -456,15 +453,10 @@ function guideList(mode){
 
 /* SEARCH */
 function sSearch(){return `<div class="screen" id="sc-search"><div class="safe-top"></div>
-  <div class="hdr" style="gap:10px"><button class="pfp" onclick="go('home')">${ic('back')}</button><div class="searchbar" style="flex:1;margin:0">${ic('search')}<input placeholder="Kërko kanale, programe…" value="sport"></div></div>
+  <div class="hdr" style="gap:10px"><button class="pfp" onclick="go('home')">${ic('back')}</button><div class="searchbar" style="flex:1;margin:0">${ic('search')}<input placeholder="Kërko kanale, programe…"></div></div>
   <div class="scroll has-nav">
-   <div class="sec-h"><b>Kanale</b></div>
-   <div class="grid2">${[CH[4],CH[3]].map(ch=>`<div class="card scene ${ch[1]}" onclick="openChannel('${ch[0]}')">${art()}<div class="clogo">${logoTxt(ch[0])}</div><div class="tagchip live"><span class="d"></span>LIVE</div><div class="nm">${ch[0]}</div></div>`).join('')}</div>
-   <div class="sec-h"><b>Programe</b></div>
-   <div class="prog" onclick="openChannel('RTSH Sport HD')"><div class="pl">${ic('play')}</div><div class="pm"><b>Magazina Sportive</b><span>RTSH Sport HD · 21:30</span></div></div>
-   <div class="prog" onclick="openChannel('RTSH Sport HD')"><div class="pl">${ic('play')}</div><div class="pm"><b>Superkupa e Shqipërisë</b><span>RTSH Sport HD · Të dielën</span></div></div>
-   <div class="sec-h"><b>Kërkime të fundit</b></div>
-   <div style="padding:0 18px;display:flex;gap:8px;flex-wrap:wrap">${['lajme','film','sport','fëmijë','korça'].map(t=>`<span class="chip">${t}</span>`).join('')}</div>
+   <div class="epg-h" style="padding-top:8px">TË GJITHA KANALET</div>
+   ${CH.map(ch=>`<div class="radio-item" onclick="openChannel('${ch[0]}')"><div class="srch-thumb scene ${ch[1]}">${art()}<div class="clogo">${logoTxt(ch[0])}</div></div><div style="flex:1"><b style="font-size:15px;color:#fff;display:block">${ch[0]}</b><span style="font-size:12.5px;color:#8a8a92">${ch[2]?'1080i':'576i'} · TV · ${ch[2]?'HD':'SD'}</span></div><span class="chev">${ic('chev')}</span></div>`).join('')}
   </div></div>`;}
 
 /* PROFILE */
@@ -472,13 +464,12 @@ function sProfile(){return `<div class="screen" id="sc-profile"><div class="safe
   <div class="hdr"><span class="hdr-t">Profili</span><button class="pfp" onclick="go('settings')">${ic('settings')}</button></div>
   <div class="scroll has-nav">
    <div style="display:flex;flex-direction:column;align-items:center;padding:14px 0 20px">
-     <div class="pfp" style="width:84px;height:84px;font-size:28px;font-weight:800;color:#fff;background:linear-gradient(135deg,#EB122F,#9b0e22)">AH</div>
-     <h2 style="font-size:20px;font-weight:800;color:#fff;margin-top:14px">Arben Hoxha</h2>
-     <span style="color:#8a8a92;font-size:14px">arben.hoxha@gmail.com</span>
+     <div class="pfp" style="width:84px;height:84px;font-size:28px;font-weight:800;color:#fff;background:linear-gradient(135deg,#EB122F,#9b0e22)">EM</div>
+     <h2 style="font-size:20px;font-weight:800;color:#fff;margin-top:14px">Emer Mbiemer</h2>
+     <span style="color:#8a8a92;font-size:14px">emer.mbiemer@gmail.com</span>
      <span style="margin-top:10px;background:var(--surf-2);border:1px solid var(--line);border-radius:20px;padding:5px 12px;font-size:12px;font-weight:600;color:#cfcfd6">Paketa Bazë · 32 kanale</span>
    </div>
    <div class="list-item"><div class="li-ic">${ic('user')}</div><div class="li-t"><b>Të dhënat e llogarisë</b><span>Emri, email, fjalëkalimi</span></div><span class="chev">${ic('chev')}</span></div>
-   <div class="list-item"><div class="li-ic">${ic('heart')}</div><div class="li-t"><b>Të preferuarat</b><span>Kanalet e ruajtura</span></div><span class="chev">${ic('chev')}</span></div>
    <div class="list-item" onclick="go('settings')"><div class="li-ic">${ic('shield')}</div><div class="li-t"><b>Kontrolli prindëror</b><span>Aktiv · 12+</span></div><span class="chev">${ic('chev')}</span></div>
    <div class="list-item" onclick="go('settings')"><div class="li-ic">${ic('settings')}</div><div class="li-t"><b>Cilësimet</b><span>Të dhëna celulare, gjuha, njoftimet</span></div><span class="chev">${ic('chev')}</span></div>
    <div class="list-item" onclick="go('login')"><div class="li-ic" style="color:var(--red)">${ic('out')}</div><div class="li-t"><b style="color:var(--red)">Dil nga llogaria</b></div></div>
@@ -504,8 +495,7 @@ function sSettings(){return `<div class="screen" id="sc-settings"><div class="sa
 function sPlayer(){return `<div class="screen" id="sc-player">
   <div class="safe-top" style="background:#000"></div>
   <div class="video scene g1" id="pScene">${art()}
-    <div class="livetag" id="pLive"><span style="width:6px;height:6px;border-radius:50%;background:#fff;display:block"></span>LIVE</div>
-    <div class="top"><button class="iconbtn glass" onclick="go('home')">${ic('back')}</button><button class="iconbtn glass" onclick="openPlayerOpts()">${ic('settings')}</button></div>
+    <div class="top"><div style="display:flex;align-items:center;gap:10px"><button class="iconbtn glass" onclick="go('home')">${ic('back')}</button><div class="livetag" id="pLive" style="position:static"><span style="width:6px;height:6px;border-radius:50%;background:#fff;display:block"></span>LIVE</div></div><button class="iconbtn glass" onclick="openQuality()">${ic('settings')}</button></div>
     <div class="ttl" id="pTitle">RTSH 1 HD</div>
     <div class="ctrl"><button class="pbtn">${ic('pause')}</button><div class="track"><div class="fill"></div><div class="knob"></div></div><button class="pbtn">${ic('full')}</button></div>
   </div>
@@ -528,12 +518,6 @@ function sRadioPlayer(){return `<div class="screen" id="sc-radioplayer"><div cla
    <div class="prog"><div class="pl"><svg viewBox="0 0 24 24" fill="none" stroke="#EB122F" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M10 9l5 3-5 3z" fill="#EB122F"/></svg></div><div class="pm"><b>Lajmet e orës</b><span>Aktualitet</span></div><time>19:00</time></div>
    <div class="prog dim"><div class="pl"></div><div class="pm"><b>Muzikë Shqip</b><span>Hite</span></div><time>19:30</time></div>
   </div></div>`;}
-
-/* MOSAIC */
-function sMosaic(){return `<div class="screen" id="sc-mosaic"><div class="safe-top"></div>
-  <div class="hdr"><button class="pfp" onclick="go('home')">${ic('back')}</button><span class="hdr-t">Mozaik</span><span style="width:40px"></span></div>
-  <div class="scroll has-nav"><p style="padding:0 18px 2px;color:#8a8a92;font-size:13px">Imazhi i fundit i transmetuar për çdo kanal, i lidhur me EPG-në.</p>
-   <div class="mos-grid">${CH.slice(0,12).map(ch=>`<div class="mos scene ${ch[1]}" onclick="openChannel('${ch[0]}')">${art()}<div class="ld">LIVE</div><div class="nm">${ch[0]}</div></div>`).join('')}</div></div></div>`;}
 
 /* PARENTAL + GEO */
 function sParental(){return `<div class="screen" id="sc-parental"><div class="safe-top"></div>
@@ -605,7 +589,6 @@ function openRadio(name,sub){
 /* home/guide modes */
 function homeMode(m){document.getElementById('tgTV').classList.toggle('on',m==='tv');document.getElementById('tgR').classList.toggle('on',m==='radio');document.getElementById('tvHome').classList.toggle('hidden',m!=='tv');document.getElementById('radioHome').classList.toggle('hidden',m!=='radio');}
 function guideMode(m){document.getElementById('gTV').classList.toggle('on',m==='tv');document.getElementById('gR').classList.toggle('on',m==='radio');document.getElementById('guideScroll').innerHTML=guideList(m);}
-function filterPkg(el,p){document.querySelectorAll('#pkgChips .chip').forEach(c=>c.classList.remove('on'));el.classList.add('on');document.getElementById('tvGrid').innerHTML=tvCards(p);}
 
 /* player day / catch-up + options */
 function pickDay(el,i){
@@ -617,16 +600,9 @@ function pickDay(el,i){
  document.getElementById('epglist').innerHTML=epgRows(today);
  document.getElementById('pLive').style.display=today?'flex':'none';
 }
-function openPlayerOpts(){
- openSheet('Opsionet',`
-  <div class="opt-row" onclick="closeSheet();openQuality()"><div><b>Cilësia e videos</b><span>${selQuality}</span></div><span class="chev">${ic('chev')}</span></div>
-  <div class="opt-row"><div><b>Gjuha e audios</b><span>Shqip</span></div><span class="chev">${ic('chev')}</span></div>
-  <div class="opt-row"><div><b>Titrat</b><span>Të çaktivizuara</span></div><span class="chev">${ic('chev')}</span></div>
-  <div class="opt-row" onclick="closeSheet();toast('Po transmetohet në TV')"><div><b>Transmeto në TV (Cast)</b></div><span class="chev">${ic('cast')}</span></div>`);
-}
 let selQuality='Auto';
 function openQuality(){
- openSheet('Cilësia e videos',QUAL.map((q,i)=>`<div class="opt-row ${q[0]===selQuality?'sel':''}" onclick="setQuality('${q[0]}')"><div><b>${q[0]}</b><span>${q[1]}</span></div><span class="rk"></span></div>`).join(''));
+ openSheet('Opsionet — Cilësia',QUAL.map((q,i)=>`<div class="opt-row ${q[0]===selQuality?'sel':''}" onclick="setQuality('${q[0]}')"><div><b>${q[0]}</b><span>${q[1]}</span></div><span class="rk"></span></div>`).join(''));
 }
 function setQuality(q){selQuality=q;const s=document.getElementById('setQ');if(s)s.textContent=q==='Auto'?'Auto (ABR)':q;closeSheet();toast('Cilësia: '+q);}
 
@@ -642,13 +618,12 @@ function showAd(type,done){
  document.getElementById('adpop').innerHTML=`
   <div class="ad-card"><div class="ad-creative">
     <div class="glow"></div>
-    <div class="ad-brand"><span class="b-logo">N</span><b>NOVA</b></div>
+    <div class="ad-brand"><span class="b-logo">C</span><b>Company Name</b></div>
     <div class="ad-art">${AD_ART}</div>
     <div class="ad-body">
       <div class="ad-tag">Ofertë speciale</div>
       <div class="ad-h">Internet 5G<br>pa limit</div>
       <div class="ad-sub">Vetëm 1.500 L / muaj · Aktivizo sot</div>
-      <span class="ad-cta">Mëso më shumë <svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
     </div>
     <div class="ad-label">REKLAMË</div>
     <div class="ad-skip" id="adSkip"><span id="adCount">Kalo pas 4s</span></div>
@@ -672,7 +647,7 @@ function pinDel(){pinVal=pinVal.slice(0,-1);updatePin();}
 function updatePin(){for(let i=0;i<4;i++){const s=document.getElementById('pin'+i);s.textContent=pinVal[i]?'•':'';s.classList.toggle('f',i===pinVal.length);}}
 
 /* review aids */
-const SCREENS=[['splash','Splash'],['login','Login'],['register','Regjistrim'],['terms','Kushtet'],['onboard','Konfigurimi'],['home','Kreu'],['guide','Guida'],['search','Kërko'],['profile','Profili'],['settings','Cilësimet'],['player','Player + EPG'],['radiolist','Radio (listë)'],['radioplayer','Radio player'],['mosaic','Mozaik'],['parental','Kontroll prindëror'],['geo','Geo-block']];
+const SCREENS=[['splash','Splash'],['login','Login'],['register','Regjistrim'],['terms','Kushtet'],['onboard','Konfigurimi'],['home','Kreu'],['guide','Guida'],['search','Kërko'],['profile','Profili'],['settings','Cilësimet'],['player','Player + EPG'],['radiolist','Radio (listë)'],['radioplayer','Radio player'],['parental','Kontroll prindëror'],['geo','Geo-block']];
 function buildJump(){document.getElementById('jump').innerHTML='<option disabled selected>Jump…</option>'+SCREENS.map(s=>`<option value="${s[0]}">${s[1]}</option>`).join('');}
 function jumpTo(v){if(v==='player'){loadPlayer('RTSH 1 HD');}else if(v==='radioplayer'){openRadio('Radio Tirana 1','Lajme & aktualitet');}else{go(v);}}
 function syncJump(id){const j=document.getElementById('jump');if(j)[...j.options].forEach(o=>o.selected=o.value===id);}

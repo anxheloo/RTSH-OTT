@@ -1,6 +1,7 @@
 /**
- * Backend route constants. Paths are placeholders — confirm against the API
- * contract (docs/API.md) when delivered.
+ * Backend route constants, matched to the end-user OpenAPI spec (2026-06-12).
+ * Paths are relative — the `/api/v1` prefix lives on the axios `baseURL`
+ * (`client.ts`), so mock handlers keep matching on the bare path.
  */
 
 export const AUTH_ROUTES = {
@@ -8,22 +9,24 @@ export const AUTH_ROUTES = {
   REFRESH: '/auth/refresh',
   LOGOUT: '/auth/logout',
 
-  // Registration wizard (server-driven; each returns the completed `step`).
-  REGISTER: '/auth/register', // step 1 — start (username/email/password)
-  REGISTER_VERIFY: '/auth/register/verify', // step 2 — OTP
-  REGISTER_DETAILS: '/auth/register/details', // step 3 — profile details
-  REGISTER_RESEND: '/auth/register/resend', // resend OTP
+  // Registration: single-shot submit (all profile data) → OTP verify (returns
+  // tokens — auto-login). No separate details step on the backend.
+  REGISTER: '/auth/register',
+  REGISTER_VERIFY: '/auth/register/verify',
+  REGISTER_RESEND: '/auth/register/resend-otp',
 
-  // Password-reset wizard (mirrors register).
-  FORGOT_PASSWORD: '/auth/forgot-password', // step 1 — request (email)
-  RESET_VERIFY: '/auth/reset/verify', // step 2 — OTP
-  RESET_PASSWORD: '/auth/reset/password', // step 3 — new password
-  RESET_RESEND: '/auth/reset/resend', // resend OTP
+  // Password reset: request code → verify code (returns one-time resetToken)
+  // → set new password. Resend = re-call FORGOT_PASSWORD (replaces live code).
+  FORGOT_PASSWORD: '/auth/forgot-password',
+  RESET_VERIFY: '/auth/reset-password/verify',
+  RESET_PASSWORD: '/auth/reset-password',
 } as const;
 
 export const USERS_ROUTES = {
   ME: '/users/me',
   UPDATE_PROFILE: '/users/me',
+  /** Idempotent upsert of this device for the logged-in account (PUT, bare `DeviceInfoDTO` body). */
+  DEVICE: '/users/me/device',
   /** Per-account parental PIN — set (POST) / clear (DELETE). */
   PARENTAL_PIN: '/users/parental-pin',
   /** Verify an entered PIN against the backend (POST). */
@@ -65,6 +68,8 @@ export const STREAMS_ROUTES = {
 
 export const CONFIG_ROUTES = {
   APP_CONFIG: '/config',
+  /** Version gate / STB self-update check. Unauthenticated; `platform` via params. */
+  APP_VERSION: '/app/version',
 } as const;
 
 export const ADS_ROUTES = {

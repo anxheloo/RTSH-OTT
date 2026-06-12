@@ -9,7 +9,7 @@ import { StyleSheet, TouchableOpacity, View } from 'react-native';
 
 import { BORDERRADIUS } from '@/theme/borders';
 import { FONTSIZE } from '@/theme/fonts';
-import { SPACING } from '@/theme/spacing';
+import { SCREEN_PADDING, SPACING } from '@/theme/spacing';
 import { useAppStore } from '@/store/useAppStore';
 import ReusableText from '@/components/Inputs/ReusableText';
 import SceneBackground from '@/components/Media/SceneBackground';
@@ -91,7 +91,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: SPACING.space_12,
-    paddingHorizontal: SPACING.space_18,
+    paddingHorizontal: SCREEN_PADDING,
     paddingVertical: SPACING.space_12,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },

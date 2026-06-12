@@ -2,8 +2,8 @@
  * Spacing scale — 4px base grid.
  * Off-grid, design-verified values:
  *   space_10 — channel card inner padding (Figma 2026-06-02)
- *   space_15 — legacy screen gutter (Figma 2026-06-02) — superseded by space_18 as screens migrate
- *   space_18 — screen horizontal gutter (designer HTML 2026-06-06)
+ *   space_15 — legacy screen gutter (Figma 2026-06-02) — superseded by SCREEN_PADDING
+ *   space_18 — legacy screen gutter (designer HTML 2026-06-06) — superseded by SCREEN_PADDING
  */
 export const SPACING = {
   space_2: 2,
@@ -23,3 +23,10 @@ export const SPACING = {
   space_56: 56,
   space_64: 64,
 } as const;
+
+/**
+ * Screen horizontal padding — the single edge inset every route uses
+ * (headers, list content, section rows). One knob: change it here, the whole
+ * app follows (decision 2026-06-11).
+ */
+export const SCREEN_PADDING = SPACING.space_10;

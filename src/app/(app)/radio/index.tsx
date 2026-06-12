@@ -6,6 +6,7 @@
  * screen never stops playback.
  */
 import React from 'react';
+import { View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
 import { router } from 'expo-router';
@@ -14,8 +15,8 @@ import { useAppStore } from '@/store/useAppStore';
 import { useRadioStationsQuery } from '@/api/queries';
 import AnimatedFlashList from '@/components/AnimatedFlashList';
 import { Icon, IconButton } from '@/components/Icons';
-import { FullScreenLoader, ScreenLayout, TabHeader } from '@/components/Layout';
-import { StationRow } from '@/components/radio';
+import { ScreenLayout, TabHeader } from '@/components/Layout';
+import { StationRow, StationRowSkeleton } from '@/components/radio';
 import { ChevronLeftIcon } from '@/assets/icons';
 
 const RadioListScreen: React.FC = () => {
@@ -23,10 +24,6 @@ const RadioListScreen: React.FC = () => {
   const colors = useAppStore((s) => s.colors);
   const activeStationId = useAppStore((s) => s.radioChannelId);
   const { stations, isLoading } = useRadioStationsQuery();
-
-  if (isLoading && stations.length === 0) {
-    return <FullScreenLoader />;
-  }
 
   return (
     <ScreenLayout>
@@ -41,6 +38,14 @@ const RadioListScreen: React.FC = () => {
       />
       <AnimatedFlashList
         data={stations}
+        isLoading={isLoading}
+        skeletonComponent={
+          <View testID="radio-list-skeleton">
+            {Array.from({ length: 8 }, (_, i) => (
+              <StationRowSkeleton key={i} />
+            ))}
+          </View>
+        }
         keyExtractor={(station) => station.id}
         renderItem={({ item }) => (
           <StationRow

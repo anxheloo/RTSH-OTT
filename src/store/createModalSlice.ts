@@ -2,7 +2,7 @@ import { StateCreator } from 'zustand';
 
 import type { AppStore } from './useAppStore';
 
-export type ModalType = 'apiError' | 'noInternet' | 'notify' | 'confirmation';
+export type ModalType = 'apiError' | 'noInternet' | 'notify' | 'confirmation' | 'forceUpdate';
 
 /**
  * Modal copy + actions. Up to three buttons (SOLITAR shape). `button` defaults

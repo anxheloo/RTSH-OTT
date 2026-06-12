@@ -1,25 +1,24 @@
 /**
- * Mock server for React Native. Replaces the axios adapter on `apiClient` with
- * one that intercepts matching routes and returns fixture data, falling through
- * to the real network for anything unmatched.
+ * Mock server for React Native. Replaces the axios adapter on `apiClient` AND
+ * `refreshClient` (the bare refresh-only instance) with one that intercepts
+ * matching routes and returns fixture data, falling through to the real
+ * network for anything unmatched.
  *
  * Call `initMockServer()` once at module load time (before any API calls) when
  * `EXPO_PUBLIC_API_MODE === 'mock'`. Idempotent — safe to import in multiple places.
  */
-import { AxiosAdapter, AxiosResponse, InternalAxiosRequestConfig } from 'axios';
+import { AxiosAdapter, AxiosInstance, AxiosResponse, InternalAxiosRequestConfig } from 'axios';
 
 import { apiClient } from '../client';
+import { refreshClient } from '../services/auth';
 import { handlers } from './handlers';
 
 let installed = false;
 
-export function initMockServer(): void {
-  if (installed) return;
-  installed = true;
+function installMockAdapter(client: AxiosInstance): void {
+  const realAdapter = client.defaults.adapter as AxiosAdapter;
 
-  const realAdapter = apiClient.defaults.adapter as AxiosAdapter;
-
-  (apiClient.defaults as { adapter: unknown }).adapter = async (
+  (client.defaults as { adapter: unknown }).adapter = async (
     config: InternalAxiosRequestConfig,
   ): Promise<AxiosResponse> => {
     const url = config.url ?? '';
@@ -34,10 +33,22 @@ export function initMockServer(): void {
         await new Promise<void>((r) => setTimeout(r, handler.delay));
       }
       const { status = 200, data } = handler.respond(config);
+      if (status >= 400) {
+        // Mirror axios semantics: non-2xx must REJECT so callers' catch paths run.
+        const error = new Error(`Mock request failed with status ${status}`) as Error & {
+          isAxiosError: boolean;
+          config: InternalAxiosRequestConfig;
+          response: Partial<AxiosResponse>;
+        };
+        error.isAxiosError = true;
+        error.config = config;
+        error.response = { data, status, statusText: 'Error', config };
+        throw error;
+      }
       return {
         data,
         status,
-        statusText: status < 400 ? 'OK' : 'Error',
+        statusText: 'OK',
         headers: { 'content-type': 'application/json' },
         config,
         request: {},
@@ -46,6 +57,14 @@ export function initMockServer(): void {
 
     return (realAdapter as (c: InternalAxiosRequestConfig) => Promise<AxiosResponse>)(config);
   };
+}
+
+export function initMockServer(): void {
+  if (installed) return;
+  installed = true;
+
+  installMockAdapter(apiClient);
+  installMockAdapter(refreshClient);
 }
 
 type Handler = (typeof handlers)[number];

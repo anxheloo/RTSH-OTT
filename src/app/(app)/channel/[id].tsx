@@ -13,19 +13,20 @@ import { useTranslation } from 'react-i18next';
 import { router, useLocalSearchParams } from 'expo-router';
 import * as ScreenOrientation from 'expo-screen-orientation';
 
+import { BORDERRADIUS } from '@/theme/borders';
 import { PLAYER_COLORS } from '@/theme/playerColors';
-import { SPACING } from '@/theme/spacing';
+import { SCREEN_PADDING, SPACING } from '@/theme/spacing';
 import { useAppStore } from '@/store/useAppStore';
 import { useChannelQuery, useChannelStreamQuery, useEpgQuery } from '@/api/queries';
 import { useCellularGate } from '@/hooks/useCellularGate';
 import { useDateTime } from '@/hooks/useDateTime';
 import { useLiveParentalGuard } from '@/hooks/useLiveParentalGuard';
 import { CatchupBanner, DayStrip } from '@/components/catchup';
-import { ProgramRow } from '@/components/epg';
+import { ProgramRow, ProgramRowSkeleton } from '@/components/epg';
 import type { ProgramRowState } from '@/components/epg/ProgramRow';
 import { Icon, IconButton } from '@/components/Icons';
 import ReusableText from '@/components/Inputs/ReusableText';
-import { CenteredMessage, FullScreenLoader, ScreenLayout, TabHeader } from '@/components/Layout';
+import { CenteredMessage, ScreenLayout, Skeleton, TabHeader } from '@/components/Layout';
 import LivePlayer from '@/components/Media/LivePlayer';
 import { ParentalPinModal } from '@/components/ParentalPin';
 import { availableQualityIds, resolveStreamSource } from '@/utils';
@@ -50,7 +51,14 @@ const ChannelScreen: React.FC = () => {
   const { formatWeekday, formatDate, formatTime } = useDateTime();
 
   const { stream, isLoading: streamLoading } = useChannelStreamQuery(channelId);
-  const { channel } = useChannelQuery(channelId);
+  const { channel, isLoading: channelLoading } = useChannelQuery(channelId);
+
+  // Loading-state strategy: navigation is instant — the screen renders its
+  // chrome immediately and the player slot holds a Skeleton until BOTH queries
+  // land. Waiting on the channel (not just the stream) matters: the adult/geo
+  // gates derive from channel flags, so mounting the player earlier could leak
+  // gated content for a frame.
+  const mediaPending = streamLoading || channelLoading;
 
   // Quality: `videoQuality` is the active (session) pick; on mount we seed it from
   // the persisted `defaultQuality` preference (closes plan gap 1). The resolver
@@ -119,7 +127,7 @@ const ChannelScreen: React.FC = () => {
   const [selectedKey, setSelectedKey] = useState(() => days[days.length - 1].key);
   const selectedDay = days.find((d) => d.key === selectedKey) ?? days[days.length - 1];
 
-  const { items: epg } = useEpgQuery(selectedKey);
+  const { items: epg, isLoading: epgLoading } = useEpgQuery(selectedKey);
   const programs = useMemo(
     () =>
       epg
@@ -177,14 +185,12 @@ const ChannelScreen: React.FC = () => {
     );
   }
 
-  if (streamLoading) {
-    return <FullScreenLoader />;
-  }
-
   // Block playback while gated (channel-level adult, or a live adult programme).
   // The player is unmounted — never just hidden — so no audio/video leaks behind
   // the gate. When the live prompt was dismissed, show a re-unlock affordance.
-  const player = blockPlayer ? (
+  const player = mediaPending ? (
+    <Skeleton borderRadius={BORDERRADIUS.none} style={styles.playerSkeleton} testID="player-skeleton" />
+  ) : blockPlayer ? (
     liveBlockedDismissed ? (
       <CenteredMessage
         icon={<Icon as={LockIcon} size={34} color={colors.textMuted} />}
@@ -236,20 +242,22 @@ const ChannelScreen: React.FC = () => {
           {selectedDay.isToday ? t('catchup.epg') : t('catchup.catchup_for', { day: dayLabel })}
         </ReusableText>
 
-        {programs.map((p) => {
-          const state = programState(p);
-          return (
-            <ProgramRow
-              key={p.id}
-              title={p.title}
-              meta={p.description}
-              time={formatTime(p.startTime)}
-              state={state}
-              onPress={() => openProgram(p, state)}
-              testID={`epg-row-${p.id}`}
-            />
-          );
-        })}
+        {epgLoading
+          ? Array.from({ length: 6 }, (_, i) => <ProgramRowSkeleton key={i} />)
+          : programs.map((p) => {
+              const state = programState(p);
+              return (
+                <ProgramRow
+                  key={p.id}
+                  title={p.title}
+                  meta={p.description}
+                  time={formatTime(p.startTime)}
+                  state={state}
+                  onPress={() => openProgram(p, state)}
+                  testID={`epg-row-${p.id}`}
+                />
+              );
+            })}
       </ScrollView>
 
       <ParentalPinModal
@@ -277,12 +285,15 @@ const styles = StyleSheet.create({
   blocked: {
     flex: 1,
   },
+  playerSkeleton: {
+    flex: 1,
+  },
   scroll: {
     paddingBottom: SPACING.space_24,
   },
   epgHeader: {
     letterSpacing: 0.6,
-    paddingHorizontal: SPACING.space_18,
+    paddingHorizontal: SCREEN_PADDING,
     paddingTop: SPACING.space_16,
     paddingBottom: SPACING.space_4,
   },

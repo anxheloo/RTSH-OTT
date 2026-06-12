@@ -6,7 +6,7 @@
 import React from 'react';
 import { StyleSheet, TouchableOpacity, View } from 'react-native';
 
-import { SPACING } from '@/theme/spacing';
+import { SCREEN_PADDING, SPACING } from '@/theme/spacing';
 import ReusableText from '@/components/Inputs/ReusableText';
 
 export interface SectionHeaderProps {
@@ -46,7 +46,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: SPACING.space_18,
+    paddingHorizontal: SCREEN_PADDING,
     paddingTop: SPACING.space_20,
     paddingBottom: SPACING.space_10,
   },

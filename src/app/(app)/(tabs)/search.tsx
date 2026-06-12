@@ -1,30 +1,33 @@
 /**
- * Search (Kërko) — design screen 8. A back button + live search field, then
- * results in two sections (Kanale grid, Programe list) filtered client-side as
- * the debounced query settles. With no query, shows recent searches as tappable
- * chips. Programs are drawn from today's EPG until a backend search endpoint
- * lands — `useSearch`'s debounce already rate-limits the query for that swap.
+ * Search (Kërko) — design screen 8. Shares the brand header with Home (logo
+ * taps back to Kreu); the live search field sits below it, mirroring Home's
+ * browse controls. Results render as two list sections (Kanale rows, Programe
+ * rows) filtered client-side as the debounced query settles. With no query,
+ * shows recent searches as tappable chips. Programs are drawn from today's EPG
+ * until a backend search endpoint lands — `useSearch`'s debounce already
+ * rate-limits the query for that swap.
  */
 import React, { useCallback, useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { router } from 'expo-router';
 
-import { SPACING } from '@/theme/spacing';
+import { SCREEN_PADDING, SPACING } from '@/theme/spacing';
 import { useAppStore } from '@/store/useAppStore';
 import { useChannelsQuery, useEpgQuery } from '@/api/queries';
 import { useDateTime } from '@/hooks/useDateTime';
 import { useSearch } from '@/hooks/useSearch';
 import { useTabBarHeight } from '@/hooks/useTabBarHeight';
-import ChannelCard from '@/components/channels/ChannelCard';
+import { BrandHeader } from '@/components/Brand';
+import { SearchResultRow } from '@/components/channels';
 import { ProgramRow } from '@/components/epg';
 import { Icon, IconButton } from '@/components/Icons';
 import { SearchBar } from '@/components/Inputs';
 import ReusableText from '@/components/Inputs/ReusableText';
 import { ScreenLayout, SectionHeader } from '@/components/Layout';
-import { ChevronLeftIcon } from '@/assets/icons';
+import { ProfileIcon } from '@/assets/icons';
+import { PACKAGE_LABEL } from '@/constants/packages';
 
 const MAX_RECENT = 8;
 const MAX_PROGRAM_RESULTS = 20;
@@ -32,7 +35,6 @@ const MAX_PROGRAM_RESULTS = 20;
 const SearchScreen: React.FC = () => {
   const { t } = useTranslation();
   const colors = useAppStore((s) => s.colors);
-  const insets = useSafeAreaInsets();
   const tabBarHeight = useTabBarHeight();
   const { formatTime } = useDateTime();
   const { query, debouncedQuery, setQuery } = useSearch();
@@ -71,26 +73,31 @@ const SearchScreen: React.FC = () => {
 
   return (
     <ScreenLayout>
-      <View style={[styles.header, { paddingTop: insets.top + SPACING.space_8 }]}>
-        <IconButton
-          size={40}
-          backgroundColor={colors.surface}
-          onPress={() => router.back()}
-          accessibilityLabel={t('search.back')}
-          testID="search-back"
-        >
-          <Icon as={ChevronLeftIcon} size={20} color={colors.text} />
-        </IconButton>
-        <View style={styles.searchFlex}>
-          <SearchBar
-            placeholder={t('home.search_placeholder')}
-            value={query}
-            onChangeText={setQuery}
-            onSubmit={commitSearch}
-            autoFocus
-            testID="search-input"
-          />
-        </View>
+      <BrandHeader
+        testID="search-header"
+        onLogoPress={() => router.navigate('/(app)/(tabs)')}
+        rightSlot={
+          <IconButton
+            size={40}
+            backgroundColor={colors.surface}
+            onPress={() => router.push('/(app)/(tabs)/profile')}
+            accessibilityLabel="Profili"
+            testID="search-profile-btn"
+          >
+            <Icon as={ProfileIcon} size={20} color={colors.text} />
+          </IconButton>
+        }
+      />
+
+      <View style={styles.searchWrap}>
+        <SearchBar
+          placeholder={t('home.search_placeholder')}
+          value={query}
+          onChangeText={setQuery}
+          onSubmit={commitSearch}
+          autoFocus
+          testID="search-input"
+        />
       </View>
 
       <ScrollView
@@ -127,21 +134,16 @@ const SearchScreen: React.FC = () => {
             {channelResults.length > 0 ? (
               <>
                 <SectionHeader title={t('search.channels')} />
-                <View style={styles.grid}>
-                  {channelResults.map((c) => (
-                    <View key={c.id} style={styles.cell}>
-                      <ChannelCard
-                        channelId={c.id}
-                        name={c.name}
-                        thumbnailUri={c.thumbnailUrl}
-                        isLive={c.isLive}
-                        isAdult={c.isAdult}
-                        geoBlocked={c.geoBlocked}
-                        onPress={() => openChannel(c.id)}
-                      />
-                    </View>
-                  ))}
-                </View>
+                {channelResults.map((c) => (
+                  <SearchResultRow
+                    key={c.id}
+                    name={c.name}
+                    meta={`TV · ${PACKAGE_LABEL[c.package]}`}
+                    thumbnailUri={c.thumbnailUrl}
+                    onPress={() => openChannel(c.id)}
+                    testID={`search-channel-${c.id}`}
+                  />
+                ))}
               </>
             ) : null}
 
@@ -169,34 +171,19 @@ const SearchScreen: React.FC = () => {
 export default SearchScreen;
 
 const styles = StyleSheet.create({
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.space_10,
-    paddingHorizontal: SPACING.space_16,
-    paddingBottom: SPACING.space_8,
-  },
-  searchFlex: {
-    flex: 1,
+  searchWrap: {
+    paddingHorizontal: SCREEN_PADDING,
+    paddingTop: SPACING.space_4,
+    paddingBottom: SPACING.space_12,
   },
   body: {
     paddingBottom: SPACING.space_24,
-  },
-  grid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    paddingHorizontal: SPACING.space_15,
-  },
-  cell: {
-    width: '50%',
-    paddingHorizontal: 5,
-    paddingBottom: SPACING.space_10,
   },
   chips: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: SPACING.space_8,
-    paddingHorizontal: SPACING.space_18,
+    paddingHorizontal: SCREEN_PADDING,
   },
   chip: {
     paddingHorizontal: SPACING.space_15,
@@ -206,7 +193,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   empty: {
-    paddingHorizontal: SPACING.space_18,
+    paddingHorizontal: SCREEN_PADDING,
     paddingTop: SPACING.space_24,
     textAlign: 'center',
   },

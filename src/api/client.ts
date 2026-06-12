@@ -13,21 +13,24 @@ export function registerRefreshHandler(fn: (() => Promise<string | null>) | null
   refreshTokens = fn;
 }
 
+/** All backend routes live under this version prefix; route constants stay bare. */
+export const API_BASE_URL = `${ENV.EXPO_PUBLIC_API_BASE_URL.replace(/\/+$/, '')}/api/v1`;
+
 export const apiClient = axios.create({
-  baseURL: ENV.EXPO_PUBLIC_API_BASE_URL,
+  baseURL: API_BASE_URL,
   timeout: 15_000,
   headers: { 'Content-Type': 'application/json' },
 });
 
 apiClient.interceptors.request.use((config) => {
-  const token = useAppStore.getState().token;
+  const { token, locale } = useAppStore.getState();
   if (token) {
     config.headers.set('Authorization', `Bearer ${token}`);
   }
+  // App locale (user-switchable in settings), not the device locale.
+  config.headers.set('Accept-Language', locale);
   return config;
 });
-
-let inflightRefresh: Promise<string | null> | null = null;
 
 /**
  * Auth-endpoint 401s are credential errors, not stale-token signals, so they
@@ -44,22 +47,26 @@ apiClient.interceptors.response.use(
     const original = error.config as RetriableRequest | undefined;
     const status = error.response?.status;
 
+    // 426 Upgrade Required — backend's force-update gate (compares
+    // X-App-Version against its minimum). Blocking modal; never retried.
+    if (status === 426) {
+      useAppStore.getState().updateModalSlice({ currentModal: 'forceUpdate', modalData: {} });
+      return Promise.reject(error);
+    }
+
     if (status !== 401 || !original || original._retry || !refreshTokens || isAuthRoute(original.url)) {
       return Promise.reject(error);
     }
 
     original._retry = true;
 
-    inflightRefresh ??= refreshTokens().finally(() => {
-      inflightRefresh = null;
-    });
-
-    const newToken = await inflightRefresh;
+    // Single-flight dedup lives inside refreshAccessToken (shared with the
+    // boot background refresh). A null here can mean a transient failure
+    // (offline, 5xx) — never log out from this layer; the refresh handler
+    // already wiped the session itself on a confirmed 401/403.
+    const newToken = await refreshTokens();
 
     if (!newToken) {
-      // logout is async (clears keychain + store); fire-and-forget from the
-      // interceptor — the rejected request is what surfaces to the caller.
-      void useAppStore.getState().logout();
       return Promise.reject(error);
     }
 

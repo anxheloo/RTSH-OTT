@@ -23,9 +23,9 @@ import { getFromKeychain } from '@/services/keychain';
  *      cleared (e.g. iOS "Clear data" / reinstall) but the keychain refresh
  *      token survived. We can't authenticate without the user, so this path
  *      hydrates over the network *before* resolving: `refreshAccessToken()`
- *      (whose response already carries the user) → falling back to `GET
- *      /users/me` if the refresh response lacked one. Splash waits only in this
- *      rare case; if offline/rejected, we fall through to `(auth)`.
+ *      for the access token, then `GET /users/me` for the user (the refresh
+ *      response carries no user). Splash waits only in this rare case; if
+ *      offline/rejected, we fall through to `(auth)`.
  *
  * On 401/403 `refreshAccessToken` wipes the keychain and logs out; transient
  * network/5xx errors leave the token intact so the next boot can retry.
@@ -47,18 +47,17 @@ export function useCheckToken() {
       const accessToken = await refreshAccessToken();
       if (!accessToken) return { authenticated: false };
 
-      // refreshAccessToken already calls store.login() with the user from the
-      // refresh response; only hit /users/me if that response lacked a user.
-      if (!useAppStore.getState().user) {
-        try {
-          const user = await getMe();
-          useAppStore.getState().login(user, accessToken);
-        } catch {
-          return { authenticated: false };
-        }
+      try {
+        const user = await getMe();
+        useAppStore.getState().login(user, accessToken);
+      } catch {
+        // Recovery failed mid-way: don't leave the access token from the
+        // successful refresh sitting in the store while showing the login screen.
+        useAppStore.setState({ token: null });
+        return { authenticated: false };
       }
 
-      return { authenticated: Boolean(useAppStore.getState().user) };
+      return { authenticated: true };
     },
     staleTime: Infinity,
     gcTime: Infinity,

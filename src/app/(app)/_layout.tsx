@@ -22,24 +22,27 @@ const AppLayout: React.FC = () => {
         side manages the transient swipe-reveal + auto-rehide. No-op on iOS.
       */}
       <NavigationBar hidden />
-      <Stack screenOptions={{ headerShown: false }}>
+      {/* Pushed screens slide in from the right (matches the auth stack);
+          full-screen player modals slide up from the bottom — modal semantics,
+          and the gesture/back direction reads correctly on both platforms. */}
+      <Stack screenOptions={{ headerShown: false, animation: 'slide_from_right' }}>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen
           name="channel/[id]"
           options={{
             presentation: 'fullScreenModal',
-            animation: 'fade',
+            animation: 'slide_from_bottom',
           }}
         />
         <Stack.Screen
           name="program/[id]"
           options={{
             presentation: 'fullScreenModal',
-            animation: 'fade',
+            animation: 'slide_from_bottom',
           }}
         />
-        <Stack.Screen name="mosaic" />
         <Stack.Screen name="settings" />
+        <Stack.Screen name="account" />
         <Stack.Screen name="player-options" options={getModalScreenOptions()} />
         <Stack.Screen name="quality" options={getModalScreenOptions()} />
         <Stack.Screen name="language" options={getModalScreenOptions()} />

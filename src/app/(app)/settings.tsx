@@ -15,7 +15,7 @@ import * as WebBrowser from 'expo-web-browser';
 
 import { BORDERRADIUS } from '@/theme/borders';
 import { FONTSIZE } from '@/theme/fonts';
-import { SPACING } from '@/theme/spacing';
+import { SCREEN_PADDING, SPACING } from '@/theme/spacing';
 import { useAppStore } from '@/store/useAppStore';
 import { clearParentalPin } from '@/api/services/users';
 import { Icon, IconButton } from '@/components/Icons';
@@ -131,6 +131,7 @@ const SettingsScreen: React.FC = () => {
                 : t('settings.parental.subtitle_inactive')
             }
             leading={<Icon as={ShieldIcon} size={20} color={colors.text} />}
+            onPress={() => handleParentalToggle(!isPinSet)}
             right={
               <Switch
                 value={isPinSet}
@@ -217,7 +218,7 @@ export default SettingsScreen;
 
 const styles = StyleSheet.create({
   scroll: {
-    paddingHorizontal: SPACING.space_15,
+    paddingHorizontal: SCREEN_PADDING,
     paddingBottom: SPACING.space_24,
   },
   sectionLabel: {

@@ -9,7 +9,6 @@ export const useHomeFeedQuery = () => {
   });
   return {
     heroes: data?.heroes ?? [],
-    continueWatching: data?.continueWatching ?? [],
     isLoading,
     error,
     refetch,

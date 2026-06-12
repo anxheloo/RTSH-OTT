@@ -31,6 +31,9 @@ const ResetPasswordForm: React.FC<ResetPasswordFormProps> = ({
     defaultValues: { newPassword: '', confirmPassword: '' },
   });
 
+  // Zod error messages are i18n keys (RTSH pattern) — resolve at render time.
+  const tr = (key?: string) => (key ? t(key) : undefined);
+
   return (
     <>
       <ReusableText variant="heading3" themeColor="text">
@@ -48,7 +51,7 @@ const ResetPasswordForm: React.FC<ResetPasswordFormProps> = ({
             placeholder={t('auth.reset.new_password_placeholder')}
             isPassword
             autoComplete="new-password"
-            errorText={error?.message}
+            errorText={tr(error?.message)}
             testID="reset-new-password-input"
           />
         )}
@@ -65,7 +68,7 @@ const ResetPasswordForm: React.FC<ResetPasswordFormProps> = ({
             placeholder={t('auth.reset.confirm_password_placeholder')}
             isPassword
             autoComplete="new-password"
-            errorText={error?.message}
+            errorText={tr(error?.message)}
             testID="reset-confirm-password-input"
           />
         )}

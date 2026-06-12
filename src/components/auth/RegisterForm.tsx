@@ -1,8 +1,9 @@
 /**
  * Register form (design single page, decision 9) — credentials + profile in one
- * RHF form: email, username, password, confirm, age, city/country, gender, and
- * an accept-terms checkbox. Field errors are zod i18n keys resolved with `t()`.
- * The valid payload is handed up via `onSubmit`; the parent owns the mutation,
+ * RHF form: email, username, password, confirm, birth date, city, country,
+ * gender, and an accept-terms checkbox (the backend contract's single-shot
+ * register payload). Field errors are zod i18n keys resolved with `t()`. The
+ * valid payload is handed up via `onSubmit`; the parent owns the mutation,
  * loading, and server error. The terms link opens in an in-app browser.
  */
 import React from 'react';
@@ -41,8 +42,9 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onSubmit, isSubmitting = fa
       username: '',
       password: '',
       confirmPassword: '',
-      age: '',
-      location: '',
+      birthDate: '',
+      city: '',
+      country: '',
       gender: 'male',
       acceptTerms: false,
     },
@@ -132,33 +134,50 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onSubmit, isSubmitting = fa
 
       <Controller
         control={control}
-        name="age"
+        name="birthDate"
         render={({ field: { value, onChange, onBlur }, fieldState: { error } }) => (
           <ReusableInput
             value={value}
             onChangeText={onChange}
             onBlur={onBlur}
-            label={t('auth.register.age_label')}
-            placeholder={t('auth.register.age_placeholder')}
-            keyboardType="number-pad"
+            label={t('auth.register.birthday_label')}
+            placeholder={t('auth.register.birthday_placeholder')}
+            keyboardType="numbers-and-punctuation"
+            autoCapitalize="none"
             errorText={tr(error?.message)}
-            testID="register-age-input"
+            testID="register-birthdate-input"
           />
         )}
       />
 
       <Controller
         control={control}
-        name="location"
+        name="city"
         render={({ field: { value, onChange, onBlur }, fieldState: { error } }) => (
           <ReusableInput
             value={value}
             onChangeText={onChange}
             onBlur={onBlur}
-            label={t('auth.register.location_label')}
-            placeholder={t('auth.register.location_placeholder')}
+            label={t('auth.register.city_label')}
+            placeholder={t('auth.register.city_placeholder')}
             errorText={tr(error?.message)}
-            testID="register-location-input"
+            testID="register-city-input"
+          />
+        )}
+      />
+
+      <Controller
+        control={control}
+        name="country"
+        render={({ field: { value, onChange, onBlur }, fieldState: { error } }) => (
+          <ReusableInput
+            value={value}
+            onChangeText={onChange}
+            onBlur={onBlur}
+            label={t('auth.register.country_label')}
+            placeholder={t('auth.register.country_placeholder')}
+            errorText={tr(error?.message)}
+            testID="register-country-input"
           />
         )}
       />

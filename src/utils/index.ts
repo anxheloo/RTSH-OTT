@@ -6,5 +6,6 @@
  * import { formatClockTime, hashPin } from '@/utils';
  */
 export * from './crypto';
+export * from './device';
 export * from './formatters';
 export * from './resolveStreamSource';

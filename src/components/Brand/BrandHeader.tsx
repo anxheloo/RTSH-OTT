@@ -1,23 +1,26 @@
 /**
  * Branded top bar — RTSH mark on the left, optional action slot on the right.
- * Matches the Figma home/login header (logo top-left, avatar top-right) and
- * replaces the hand-rolled header that Live and Auth screens each duplicated.
+ * The one shared header across every tab route (Kreu / Guida / Kërko / Profili)
+ * so the top of the app reads identically everywhere.
  *
  * Handles its own top safe-area inset. Background follows the theme
- * (`headerBackground`).
+ * (`headerBackground`). Pass `onLogoPress` to make the mark tappable
+ * (tabs other than Home use it to jump back to Kreu).
  */
 import React from 'react';
-import { StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
+import { StyleProp, StyleSheet, TouchableOpacity, View, ViewStyle } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { ThemeColors } from '@/theme/colors';
-import { SPACING } from '@/theme/spacing';
+import { SCREEN_PADDING } from '@/theme/spacing';
 import { useAppStore } from '@/store/useAppStore';
 import { RtshLogoFull } from '@/assets/icons/Brand';
 
 export interface BrandHeaderProps {
   /** Element rendered on the right (e.g. profile avatar). */
   rightSlot?: React.ReactNode;
+  /** Makes the RTSH mark tappable (e.g. navigate back to Home). */
+  onLogoPress?: () => void;
   /** Logo lockup height in px. Default 26 (design header). */
   logoHeight?: number;
   /** Theme background token. Default `'headerBackground'`. */
@@ -30,6 +33,7 @@ export interface BrandHeaderProps {
 
 const BrandHeader: React.FC<BrandHeaderProps> = ({
   rightSlot,
+  onLogoPress,
   logoHeight = 26,
   backgroundColor = 'headerBackground',
   height = 78,
@@ -38,6 +42,8 @@ const BrandHeader: React.FC<BrandHeaderProps> = ({
 }) => {
   const colors = useAppStore((s) => s.colors);
   const insets = useSafeAreaInsets();
+
+  const logo = <RtshLogoFull height={logoHeight} taglineColor={colors.text} />;
 
   return (
     <View
@@ -52,7 +58,18 @@ const BrandHeader: React.FC<BrandHeaderProps> = ({
       ]}
       testID={testID}
     >
-      <RtshLogoFull height={logoHeight} taglineColor={colors.text} />
+      {onLogoPress ? (
+        <TouchableOpacity
+          onPress={onLogoPress}
+          activeOpacity={0.7}
+          accessibilityLabel="RTSH"
+          testID={testID ? `${testID}-logo` : undefined}
+        >
+          {logo}
+        </TouchableOpacity>
+      ) : (
+        logo
+      )}
       {rightSlot}
     </View>
   );
@@ -65,6 +82,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: SPACING.space_15,
+    paddingHorizontal: SCREEN_PADDING,
   },
 });

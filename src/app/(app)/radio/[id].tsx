@@ -17,6 +17,8 @@ import { useTranslation } from 'react-i18next';
 
 import { router, useLocalSearchParams } from 'expo-router';
 
+import { BORDERRADIUS } from '@/theme/borders';
+import { FONTSIZE } from '@/theme/fonts';
 import { SPACING } from '@/theme/spacing';
 import { useAppStore } from '@/store/useAppStore';
 import { useRadioStationQuery, useRadioStationsQuery } from '@/api/queries';
@@ -24,9 +26,12 @@ import { useCellularGate } from '@/hooks/useCellularGate';
 import { useDateTime } from '@/hooks/useDateTime';
 import { ProgramRow } from '@/components/epg';
 import { Icon, IconButton } from '@/components/Icons';
-import { FullScreenLoader, ScreenLayout, SectionHeader, TabHeader } from '@/components/Layout';
+import { ScreenLayout, SectionHeader, Skeleton, TabHeader } from '@/components/Layout';
 import RadioPlayer from '@/components/Media/RadioPlayer';
 import { ChevronLeftIcon, StarIcon } from '@/assets/icons';
+
+/** Mirrors RadioPlayer's artwork sizing (62% width capped at 230). */
+const ART_MAX = 230;
 
 const RadioPlayerScreen: React.FC = () => {
   useCellularGate();
@@ -67,8 +72,27 @@ const RadioPlayerScreen: React.FC = () => {
     };
   }, [stations, id]);
 
+  // Loading-state strategy: the header renders immediately; the now-playing
+  // core shows its skeleton footprint until the station query lands.
   if (isLoading && !station) {
-    return <FullScreenLoader />;
+    return (
+      <ScreenLayout>
+        <TabHeader
+          title={t('radio.now_playing')}
+          isCentered
+          leftAction={
+            <IconButton onPress={() => router.back()} testID="radio-player-back">
+              <Icon as={ChevronLeftIcon} size={22} color={colors.text} />
+            </IconButton>
+          }
+        />
+        <View style={styles.skeletonBody} testID="radio-player-skeleton">
+          <Skeleton borderRadius={BORDERRADIUS.radius_20} style={styles.skeletonArt} />
+          <Skeleton width={150} height={FONTSIZE.lg} />
+          <Skeleton width={90} height={FONTSIZE.sm} />
+        </View>
+      </ScreenLayout>
+    );
   }
   if (!station) {
     return (
@@ -154,5 +178,15 @@ const styles = StyleSheet.create({
   },
   programs: {
     paddingTop: SPACING.space_24,
+  },
+  skeletonBody: {
+    alignItems: 'center',
+    paddingTop: SPACING.space_24,
+    gap: SPACING.space_12,
+  },
+  skeletonArt: {
+    width: '62%',
+    maxWidth: ART_MAX,
+    aspectRatio: 1,
   },
 });

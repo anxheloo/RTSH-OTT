@@ -1,39 +1,39 @@
 /**
- * Home (Kreu) — design screen 6. Header (logo + mosaic/profile icons), a
- * search entry, and a Televizion/Radio toggle. TV mode: hero carousel, a
- * continue-watching rail, a package filter, then the 2-column channel grid.
- * Radio mode: the station list. One FlashList carries the grid/list; the
- * scrolling top content rides in `ListHeaderComponent` (re-keyed on mode so the
- * column count switches cleanly).
+ * Home (Kreu) — design screen 6. Brand header (logo + profile icon), a
+ * search entry, and a Televizion/Radio toggle. TV mode: hero carousel, then
+ * the 2-column channel grid. Radio mode: the station list. One FlashList
+ * carries the grid/list; the scrolling top content rides in
+ * `ListHeaderComponent` (re-keyed on mode so the column count switches
+ * cleanly).
  */
-import React, { useMemo, useState } from 'react';
+import React, { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
 import { FlashList } from '@shopify/flash-list';
+import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 
-import { SPACING } from '@/theme/spacing';
+import { SCREEN_PADDING, SPACING } from '@/theme/spacing';
 import { useAppStore } from '@/store/useAppStore';
 import { useChannelsQuery, useHomeFeedQuery, useRadioStationsQuery } from '@/api/queries';
 import { useTabBarHeight } from '@/hooks';
 import { BrandHeader } from '@/components/Brand';
 import ChannelCard from '@/components/channels/ChannelCard';
-import { ContinueRow, HeroCarousel } from '@/components/home';
+import ChannelCardSkeleton from '@/components/channels/ChannelCardSkeleton';
+import { HeroCarousel } from '@/components/home';
 import { Icon, IconButton } from '@/components/Icons';
-import { FilterChipRow } from '@/components/Inputs';
 import { BrowseControls, ScreenLayout, SectionHeader } from '@/components/Layout';
 import StationRow from '@/components/radio/StationRow';
+import StationRowSkeleton from '@/components/radio/StationRowSkeleton';
 import type { Channel, RadioStation } from '@/types/domain';
-import { GridIcon, ProfileIcon } from '@/assets/icons';
-import {
-  ALL_PACKAGES_LABEL,
-  CHANNEL_PACKAGES,
-  PACKAGE_LABEL,
-  type PackageFilter,
-} from '@/constants/packages';
+import { ProfileIcon } from '@/assets/icons';
 
 type HomeMode = 'tv' | 'radio';
+
+/** Gap between the two grid columns. Edge cells pad out to SCREEN_PADDING so the
+ * list itself stays full-bleed (its header rows own their internal padding). */
+const GRID_GAP = SPACING.space_10;
 
 const HomeScreen: React.FC = () => {
   const { t } = useTranslation();
@@ -42,46 +42,49 @@ const HomeScreen: React.FC = () => {
   const tabBarHeight = useTabBarHeight();
 
   const [mode, setMode] = useState<HomeMode>('tv');
-  const [pkg, setPkg] = useState<PackageFilter>('all');
 
-  const { channels } = useChannelsQuery();
-  const { stations } = useRadioStationsQuery();
-  const { heroes, continueWatching } = useHomeFeedQuery();
-
-  const filteredChannels = useMemo(
-    () => (pkg === 'all' ? channels : channels.filter((c) => c.package === pkg)),
-    [channels, pkg],
-  );
-
-  const packageChips = useMemo(
-    () => [
-      { label: ALL_PACKAGES_LABEL, value: 'all' as PackageFilter },
-      ...CHANNEL_PACKAGES.map((p) => ({ label: PACKAGE_LABEL[p], value: p as PackageFilter })),
-    ],
-    [],
-  );
+  const { channels, isLoading: channelsLoading } = useChannelsQuery();
+  const { stations, isLoading: stationsLoading } = useRadioStationsQuery();
+  const { heroes, isLoading: heroesLoading } = useHomeFeedQuery();
 
   const openChannel = (id: string) => router.push(`/(app)/channel/${id}`);
 
   const tvHeader = (
     <View>
       <View style={styles.heroWrap}>
-        <HeroCarousel items={heroes} onPressItem={openChannel} testID="home-hero" />
+        <HeroCarousel
+          items={heroes}
+          isLoading={heroesLoading}
+          onPressItem={openChannel}
+          testID="home-hero"
+        />
       </View>
-      {continueWatching.length > 0 ? (
-        <>
-          <SectionHeader title={t('home.continue_watching')} />
-          <ContinueRow items={continueWatching} onPressItem={openChannel} testID="home-continue" />
-        </>
-      ) : null}
-      <View style={styles.chips}>
-        <FilterChipRow chips={packageChips} value={pkg} onChange={setPkg} testID="home-pkg-chips" />
-      </View>
-      <SectionHeader
-        title={t('home.tv_channels')}
-        actionLabel={t('home.guide_link')}
-        onActionPress={() => router.push('/(app)/(tabs)/guide')}
-      />
+      <SectionHeader title={t('home.tv_channels')} />
+    </View>
+  );
+
+  // Skeleton stacks ride ListEmptyComponent: the grid/list swaps placeholders
+  // for data in place once the query lands, with no layout jump.
+  const tvSkeleton = (
+    <View testID="home-tv-skeleton">
+      {Array.from({ length: 3 }, (_, i) => (
+        <View key={i} style={[styles.skeletonGridRow, i > 0 && styles.skeletonRowGap]}>
+          <View style={styles.cellLeft}>
+            <ChannelCardSkeleton />
+          </View>
+          <View style={styles.cellRight}>
+            <ChannelCardSkeleton />
+          </View>
+        </View>
+      ))}
+    </View>
+  );
+
+  const radioSkeleton = (
+    <View testID="home-radio-skeleton">
+      {Array.from({ length: 6 }, (_, i) => (
+        <StationRowSkeleton key={i} />
+      ))}
     </View>
   );
 
@@ -91,8 +94,8 @@ const HomeScreen: React.FC = () => {
     </View>
   );
 
-  const renderChannel = ({ item }: { item: Channel }) => (
-    <View style={styles.cardWrapper}>
+  const renderChannel = ({ item, index }: { item: Channel; index: number }) => (
+    <View style={index % 2 === 0 ? styles.cellLeft : styles.cellRight}>
       <ChannelCard
         channelId={item.id}
         name={item.name}
@@ -118,26 +121,15 @@ const HomeScreen: React.FC = () => {
       <BrandHeader
         testID="home-header"
         rightSlot={
-          <View style={styles.headerActions}>
-            <IconButton
-              size={40}
-              backgroundColor={colors.surface}
-              onPress={() => router.push('/(app)/mosaic')}
-              accessibilityLabel="Mozaik"
-              testID="home-mosaic-btn"
-            >
-              <Icon as={GridIcon} size={20} color={colors.text} />
-            </IconButton>
-            <IconButton
-              size={40}
-              backgroundColor={colors.surface}
-              onPress={() => router.push('/(app)/(tabs)/profile')}
-              accessibilityLabel="Profili"
-              testID="home-profile-btn"
-            >
-              <Icon as={ProfileIcon} size={20} color={colors.text} />
-            </IconButton>
-          </View>
+          <IconButton
+            size={40}
+            backgroundColor={colors.surface}
+            onPress={() => router.push('/(app)/(tabs)/profile')}
+            accessibilityLabel="Profili"
+            testID="home-profile-btn"
+          >
+            <Icon as={ProfileIcon} size={20} color={colors.text} />
+          </IconButton>
         }
       />
 
@@ -155,34 +147,47 @@ const HomeScreen: React.FC = () => {
         testID="home-browse-controls"
       />
 
-      {mode === 'tv' ? (
-        <FlashList
-          key="tv"
-          data={filteredChannels}
-          renderItem={renderChannel}
-          keyExtractor={(item) => item.id}
-          numColumns={2}
-          ListHeaderComponent={tvHeader}
-          ItemSeparatorComponent={() => <View style={styles.rowGap} />}
-          contentContainerStyle={[styles.listContent, { paddingBottom: tabBarHeight + SPACING.space_24 }]}
-          showsVerticalScrollIndicator={false}
-          testID="home-tv-grid"
+      <View style={styles.listWrap}>
+        {mode === 'tv' ? (
+          <FlashList
+            key="tv"
+            data={channels}
+            renderItem={renderChannel}
+            keyExtractor={(item) => item.id}
+            numColumns={2}
+            ListHeaderComponent={tvHeader}
+            ListEmptyComponent={channelsLoading ? tvSkeleton : null}
+            ItemSeparatorComponent={() => <View style={styles.rowGap} />}
+            contentContainerStyle={[styles.listContent, { paddingBottom: tabBarHeight + SPACING.space_24 }]}
+            showsVerticalScrollIndicator={false}
+            testID="home-tv-grid"
+          />
+        ) : (
+          <FlashList
+            key="radio"
+            data={stations}
+            renderItem={renderStation}
+            keyExtractor={(item) => item.id}
+            ListHeaderComponent={radioHeader}
+            ListEmptyComponent={stationsLoading ? radioSkeleton : null}
+            contentContainerStyle={[
+              styles.listContentRadio,
+              { paddingBottom: tabBarHeight + SPACING.space_24 },
+            ]}
+            showsVerticalScrollIndicator={false}
+            testID="home-radio-list"
+          />
+        )}
+        {/* Content dissolves into the background as it scrolls under the
+            search + toggle, instead of clipping hard at the list edge
+            (same docked-CTA fade as guide). */}
+        <LinearGradient
+          colors={[colors.background, `${colors.background}B3`, `${colors.background}00`]}
+          locations={[0, 0.35, 1]}
+          style={styles.topFade}
+          pointerEvents="none"
         />
-      ) : (
-        <FlashList
-          key="radio"
-          data={stations}
-          renderItem={renderStation}
-          keyExtractor={(item) => item.id}
-          ListHeaderComponent={radioHeader}
-          contentContainerStyle={[
-            styles.listContentRadio,
-            { paddingBottom: tabBarHeight + SPACING.space_24 },
-          ]}
-          showsVerticalScrollIndicator={false}
-          testID="home-radio-list"
-        />
-      )}
+      </View>
     </ScreenLayout>
   );
 };
@@ -190,28 +195,42 @@ const HomeScreen: React.FC = () => {
 export default HomeScreen;
 
 const styles = StyleSheet.create({
-  headerActions: {
-    flexDirection: 'row',
-    gap: SPACING.space_8,
-  },
   heroWrap: {
     paddingTop: SPACING.space_16,
   },
-  chips: {
-    paddingTop: SPACING.space_8,
+  listWrap: {
+    flex: 1,
+  },
+  topFade: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: SPACING.space_48,
   },
   listContent: {
-    paddingHorizontal: SPACING.space_15,
     paddingBottom: SPACING.space_24,
   },
   listContentRadio: {
     paddingBottom: SPACING.space_24,
   },
-  cardWrapper: {
+  cellLeft: {
     flex: 1,
-    paddingHorizontal: 5,
+    paddingLeft: SCREEN_PADDING,
+    paddingRight: GRID_GAP / 2,
+  },
+  cellRight: {
+    flex: 1,
+    paddingLeft: GRID_GAP / 2,
+    paddingRight: SCREEN_PADDING,
   },
   rowGap: {
     height: SPACING.space_10,
+  },
+  skeletonGridRow: {
+    flexDirection: 'row',
+  },
+  skeletonRowGap: {
+    marginTop: SPACING.space_10,
   },
 });

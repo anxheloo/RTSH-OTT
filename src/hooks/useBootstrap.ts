@@ -9,6 +9,7 @@ import { initI18n } from '@/i18n';
 
 import { useAppState } from './useAppState';
 import { useCheckToken } from './useCheckToken';
+import { useDeviceIdentity } from './useDeviceIdentity';
 import { useNetworkMonitor } from './useNetworkMonitor';
 import { useOTA } from './useOTA';
 
@@ -26,6 +27,8 @@ export interface BootstrapState {
  *   2. Mount `useNetworkMonitor` (bridges NetInfo → TanStack `onlineManager`,
  *      mirrors connectivity into the store, drives the no-internet modal).
  *   3. Mount `useOTA` (exposes update state; runtime auto-checks on launch).
+ *   3b. Mount `useDeviceIdentity` (stamps the static `X-Device-*` headers
+ *      onto the api client once the keychain device ID resolves).
  *   4. Run boot auth check via `useCheckToken` (keychain-only — never blocks
  *      splash on the network).
  *   5. Kick off a background access-token refresh once the keychain check
@@ -49,6 +52,7 @@ export function useBootstrap(): BootstrapState {
   wireOnceAtBoot();
 
   useNetworkMonitor();
+  useDeviceIdentity();
   const ota = useOTA();
   const auth = useCheckToken();
 
@@ -56,7 +60,9 @@ export function useBootstrap(): BootstrapState {
   useEffect(() => {
     if (auth.data?.authenticated && !backgroundRefreshKicked.current) {
       backgroundRefreshKicked.current = true;
-      void refreshAccessToken();
+      // Manual-wipe recovery (useCheckToken path 3) already refreshed before
+      // resolving — only the offline-first fast path boots with `token: null`.
+      if (!useAppStore.getState().token) void refreshAccessToken();
     }
   }, [auth.data?.authenticated]);
 

@@ -4,3 +4,4 @@
  */
 export { default as Equalizer } from './Equalizer';
 export { default as StationRow } from './StationRow';
+export { default as StationRowSkeleton } from './StationRowSkeleton';

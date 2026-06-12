@@ -1,24 +1,30 @@
 import type { User } from '@/types';
-import { userSchema } from '@/types';
+import { userDtoSchema } from '@/types';
 
 import { apiClient } from '../client';
 import { USERS_ROUTES } from '../endpoints';
 
-/** Users endpoints wrap the profile under `{ user }`; unwrap + validate at the boundary (5.X.2). */
+/** `/users/me` returns a bare `UserDTO` (no envelope); validate + map at the boundary (5.X.2). */
 export async function getMe(): Promise<User> {
-  const { data } = await apiClient.get<{ user: unknown }>(USERS_ROUTES.ME);
-  return userSchema.parse(data.user) as User;
+  const { data } = await apiClient.get<unknown>(USERS_ROUTES.ME);
+  return userDtoSchema.parse(data);
 }
 
 /**
- * Caller-modifiable fields on the user profile. Excludes server-owned fields
- * (`id`, `email`) so a stray spread can't accidentally PATCH them.
+ * Caller-modifiable fields per `UpdateProfileRequestDTO`. Excludes server-owned
+ * fields (`id`, `email`, `birthDate`) so a stray spread can't PATCH them.
  */
-export type UpdateProfilePayload = Partial<Pick<User, 'displayName' | 'avatarUrl'>>;
+export interface UpdateProfilePayload {
+  username?: string;
+  city?: string;
+  country?: string;
+  gender?: 'MALE' | 'FEMALE' | 'OTHER' | 'UNSPECIFIED';
+  educationLevel?: 'HIGH' | 'MEDIUM' | 'LOW';
+}
 
 export async function updateProfile(payload: UpdateProfilePayload): Promise<User> {
-  const { data } = await apiClient.patch<{ user: unknown }>(USERS_ROUTES.UPDATE_PROFILE, payload);
-  return userSchema.parse(data.user) as User;
+  const { data } = await apiClient.patch<unknown>(USERS_ROUTES.UPDATE_PROFILE, payload);
+  return userDtoSchema.parse(data);
 }
 
 /**

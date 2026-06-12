@@ -1,7 +1,7 @@
 /**
  * SceneBackground — the shared "last-frame scene" fill used by every card that
  * layers content over a channel/program image (ChannelCard, HeroCarousel,
- * ContinueCard, mosaic tiles). Absolutely fills its parent with a cover image
+ * GuideRow / SearchResultRow tiles). Absolutely fills its parent with a cover image
  * plus an optional bottom scrim for text legibility. The parent owns the rounded
  * clipping container (`overflow: 'hidden'`) and any overlay children.
  */

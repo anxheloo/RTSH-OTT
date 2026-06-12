@@ -1,29 +1,27 @@
 /**
- * Forgot-password screen — server-driven, resumable 3-step reset wizard.
+ * Forgot-password screen — client-driven 3-step reset wizard.
  *
- *   step 1 — request a code by email   → POST /auth/forgot-password
- *   step 2 — OTP verify                → POST /auth/reset/verify
- *   step 3 — set a new password        → POST /auth/reset/password
+ *   step 1 — request a code by email   → POST /auth/forgot-password (always 202)
+ *   step 2 — OTP verify                → POST /auth/reset-password/verify
+ *                                        → returns a one-time `resetToken`
+ *   step 3 — set a new password        → POST /auth/reset-password
+ *                                        {resetToken, newPassword}
  *
- * Mirrors the register wizard (each response carries the COMPLETED step; client
- * renders `completed + 1`), but step 3 does NOT return tokens — on success we
- * show a confirmation and send the user back to login to sign in.
+ * Resend has no dedicated endpoint — re-firing the step-1 request replaces the
+ * live code. On success the route is REPLACED with login (no stale wizard in
+ * the back stack) and the confirmation shows via the `notify` modal.
  */
 import React, { useState } from 'react';
-import { StyleSheet, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
 import { router } from 'expo-router';
 
-import { BORDERRADIUS, SPACING } from '@/theme';
 import { useAppStore } from '@/store/useAppStore';
 import {
   useResetPassword,
   useResetRequest,
-  useResetResendOtp,
   useResetVerifyOtp,
 } from '@/api/mutations/resetWizard';
-import type { AuthStepResponse } from '@/api/services/auth';
 import {
   AuthFooterLink,
   AuthHeader,
@@ -33,38 +31,49 @@ import {
   ResetRequestForm,
   StepHeader,
 } from '@/components/auth';
-import ReusableText from '@/components/Inputs/ReusableText';
 import { authErrorMessage } from '@/features/auth/errors';
 
 const ForgotPasswordScreen: React.FC = () => {
   const { t } = useTranslation();
-  const colors = useAppStore((s) => s.colors);
 
   const [step, setStep] = useState(1);
   const [email, setEmail] = useState('');
-  const [done, setDone] = useState(false);
+  const [resetToken, setResetToken] = useState('');
 
   const request = useResetRequest();
   const verify = useResetVerifyOtp();
   const reset = useResetPassword();
-  const resend = useResetResendOtp();
-
-  const advance = (res: AuthStepResponse) => {
-    if (res.email) setEmail(res.email);
-    setStep(res.step + 1);
-  };
 
   const handleRequest = (value: string) => {
     setEmail(value);
-    request.mutate(value, { onSuccess: advance });
+    request.mutate(value, { onSuccess: () => setStep(2) });
   };
 
   const handleVerify = (code: string) => {
-    verify.mutate({ email, code }, { onSuccess: advance });
+    verify.mutate(
+      { email, code },
+      {
+        onSuccess: (data) => {
+          setResetToken(data.resetToken);
+          setStep(3);
+        },
+      },
+    );
   };
 
   const handleNewPassword = (newPassword: string) => {
-    reset.mutate({ email, newPassword }, { onSuccess: () => setDone(true) });
+    reset.mutate(
+      { resetToken, newPassword },
+      {
+        onSuccess: () => {
+          useAppStore.getState().updateModalSlice({
+            currentModal: 'notify',
+            modalData: { description: t('auth.reset.success') },
+          });
+          router.replace('/login');
+        },
+      },
+    );
   };
 
   const backToLogin = (
@@ -76,23 +85,10 @@ const ForgotPasswordScreen: React.FC = () => {
     />
   );
 
-  const onBack = () => (step > 1 && !done ? setStep(step - 1) : router.back());
+  const onBack = () => (step > 1 ? setStep(step - 1) : router.back());
   const header = (
     <AuthHeader title={t('auth.forgot.title')} onBack={onBack} testID="forgot-header" />
   );
-
-  if (done) {
-    return (
-      <AuthScreen header={header} testID="forgot-screen">
-        <View style={[styles.successBox, { backgroundColor: colors.surface }]}>
-          <ReusableText variant="body" themeColor="success" textAlign="center">
-            {t('auth.reset.success')}
-          </ReusableText>
-        </View>
-        {backToLogin}
-      </AuthScreen>
-    );
-  }
 
   return (
     <AuthScreen
@@ -112,9 +108,9 @@ const ForgotPasswordScreen: React.FC = () => {
         <OtpVerify
           email={email}
           onVerify={handleVerify}
-          onResend={() => resend.mutate(email)}
+          onResend={() => request.mutate(email)}
           isVerifying={verify.isPending}
-          isResending={resend.isPending}
+          isResending={request.isPending}
           errorText={
             verify.error
               ? authErrorMessage(verify.error, {
@@ -141,10 +137,3 @@ const ForgotPasswordScreen: React.FC = () => {
 };
 
 export default ForgotPasswordScreen;
-
-const styles = StyleSheet.create({
-  successBox: {
-    borderRadius: BORDERRADIUS.radius_12,
-    padding: SPACING.space_16,
-  },
-});

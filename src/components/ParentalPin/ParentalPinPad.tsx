@@ -156,6 +156,9 @@ export default ParentalPinPad;
 
 const styles = StyleSheet.create({
   container: {
+    // Must stretch to the parent's width: the grid below uses a percentage
+    // width, which Yoga collapses when the parent is auto-sized (centered).
+    alignSelf: 'stretch',
     alignItems: 'center',
     paddingHorizontal: SPACING.space_24,
     paddingVertical: SPACING.space_24,

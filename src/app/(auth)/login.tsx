@@ -37,6 +37,9 @@ const LoginScreen: React.FC = () => {
     defaultValues: { email: '', password: '' },
   });
 
+  // Zod error messages are i18n keys (RTSH pattern) — resolve at render time.
+  const tr = (key?: string) => (key ? t(key) : undefined);
+
   const onSubmit = handleSubmit(({ email, password }) => login({ email, password }));
 
   return (
@@ -61,7 +64,7 @@ const LoginScreen: React.FC = () => {
             keyboardType="email-address"
             autoCapitalize="none"
             autoComplete="email"
-            errorText={fieldError?.message}
+            errorText={tr(fieldError?.message)}
             testID="login-email-input"
           />
         )}
@@ -79,7 +82,7 @@ const LoginScreen: React.FC = () => {
             leftIcon={<Icon as={KeyIcon} size={19} color={colors.textMuted} />}
             isPassword
             autoComplete="current-password"
-            errorText={fieldError?.message}
+            errorText={tr(fieldError?.message)}
             testID="login-password-input"
           />
         )}

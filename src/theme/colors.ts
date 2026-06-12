@@ -28,6 +28,7 @@ export interface ThemeColors {
   warning: string;
   // ui regions
   tabBar: string;
+  tabBarSolid: string; // Android fallback — no blur, so near-opaque to keep the bar readable
   tabBarBorder: string; // tab-bar top hairline (design --line)
   inputBackground: string;
   headerBackground: string;
@@ -60,6 +61,7 @@ export const darkTheme: ThemeColors = {
   error: '#EF4444',
   warning: '#FBBF24',
   tabBar: 'rgba(10,10,12,0.6)',
+  tabBarSolid: 'rgba(10,10,12,0.94)',
   tabBarBorder: '#2A2A31',
   inputBackground: '#141417',
   headerBackground: 'transparent',
@@ -92,6 +94,7 @@ export const lightTheme: ThemeColors = {
   error: '#DC2626',
   warning: '#F59E0B',
   tabBar: 'rgba(255,255,255,0.6)',
+  tabBarSolid: 'rgba(255,255,255,0.94)',
   tabBarBorder: '#E5E7EB',
   inputBackground: '#F3F4F6',
   headerBackground: 'transparent',

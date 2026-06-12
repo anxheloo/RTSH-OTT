@@ -13,6 +13,7 @@ type TabBarConfig = {
   tabBarStyle: ViewStyle;
   tabBarLabelStyle: TextStyle;
   tabBarItemStyle: ViewStyle;
+  tabBarIconStyle: ViewStyle;
   /** Tab glyph size in px. */
   iconSize: number;
 };
@@ -47,6 +48,10 @@ export const TabBar: TabBarConfig = {
   },
   tabBarItemStyle: {
     paddingVertical: 4,
+  },
+  tabBarIconStyle: {
+    // Lift the glyph slightly toward the bar's top edge (sits too low otherwise).
+    marginTop: -2,
   },
   iconSize: 24,
 };

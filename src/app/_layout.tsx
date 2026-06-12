@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useCallback, useState } from 'react';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
@@ -34,6 +34,7 @@ SplashScreen.preventAutoHideAsync();
 function RootLayoutInner() {
   const { isReady } = useBootstrap();
   const isAuthenticated = useAppStore((s) => s.isAuthenticated);
+  const [splashDone, setSplashDone] = useState(false);
 
   // Inter is the design's sole family (Phase 22.2). Keys are the family names the
   // `Fonts` tokens in theme/fonts.ts alias to.
@@ -46,14 +47,25 @@ function RootLayoutInner() {
     Inter_900Black,
   });
 
-  useEffect(() => {
-    // Our branded splash takes over from the native splash as soon as React can
-    // paint, so hide the native splash on first mount (after the first frame).
+  // Hide the native splash only once its JS clone (BrandedSplash) has laid
+  // out — the clone is pixel-identical, so the swap is invisible.
+  const handleSplashLayout = useCallback(() => {
     SplashScreen.hideAsync();
   }, []);
 
-  if ((!fontsLoaded && !fontError) || !isReady) {
-    return <BrandedSplash />;
+  const handleSplashComplete = useCallback(() => setSplashDone(true), []);
+
+  // Hold the branded splash until the progress bar has visibly filled to 100%
+  // (BrandedSplash fires onComplete when the fill animation lands).
+  const bootComplete = (fontsLoaded || !!fontError) && isReady;
+  if (!splashDone) {
+    return (
+      <BrandedSplash
+        onLayout={handleSplashLayout}
+        isComplete={bootComplete}
+        onComplete={handleSplashComplete}
+      />
+    );
   }
 
   return (

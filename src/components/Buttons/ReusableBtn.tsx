@@ -1,12 +1,12 @@
 /**
  * App-wide button primitive. Variants map to theme tokens (background + text
- * + border); sizes map to height + padding + label font size. Loading state
- * swaps the label for a spinner and disables press. Disabled state lowers
- * opacity and disables press.
+ * + border); sizes map to height + padding + label typography. Loading keeps
+ * the button's width (content goes invisible, spinner overlays) and disables
+ * press. Disabled lowers opacity and disables press.
  *
- * Like `ReusableText`, sizes are placeholders until design lands — pass
- * explicit `height` / `paddingHorizontal` / `labelFontSize` overrides at call
- * sites until the design system locks tokens.
+ * Anything beyond variant/size goes through `style` (height, radius, width) —
+ * it is applied last so it wins. Margins and positioning belong to the parent,
+ * never here. The only project coupling is the `useAppStore` colors read.
  */
 import React from 'react';
 import {
@@ -46,19 +46,19 @@ interface SizeSpec {
   labelFontSize: number;
   labelFontWeight: FontWeight;
   gap: number;
-  spinnerSize: 'small' | 'large';
 }
 
 // Design (2026-06-06): primary CTA is a h54 capsule, bold label. `large` matches;
-// borderRadius defaults to height/2 (27 → capsule). small/medium are scale variants.
+// borderRadius defaults to height/2 (capsule). small/medium are scale variants.
 const SIZES: Record<ButtonSize, SizeSpec> = {
-  small: { height: 40, paddingHorizontal: 14, labelFontSize: 14, labelFontWeight: 'semiBold', gap: 6, spinnerSize: 'small' },
-  medium: { height: 48, paddingHorizontal: 16, labelFontSize: 15, labelFontWeight: 'semiBold', gap: 8, spinnerSize: 'small' },
-  large: { height: 54, paddingHorizontal: 20, labelFontSize: 16, labelFontWeight: 'bold', gap: 8, spinnerSize: 'small' },
+  small: { height: 40, paddingHorizontal: 14, labelFontSize: 14, labelFontWeight: 'semiBold', gap: 6 },
+  medium: { height: 48, paddingHorizontal: 16, labelFontSize: 15, labelFontWeight: 'semiBold', gap: 8 },
+  large: { height: 54, paddingHorizontal: 20, labelFontSize: 16, labelFontWeight: 'bold', gap: 8 },
 };
 
 export type ReusableBtnProps = Omit<TouchableOpacityProps, 'style' | 'disabled'> & {
-  label: string;
+  /** Plain string or a rendered element (e.g. a Trans node). */
+  label: React.ReactNode;
   onPress: () => void;
   variant?: ButtonVariant;
   size?: ButtonSize;
@@ -67,17 +67,8 @@ export type ReusableBtnProps = Omit<TouchableOpacityProps, 'style' | 'disabled'>
   isFullWidth?: boolean;
   leftIcon?: React.ReactNode;
   rightIcon?: React.ReactNode;
-  /** Explicit pixel height. Overrides the size default. */
-  height?: number;
-  /** Explicit horizontal padding. Overrides the size default. */
-  paddingHorizontal?: number;
-  /** Explicit label font size. Overrides the size default. */
-  labelFontSize?: number;
-  /** Explicit label font weight. Overrides the size default. */
-  labelFontWeight?: FontWeight;
-  /** Explicit corner radius. Defaults to half of the resolved height (pill). */
-  borderRadius?: number;
   testID?: string;
+  /** Escape hatch for one-off layout (height, borderRadius, width). Applied last. */
   style?: StyleProp<ViewStyle>;
 };
 
@@ -91,11 +82,6 @@ const ReusableBtn: React.FC<ReusableBtnProps> = ({
   isFullWidth = false,
   leftIcon,
   rightIcon,
-  height,
-  paddingHorizontal,
-  labelFontSize,
-  labelFontWeight,
-  borderRadius,
   testID,
   style,
   ...rest
@@ -103,12 +89,6 @@ const ReusableBtn: React.FC<ReusableBtnProps> = ({
   const colors = useAppStore((s) => s.colors);
   const variantSpec = VARIANTS[variant];
   const sizeSpec = SIZES[size];
-
-  const resolvedHeight = height ?? sizeSpec.height;
-  const resolvedPaddingHorizontal = paddingHorizontal ?? sizeSpec.paddingHorizontal;
-  const resolvedLabelFontSize = labelFontSize ?? sizeSpec.labelFontSize;
-  const resolvedLabelFontWeight = labelFontWeight ?? sizeSpec.labelFontWeight;
-  const resolvedBorderRadius = borderRadius ?? resolvedHeight / 2;
 
   const backgroundColor =
     variantSpec.backgroundColor === 'transparent'
@@ -123,44 +103,51 @@ const ReusableBtn: React.FC<ReusableBtnProps> = ({
     <TouchableOpacity
       {...rest}
       activeOpacity={0.8}
-      onPress={isPressDisabled ? undefined : onPress}
+      disabled={isPressDisabled}
+      onPress={onPress}
       accessibilityRole="button"
       accessibilityState={{ disabled: isPressDisabled, busy: isLoading }}
+      accessibilityLabel={typeof label === 'string' ? label : undefined}
       testID={testID}
       style={[
         styles.base,
         {
-          height: resolvedHeight,
-          paddingHorizontal: resolvedPaddingHorizontal,
-          borderRadius: resolvedBorderRadius,
+          height: sizeSpec.height,
+          paddingHorizontal: sizeSpec.paddingHorizontal,
+          borderRadius: sizeSpec.height / 2,
+          gap: sizeSpec.gap,
           backgroundColor,
-          opacity: isDisabled ? 0.5 : 1,
-          width: isFullWidth ? '100%' : undefined,
           borderWidth: borderColor ? 1 : 0,
           borderColor,
-          gap: sizeSpec.gap,
+          opacity: isDisabled ? 0.5 : 1,
+          width: isFullWidth ? '100%' : undefined,
         },
         style,
       ]}
     >
+      {/* Content stays mounted (invisible) during loading so the button keeps
+          its intrinsic width — no layout jump when the spinner swaps in. */}
+      <View style={[styles.content, { gap: sizeSpec.gap }, isLoading && styles.contentHidden]}>
+        {leftIcon}
+        <ReusableText
+          fontSize={sizeSpec.labelFontSize}
+          fontWeight={sizeSpec.labelFontWeight}
+          style={{ color: textColor }}
+        >
+          {label}
+        </ReusableText>
+        {rightIcon}
+      </View>
       {isLoading ? (
-        <ActivityIndicator size={sizeSpec.spinnerSize} color={textColor} />
-      ) : (
-        <>
-          {leftIcon ? <View>{leftIcon}</View> : null}
-          <ReusableText
-            fontSize={resolvedLabelFontSize}
-            fontWeight={resolvedLabelFontWeight}
-            style={{ color: textColor }}
-          >
-            {label}
-          </ReusableText>
-          {rightIcon ? <View>{rightIcon}</View> : null}
-        </>
-      )}
+        <View style={[StyleSheet.absoluteFill, styles.spinnerWrap]} pointerEvents="none">
+          <ActivityIndicator size="small" color={textColor} />
+        </View>
+      ) : null}
     </TouchableOpacity>
   );
 };
+
+export default ReusableBtn;
 
 const styles = StyleSheet.create({
   base: {
@@ -168,6 +155,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  content: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  contentHidden: {
+    opacity: 0,
+  },
+  spinnerWrap: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 });
-
-export default ReusableBtn;

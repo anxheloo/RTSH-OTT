@@ -12,6 +12,7 @@ import { StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { ThemeColors } from '@/theme/colors';
+import { SCREEN_PADDING } from '@/theme/spacing';
 import { useAppStore } from '@/store/useAppStore';
 
 import ReusableText from '../Inputs/ReusableText';
@@ -88,7 +89,7 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
+    paddingHorizontal: SCREEN_PADDING,
   },
   side: {
     minWidth: 40,

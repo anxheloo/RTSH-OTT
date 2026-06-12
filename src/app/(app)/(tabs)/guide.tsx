@@ -1,29 +1,33 @@
 /**
- * Guide (Guida) — design screen 7. A "now & next" programme guide. The header
- * carries a TV/Radio toggle; the body is a single FlashList of `GuideRow`s under
- * an overline ("TANI NË TV" / "TANI NË RADIO"). TV rows derive now/next + an
- * elapsed-progress bar per channel from the EPG; radio rows show the station +
- * genre with a live badge (radio now/next has no schedule source yet — gap).
+ * Guide (Guida) — design screen 7. A "now & next" programme guide. Shares the
+ * brand header with Home (logo taps back to Kreu); a TV/Radio toggle sits below
+ * it, mirroring Home's browse controls. The body is a single FlashList of
+ * `GuideRow`s under an overline ("TANI NË TV" / "TANI NË RADIO"). TV rows derive
+ * now/next + an elapsed-progress bar per channel from the EPG; radio rows show
+ * the station + genre with a live badge (radio now/next has no schedule source
+ * yet — gap).
  */
 import React, { useMemo, useState } from 'react';
-import { StyleSheet } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
 import { FlashList } from '@shopify/flash-list';
+import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 
-import { SPACING } from '@/theme/spacing';
+import { SCREEN_PADDING, SPACING } from '@/theme/spacing';
 import { useAppStore } from '@/store/useAppStore';
 import { useChannelsQuery, useEpgQuery, useRadioStationsQuery } from '@/api/queries';
 import { useDateTime } from '@/hooks/useDateTime';
 import { useTabBarHeight } from '@/hooks/useTabBarHeight';
-import { GuideRow } from '@/components/epg';
-import { Icon } from '@/components/Icons';
+import { BrandHeader } from '@/components/Brand';
+import { GuideRow, GuideRowSkeleton } from '@/components/epg';
+import { Icon, IconButton } from '@/components/Icons';
 import { SegmentedToggle } from '@/components/Inputs';
 import ReusableText from '@/components/Inputs/ReusableText';
-import { ScreenLayout, TabHeader } from '@/components/Layout';
+import { ScreenLayout } from '@/components/Layout';
 import type { EpgItem } from '@/types/domain';
-import { RadioIcon } from '@/assets/icons';
+import { ProfileIcon, RadioIcon } from '@/assets/icons';
 
 type GuideMode = 'tv' | 'radio';
 
@@ -50,8 +54,8 @@ const GuideScreen: React.FC = () => {
   // (matches the design's static bars). A periodic tick can refresh it later.
   const [nowMs] = useState(() => Date.now());
 
-  const { channels } = useChannelsQuery();
-  const { stations } = useRadioStationsQuery();
+  const { channels, isLoading: channelsLoading } = useChannelsQuery();
+  const { stations, isLoading: stationsLoading } = useRadioStationsQuery();
   const { items: epg } = useEpgQuery();
 
   const tvRows = useMemo<GuideRowVM[]>(() => {
@@ -111,6 +115,17 @@ const GuideScreen: React.FC = () => {
   );
 
   const rows = mode === 'tv' ? tvRows : radioRows;
+  // Rows derive from the channel/station catalogues — EPG arriving later only
+  // upgrades the now/next lines, so the skeleton keys on the catalogue queries.
+  const rowsLoading = mode === 'tv' ? channelsLoading : stationsLoading;
+
+  const listSkeleton = (
+    <View testID="guide-skeleton">
+      {Array.from({ length: 8 }, (_, i) => (
+        <GuideRowSkeleton key={i} />
+      ))}
+    </View>
+  );
 
   const overline = (
     <ReusableText variant="bodySmall" fontWeight="extraBold" style={styles.overline}>
@@ -120,44 +135,68 @@ const GuideScreen: React.FC = () => {
 
   return (
     <ScreenLayout>
-      <TabHeader
-        title={t('guide.title')}
-        rightAction={
-          <SegmentedToggle
-            options={[
-              { label: t('guide.toggle_tv'), value: 'tv' },
-              { label: t('guide.toggle_radio'), value: 'radio' },
-            ]}
-            value={mode}
-            onChange={setMode}
-            testID="guide-mode-toggle"
-          />
+      <BrandHeader
+        testID="guide-header"
+        onLogoPress={() => router.navigate('/(app)/(tabs)')}
+        rightSlot={
+          <IconButton
+            size={40}
+            backgroundColor={colors.surface}
+            onPress={() => router.push('/(app)/(tabs)/profile')}
+            accessibilityLabel="Profili"
+            testID="guide-profile-btn"
+          >
+            <Icon as={ProfileIcon} size={20} color={colors.text} />
+          </IconButton>
         }
       />
 
-      <FlashList
-        key={mode}
-        data={rows}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
-          <GuideRow
-            logoLabel={item.logoLabel}
-            thumbnailUrl={item.thumbnailUrl}
-            nowTitle={item.nowTitle}
-            nextLabel={item.nextLabel}
-            progress={item.progress}
-            badge={item.badge}
-            leading={
-              item.isRadio ? <Icon as={RadioIcon} size={18} color={colors.onPrimary} /> : undefined
-            }
-            onPress={item.onPress}
-          />
-        )}
-        ListHeaderComponent={overline}
-        contentContainerStyle={[styles.listContent, { paddingBottom: tabBarHeight + SPACING.space_24 }]}
-        showsVerticalScrollIndicator={false}
-        testID="guide-list"
-      />
+      <View style={styles.toggleWrap}>
+        <SegmentedToggle
+          options={[
+            { label: t('guide.toggle_tv'), value: 'tv' },
+            { label: t('guide.toggle_radio'), value: 'radio' },
+          ]}
+          value={mode}
+          onChange={setMode}
+          testID="guide-mode-toggle"
+        />
+      </View>
+
+      <View style={styles.listWrap}>
+        <FlashList
+          key={mode}
+          data={rows}
+          keyExtractor={(item) => item.id}
+          renderItem={({ item }) => (
+            <GuideRow
+              logoLabel={item.logoLabel}
+              thumbnailUrl={item.thumbnailUrl}
+              nowTitle={item.nowTitle}
+              nextLabel={item.nextLabel}
+              progress={item.progress}
+              badge={item.badge}
+              leading={
+                item.isRadio ? <Icon as={RadioIcon} size={18} color={colors.onPrimary} /> : undefined
+              }
+              onPress={item.onPress}
+            />
+          )}
+          ListHeaderComponent={overline}
+          ListEmptyComponent={rowsLoading ? listSkeleton : null}
+          contentContainerStyle={[styles.listContent, { paddingBottom: tabBarHeight + SPACING.space_24 }]}
+          showsVerticalScrollIndicator={false}
+          testID="guide-list"
+        />
+        {/* Rows dissolve into the background as they scroll under the toggle,
+            instead of clipping hard at the list edge (RTSH docked-CTA fade). */}
+        <LinearGradient
+          colors={[colors.background, `${colors.background}B3`, `${colors.background}00`]}
+          locations={[0, 0.35, 1]}
+          style={styles.topFade}
+          pointerEvents="none"
+        />
+      </View>
     </ScreenLayout>
   );
 };
@@ -165,13 +204,28 @@ const GuideScreen: React.FC = () => {
 export default GuideScreen;
 
 const styles = StyleSheet.create({
+  toggleWrap: {
+    paddingHorizontal: SCREEN_PADDING,
+    paddingTop: SPACING.space_4,
+    paddingBottom: SPACING.space_12,
+  },
   overline: {
     letterSpacing: 0.6,
-    paddingHorizontal: SPACING.space_18,
+    paddingHorizontal: SCREEN_PADDING,
     paddingTop: SPACING.space_8,
     paddingBottom: SPACING.space_4,
   },
   listContent: {
     paddingBottom: SPACING.space_24,
+  },
+  listWrap: {
+    flex: 1,
+  },
+  topFade: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: SPACING.space_48,
   },
 });

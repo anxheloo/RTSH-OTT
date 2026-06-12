@@ -1,15 +1,15 @@
 /**
  * Register screen — design single-page form + OTP (decision 9).
  *
- *   step 1 — one form: email / username / password / confirm / age /
- *            city-country / gender / accept-terms  → POST /auth/register
- *   step 2 — OTP verify                            → POST /auth/register/verify
+ *   step 1 — one form: email / username / password / confirm / birth date /
+ *            city / country / gender / accept-terms  → POST /auth/register
+ *   step 2 — OTP verify                              → POST /auth/register/verify
  *
- * All profile fields are posted at step 1; a verified OTP completes registration
- * and returns user + tokens, so we persist the refresh token, mark T&C accepted
- * (the form's checkbox is the acceptance), and log straight in — the
- * Stack.Protected guard handles the redirect. The local machine tracks only the
- * rendered step + the email carried between steps.
+ * The backend saves a pending account on step 1 and emails the code; a verified
+ * OTP activates the account and returns user + tokens (validated in the service),
+ * so we persist the refresh token, mark T&C accepted (the form's checkbox is the
+ * acceptance), and log straight in — the Stack.Protected guard handles the
+ * redirect. Steps are client-driven; only the rendered step + the email are kept.
  */
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -18,11 +18,11 @@ import { router } from 'expo-router';
 
 import { useAppStore } from '@/store/useAppStore';
 import {
+  useRegister,
   useRegisterResendOtp,
-  useRegisterStart,
   useRegisterVerifyOtp,
 } from '@/api/mutations/registerWizard';
-import type { AuthStepResponse } from '@/api/services/auth';
+import type { AuthResponse } from '@/api/services/auth';
 import {
   AuthHeader,
   AuthScreen,
@@ -30,8 +30,6 @@ import {
   RegisterForm,
   StepHeader,
 } from '@/components/auth';
-import type { User } from '@/types';
-import { authResponseSchema } from '@/types';
 import { REFRESH_TOKEN_KEY } from '@/config/auth';
 import { authErrorMessage } from '@/features/auth/errors';
 import type { RegisterFormData } from '@/features/auth/schemas';
@@ -43,52 +41,25 @@ const RegisterScreen: React.FC = () => {
   const [step, setStep] = useState(1);
   const [email, setEmail] = useState('');
 
-  const start = useRegisterStart();
+  const start = useRegister();
   const verify = useRegisterVerifyOtp();
   const resend = useRegisterResendOtp();
 
-  /** Move forward from a step response (or finalize + log in when it completes). */
-  const advance = async (res: AuthStepResponse) => {
-    if (res.user && res.accessToken && res.refreshToken) {
-      // Validate the completion payload before any token touches the keychain (5.X.2).
-      const parsed = authResponseSchema.safeParse({
-        user: res.user,
-        accessToken: res.accessToken,
-        refreshToken: res.refreshToken,
-      });
-      if (!parsed.success) {
-        useAppStore.getState().updateModalSlice({
-          currentModal: 'apiError',
-          modalData: { description: t('errors.api_default') },
-        });
-        return;
-      }
-      await storeOnKeychain(REFRESH_TOKEN_KEY, parsed.data.refreshToken);
-      useAppStore.getState().acceptTC(); // the form's accept-terms checkbox is the acceptance
-      useAppStore.getState().login(parsed.data.user as User, parsed.data.accessToken);
-      return;
-    }
-    if (res.email) setEmail(res.email);
-    setStep(res.step + 1);
+  /** Verified OTP → activated account + tokens: persist + log straight in. */
+  const completeLogin = async ({ user, accessToken, refreshToken }: AuthResponse) => {
+    await storeOnKeychain(REFRESH_TOKEN_KEY, refreshToken);
+    useAppStore.getState().acceptTC(); // the form's accept-terms checkbox is the acceptance
+    useAppStore.getState().login(user, accessToken);
   };
 
   const handleRegister = (data: RegisterFormData) => {
+    const { confirmPassword: _confirmPassword, ...payload } = data; // client-side check only
     setEmail(data.email);
-    start.mutate(
-      {
-        username: data.username,
-        email: data.email,
-        password: data.password,
-        age: Number(data.age),
-        location: data.location,
-        gender: data.gender,
-      },
-      { onSuccess: advance },
-    );
+    start.mutate(payload, { onSuccess: () => setStep(2) });
   };
 
   const handleVerify = (code: string) => {
-    verify.mutate({ email, code }, { onSuccess: advance });
+    verify.mutate({ email, code }, { onSuccess: completeLogin });
   };
 
   const onBack = () => (step === 2 ? setStep(1) : router.back());
