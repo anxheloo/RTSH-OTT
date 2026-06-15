@@ -8,7 +8,7 @@ Source of truth for `src/api/`. Seeded 2026-06-12 with the device-identity heade
 |---|---|---|---|
 | `POST /auth/login` | `{ email, password }` | `{ accessToken, refreshToken, user: UserDTO }` | Swagger accepts an optional `device: DeviceInfoDTO` in the body; backend confirmed (2026-06-12) the client skips it — the separate `PUT /users/me/device` is enough |
 | `POST /auth/refresh` | `{ refreshToken }` | `{ accessToken }` (+ ignored `tokenType`, `expiresInSeconds`) | **No rotation** — refresh token is static until expiry; response carries **no user** (boot recovery uses `GET /users/me`) |
-| `POST /auth/logout` | `{ refreshToken }` | empty | Revokes that session's refresh token; client wipes local state regardless |
+| `POST /auth/logout` | `{ refreshToken, logoutOtherDevices? }` | empty | Revokes that session's refresh token (`logoutOtherDevices: true` → all sessions); client wipes local state regardless. Defaults `false` |
 | `POST /auth/register` | `{ email, username, password, birthDate, city, country, gender, termsAccepted }` | `{ message }` | **Single-shot** — all profile data at once; saves a pending account + emails OTP. `birthDate`+`gender` required; gender/education are UPPERCASE enums; no `confirmPassword` (client-side check). Wire field is `termsAccepted: boolean` (client maps from its `acceptTerms` at the service boundary) |
 | `POST /auth/register/verify` | `{ email, code }` | `{ accessToken, refreshToken, user: UserDTO }` | Activates the account → **auto-login** |
 | `POST /auth/register/resend-otp` | `{ email }` | `{ message }` | Replaces any still-live code |
@@ -20,11 +20,30 @@ Source of truth for `src/api/`. Seeded 2026-06-12 with the device-identity heade
 
 Wire shape: `{ id: int64, email, username, birthDate, city, country, gender: MALE|FEMALE|OTHER|UNSPECIFIED, educationLevel: HIGH|MEDIUM|LOW }`. `userDtoSchema` (`types/domain.ts`) validates + transforms in one parse: `id` → string, `displayName` ← `username`, `age` ← computed from `birthDate`, `location` ← `"city, country"`, enums lowercased.
 
-**Pending backend additions (asked 2026-06-12):** `parentalPinSet: boolean` on `UserDTO` (the parental gate hydrates from it — `userDtoSchema` already accepts it as optional).
+**Pending backend addition (agreed 2026-06-15):** `parentalPin: { enabled: boolean, pin: string | null } | null` on `UserDTO` — returned by `/auth/login`, `/auth/register/verify`, and `GET /users/me`. The parental gate reads it directly (`userDtoSchema` accepts it as `nullish`). It's content gating, not a credential, so the PIN is carried in cleartext over TLS and persisted client-side — see `rules/ARCHITECTURE.md → Parental control`.
 
 ### `GET /users/me` / `PATCH /users/me`
 
-Both return a **bare `UserDTO`** (no `{ user }` envelope). `PATCH` accepts `UpdateProfileRequestDTO`: `{ username?, city?, country?, gender?, educationLevel? }` — `email`/`birthDate` are not modifiable.
+Both return a **bare `UserDTO`** (no `{ user }` envelope). `PATCH` accepts `UpdateProfileRequestDTO`: `{ username?, city?, country?, gender?, educationLevel? }` — `email`/`birthDate` are not modifiable. **Profile edits are not wired in v1** (decision 2026-06-15); `PATCH` exists in the service but no screen calls it yet.
+
+**Cross-device profile sync (2026-06-15).** `GET /users/me` is the sync channel: `useMeQuery` (mounted once at root) refetches it on **app foreground**, **reconnect**, and a **5-min active-only poll**, mirroring the result into the store. A parental change made on one device reaches the others without sockets. Deliberately NOT bolted onto access-token refresh (the 401 interceptor runs on a hot path; a profile GET there would be wasteful). True real-time enforcement during playback belongs server-side (playback decision / heartbeat), not this advisory client sync.
+
+### `POST /users/me/change-password`
+
+Request `ChangePasswordRequestDTO`: `{ oldPassword, newPassword, logoutOtherDevices? }` (default `false`). Returns **fresh `{ accessToken, refreshToken }`** — this endpoint **ROTATES the refresh token** (unlike `/auth/refresh`), so the client rewrites the keychain copy + in-memory access token (`useChangePasswordMutation`). `logoutOtherDevices: true` also revokes the account's other sessions in the same call — so there is **no separate `logout-others` endpoint**. Errors carry stable `code`s (`auth.invalid_old_password`, `auth.password_unchanged`) mapped to copy via `authErrorMessage(err, _, codeMap)`.
+
+### Parental control (`/api/v1/parental`)
+
+The PIN is content gating, not a credential — it rides on `user.parentalPin = { enabled, pin }`, so **verification is a local compare** and toggles send **no `currentPin`** (re-entry is checked client-side before the call). `GET /parental` and `POST /parental/verify-pin` exist server-side but the client never calls them (it reads `user.parentalPin` and re-syncs via `GET /users/me`). Both write endpoints return **`204`**; the client mirrors the new state onto `user.parentalPin`.
+
+| Endpoint | Request | Response | Notes |
+|---|---|---|---|
+| `POST /parental` | `{ enabled: true, pin }` (4–6 digits) | `204` | First-time setup. `maxAllowedAge?` accepted but unused (age-rating gating is a playback-phase concern). Client mirrors `{ enabled: true, pin }` locally |
+| `PATCH /parental` | `{ enabled }` (and later `{ enabled, newPin }` for change-PIN) | `204` | Enable/disable toggle. **No `currentPin`** — disable verifies the PIN locally first. Mirrors `enabled` locally |
+| `GET /parental` | — | `{ enabled, pinSet, maxAllowedAge }` | **Unused** — client reads `user.parentalPin`; cross-device freshness via `GET /users/me` |
+| `POST /parental/verify-pin` | `{ pin }` | 200 = correct | **Unused** — verification is a local compare against `user.parentalPin.pin` |
+
+Forgot-PIN reset has no endpoint yet (deferred; email-OTP or account-password flow TBD). `POST /auth/logout` also takes `{ refreshToken, logoutOtherDevices? }` (default `false`).
 
 ## Request headers (every API call)
 

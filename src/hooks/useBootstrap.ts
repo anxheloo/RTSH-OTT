@@ -4,7 +4,9 @@ import { Appearance } from 'react-native';
 import { resolveColors } from '@/store/createThemeSlice';
 import { useAppStore } from '@/store/useAppStore';
 import { queryClient } from '@/api/client';
+import { setupFocusManager } from '@/api/focusManager';
 import { refreshAccessToken, setupAuthRefresh } from '@/api/mutations/authRefresh';
+import { useMeQuery } from '@/api/queries';
 import { initI18n } from '@/i18n';
 
 import { useAppState } from './useAppState';
@@ -29,6 +31,10 @@ export interface BootstrapState {
  *   3. Mount `useOTA` (exposes update state; runtime auto-checks on launch).
  *   3b. Mount `useDeviceIdentity` (stamps the static `X-Device-*` headers
  *      onto the api client once the keychain device ID resolves).
+ *   3c. Mount `useMeQuery` + wire `setupFocusManager` — cross-device profile
+ *      sync (refetch `/users/me` on foreground / reconnect / 5-min active poll,
+ *      mirrored into the store). Lets a parental change on one device reach the
+ *      others without sockets.
  *   4. Run boot auth check via `useCheckToken` (keychain-only — never blocks
  *      splash on the network).
  *   5. Kick off a background access-token refresh once the keychain check
@@ -45,6 +51,7 @@ const wireOnceAtBoot = (): void => {
   if (bootstrapWired) return;
   bootstrapWired = true;
   setupAuthRefresh();
+  setupFocusManager(); // AppState → TanStack focusManager, for refetchOnWindowFocus
   initI18n();
 };
 
@@ -53,6 +60,7 @@ export function useBootstrap(): BootstrapState {
 
   useNetworkMonitor();
   useDeviceIdentity();
+  useMeQuery(); // cross-device profile sync (foreground + reconnect + 5-min active poll)
   const ota = useOTA();
   const auth = useCheckToken();
 

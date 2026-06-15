@@ -1,7 +1,5 @@
 import { StateCreator } from 'zustand';
 
-import type { QualityId } from '@/types/domain';
-
 import type { AppStore } from './useAppStore';
 
 export type Locale = 'sq' | 'en';
@@ -16,8 +14,6 @@ export interface SettingsSlice {
   autoplayEnabled: boolean;
   dataSaverEnabled: boolean;
   hapticsEnabled: boolean;
-  /** Default ABR quality tier — applied when opening the player (store; active quality lives in PlayerSlice). */
-  defaultQuality: QualityId;
 
   // App preferences
   /** Whether push / in-app notifications are enabled (stub — no native wiring in v1). */
@@ -33,7 +29,6 @@ export interface SettingsSlice {
   setAutoplayEnabled: (v: boolean) => void;
   setDataSaverEnabled: (v: boolean) => void;
   setHapticsEnabled: (v: boolean) => void;
-  setDefaultQuality: (quality: QualityId) => void;
   setNotificationsEnabled: (v: boolean) => void;
 }
 
@@ -46,7 +41,6 @@ export const createSettingsSlice: StateCreator<AppStore, [], [], SettingsSlice> 
   autoplayEnabled: true,
   dataSaverEnabled: false,
   hapticsEnabled: true,
-  defaultQuality: 'auto',
   notificationsEnabled: true,
 
   updateSettingsSlice: (state) => set(state),
@@ -57,6 +51,5 @@ export const createSettingsSlice: StateCreator<AppStore, [], [], SettingsSlice> 
   setAutoplayEnabled: (autoplayEnabled) => set({ autoplayEnabled }),
   setDataSaverEnabled: (dataSaverEnabled) => set({ dataSaverEnabled }),
   setHapticsEnabled: (hapticsEnabled) => set({ hapticsEnabled }),
-  setDefaultQuality: (defaultQuality) => set({ defaultQuality }),
   setNotificationsEnabled: (notificationsEnabled) => set({ notificationsEnabled }),
 });

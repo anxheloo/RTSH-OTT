@@ -19,7 +19,7 @@ export interface PlayerSlice {
   radioArtworkUrl: string | null;
 
   // Video quality (selected in the quality sheet, read by the player). Session
-  // state, not persisted — seeded from `settings.defaultQuality` on player mount.
+  // state, not persisted — reset to `DEFAULT_QUALITY` (Auto) on each channel open.
   videoQuality: QualityId;
   /**
    * Rendition ids the active stream can be pinned to (runtime, not persisted).

@@ -19,8 +19,7 @@ import * as WebBrowser from 'expo-web-browser';
 import { BORDERRADIUS, FONTSIZE, SPACING } from '@/theme';
 import { useAppStore } from '@/store/useAppStore';
 import ReusableText from '@/components/Inputs/ReusableText';
-
-const TC_URL = 'https://www.rtsh.al/termat';
+import { LINKS } from '@/config/links';
 
 const TCGateOverlay: React.FC = () => {
   const { t } = useTranslation();
@@ -52,7 +51,7 @@ const TCGateOverlay: React.FC = () => {
           </ReusableText>
 
           <TouchableOpacity
-            onPress={() => WebBrowser.openBrowserAsync(TC_URL)}
+            onPress={() => WebBrowser.openBrowserAsync(LINKS.TERMS)}
             activeOpacity={0.7}
             testID="tc-read-full"
             style={styles.linkRow}

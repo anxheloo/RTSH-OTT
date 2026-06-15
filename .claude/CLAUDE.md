@@ -70,12 +70,12 @@ Expo Router file-based. Root `_layout.tsx` uses `Stack.Protected` guards:
 
 Single `useAppStore` composed from slices (see `src/store/`):
 - `UserSlice` — auth state, user, access token (access in store, refresh in keychain)
-- `SettingsSlice` — locale, theme mode, haptics, autoplay, data-saver, T&C timestamp, cellular/background-video flags, default ABR quality, notifications flag
+- `SettingsSlice` — locale, theme mode, haptics, autoplay, data-saver, T&C timestamp, cellular/background-video flags, notifications flag
 - `ThemeSlice` — mode + colors (light/dark objects, swapped on toggle)
 - `ModalSlice` — single active modal (`currentModal` + `modalData`, RTSH/SOLITAR style; apiError, noInternet, notify, confirmation, forceUpdate). One modal at a time; `updateModalSlice({ currentModal: null })` to close (`forceUpdate` is blocking and never closes).
 - `NetworkSlice` — runtime connectivity (`isOnline`, `connectionType`), written by `useNetworkMonitor`; not persisted
 - `PlayerSlice` — current playback state (channelId, position, isPlaying, isFullscreen)
-- `ParentalSlice` — PIN-set flag, failed attempts, lockout
+- `ParentalSlice` — failed attempts + lockout UX only (PIN config lives on `user.parentalPin`)
 
 Planned (not yet implemented): `ChannelsSlice` (favorites, recently watched) and `EpgSlice` (reminders) — favorites/recently-watched/reminders are not in the store today.
 
@@ -85,8 +85,8 @@ Persist via MMKV (`zustandStorage`). `partialize` controls what persists. `onReh
 
 | Data | Where |
 |------|-------|
-| Refresh token; parental PIN **verifier cache** | Keychain (`expo-secure-store`). PIN source of truth = **backend** (per-account); keychain mirrors a `SHA-256+salt` verifier for offline/fast local verify |
-| User, settings, theme, favorites, reminders | MMKV (Zustand persist) |
+| Refresh token | Keychain (`expo-secure-store`) |
+| User (incl. `parentalPin = { enabled, pin }`), settings, theme, favorites, reminders | MMKV (Zustand persist). Parental PIN source of truth = **backend** (per-account), carried on the user object; it's content gating, not a credential — see `rules/ARCHITECTURE.md → Parental control` |
 | Server data (channels, EPG, catch-up, programs) | TanStack Query cache (selective MMKV persist for slow-changing) |
 | Resume positions (per-program) | MMKV (separate key) |
 
@@ -178,12 +178,13 @@ Beyond the architecture scaffold, these features are spec-mandated for v1 — do
 - ~~**Mosaic view**~~ — **cut from v1 by user decision (2026-06-11, plan 22.14f)**; route + components removed.
 - **PIP + iOS background video** — `expo-video` config plugin toggled by `settings.backgroundVideoAllowed`. Auto-PIP on background per user setting.
 - **Ads** — three slots: launch, channel-switch (frequency-capped), time-scheduled (from `/config`). Single `AdOverlay` component (`components/Media/AdOverlay.tsx`, design `adpop`). **v1 creatives are static** (image / brand surface + copy + CTA + skip countdown); a second `expo-video` instance for video ads is a later capability. Component built in 22.15; slot orchestration is Phase 16.
-- **Quality picker** — manual ABR selection in player settings menu.
-- **Parental control** — 4-digit PIN, **per-account, backend source of truth** (KDF + salt + server lockout); keychain holds a `SHA-256+salt` verifier cache for offline/fast local verify. Gates adult-flagged content (channel/program `isAdult`); **disabling the gate requires entering the PIN**. Rationale + flow: `rules/ARCHITECTURE.md → Parental control`.
+- **Quality picker** — manual ABR selection in the player options sheet (per-session, player-only; no persisted default in Settings). Resets to Auto on each channel open.
+- **Parental control** — 4–6 digit PIN, **per-account, backend source of truth**, carried on the user object (`user.parentalPin = { enabled, pin }`) — content gating, not a credential, so verify is a local compare (no keychain/KDF). Gates adult-flagged content (channel/program `isAdult`) **only when `enabled`**. Setup (`POST /parental { enabled, pin }`) + enable/disable toggle (`PATCH /parental { enabled }`, local PIN verify before disable) are wired; change-PIN (same `PATCH` + `newPin`) / forgot-PIN are deferred. Cross-device changes propagate via `useMeQuery` (`GET /users/me`). Rationale + flow: `rules/ARCHITECTURE.md → Parental control`.
+- **Change password** — `POST /users/me/change-password` (Settings → Account screen). Rotates the refresh token → `useChangePasswordMutation` rewrites the keychain; `logoutOtherDevices` flag folds in "sign out everywhere else" (no separate endpoint).
 - **Background audio for radio** — `expo-audio` lock-screen controls + Android foreground service.
 
 ## Out of scope for v1
 
-- Cast (Chromecast / AirPlay) — stub button only.
+- Cast (Chromecast / AirPlay) — stub button only, on the player options sheet (removed from Settings).
 - Server-side ad insertion (SSAI) — client-side overlay only in v1.
 - Widevine / FairPlay / PlayReady — AES-128 HLS only (spec confirms).

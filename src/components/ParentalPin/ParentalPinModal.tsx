@@ -2,11 +2,11 @@
  * ParentalPinModal — full-screen gate for adult content (design `sParental`):
  * back header, a large lock icon, title + contextual subtitle, then the
  * `ParentalPinPad` (dots + keypad). Two modes:
- *   'verify' — enter PIN to unlock content.
- *   'set'    — enter a new 4-digit PIN (confirm on second entry).
+ *   'verify' — enter PIN to unlock content (local compare against `user.parentalPin.pin`).
+ *   'set'    — enter a new PIN (confirm on second entry) → `POST /parental`.
  *
- * Storage today is keychain (`SHA-256 + salt`). Per-account backend sync +
- * server-authoritative verify is plan 22.14b (keychain becomes a local cache).
+ * Content gating, not a credential (2026-06-15): the PIN rides on the user
+ * object (backend + persisted MMKV), so verify is local — no network per check.
  */
 import React, { useState } from 'react';
 import { Modal, StyleSheet, View } from 'react-native';
@@ -17,13 +17,10 @@ import { BORDERRADIUS } from '@/theme/borders';
 import { FONTSIZE } from '@/theme/fonts';
 import { SPACING } from '@/theme/spacing';
 import { useAppStore } from '@/store/useAppStore';
-import { setParentalPin, verifyParentalPin } from '@/api/services/users';
+import { useSetupParentalMutation } from '@/api/mutations';
 import { Icon, IconButton } from '@/components/Icons';
 import ReusableText from '@/components/Inputs/ReusableText';
-import { hashPin, verifyPin } from '@/utils/crypto';
 import { ChevronLeftIcon, LockIcon } from '@/assets/icons';
-import { PARENTAL_PIN_KEY } from '@/config/auth';
-import { getFromKeychain, storeOnKeychain } from '@/services/keychain';
 
 import ParentalPinPad from './ParentalPinPad';
 
@@ -45,7 +42,8 @@ const ParentalPinModal: React.FC<ParentalPinModalProps> = ({
   const insets = useSafeAreaInsets();
   const recordFailedAttempt = useAppStore((s) => s.recordFailedAttempt);
   const resetAttempts = useAppStore((s) => s.resetAttempts);
-  const setIsPinSet = useAppStore((s) => s.setIsPinSet);
+  const user = useAppStore((s) => s.user);
+  const { mutate: setupPin } = useSetupParentalMutation();
   const [isWrong, setIsWrong] = useState(false);
   const [confirmPin, setConfirmPin] = useState<string | null>(null);
   const [error, setError] = useState('');
@@ -62,32 +60,11 @@ const ParentalPinModal: React.FC<ParentalPinModalProps> = ({
     }
   };
 
-  /** Cache the verified PIN locally (keychain) for offline + fast live re-checks. */
-  const cachePinLocally = async (pin: string) => {
-    const { hash, salt } = await hashPin(pin);
-    await storeOnKeychain(PARENTAL_PIN_KEY, JSON.stringify({ hash, salt }));
-  };
+  // Verify is a local compare — the PIN rides on the user object, so live
+  // re-checks (every programme boundary) never hit the network.
+  const handleVerify = (pin: string) => settleVerify(pin === user?.parentalPin?.pin);
 
-  const handleVerify = async (pin: string) => {
-    // Fast/offline path: a local keychain cache exists on devices that have
-    // verified at least once.
-    const stored = await getFromKeychain(PARENTAL_PIN_KEY);
-    if (stored) {
-      const { hash, salt } = JSON.parse(stored) as { hash: string; salt: string };
-      settleVerify(await verifyPin(pin, hash, salt));
-      return;
-    }
-    // Fresh device (no cache): the backend is authoritative; cache on success.
-    try {
-      const valid = await verifyParentalPin(pin);
-      if (valid) await cachePinLocally(pin);
-      settleVerify(valid);
-    } catch {
-      setError(t('parental.error'));
-    }
-  };
-
-  const handleSet = async (pin: string) => {
+  const handleSet = (pin: string) => {
     if (confirmPin === null) {
       setConfirmPin(pin);
       setError('');
@@ -100,18 +77,20 @@ const ParentalPinModal: React.FC<ParentalPinModalProps> = ({
       setTimeout(() => setIsWrong(false), 600);
       return;
     }
-    try {
-      // Backend is the source of truth (per-account); keychain mirrors it locally.
-      await setParentalPin(pin);
-      await cachePinLocally(pin);
-      setIsPinSet(true);
-      setConfirmPin(null);
-      setError('');
-      onSuccess();
-    } catch {
-      setConfirmPin(null);
-      setError(t('parental.error'));
-    }
+    // The mutation persists (`POST /parental`) and mirrors `{ enabled, pin }`
+    // onto the user object in its `onSuccess` (single source of truth), so the
+    // gate is active immediately and survives reload (MMKV-persisted user).
+    setupPin(pin, {
+      onSuccess: () => {
+        setConfirmPin(null);
+        setError('');
+        onSuccess();
+      },
+      onError: () => {
+        setConfirmPin(null);
+        setError(t('parental.error'));
+      },
+    });
   };
 
   const subtitle =

@@ -15,10 +15,10 @@
  *     unlocked, and a dismissed one stays blocked (no modal) until the next
  *     programme or an explicit `requestUnlock()`.
  *
- * Verification reuses the keychain PIN cache (22.14b) through `ParentalPinModal`,
- * so there's no network round-trip on each boundary. Binary `isAdult` for v1
- * (age tiers later). Returns a stable shape; the screen pauses playback while
- * `isBlocked` and renders the modal while `showPrompt`.
+ * Verification is a local compare against `user.parentalPin.pin` through
+ * `ParentalPinModal`, so there's no network round-trip on each boundary. Binary
+ * `isAdult` for v1 (age tiers later). Returns a stable shape; the screen pauses
+ * playback while `isBlocked` and renders the modal while `showPrompt`.
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 

@@ -62,9 +62,13 @@ export async function refresh(refreshToken: string): Promise<{ accessToken: stri
   return refreshResponseSchema.parse(data);
 }
 
-/** Revokes this session's refresh token server-side. Local wipe is the caller's job. */
-export async function logout(refreshToken: string): Promise<void> {
-  await apiClient.post(AUTH_ROUTES.LOGOUT, { refreshToken });
+/**
+ * Revokes this session's refresh token server-side. Local wipe is the caller's
+ * job. `logoutOtherDevices` (default false) also kills the account's other
+ * sessions in the same call — a "log out everywhere" affordance.
+ */
+export async function logout(refreshToken: string, logoutOtherDevices = false): Promise<void> {
+  await apiClient.post(AUTH_ROUTES.LOGOUT, { refreshToken, logoutOtherDevices });
 }
 
 /* ----------------------------- Registration ------------------------------- */

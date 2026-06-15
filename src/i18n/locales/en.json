@@ -68,7 +68,9 @@
       "birthday_invalid": "Enter a valid date (YYYY-MM-DD)",
       "city_required": "City is required",
       "country_required": "Country is required",
-      "otp_length": "Enter the 6-digit code"
+      "otp_length": "Enter the 6-digit code",
+      "password_required": "Enter your current password",
+      "password_unchanged": "New password must differ from the current one"
     },
     "otp": {
       "sent": "Enter the {{length}}-digit code sent to {{email}}",
@@ -179,13 +181,24 @@
     "title": "Settings",
     "section_playback": "PLAYBACK",
     "section_app": "APPLICATION",
+    "section_account": "ACCOUNT",
+    "change_password": {
+      "title": "Change password",
+      "subtitle": "Update your account password",
+      "current_placeholder": "Current password",
+      "new_placeholder": "New password",
+      "confirm_placeholder": "Confirm new password",
+      "logout_others": {
+        "title": "Log out other devices",
+        "subtitle": "Sign out everywhere else after changing"
+      },
+      "submit": "Update password",
+      "success": "Your password has been changed.",
+      "old_incorrect": "Your current password is incorrect."
+    },
     "cellular": {
       "title": "Cellular data",
       "subtitle": "Allow streaming without WiFi"
-    },
-    "quality": {
-      "title": "Default quality",
-      "subtitle_auto": "Auto (ABR)"
     },
     "parental": {
       "title": "Parental controls",
@@ -202,10 +215,6 @@
     "notifications": {
       "title": "Notifications",
       "subtitle": "Premieres & news"
-    },
-    "cast": {
-      "title": "Cast",
-      "subtitle": "To TV or device"
     },
     "terms": {
       "title": "Terms of use"

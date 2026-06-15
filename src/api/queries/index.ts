@@ -1,3 +1,6 @@
+// Profile (cross-device sync)
+export { useMeQuery } from './useMeQuery';
+
 // Channels
 export { useChannelQuery, useChannelsQuery } from './useChannelsQuery';
 

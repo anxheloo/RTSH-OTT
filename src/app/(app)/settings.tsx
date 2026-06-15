@@ -1,9 +1,11 @@
 /**
- * Settings — design screen 10 (`sSettings`). Two grouped sections of
- * `ListRow`s: "Luajtja" (playback — cellular toggle, default-quality sheet,
- * parental toggle) and "Aplikacioni" (language sheet, notifications toggle,
- * cast stub, terms link, theme sheet, version). Toggles write `SettingsSlice`;
- * the parental toggle gates on the keychain PIN. Opened from Profile.
+ * Settings — design screen 10 (`sSettings`). Grouped sections of `ListRow`s:
+ * "Luajtja" (playback — cellular toggle, parental toggle), "Aplikacioni"
+ * (language sheet, notifications toggle, terms link, theme sheet, version), and
+ * "Llogaria" (change password). Toggles write `SettingsSlice`; the parental
+ * toggle drives `POST`/`PATCH /parental` and mirrors `user.parentalPin.enabled`
+ * (verify-then-disable). Opened from Profile. (Quality is player-only — picked
+ * per session in the player options sheet; cast lives on the player too.)
  */
 import React, { useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
@@ -17,7 +19,7 @@ import { BORDERRADIUS } from '@/theme/borders';
 import { FONTSIZE } from '@/theme/fonts';
 import { SCREEN_PADDING, SPACING } from '@/theme/spacing';
 import { useAppStore } from '@/store/useAppStore';
-import { clearParentalPin } from '@/api/services/users';
+import { useUpdateParentalMutation } from '@/api/mutations';
 import { Icon, IconButton } from '@/components/Icons';
 import { Switch } from '@/components/Inputs';
 import ReusableText from '@/components/Inputs/ReusableText';
@@ -25,20 +27,16 @@ import { ListRow, ScreenLayout, TabHeader } from '@/components/Layout';
 import { ParentalPinModal } from '@/components/ParentalPin';
 import {
   BellIcon,
-  CastIcon,
   ChevronLeftIcon,
   DocIcon,
   InfoIcon,
+  KeyIcon,
   LanguageIcon,
   LayersIcon,
-  QualityIcon,
   ShieldIcon,
   WifiIcon,
 } from '@/assets/icons';
-import { PARENTAL_PIN_KEY } from '@/config/auth';
 import { LINKS } from '@/config/links';
-import { QUALITY_OPTIONS } from '@/constants/player';
-import { removeFromKeychain } from '@/services/keychain';
 
 const SettingsScreen: React.FC = () => {
   const { t } = useTranslation();
@@ -46,35 +44,44 @@ const SettingsScreen: React.FC = () => {
 
   const cellularPlaybackAllowed = useAppStore((s) => s.cellularPlaybackAllowed);
   const setCellularPlaybackAllowed = useAppStore((s) => s.setCellularPlaybackAllowed);
-  const defaultQuality = useAppStore((s) => s.defaultQuality);
   const notificationsEnabled = useAppStore((s) => s.notificationsEnabled);
   const setNotificationsEnabled = useAppStore((s) => s.setNotificationsEnabled);
   const locale = useAppStore((s) => s.locale);
   const mode = useAppStore((s) => s.mode);
-  const isPinSet = useAppStore((s) => s.isPinSet);
-  const clearPin = useAppStore((s) => s.clearPin);
+  const parentalEnabled = useAppStore((s) => !!s.user?.parentalPin?.enabled);
+  const hasPin = useAppStore((s) => !!s.user?.parentalPin?.pin);
+  const updateModalSlice = useAppStore((s) => s.updateModalSlice);
 
-  // null = closed · 'set' = create a PIN · 'verify' = confirm PIN before disabling.
-  const [pinMode, setPinMode] = useState<'set' | 'verify' | null>(null);
+  // The mutation owns the PATCH + the store mirror (onSuccess); the component
+  // only decides intent + surfaces failures.
+  const { mutate: updateParental } = useUpdateParentalMutation();
+  const onParentalError = () => updateModalSlice({ currentModal: 'apiError', modalData: {} });
 
-  const qualityLabel =
-    defaultQuality === 'auto'
-      ? t('settings.quality.subtitle_auto')
-      : (QUALITY_OPTIONS.find((q) => q.id === defaultQuality)?.label ?? defaultQuality);
+  // null = closed · 'set' = create first PIN · 'disable' = verify PIN before turning off.
+  const [pinMode, setPinMode] = useState<'set' | 'disable' | null>(null);
 
-  // Turning the gate ON → set a PIN. Turning it OFF → require the PIN first, so a
-  // child can't simply flip the switch to bypass the control.
-  const handleParentalToggle = (next: boolean) => setPinMode(next ? 'set' : 'verify');
-
-  const handlePinSuccess = async () => {
-    if (pinMode === 'verify') {
-      // PIN confirmed → tear down. Backend is source of truth; also drop the
-      // local keychain cache so the gate can't be re-verified offline.
-      await clearParentalPin();
-      await removeFromKeychain(PARENTAL_PIN_KEY);
-      clearPin();
+  // Toggle semantics:
+  //   OFF→ON, no PIN yet  → 'set' (first-time create, POST /parental via the modal)
+  //   OFF→ON, PIN exists  → re-enable directly (PATCH, no re-entry — turning protection ON is safe)
+  //   ON→OFF              → verify PIN locally first, then disable (PATCH) — removing the gate is sensitive
+  const handleToggleParental = () => {
+    if (!parentalEnabled) {
+      if (!hasPin) {
+        setPinMode('set');
+        return;
+      }
+      updateParental({ enabled: true }, { onError: onParentalError });
+    } else {
+      setPinMode('disable');
     }
-    // 'set' marks isPinSet inside the modal itself; nothing more to do here.
+  };
+
+  // Modal resolved successfully: 'set' persists + mirrors inside the modal;
+  // 'disable' verified the PIN locally → now persist the disable.
+  const handlePinSuccess = () => {
+    if (pinMode === 'disable') {
+      updateParental({ enabled: false }, { onError: onParentalError });
+    }
     setPinMode(null);
   };
 
@@ -117,30 +124,43 @@ const SettingsScreen: React.FC = () => {
             testID="settings-cellular-row"
           />
           <ListRow
-            title={t('settings.quality.title')}
-            subtitle={qualityLabel}
-            leading={<Icon as={QualityIcon} size={20} color={colors.text} />}
-            onPress={() => router.push('/(app)/quality?target=default')}
-            testID="settings-quality-row"
-          />
-          <ListRow
             title={t('settings.parental.title')}
             subtitle={
-              isPinSet
+              parentalEnabled
                 ? t('settings.parental.subtitle_active')
                 : t('settings.parental.subtitle_inactive')
             }
             leading={<Icon as={ShieldIcon} size={20} color={colors.text} />}
-            onPress={() => handleParentalToggle(!isPinSet)}
+            onPress={handleToggleParental}
             right={
               <Switch
-                value={isPinSet}
-                onValueChange={handleParentalToggle}
+                value={parentalEnabled}
+                onValueChange={handleToggleParental}
                 testID="settings-parental-switch"
               />
             }
             showDivider={false}
             testID="settings-parental-row"
+          />
+        </View>
+
+        {/* Account */}
+        <ReusableText
+          fontSize={FONTSIZE.sm}
+          fontWeight="semiBold"
+          themeColor="textMuted"
+          style={styles.sectionLabel}
+        >
+          {t('settings.section_account')}
+        </ReusableText>
+        <View style={[styles.card, { backgroundColor: colors.surface }]}>
+          <ListRow
+            title={t('settings.change_password.title')}
+            subtitle={t('settings.change_password.subtitle')}
+            leading={<Icon as={KeyIcon} size={20} color={colors.text} />}
+            onPress={() => router.push('/(app)/change-password')}
+            showDivider={false}
+            testID="settings-change-password-row"
           />
         </View>
 
@@ -175,13 +195,6 @@ const SettingsScreen: React.FC = () => {
             testID="settings-notifications-row"
           />
           <ListRow
-            title={t('settings.cast.title')}
-            subtitle={t('settings.cast.subtitle')}
-            leading={<Icon as={CastIcon} size={20} color={colors.text} />}
-            right={<Switch value={false} onValueChange={() => {}} isDisabled testID="settings-cast-switch" />}
-            testID="settings-cast-row"
-          />
-          <ListRow
             title={t('settings.theme.title')}
             subtitle={t(`settings.theme.${mode}`)}
             leading={<Icon as={LayersIcon} size={20} color={colors.text} />}
@@ -206,7 +219,7 @@ const SettingsScreen: React.FC = () => {
 
       <ParentalPinModal
         visible={pinMode !== null}
-        mode={pinMode ?? 'set'}
+        mode={pinMode === 'set' ? 'set' : 'verify'}
         onSuccess={handlePinSuccess}
         onDismiss={() => setPinMode(null)}
       />

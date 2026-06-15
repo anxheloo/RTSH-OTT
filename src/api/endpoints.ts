@@ -25,12 +25,20 @@ export const AUTH_ROUTES = {
 export const USERS_ROUTES = {
   ME: '/users/me',
   UPDATE_PROFILE: '/users/me',
+  /**
+   * Change own password; returns FRESH tokens (refresh rotates here). The
+   * optional `logoutOtherDevices` flag also kills other sessions in the same
+   * call — so there's no separate logout-others endpoint.
+   */
+  CHANGE_PASSWORD: '/users/me/change-password',
   /** Idempotent upsert of this device for the logged-in account (PUT, bare `DeviceInfoDTO` body). */
   DEVICE: '/users/me/device',
-  /** Per-account parental PIN — set (POST) / clear (DELETE). */
-  PARENTAL_PIN: '/users/parental-pin',
-  /** Verify an entered PIN against the backend (POST). */
-  PARENTAL_PIN_VERIFY: '/users/parental-pin/verify',
+  /**
+   * Per-account parental control. `POST` = first-time setup ({ enabled, pin });
+   * `PATCH` = enable/disable (and later change-PIN via `newPin`). Verification
+   * is local against `user.parentalPin.pin`, so there's no `GET`/`verify-pin`.
+   */
+  PARENTAL: '/parental',
 } as const;
 
 export const CHANNELS_ROUTES = {

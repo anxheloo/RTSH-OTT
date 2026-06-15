@@ -20,12 +20,7 @@ import { mockChannels } from './fixtures/channels';
 import { getMockAppVersion, mockAppConfig } from './fixtures/config';
 import { getMockEpg } from './fixtures/epg';
 import { mockHeroes } from './fixtures/home';
-import {
-  clearMockParentalPin,
-  isMockParentalPinSet,
-  setMockParentalPin,
-  verifyMockParentalPin,
-} from './fixtures/parental';
+import { getMockParental, setMockParentalPin, updateMockParental } from './fixtures/parental';
 import { mockRadioStations } from './fixtures/radio';
 import { buildMockStreamManifest } from './fixtures/streams';
 
@@ -51,10 +46,10 @@ function parseBody<T>(data: unknown): T {
 }
 
 /**
- * Stamps the live `parentalPinSet` flag (from the parental mock) onto any user
- * payload so the client can hydrate `isPinSet` on login / profile fetch (22.14b).
+ * Stamps the live `parentalPin` config (from the parental mock) onto any user
+ * payload so the client's gate stays in sync on login / profile fetch.
  */
-const userWithPin = () => ({ ...mockUserDto, parentalPinSet: isMockParentalPinSet() });
+const userWithPin = () => ({ ...mockUserDto, parentalPin: getMockParental() });
 
 export const handlers: Handler[] = [
   // ── Auth ──────────────────────────────────────────────────────────────────
@@ -124,6 +119,14 @@ export const handlers: Handler[] = [
   },
 
   // ── Users (bare `UserDTO` responses — no envelope) ─────────────────────────
+  // Change password ROTATES the refresh token → returns a FRESH pair (the
+  // client rewrites the keychain). Matched before the bare `/users/me` routes.
+  {
+    method: 'post',
+    test: (u) => u.endsWith('/users/me/change-password'),
+    delay: 300,
+    respond: () => ({ data: { ...mockTokens } }),
+  },
   {
     method: 'get',
     test: (u) => u.endsWith('/users/me'),
@@ -135,32 +138,27 @@ export const handlers: Handler[] = [
     respond: (cfg) => ({ data: { ...userWithPin(), ...parseBody<object>(cfg.data) } }),
   },
 
-  // ── Parental PIN (per-account; backend is source of truth — plan 22.14b) ────
+  // ── Parental control (per-account; PIN rides on the user object) ────────────
+  // POST = first-time setup, PATCH = enable/disable (+ future change-PIN). Both
+  // return 204; the client mirrors the new state onto `user.parentalPin` and a
+  // later `GET /users/me` reflects it (cross-device sync).
   {
     method: 'post',
-    test: (u) => u.endsWith('/users/parental-pin/verify'),
+    test: (u) => u.endsWith('/parental'),
     delay: 300,
     respond: (cfg) => {
-      const { pin } = parseBody<{ pin?: string }>(cfg.data);
-      return { data: { valid: verifyMockParentalPin(pin) } };
-    },
-  },
-  {
-    method: 'post',
-    test: (u) => u.endsWith('/users/parental-pin'),
-    delay: 300,
-    respond: (cfg) => {
-      const { pin } = parseBody<{ pin?: string }>(cfg.data);
+      const { pin } = parseBody<{ enabled?: boolean; pin?: string }>(cfg.data);
       setMockParentalPin(pin);
-      return { data: { success: true } };
+      return { status: 204, data: {} };
     },
   },
   {
-    method: 'delete',
-    test: (u) => u.endsWith('/users/parental-pin'),
-    respond: () => {
-      clearMockParentalPin();
-      return { data: { success: true } };
+    method: 'patch',
+    test: (u) => u.endsWith('/parental'),
+    delay: 300,
+    respond: (cfg) => {
+      updateMockParental(parseBody<{ enabled?: boolean; newPin?: string }>(cfg.data));
+      return { status: 204, data: {} };
     },
   },
 

@@ -26,7 +26,7 @@ const ProfileScreen: React.FC = () => {
   const colors = useAppStore((s) => s.colors);
   const tabBarHeight = useTabBarHeight();
   const user = useAppStore((s) => s.user);
-  const isPinSet = useAppStore((s) => s.isPinSet);
+  const parentalEnabled = useAppStore((s) => !!s.user?.parentalPin?.enabled);
   const updateModalSlice = useAppStore((s) => s.updateModalSlice);
   const { mutate: logout } = useLogoutMutation();
 
@@ -112,7 +112,7 @@ const ProfileScreen: React.FC = () => {
           />
           <ListRow
             title={t('profile.parental.title')}
-            subtitle={isPinSet
+            subtitle={parentalEnabled
               ? t('profile.parental.subtitle_active')
               : t('profile.parental.subtitle_inactive')}
             leading={<Icon as={ShieldIcon} size={20} color={colors.text} />}

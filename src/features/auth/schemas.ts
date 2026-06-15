@@ -82,3 +82,28 @@ export const resetPasswordSchema = z
     path: ['confirmPassword'],
   });
 export type ResetPasswordData = z.infer<typeof resetPasswordSchema>;
+
+/* --------------------- Change password (authenticated) --------------------- *
+ * `POST /users/me/change-password`. `oldPassword` is verified server-side;
+ * `logoutOtherDevices` optionally kills other sessions in the same call.
+ * --------------------------------------------------------------------------- */
+
+export const changePasswordSchema = z
+  .object({
+    oldPassword: z.string().min(1, { error: 'auth.errors.password_required' }),
+    newPassword: z
+      .string()
+      .min(8, { error: 'auth.errors.password_min' })
+      .max(30, { error: 'auth.errors.password_max' }),
+    confirmPassword: z.string(),
+    logoutOtherDevices: z.boolean(),
+  })
+  .refine((d) => d.newPassword === d.confirmPassword, {
+    error: 'auth.errors.password_match',
+    path: ['confirmPassword'],
+  })
+  .refine((d) => d.newPassword !== d.oldPassword, {
+    error: 'auth.errors.password_unchanged',
+    path: ['newPassword'],
+  });
+export type ChangePasswordFormData = z.infer<typeof changePasswordSchema>;

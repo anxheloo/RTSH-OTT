@@ -21,15 +21,26 @@ export interface User {
   age?: number;
   location?: string;
   gender?: 'male' | 'female' | 'other' | 'unspecified';
+  /** Highest completed education level (register `educationLevel`, optional). */
+  educationLevel?: 'high' | 'medium' | 'low';
   avatarUrl?: string;
   /** Active package + entitlement (design profile badge "Paketa Bazë · 32 kanale"). */
   subscription?: Subscription;
   /**
-   * Whether a per-account parental PIN exists on the backend (source of truth).
-   * Hydrates `ParentalSlice.isPinSet` on login so a fresh device knows to gate.
-   * The PIN itself is never sent down — only this flag. See plan 22.14b.
+   * Per-account parental gate. Content gating, not a credential, so by product
+   * decision (2026-06-15) the raw PIN rides on the user object (backend + local
+   * MMKV) — `enabled` drives whether adult content is gated and verification is
+   * a local compare against `pin`. Absent until the user sets one. See
+   * `rules/ARCHITECTURE.md → Parental control`.
    */
-  parentalPinSet?: boolean;
+  parentalPin?: ParentalPin;
+}
+
+/** Per-account parental control config (returned on the user object). */
+export interface ParentalPin {
+  enabled: boolean;
+  /** `null` when the gate is enabled but no PIN has been set yet. */
+  pin: string | null;
 }
 
 /** A user's package entitlement (design profile/settings badge). */
@@ -208,6 +219,12 @@ export type GenderDto = keyof typeof GENDER_FROM_DTO;
 export const toGenderDto = (gender: User['gender'] & string): GenderDto =>
   gender.toUpperCase() as GenderDto;
 
+const EDUCATION_FROM_DTO = {
+  HIGH: 'high',
+  MEDIUM: 'medium',
+  LOW: 'low',
+} as const;
+
 const ageFromBirthDate = (birthDate?: string | null): number | undefined => {
   if (!birthDate) return undefined;
   const born = new Date(birthDate);
@@ -223,8 +240,8 @@ const ageFromBirthDate = (birthDate?: string | null): number | undefined => {
  * Backend `UserDTO` → domain `User`. `id` may arrive as int64 → stringified;
  * `displayName` falls back to `username` (no display-name field on the wire);
  * `birthDate` / `city` + `country` are derived into the profile screen's
- * `age` / `location`. `parentalPinSet` is a pending backend addition (the
- * parental gate hydrates from it) — optional until it lands.
+ * `age` / `location`. `parentalPin` (`{ enabled, pin }`) rides on the user
+ * object — content gating, not a credential (2026-06-15) — optional until set.
  */
 export const userDtoSchema = z
   .looseObject({
@@ -237,7 +254,7 @@ export const userDtoSchema = z
     gender: z.enum(['MALE', 'FEMALE', 'OTHER', 'UNSPECIFIED']).nullish(),
     educationLevel: z.enum(['HIGH', 'MEDIUM', 'LOW']).nullish(),
     avatarUrl: z.string().nullish(),
-    parentalPinSet: z.boolean().optional(),
+    parentalPin: z.object({ enabled: z.boolean(), pin: z.string().nullable() }).nullish(),
   })
   .transform(
     (dto): User => ({
@@ -248,10 +265,23 @@ export const userDtoSchema = z
       age: ageFromBirthDate(dto.birthDate),
       location: [dto.city, dto.country].filter(Boolean).join(', ') || undefined,
       gender: dto.gender ? GENDER_FROM_DTO[dto.gender] : undefined,
+      educationLevel: dto.educationLevel ? EDUCATION_FROM_DTO[dto.educationLevel] : undefined,
       avatarUrl: dto.avatarUrl ?? undefined,
-      parentalPinSet: dto.parentalPinSet,
+      parentalPin: dto.parentalPin ?? undefined,
     }),
   );
+
+/**
+ * Token-pair response from the endpoints that ROTATE the refresh token
+ * (`POST /users/me/change-password`). Unlike `/auth/refresh`, these return a
+ * fresh refresh token too, so the caller must rewrite the keychain copy.
+ */
+export const tokenPairSchema = z.object({
+  accessToken: z.string().min(1),
+  refreshToken: z.string().min(1),
+});
+
+export type TokenPair = z.infer<typeof tokenPairSchema>;
 
 /** Login + register-verify payload. Validated before any token touches the keychain. */
 export const authResponseSchema = z.object({

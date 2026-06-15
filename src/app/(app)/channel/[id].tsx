@@ -32,6 +32,7 @@ import { ParentalPinModal } from '@/components/ParentalPin';
 import { availableQualityIds, resolveStreamSource } from '@/utils';
 import type { CatchupDay, EpgItem } from '@/types/domain';
 import { ChevronLeftIcon, GlobeIcon, LockIcon } from '@/assets/icons';
+import { DEFAULT_QUALITY } from '@/constants/player';
 
 const CATCHUP_DAYS_BACK = 7;
 
@@ -60,18 +61,17 @@ const ChannelScreen: React.FC = () => {
   // gated content for a frame.
   const mediaPending = streamLoading || channelLoading;
 
-  // Quality: `videoQuality` is the active (session) pick; on mount we seed it from
-  // the persisted `defaultQuality` preference (closes plan gap 1). The resolver
-  // maps it + the manifest to the URL to play; `auto` prefers the master (native
-  // ABR) and degrades gracefully to a single source.
+  // Quality: `videoQuality` is the active (session) pick; on each channel open we
+  // reset it to Auto so a manual pin from a prior channel doesn't carry over. The
+  // resolver maps it + the manifest to the URL to play; `auto` prefers the master
+  // (native ABR) and degrades gracefully to a single source.
   const videoQuality = useAppStore((s) => s.videoQuality);
-  const defaultQuality = useAppStore((s) => s.defaultQuality);
   const setVideoQuality = useAppStore((s) => s.setVideoQuality);
   const setAvailableQualities = useAppStore((s) => s.setAvailableQualities);
 
   useEffect(() => {
-    setVideoQuality(defaultQuality);
-    // Seed once per channel open; intentionally not reacting to defaultQuality changes mid-watch.
+    setVideoQuality(DEFAULT_QUALITY);
+    // Reset once per channel open; intentionally not reacting to quality changes mid-watch.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [channelId]);
 
@@ -93,13 +93,16 @@ const ChannelScreen: React.FC = () => {
   // re-check is 22.14c. `geoBlocked` keys on the channel flag today; real
   // trigger is the streams/CDN geo error (451 / GEO_BLOCKED) — see plan 15.2.
   const geoBlocked = !!channel?.geoBlocked;
-  const needsPin = !!channel?.isAdult && !pinUnlocked;
+  // Gating only applies when the account has parental control enabled — a parent
+  // who never set a PIN sees adult content ungated (their choice).
+  const parentalEnabled = useAppStore((s) => !!s.user?.parentalPin?.enabled);
+  const needsPin = parentalEnabled && !!channel?.isAdult && !pinUnlocked;
 
   // Live program-level re-check (22.14c). Only for *clean* channels — an
   // adult-flagged channel is already covered by the channel-level gate above,
   // so we disable the live guard there to avoid double-prompting.
   const live = useLiveParentalGuard(channelId, {
-    enabled: !channel?.isAdult && !geoBlocked,
+    enabled: parentalEnabled && !channel?.isAdult && !geoBlocked,
   });
   const blockPlayer = needsPin || live.isBlocked;
   // Blocked mid-watch and the user dismissed the prompt → keep the player
