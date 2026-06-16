@@ -56,8 +56,6 @@ const AuthScreen: React.FC<AuthScreenProps> = ({
   );
 };
 
-export default AuthScreen;
-
 const styles = StyleSheet.create({
   flex: {
     flex: 1,
@@ -69,3 +67,5 @@ const styles = StyleSheet.create({
     paddingBottom: SPACING.space_40,
   },
 });
+
+export default AuthScreen;

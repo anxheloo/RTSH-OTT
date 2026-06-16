@@ -179,8 +179,6 @@ const AdOverlay: React.FC<AdOverlayProps> = ({
   );
 };
 
-export default AdOverlay;
-
 const styles = StyleSheet.create({
   scrim: {
     flex: 1,
@@ -273,3 +271,5 @@ const styles = StyleSheet.create({
     borderColor: '#EB122F',
   },
 });
+
+export default AdOverlay;

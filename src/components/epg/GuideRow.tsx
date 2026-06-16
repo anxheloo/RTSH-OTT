@@ -84,8 +84,6 @@ const GuideRow: React.FC<GuideRowProps> = ({
   );
 };
 
-export default GuideRow;
-
 const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
@@ -123,3 +121,5 @@ const styles = StyleSheet.create({
     flexShrink: 0,
   },
 });
+
+export default GuideRow;

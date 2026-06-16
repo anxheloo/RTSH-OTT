@@ -20,7 +20,6 @@ import { mockChannels } from './fixtures/channels';
 import { getMockAppVersion, mockAppConfig } from './fixtures/config';
 import { getMockEpg } from './fixtures/epg';
 import { mockHeroes } from './fixtures/home';
-import { getMockParental, setMockParentalPin, updateMockParental } from './fixtures/parental';
 import { mockRadioStations } from './fixtures/radio';
 import { buildMockStreamManifest } from './fixtures/streams';
 
@@ -45,18 +44,12 @@ function parseBody<T>(data: unknown): T {
   return (data ?? {}) as T;
 }
 
-/**
- * Stamps the live `parentalPin` config (from the parental mock) onto any user
- * payload so the client's gate stays in sync on login / profile fetch.
- */
-const userWithPin = () => ({ ...mockUserDto, parentalPin: getMockParental() });
-
 export const handlers: Handler[] = [
   // ── Auth ──────────────────────────────────────────────────────────────────
   {
     method: 'post',
     test: (u) => u.endsWith('/auth/login'),
-    respond: () => ({ data: { ...mockTokens, user: userWithPin() } }),
+    respond: () => ({ data: { ...mockTokens, user: mockUserDto } }),
   },
   {
     // Wire shape mirrors `RefreshTokenResponseDTO` — the client only reads
@@ -130,37 +123,15 @@ export const handlers: Handler[] = [
   {
     method: 'get',
     test: (u) => u.endsWith('/users/me'),
-    respond: () => ({ data: userWithPin() }),
+    respond: () => ({ data: mockUserDto }),
   },
   {
     method: 'patch',
     test: (u) => u.endsWith('/users/me'),
-    respond: (cfg) => ({ data: { ...userWithPin(), ...parseBody<object>(cfg.data) } }),
+    respond: (cfg) => ({ data: { ...mockUserDto, ...parseBody<object>(cfg.data) } }),
   },
 
-  // ── Parental control (per-account; PIN rides on the user object) ────────────
-  // POST = first-time setup, PATCH = enable/disable (+ future change-PIN). Both
-  // return 204; the client mirrors the new state onto `user.parentalPin` and a
-  // later `GET /users/me` reflects it (cross-device sync).
-  {
-    method: 'post',
-    test: (u) => u.endsWith('/parental'),
-    delay: 300,
-    respond: (cfg) => {
-      const { pin } = parseBody<{ enabled?: boolean; pin?: string }>(cfg.data);
-      setMockParentalPin(pin);
-      return { status: 204, data: {} };
-    },
-  },
-  {
-    method: 'patch',
-    test: (u) => u.endsWith('/parental'),
-    delay: 300,
-    respond: (cfg) => {
-      updateMockParental(parseBody<{ enabled?: boolean; newPin?: string }>(cfg.data));
-      return { status: 204, data: {} };
-    },
-  },
+  // Parental control is device-level (client-only, 2026-06-16) — no endpoints.
 
   // ── Home feed ──────────────────────────────────────────────────────────────
   // Data routes carry realistic latencies so loading states (skeletons) are

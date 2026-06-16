@@ -39,8 +39,6 @@ const SectionHeader: React.FC<SectionHeaderProps> = ({
   </View>
 );
 
-export default SectionHeader;
-
 const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
@@ -51,3 +49,5 @@ const styles = StyleSheet.create({
     paddingBottom: SPACING.space_10,
   },
 });
+
+export default SectionHeader;

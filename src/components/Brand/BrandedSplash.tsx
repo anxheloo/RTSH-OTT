@@ -78,8 +78,6 @@ const BrandedSplash: React.FC<BrandedSplashProps> = ({ onLayout, isComplete, onC
   );
 };
 
-export default BrandedSplash;
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -104,3 +102,5 @@ const styles = StyleSheet.create({
     backgroundColor: BRAND_RED,
   },
 });
+
+export default BrandedSplash;

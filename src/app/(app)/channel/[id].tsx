@@ -93,9 +93,9 @@ const ChannelScreen: React.FC = () => {
   // re-check is 22.14c. `geoBlocked` keys on the channel flag today; real
   // trigger is the streams/CDN geo error (451 / GEO_BLOCKED) — see plan 15.2.
   const geoBlocked = !!channel?.geoBlocked;
-  // Gating only applies when the account has parental control enabled — a parent
-  // who never set a PIN sees adult content ungated (their choice).
-  const parentalEnabled = useAppStore((s) => !!s.user?.parentalPin?.enabled);
+  // Gating only applies when device parental control is enabled — a user who
+  // never set a PIN sees adult content ungated (their choice).
+  const parentalEnabled = useAppStore((s) => s.parentalEnabled);
   const needsPin = parentalEnabled && !!channel?.isAdult && !pinUnlocked;
 
   // Live program-level re-check (22.14c). Only for *clean* channels — an
@@ -273,8 +273,6 @@ const ChannelScreen: React.FC = () => {
   );
 };
 
-export default ChannelScreen;
-
 const styles = StyleSheet.create({
   fullscreen: {
     flex: 1,
@@ -301,3 +299,5 @@ const styles = StyleSheet.create({
     paddingBottom: SPACING.space_4,
   },
 });
+
+export default ChannelScreen;

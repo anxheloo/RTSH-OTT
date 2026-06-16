@@ -147,8 +147,6 @@ const ReusableBtn: React.FC<ReusableBtnProps> = ({
   );
 };
 
-export default ReusableBtn;
-
 const styles = StyleSheet.create({
   base: {
     flexDirection: 'row',
@@ -168,3 +166,5 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
 });
+
+export default ReusableBtn;

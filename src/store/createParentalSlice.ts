@@ -1,7 +1,13 @@
 /**
- * ParentalSlice — client-only UX state for the parental gate: failed-attempt
- * count + lockout timestamp. Whether a PIN exists (and the PIN itself) lives on
- * `user.parentalPin` (see `createUserSlice`), so this slice holds no PIN data.
+ * ParentalSlice — DEVICE-LEVEL parental gate (2026-06-16). The PIN is content
+ * gating, not a credential, and by product decision it's handled entirely on the
+ * client: never sent to or read from the backend, never attached to the user
+ * object. It lives here and is persisted to MMKV (see `useAppStore` partialize),
+ * so it survives logout/login and belongs to the device, not the account.
+ *
+ * Fields: the config (`parentalEnabled` + `parentalPin`) and the lockout UX
+ * state (failed-attempt count + lockout timestamp). Verification is a local
+ * compare against `parentalPin` (no network on any check).
  */
 import { StateCreator } from 'zustand';
 
@@ -9,9 +15,19 @@ const MAX_ATTEMPTS = 5;
 const LOCKOUT_MS = 5 * 60 * 1000; // 5 minutes
 
 export interface ParentalSlice {
+  /** Gate is on → adult-flagged content requires the PIN. */
+  parentalEnabled: boolean;
+  /** The device PIN. `null` until the user sets one. */
+  parentalPin: string | null;
   failedAttempts: number;
   lockedUntil: number | null;
 
+  /**
+   * Single source of truth for the device parental config. Setting a `pin`
+   * implicitly stores it; toggling `enabled` keeps the existing PIN so re-enable
+   * needs no re-entry.
+   */
+  setParentalConfig: (partial: { enabled?: boolean; pin?: string }) => void;
   recordFailedAttempt: () => void;
   resetAttempts: () => void;
   isLocked: () => boolean;
@@ -22,8 +38,16 @@ export const createParentalSlice: StateCreator<ParentalSlice, [], [], ParentalSl
   set,
   get,
 ) => ({
+  parentalEnabled: false,
+  parentalPin: null,
   failedAttempts: 0,
   lockedUntil: null,
+
+  setParentalConfig: (partial) =>
+    set((s) => ({
+      parentalEnabled: partial.enabled ?? s.parentalEnabled,
+      parentalPin: partial.pin ?? s.parentalPin,
+    })),
 
   recordFailedAttempt: () =>
     set((s) => {

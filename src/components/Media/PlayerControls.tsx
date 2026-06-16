@@ -217,8 +217,6 @@ const PlayerControls: React.FC<PlayerControlsProps> = ({
   );
 };
 
-export default PlayerControls;
-
 const GLASS_BTN = 40;
 const KNOB = 13;
 
@@ -316,3 +314,5 @@ const styles = StyleSheet.create({
     right: 10,
   },
 });
+
+export default PlayerControls;

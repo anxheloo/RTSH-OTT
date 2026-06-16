@@ -65,8 +65,6 @@ function SegmentedChoice<T extends string>({
   );
 }
 
-export default SegmentedChoice;
-
 const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
@@ -81,3 +79,5 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
 });
+
+export default SegmentedChoice;

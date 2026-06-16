@@ -35,8 +35,6 @@ const CatchupBanner: React.FC<CatchupBannerProps> = ({ label, testID }) => {
   );
 };
 
-export default CatchupBanner;
-
 const styles = StyleSheet.create({
   banner: {
     flexDirection: 'row',
@@ -53,3 +51,5 @@ const styles = StyleSheet.create({
     flex: 1,
   },
 });
+
+export default CatchupBanner;

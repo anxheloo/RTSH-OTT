@@ -26,21 +26,6 @@ export interface User {
   avatarUrl?: string;
   /** Active package + entitlement (design profile badge "Paketa Bazë · 32 kanale"). */
   subscription?: Subscription;
-  /**
-   * Per-account parental gate. Content gating, not a credential, so by product
-   * decision (2026-06-15) the raw PIN rides on the user object (backend + local
-   * MMKV) — `enabled` drives whether adult content is gated and verification is
-   * a local compare against `pin`. Absent until the user sets one. See
-   * `rules/ARCHITECTURE.md → Parental control`.
-   */
-  parentalPin?: ParentalPin;
-}
-
-/** Per-account parental control config (returned on the user object). */
-export interface ParentalPin {
-  enabled: boolean;
-  /** `null` when the gate is enabled but no PIN has been set yet. */
-  pin: string | null;
 }
 
 /** A user's package entitlement (design profile/settings badge). */
@@ -240,8 +225,8 @@ const ageFromBirthDate = (birthDate?: string | null): number | undefined => {
  * Backend `UserDTO` → domain `User`. `id` may arrive as int64 → stringified;
  * `displayName` falls back to `username` (no display-name field on the wire);
  * `birthDate` / `city` + `country` are derived into the profile screen's
- * `age` / `location`. `parentalPin` (`{ enabled, pin }`) rides on the user
- * object — content gating, not a credential (2026-06-15) — optional until set.
+ * `age` / `location`. The parental gate is device-level (client-only, see
+ * `ParentalSlice`), so it is intentionally NOT part of this wire shape.
  */
 export const userDtoSchema = z
   .looseObject({
@@ -254,7 +239,6 @@ export const userDtoSchema = z
     gender: z.enum(['MALE', 'FEMALE', 'OTHER', 'UNSPECIFIED']).nullish(),
     educationLevel: z.enum(['HIGH', 'MEDIUM', 'LOW']).nullish(),
     avatarUrl: z.string().nullish(),
-    parentalPin: z.object({ enabled: z.boolean(), pin: z.string().nullable() }).nullish(),
   })
   .transform(
     (dto): User => ({
@@ -267,7 +251,6 @@ export const userDtoSchema = z
       gender: dto.gender ? GENDER_FROM_DTO[dto.gender] : undefined,
       educationLevel: dto.educationLevel ? EDUCATION_FROM_DTO[dto.educationLevel] : undefined,
       avatarUrl: dto.avatarUrl ?? undefined,
-      parentalPin: dto.parentalPin ?? undefined,
     }),
   );
 

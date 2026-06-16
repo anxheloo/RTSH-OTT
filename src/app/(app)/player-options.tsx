@@ -72,8 +72,6 @@ const PlayerOptionsSheet: React.FC = () => {
   );
 };
 
-export default PlayerOptionsSheet;
-
 const styles = StyleSheet.create({
   sheet: {
     paddingTop: SPACING.space_8,
@@ -84,3 +82,5 @@ const styles = StyleSheet.create({
     paddingBottom: SPACING.space_12,
   },
 });
+
+export default PlayerOptionsSheet;

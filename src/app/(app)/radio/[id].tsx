@@ -170,8 +170,6 @@ const RadioPlayerScreen: React.FC = () => {
   );
 };
 
-export default RadioPlayerScreen;
-
 const styles = StyleSheet.create({
   content: {
     paddingBottom: SPACING.space_40,
@@ -190,3 +188,5 @@ const styles = StyleSheet.create({
     aspectRatio: 1,
   },
 });
+
+export default RadioPlayerScreen;

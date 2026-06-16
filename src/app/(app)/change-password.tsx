@@ -182,8 +182,6 @@ const ChangePasswordScreen: React.FC = () => {
   );
 };
 
-export default ChangePasswordScreen;
-
 const styles = StyleSheet.create({
   scroll: {
     paddingHorizontal: SCREEN_PADDING,
@@ -202,3 +200,5 @@ const styles = StyleSheet.create({
     marginTop: SPACING.space_8,
   },
 });
+
+export default ChangePasswordScreen;

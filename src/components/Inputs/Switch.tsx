@@ -62,8 +62,6 @@ const Switch: React.FC<SwitchProps> = ({ value, onValueChange, isDisabled = fals
   );
 };
 
-export default Switch;
-
 const styles = StyleSheet.create({
   track: {
     width: TRACK_W,
@@ -82,3 +80,5 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
 });
+
+export default Switch;

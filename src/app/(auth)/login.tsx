@@ -133,8 +133,6 @@ const LoginScreen: React.FC = () => {
   );
 };
 
-export default LoginScreen;
-
 const styles = StyleSheet.create({
   welcome: {
     gap: 4,
@@ -145,3 +143,5 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
 });
+
+export default LoginScreen;

@@ -251,8 +251,6 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onSubmit, isSubmitting = fa
   );
 };
 
-export default RegisterForm;
-
 const styles = StyleSheet.create({
   fieldGap: {
     gap: SPACING.space_8,
@@ -261,3 +259,5 @@ const styles = StyleSheet.create({
     flex: 1,
   },
 });
+
+export default RegisterForm;

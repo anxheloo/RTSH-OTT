@@ -77,8 +77,6 @@ const TCGateOverlay: React.FC = () => {
   );
 };
 
-export default TCGateOverlay;
-
 const styles = StyleSheet.create({
   backdrop: {
     flex: 1,
@@ -107,3 +105,5 @@ const styles = StyleSheet.create({
     marginTop: SPACING.space_8,
   },
 });
+
+export default TCGateOverlay;

@@ -54,8 +54,6 @@ const IconButton: React.FC<IconButtonProps> = ({
   );
 };
 
-export default IconButton;
-
 const styles = StyleSheet.create({
   button: {
     alignItems: 'center',
@@ -65,3 +63,5 @@ const styles = StyleSheet.create({
     opacity: 0.4,
   },
 });
+
+export default IconButton;

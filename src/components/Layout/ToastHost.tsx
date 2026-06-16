@@ -67,8 +67,6 @@ const ToastHost: React.FC = () => {
   );
 };
 
-export default ToastHost;
-
 const styles = StyleSheet.create({
   wrap: {
     position: 'absolute',
@@ -91,3 +89,5 @@ const styles = StyleSheet.create({
     elevation: 12,
   },
 });
+
+export default ToastHost;

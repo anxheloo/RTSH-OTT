@@ -47,10 +47,10 @@ const ScreenLayout: React.FC<ScreenLayoutProps> = ({
   );
 };
 
-export default ScreenLayout;
-
 const styles = StyleSheet.create({
   flex: {
     flex: 1,
   },
 });
+
+export default ScreenLayout;

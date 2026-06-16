@@ -35,8 +35,6 @@ const GuideRowSkeleton: React.FC<GuideRowSkeletonProps> = ({ testID }) => {
   );
 };
 
-export default GuideRowSkeleton;
-
 const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
@@ -56,3 +54,5 @@ const styles = StyleSheet.create({
     marginTop: SPACING.space_8,
   },
 });
+
+export default GuideRowSkeleton;

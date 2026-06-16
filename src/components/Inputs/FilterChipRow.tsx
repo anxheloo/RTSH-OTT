@@ -67,8 +67,6 @@ function FilterChipRow<T extends string>({
   );
 }
 
-export default FilterChipRow;
-
 const styles = StyleSheet.create({
   content: {
     gap: SPACING.space_8,
@@ -84,3 +82,5 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
 });
+
+export default FilterChipRow;

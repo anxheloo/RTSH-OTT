@@ -78,8 +78,6 @@ const ProgramRow: React.FC<ProgramRowProps> = ({
   );
 };
 
-export default ProgramRow;
-
 const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
@@ -104,3 +102,5 @@ const styles = StyleSheet.create({
     marginTop: 1,
   },
 });
+
+export default ProgramRow;

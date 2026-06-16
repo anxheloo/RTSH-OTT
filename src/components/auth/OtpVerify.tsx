@@ -140,8 +140,6 @@ const OtpVerify: React.FC<OtpVerifyProps> = ({
   );
 };
 
-export default OtpVerify;
-
 const styles = StyleSheet.create({
   container: {
     gap: SPACING.space_16,
@@ -168,3 +166,5 @@ const styles = StyleSheet.create({
     opacity: 0,
   },
 });
+
+export default OtpVerify;

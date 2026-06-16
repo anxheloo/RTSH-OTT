@@ -33,12 +33,6 @@ export const USERS_ROUTES = {
   CHANGE_PASSWORD: '/users/me/change-password',
   /** Idempotent upsert of this device for the logged-in account (PUT, bare `DeviceInfoDTO` body). */
   DEVICE: '/users/me/device',
-  /**
-   * Per-account parental control. `POST` = first-time setup ({ enabled, pin });
-   * `PATCH` = enable/disable (and later change-PIN via `newPin`). Verification
-   * is local against `user.parentalPin.pin`, so there's no `GET`/`verify-pin`.
-   */
-  PARENTAL: '/parental',
 } as const;
 
 export const CHANNELS_ROUTES = {

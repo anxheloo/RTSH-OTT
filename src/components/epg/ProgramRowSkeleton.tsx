@@ -34,8 +34,6 @@ const ProgramRowSkeleton: React.FC<ProgramRowSkeletonProps> = ({ testID }) => {
   );
 };
 
-export default ProgramRowSkeleton;
-
 const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
@@ -52,3 +50,5 @@ const styles = StyleSheet.create({
     marginTop: SPACING.space_4,
   },
 });
+
+export default ProgramRowSkeleton;

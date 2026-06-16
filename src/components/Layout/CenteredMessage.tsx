@@ -61,8 +61,6 @@ const CenteredMessage: React.FC<CenteredMessageProps> = ({
   );
 };
 
-export default CenteredMessage;
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -89,3 +87,5 @@ const styles = StyleSheet.create({
     minWidth: 200,
   },
 });
+
+export default CenteredMessage;

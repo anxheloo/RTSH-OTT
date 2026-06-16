@@ -66,8 +66,6 @@ const QualitySheet: React.FC = () => {
   );
 };
 
-export default QualitySheet;
-
 const styles = StyleSheet.create({
   sheet: {
     paddingTop: SPACING.space_8,
@@ -78,3 +76,5 @@ const styles = StyleSheet.create({
     paddingBottom: SPACING.space_12,
   },
 });
+
+export default QualitySheet;

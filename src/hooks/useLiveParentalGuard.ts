@@ -15,8 +15,9 @@
  *     unlocked, and a dismissed one stays blocked (no modal) until the next
  *     programme or an explicit `requestUnlock()`.
  *
- * Verification is a local compare against `user.parentalPin.pin` through
- * `ParentalPinModal`, so there's no network round-trip on each boundary. Binary
+ * Verification is a local compare against the device PIN (`ParentalSlice`)
+ * through `ParentalPinModal`, so there's no network round-trip on each
+ * boundary. Binary
  * `isAdult` for v1 (age tiers later). Returns a stable shape; the screen pauses
  * playback while `isBlocked` and renders the modal while `showPrompt`.
  */

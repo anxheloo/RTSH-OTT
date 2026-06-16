@@ -3,8 +3,8 @@
  * "Luajtja" (playback — cellular toggle, parental toggle), "Aplikacioni"
  * (language sheet, notifications toggle, terms link, theme sheet, version), and
  * "Llogaria" (change password). Toggles write `SettingsSlice`; the parental
- * toggle drives `POST`/`PATCH /parental` and mirrors `user.parentalPin.enabled`
- * (verify-then-disable). Opened from Profile. (Quality is player-only — picked
+ * toggle drives the device-level `ParentalSlice` (client-only — no network;
+ * verify-then-disable). Opened from Profile. (Quality is player-only — picked
  * per session in the player options sheet; cast lives on the player too.)
  */
 import React, { useState } from 'react';
@@ -19,7 +19,6 @@ import { BORDERRADIUS } from '@/theme/borders';
 import { FONTSIZE } from '@/theme/fonts';
 import { SCREEN_PADDING, SPACING } from '@/theme/spacing';
 import { useAppStore } from '@/store/useAppStore';
-import { useUpdateParentalMutation } from '@/api/mutations';
 import { Icon, IconButton } from '@/components/Icons';
 import { Switch } from '@/components/Inputs';
 import ReusableText from '@/components/Inputs/ReusableText';
@@ -48,42 +47,40 @@ const SettingsScreen: React.FC = () => {
   const setNotificationsEnabled = useAppStore((s) => s.setNotificationsEnabled);
   const locale = useAppStore((s) => s.locale);
   const mode = useAppStore((s) => s.mode);
-  const parentalEnabled = useAppStore((s) => !!s.user?.parentalPin?.enabled);
-  const hasPin = useAppStore((s) => !!s.user?.parentalPin?.pin);
-  const updateModalSlice = useAppStore((s) => s.updateModalSlice);
+  const parentalEnabled = useAppStore((s) => s.parentalEnabled);
+  const hasPin = useAppStore((s) => !!s.parentalPin);
+  const setParentalConfig = useAppStore((s) => s.setParentalConfig);
 
-  // The mutation owns the PATCH + the store mirror (onSuccess); the component
-  // only decides intent + surfaces failures.
-  const { mutate: updateParental } = useUpdateParentalMutation();
-  const onParentalError = () => updateModalSlice({ currentModal: 'apiError', modalData: {} });
+  // null = closed · 'set' = create first PIN · 'disable' = verify before turning off · 'change' = verify+re-set
+  const [pinMode, setPinMode] = useState<'set' | 'disable' | 'change' | null>(null);
 
-  // null = closed · 'set' = create first PIN · 'disable' = verify PIN before turning off.
-  const [pinMode, setPinMode] = useState<'set' | 'disable' | null>(null);
-
-  // Toggle semantics:
-  //   OFF→ON, no PIN yet  → 'set' (first-time create, POST /parental via the modal)
-  //   OFF→ON, PIN exists  → re-enable directly (PATCH, no re-entry — turning protection ON is safe)
-  //   ON→OFF              → verify PIN locally first, then disable (PATCH) — removing the gate is sensitive
+  // Toggle semantics (device-level, client-only — no network):
+  //   OFF→ON, no PIN yet  → 'set' (first-time create; the modal stores it)
+  //   OFF→ON, PIN exists  → re-enable directly (no re-entry — turning protection ON is safe)
+  //   ON→OFF              → verify PIN locally first, then disable — removing the gate is sensitive
   const handleToggleParental = () => {
     if (!parentalEnabled) {
       if (!hasPin) {
         setPinMode('set');
         return;
       }
-      updateParental({ enabled: true }, { onError: onParentalError });
+      setParentalConfig({ enabled: true });
     } else {
       setPinMode('disable');
     }
   };
 
-  // Modal resolved successfully: 'set' persists + mirrors inside the modal;
-  // 'disable' verified the PIN locally → now persist the disable.
+  // Modal resolved: 'set'/'change' stored the new PIN inside the modal;
+  // 'disable' verified locally → turn the gate off.
   const handlePinSuccess = () => {
     if (pinMode === 'disable') {
-      updateParental({ enabled: false }, { onError: onParentalError });
+      setParentalConfig({ enabled: false });
     }
     setPinMode(null);
   };
+
+  // The modal mode maps: 'change' → 'change', 'disable' → 'verify', 'set' → 'set'.
+  const modalMode = pinMode === 'change' ? 'change' : pinMode === 'disable' ? 'verify' : 'set';
 
   const version = Constants.expoConfig?.version ?? '';
 
@@ -139,9 +136,18 @@ const SettingsScreen: React.FC = () => {
                 testID="settings-parental-switch"
               />
             }
-            showDivider={false}
+            showDivider={parentalEnabled && hasPin}
             testID="settings-parental-row"
           />
+          {parentalEnabled && hasPin ? (
+            <ListRow
+              title={t('settings.parental.change_pin')}
+              leading={<Icon as={KeyIcon} size={20} color={colors.text} />}
+              onPress={() => setPinMode('change')}
+              showDivider={false}
+              testID="settings-change-pin-row"
+            />
+          ) : null}
         </View>
 
         {/* Account */}
@@ -219,15 +225,13 @@ const SettingsScreen: React.FC = () => {
 
       <ParentalPinModal
         visible={pinMode !== null}
-        mode={pinMode === 'set' ? 'set' : 'verify'}
+        mode={modalMode}
         onSuccess={handlePinSuccess}
         onDismiss={() => setPinMode(null)}
       />
     </ScreenLayout>
   );
 };
-
-export default SettingsScreen;
 
 const styles = StyleSheet.create({
   scroll: {
@@ -246,3 +250,5 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
 });
+
+export default SettingsScreen;

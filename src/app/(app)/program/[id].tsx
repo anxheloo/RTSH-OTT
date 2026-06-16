@@ -38,10 +38,10 @@ const ProgramScreen: React.FC = () => {
   );
 };
 
-export default ProgramScreen;
-
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
   },
 });
+
+export default ProgramScreen;

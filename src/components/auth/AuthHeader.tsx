@@ -46,8 +46,6 @@ const AuthHeader: React.FC<AuthHeaderProps> = ({ title, onBack, testID }) => {
   );
 };
 
-export default AuthHeader;
-
 const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
@@ -62,3 +60,5 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
 });
+
+export default AuthHeader;

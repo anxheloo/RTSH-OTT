@@ -68,8 +68,6 @@ const SheetOptionRow: React.FC<SheetOptionRowProps> = ({
   );
 };
 
-export default SheetOptionRow;
-
 const RADIO = 22;
 
 const styles = StyleSheet.create({
@@ -101,3 +99,5 @@ const styles = StyleSheet.create({
     borderRadius: BORDERRADIUS.full,
   },
 });
+
+export default SheetOptionRow;

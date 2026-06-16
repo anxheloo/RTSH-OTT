@@ -36,8 +36,6 @@ const StepHeader: React.FC<StepHeaderProps> = ({ currentStep, totalSteps = 3, te
   );
 };
 
-export default StepHeader;
-
 const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
@@ -52,3 +50,5 @@ const styles = StyleSheet.create({
     borderRadius: BORDERRADIUS.full,
   },
 });
+
+export default StepHeader;

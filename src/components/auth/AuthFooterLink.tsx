@@ -39,11 +39,11 @@ const AuthFooterLink: React.FC<AuthFooterLinkProps> = ({ prefix, linkLabel, onPr
   );
 };
 
-export default AuthFooterLink;
-
 const styles = StyleSheet.create({
   container: {
     alignItems: 'center',
     marginTop: SPACING.space_8,
   },
 });
+
+export default AuthFooterLink;

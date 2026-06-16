@@ -55,8 +55,6 @@ const TermsNotice: React.FC<TermsNoticeProps> = ({ testID }) => {
   );
 };
 
-export default TermsNotice;
-
 const styles = StyleSheet.create({
   container: {
     paddingHorizontal: 8,
@@ -65,3 +63,5 @@ const styles = StyleSheet.create({
     textDecorationLine: 'underline',
   },
 });
+
+export default TermsNotice;

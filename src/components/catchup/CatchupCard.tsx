@@ -55,8 +55,6 @@ const CatchupCard: React.FC<CatchupCardProps> = ({ item }) => {
   );
 };
 
-export default CatchupCard;
-
 const styles = StyleSheet.create({
   card: {
     flexDirection: 'row',
@@ -83,3 +81,5 @@ const styles = StyleSheet.create({
     gap: SPACING.space_4,
   },
 });
+
+export default CatchupCard;

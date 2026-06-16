@@ -66,8 +66,6 @@ const AccountScreen: React.FC = () => {
   );
 };
 
-export default AccountScreen;
-
 const styles = StyleSheet.create({
   scroll: {
     paddingHorizontal: SCREEN_PADDING,
@@ -79,3 +77,5 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
 });
+
+export default AccountScreen;

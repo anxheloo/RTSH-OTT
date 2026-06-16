@@ -70,8 +70,6 @@ const SearchResultRow: React.FC<SearchResultRowProps> = ({
   );
 };
 
-export default SearchResultRow;
-
 const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
@@ -97,3 +95,5 @@ const styles = StyleSheet.create({
     marginTop: SPACING.space_2,
   },
 });
+
+export default SearchResultRow;

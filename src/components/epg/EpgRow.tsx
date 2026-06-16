@@ -41,8 +41,6 @@ const EpgRow: React.FC<EpgRowProps> = ({ item }) => {
   );
 };
 
-export default EpgRow;
-
 const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
@@ -64,3 +62,5 @@ const styles = StyleSheet.create({
     gap: SPACING.space_4,
   },
 });
+
+export default EpgRow;

@@ -81,8 +81,6 @@ const RadioMiniPlayer: React.FC = () => {
   );
 };
 
-export default RadioMiniPlayer;
-
 const styles = StyleSheet.create({
   strip: {
     height: STRIP_HEIGHT,
@@ -112,3 +110,5 @@ const styles = StyleSheet.create({
     flexShrink: 0,
   },
 });
+
+export default RadioMiniPlayer;

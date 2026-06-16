@@ -81,8 +81,6 @@ const ListRow: React.FC<ListRowProps> = ({
   );
 };
 
-export default ListRow;
-
 const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
@@ -105,3 +103,5 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
 });
+
+export default ListRow;

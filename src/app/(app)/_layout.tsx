@@ -56,10 +56,10 @@ const AppLayout: React.FC = () => {
   );
 };
 
-export default AppLayout;
-
 const styles = StyleSheet.create({
   root: {
     flex: 1,
   },
 });
+
+export default AppLayout;

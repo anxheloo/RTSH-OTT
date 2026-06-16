@@ -120,8 +120,6 @@ const HeroCarousel: React.FC<HeroCarouselProps> = ({ items, onPressItem, isLoadi
   );
 };
 
-export default HeroCarousel;
-
 const styles = StyleSheet.create({
   skeletonWrap: {
     paddingHorizontal: H_MARGIN,
@@ -159,3 +157,5 @@ const styles = StyleSheet.create({
     borderRadius: 3,
   },
 });
+
+export default HeroCarousel;

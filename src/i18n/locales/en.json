@@ -205,7 +205,8 @@
       "subtitle_active": "Active",
       "subtitle_inactive": "Inactive",
       "disable_title": "Disable parental controls",
-      "disable_message": "This will remove your parental PIN. Are you sure?"
+      "disable_message": "This will remove your parental PIN. Are you sure?",
+      "change_pin": "Change PIN"
     },
     "language": {
       "title": "Language",
@@ -290,7 +291,8 @@
     "locked": "Too many attempts. Try again in {{seconds}}s.",
     "error": "Something went wrong. Please try again.",
     "live_blocked": "This programme is restricted (18+). Enter your PIN to keep watching.",
-    "unlock": "Enter PIN"
+    "unlock": "Enter PIN",
+    "change_verify_current": "Enter your current PIN to continue."
   },
   "geo": {
     "title": "Not available in your region",

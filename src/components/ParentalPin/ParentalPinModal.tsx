@@ -1,15 +1,17 @@
 /**
  * ParentalPinModal — full-screen gate for adult content (design `sParental`):
  * back header, a large lock icon, title + contextual subtitle, then the
- * `ParentalPinPad` (dots + keypad). Two modes:
- *   'verify' — enter PIN to unlock content (local compare against `user.parentalPin.pin`).
- *   'set'    — enter a new PIN (confirm on second entry) → `POST /parental`.
+ * `ParentalPinPad` (dots + keypad). Three modes:
+ *   'verify' — enter PIN to unlock content. Local SHA-256 compare, no network.
+ *   'set'    — enter a new PIN (enter → confirm) → hash + store on device.
+ *   'change' — verify current PIN, then enter + confirm a new one.
  *
- * Content gating, not a credential (2026-06-15): the PIN rides on the user
- * object (backend + persisted MMKV), so verify is local — no network per check.
+ * The PIN is DEVICE-LEVEL client-only (ParentalSlice, MMKV-persisted). The raw
+ * digits are never stored — `hashPin` produces a SHA-256 hex digest before
+ * calling `setParentalConfig`. `verifyPin` hashes the candidate and compares.
  */
 import React, { useState } from 'react';
-import { Modal, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Modal, StyleSheet, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -17,19 +19,22 @@ import { BORDERRADIUS } from '@/theme/borders';
 import { FONTSIZE } from '@/theme/fonts';
 import { SPACING } from '@/theme/spacing';
 import { useAppStore } from '@/store/useAppStore';
-import { useSetupParentalMutation } from '@/api/mutations';
 import { Icon, IconButton } from '@/components/Icons';
 import ReusableText from '@/components/Inputs/ReusableText';
+import { hashPin, verifyPin } from '@/utils/pin';
 import { ChevronLeftIcon, LockIcon } from '@/assets/icons';
 
 import ParentalPinPad from './ParentalPinPad';
 
 export type ParentalPinModalProps = {
   visible: boolean;
-  mode: 'verify' | 'set';
+  mode: 'verify' | 'set' | 'change';
   onSuccess: () => void;
   onDismiss: () => void;
 };
+
+// For 'change': verify-current → enter-new → confirm-new
+type ChangeStep = 'verify-current' | 'enter-new' | 'confirm-new';
 
 const ParentalPinModal: React.FC<ParentalPinModalProps> = ({
   visible,
@@ -42,76 +47,153 @@ const ParentalPinModal: React.FC<ParentalPinModalProps> = ({
   const insets = useSafeAreaInsets();
   const recordFailedAttempt = useAppStore((s) => s.recordFailedAttempt);
   const resetAttempts = useAppStore((s) => s.resetAttempts);
-  const user = useAppStore((s) => s.user);
-  const { mutate: setupPin } = useSetupParentalMutation();
+  const parentalPin = useAppStore((s) => s.parentalPin);
+  const setParentalConfig = useAppStore((s) => s.setParentalConfig);
+
   const [isWrong, setIsWrong] = useState(false);
-  const [confirmPin, setConfirmPin] = useState<string | null>(null);
+  const [isBusy, setIsBusy] = useState(false);
+  // 'set' mode: holds the first entry while waiting for the confirm entry
+  const [pendingPin, setPendingPin] = useState<string | null>(null);
+  // 'change' mode step tracker
+  const [changeStep, setChangeStep] = useState<ChangeStep>('verify-current');
   const [error, setError] = useState('');
+
+  const flash = (wrong: boolean) => {
+    setIsWrong(wrong);
+    setTimeout(() => setIsWrong(false), 600);
+  };
 
   const settleVerify = (ok: boolean) => {
     if (ok) {
       resetAttempts();
-      setIsWrong(false);
       onSuccess();
     } else {
-      setIsWrong(true);
       recordFailedAttempt();
-      setTimeout(() => setIsWrong(false), 600);
+      flash(true);
     }
   };
 
-  // Verify is a local compare — the PIN rides on the user object, so live
-  // re-checks (every programme boundary) never hit the network.
-  const handleVerify = (pin: string) => settleVerify(pin === user?.parentalPin?.pin);
+  // ── verify ─────────────────────────────────────────────────────────────────
 
-  const handleSet = (pin: string) => {
-    if (confirmPin === null) {
-      setConfirmPin(pin);
+  const handleVerify = async (pin: string) => {
+    if (!parentalPin) return;
+    setIsBusy(true);
+    try {
+      const ok = await verifyPin(pin, parentalPin);
+      settleVerify(ok);
+    } finally {
+      setIsBusy(false);
+    }
+  };
+
+  // ── set ────────────────────────────────────────────────────────────────────
+
+  const handleSet = async (pin: string) => {
+    if (pendingPin === null) {
+      setPendingPin(pin);
       setError('');
       return;
     }
-    if (pin !== confirmPin) {
-      setConfirmPin(null);
+    if (pin !== pendingPin) {
+      setPendingPin(null);
       setError(t('parental.mismatch'));
-      setIsWrong(true);
-      setTimeout(() => setIsWrong(false), 600);
+      flash(true);
       return;
     }
-    // The mutation persists (`POST /parental`) and mirrors `{ enabled, pin }`
-    // onto the user object in its `onSuccess` (single source of truth), so the
-    // gate is active immediately and survives reload (MMKV-persisted user).
-    setupPin(pin, {
-      onSuccess: () => {
-        setConfirmPin(null);
-        setError('');
-        onSuccess();
-      },
-      onError: () => {
-        setConfirmPin(null);
-        setError(t('parental.error'));
-      },
-    });
+    setIsBusy(true);
+    try {
+      const hash = await hashPin(pin);
+      setParentalConfig({ enabled: true, pin: hash });
+      setPendingPin(null);
+      setError('');
+      onSuccess();
+    } finally {
+      setIsBusy(false);
+    }
   };
 
-  const subtitle =
-    mode === 'set'
-      ? confirmPin === null
-        ? t('parental.set_new')
-        : t('parental.confirm')
-      : t('parental.message');
+  // ── change ─────────────────────────────────────────────────────────────────
+
+  const handleChange = async (pin: string) => {
+    if (changeStep === 'verify-current') {
+      if (!parentalPin) return;
+      setIsBusy(true);
+      try {
+        const ok = await verifyPin(pin, parentalPin);
+        if (ok) {
+          resetAttempts();
+          setChangeStep('enter-new');
+          setError('');
+        } else {
+          recordFailedAttempt();
+          flash(true);
+        }
+      } finally {
+        setIsBusy(false);
+      }
+      return;
+    }
+
+    if (changeStep === 'enter-new') {
+      setPendingPin(pin);
+      setChangeStep('confirm-new');
+      setError('');
+      return;
+    }
+
+    // confirm-new
+    if (pin !== pendingPin) {
+      setPendingPin(null);
+      setChangeStep('enter-new');
+      setError(t('parental.mismatch'));
+      flash(true);
+      return;
+    }
+    setIsBusy(true);
+    try {
+      const hash = await hashPin(pin);
+      setParentalConfig({ pin: hash });
+      setPendingPin(null);
+      setChangeStep('verify-current');
+      setError('');
+      onSuccess();
+    } finally {
+      setIsBusy(false);
+    }
+  };
+
+  // ── subtitle ───────────────────────────────────────────────────────────────
+
+  const subtitle = (() => {
+    if (mode === 'verify') return t('parental.message');
+    if (mode === 'set') return pendingPin === null ? t('parental.set_new') : t('parental.confirm');
+    // change
+    if (changeStep === 'verify-current') return t('parental.change_verify_current');
+    if (changeStep === 'enter-new') return t('parental.set_new');
+    return t('parental.confirm');
+  })();
+
+  const handler = mode === 'verify' ? handleVerify : mode === 'set' ? handleSet : handleChange;
+
+  const handleDismiss = () => {
+    setPendingPin(null);
+    setChangeStep('verify-current');
+    setError('');
+    onDismiss();
+  };
 
   return (
     <Modal
       visible={visible}
       animationType="fade"
-      onRequestClose={onDismiss}
+      onRequestClose={handleDismiss}
       statusBarTranslucent
       presentationStyle="overFullScreen"
       transparent
     >
       <View style={[styles.screen, { backgroundColor: colors.background, paddingTop: insets.top }]}>
         <View style={styles.header}>
-          <IconButton onPress={onDismiss} testID="parental-modal-dismiss">
+          <IconButton onPress={handleDismiss} testID="parental-modal-dismiss">
             <Icon as={ChevronLeftIcon} size={22} color={colors.text} />
           </IconButton>
         </View>
@@ -134,14 +216,16 @@ const ParentalPinModal: React.FC<ParentalPinModalProps> = ({
             </ReusableText>
           ) : null}
 
-          <ParentalPinPad onComplete={mode === 'verify' ? handleVerify : handleSet} isWrong={isWrong} />
+          {isBusy ? (
+            <ActivityIndicator color={colors.primary} style={styles.spinner} />
+          ) : (
+            <ParentalPinPad onComplete={handler} isWrong={isWrong} />
+          )}
         </View>
       </View>
     </Modal>
   );
 };
-
-export default ParentalPinModal;
 
 const styles = StyleSheet.create({
   screen: {
@@ -176,4 +260,9 @@ const styles = StyleSheet.create({
   error: {
     marginBottom: SPACING.space_8,
   },
+  spinner: {
+    marginTop: SPACING.space_24,
+  },
 });
+
+export default ParentalPinModal;

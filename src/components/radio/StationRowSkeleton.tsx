@@ -34,8 +34,6 @@ const StationRowSkeleton: React.FC<StationRowSkeletonProps> = ({ testID }) => {
   );
 };
 
-export default StationRowSkeleton;
-
 const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
@@ -52,3 +50,5 @@ const styles = StyleSheet.create({
     marginTop: SPACING.space_4,
   },
 });
+
+export default StationRowSkeleton;

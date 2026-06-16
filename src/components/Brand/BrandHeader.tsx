@@ -75,8 +75,6 @@ const BrandHeader: React.FC<BrandHeaderProps> = ({
   );
 };
 
-export default BrandHeader;
-
 const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
@@ -85,3 +83,5 @@ const styles = StyleSheet.create({
     paddingHorizontal: SCREEN_PADDING,
   },
 });
+
+export default BrandHeader;

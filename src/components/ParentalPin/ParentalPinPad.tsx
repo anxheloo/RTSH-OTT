@@ -152,8 +152,6 @@ const ParentalPinPad: React.FC<ParentalPinPadProps> = ({ onComplete, isWrong = f
   );
 };
 
-export default ParentalPinPad;
-
 const styles = StyleSheet.create({
   container: {
     // Must stretch to the parent's width: the grid below uses a percentage
@@ -198,3 +196,5 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
 });
+
+export default ParentalPinPad;

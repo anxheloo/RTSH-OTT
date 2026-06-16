@@ -70,8 +70,6 @@ const DayStrip: React.FC<DayStripProps> = ({ days, selectedKey, onSelect, testID
   );
 };
 
-export default DayStrip;
-
 const styles = StyleSheet.create({
   strip: {
     borderBottomWidth: StyleSheet.hairlineWidth,
@@ -89,3 +87,5 @@ const styles = StyleSheet.create({
     marginTop: SPACING.space_2,
   },
 });
+
+export default DayStrip;

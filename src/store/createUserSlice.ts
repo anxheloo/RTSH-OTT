@@ -1,6 +1,6 @@
 import { StateCreator } from 'zustand';
 
-import type { ParentalPin, User } from '@/types';
+import type { User } from '@/types';
 import { REFRESH_TOKEN_KEY } from '@/config/auth';
 import { removeFromKeychain } from '@/services/keychain';
 
@@ -11,15 +11,9 @@ export interface UserSlice {
   token: string | null;
   isAuthenticated: boolean;
 
-  /** Universal partial setter (e.g. patching `user.parentalPin` after setup). */
+  /** Universal partial setter for the user slice. */
   updateUserSlice: (state: Partial<UserSlice>) => void;
   login: (user: User, token: string) => void;
-  /**
-   * Single source of truth for mutating `user.parentalPin`. Used by the
-   * parental mutations' `onSuccess` (setup / toggle) so the nested merge lives
-   * in exactly one place. No-op when there's no signed-in user.
-   */
-  setParentalConfig: (partial: Partial<ParentalPin>) => void;
   logout: () => Promise<void>;
 }
 
@@ -30,15 +24,8 @@ export const createUserSlice: StateCreator<AppStore, [], [], UserSlice> = (set) 
 
   updateUserSlice: (state) => set(state),
 
-  setParentalConfig: (partial) =>
-    set((s) => {
-      if (!s.user) return s;
-      const current: ParentalPin = s.user.parentalPin ?? { enabled: false, pin: null };
-      return { user: { ...s.user, parentalPin: { ...current, ...partial } } };
-    }),
-
-  // The parental gate hydrates from `user.parentalPin` (carried on the user
-  // object + persisted), so there's nothing extra to seed here.
+  // The parental gate is device-level (see `ParentalSlice`), independent of the
+  // account, so login/logout never touch it.
   login: (user, token) => set({ user, token, isAuthenticated: true }),
 
   logout: async () => {

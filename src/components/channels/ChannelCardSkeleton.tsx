@@ -16,11 +16,11 @@ const ChannelCardSkeleton: React.FC<ChannelCardSkeletonProps> = ({ testID }) => 
   <Skeleton borderRadius={BORDERRADIUS.radius_14} style={styles.card} testID={testID} />
 );
 
-export default ChannelCardSkeleton;
-
 const styles = StyleSheet.create({
   card: {
     width: '100%',
     aspectRatio: 16 / 10,
   },
 });
+
+export default ChannelCardSkeleton;

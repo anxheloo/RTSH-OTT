@@ -201,8 +201,6 @@ const GuideScreen: React.FC = () => {
   );
 };
 
-export default GuideScreen;
-
 const styles = StyleSheet.create({
   toggleWrap: {
     paddingHorizontal: SCREEN_PADDING,
@@ -229,3 +227,5 @@ const styles = StyleSheet.create({
     height: SPACING.space_48,
   },
 });
+
+export default GuideScreen;

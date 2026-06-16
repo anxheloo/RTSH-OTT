@@ -192,8 +192,6 @@ const HomeScreen: React.FC = () => {
   );
 };
 
-export default HomeScreen;
-
 const styles = StyleSheet.create({
   heroWrap: {
     paddingTop: SPACING.space_16,
@@ -234,3 +232,5 @@ const styles = StyleSheet.create({
     marginTop: SPACING.space_10,
   },
 });
+
+export default HomeScreen;

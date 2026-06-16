@@ -75,7 +75,7 @@ Single `useAppStore` composed from slices (see `src/store/`):
 - `ModalSlice` — single active modal (`currentModal` + `modalData`, RTSH/SOLITAR style; apiError, noInternet, notify, confirmation, forceUpdate). One modal at a time; `updateModalSlice({ currentModal: null })` to close (`forceUpdate` is blocking and never closes).
 - `NetworkSlice` — runtime connectivity (`isOnline`, `connectionType`), written by `useNetworkMonitor`; not persisted
 - `PlayerSlice` — current playback state (channelId, position, isPlaying, isFullscreen)
-- `ParentalSlice` — failed attempts + lockout UX only (PIN config lives on `user.parentalPin`)
+- `ParentalSlice` — **device-level** parental config (`parentalEnabled` + `parentalPin`, client-only, MMKV-persisted) + failed-attempt/lockout UX
 
 Planned (not yet implemented): `ChannelsSlice` (favorites, recently watched) and `EpgSlice` (reminders) — favorites/recently-watched/reminders are not in the store today.
 
@@ -86,7 +86,7 @@ Persist via MMKV (`zustandStorage`). `partialize` controls what persists. `onReh
 | Data | Where |
 |------|-------|
 | Refresh token | Keychain (`expo-secure-store`) |
-| User (incl. `parentalPin = { enabled, pin }`), settings, theme, favorites, reminders | MMKV (Zustand persist). Parental PIN source of truth = **backend** (per-account), carried on the user object; it's content gating, not a credential — see `rules/ARCHITECTURE.md → Parental control` |
+| User, settings, theme, favorites, reminders, **parental config (`parentalEnabled` + `parentalPin`)** | MMKV (Zustand persist). Parental PIN is **device-level, client-only** (never sent to/read from backend, not on the user object); it's content gating, not a credential — see `rules/ARCHITECTURE.md → Parental control` |
 | Server data (channels, EPG, catch-up, programs) | TanStack Query cache (selective MMKV persist for slow-changing) |
 | Resume positions (per-program) | MMKV (separate key) |
 
@@ -179,7 +179,7 @@ Beyond the architecture scaffold, these features are spec-mandated for v1 — do
 - **PIP + iOS background video** — `expo-video` config plugin toggled by `settings.backgroundVideoAllowed`. Auto-PIP on background per user setting.
 - **Ads** — three slots: launch, channel-switch (frequency-capped), time-scheduled (from `/config`). Single `AdOverlay` component (`components/Media/AdOverlay.tsx`, design `adpop`). **v1 creatives are static** (image / brand surface + copy + CTA + skip countdown); a second `expo-video` instance for video ads is a later capability. Component built in 22.15; slot orchestration is Phase 16.
 - **Quality picker** — manual ABR selection in the player options sheet (per-session, player-only; no persisted default in Settings). Resets to Auto on each channel open.
-- **Parental control** — 4–6 digit PIN, **per-account, backend source of truth**, carried on the user object (`user.parentalPin = { enabled, pin }`) — content gating, not a credential, so verify is a local compare (no keychain/KDF). Gates adult-flagged content (channel/program `isAdult`) **only when `enabled`**. Setup (`POST /parental { enabled, pin }`) + enable/disable toggle (`PATCH /parental { enabled }`, local PIN verify before disable) are wired; change-PIN (same `PATCH` + `newPin`) / forgot-PIN are deferred. Cross-device changes propagate via `useMeQuery` (`GET /users/me`). Rationale + flow: `rules/ARCHITECTURE.md → Parental control`.
+- **Parental control** — 4–6 digit PIN, **device-level, client-only** (2026-06-16): the PIN lives in `ParentalSlice` (MMKV-persisted), is never sent to or read from the backend, and is not on the user object — content gating, not a credential, so verify is a local compare (no keychain/KDF). Gates adult-flagged content (channel/program `isAdult`) **only when `parentalEnabled`**. First enable creates + stores the PIN; enable/disable toggle in Settings (local PIN verify before disable) is wired; change-PIN / forgot-PIN are deferred. No backend endpoints, no cross-device sync (it's per-device by design). Rationale + flow: `rules/ARCHITECTURE.md → Parental control`.
 - **Change password** — `POST /users/me/change-password` (Settings → Account screen). Rotates the refresh token → `useChangePasswordMutation` rewrites the keychain; `logoutOtherDevices` flag folds in "sign out everywhere else" (no separate endpoint).
 - **Background audio for radio** — `expo-audio` lock-screen controls + Android foreground service.
 

@@ -100,8 +100,6 @@ const RadioPlayer: React.FC<RadioPlayerProps> = ({
   );
 };
 
-export default RadioPlayer;
-
 const ART = 230;
 
 const styles = StyleSheet.create({
@@ -154,3 +152,5 @@ const styles = StyleSheet.create({
     opacity: 0.4,
   },
 });
+
+export default RadioPlayer;

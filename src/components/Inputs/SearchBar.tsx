@@ -82,8 +82,6 @@ const SearchBar: React.FC<SearchBarProps> = ({
   );
 };
 
-export default SearchBar;
-
 const styles = StyleSheet.create({
   bar: {
     flexDirection: 'row',
@@ -102,3 +100,5 @@ const styles = StyleSheet.create({
     fontSize: FONTSIZE.md,
   },
 });
+
+export default SearchBar;

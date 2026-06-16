@@ -48,30 +48,7 @@ export async function changePassword(payload: ChangePasswordPayload): Promise<To
   return tokenPairSchema.parse(data);
 }
 
-/* ------------------------------- Parental --------------------------------- *
- * Per-account, backend source of truth. The PIN rides on the user object
- * (`user.parentalPin = { enabled, pin }`) — content gating, not a credential
- * (2026-06-15) — so verification is a LOCAL compare; there's no GET/verify-pin.
- * `POST` = first-time setup, `PATCH` = enable/disable (and later change-PIN).
- * Both return 204; the client mirrors the new state onto `user.parentalPin`.
- * See `rules/ARCHITECTURE.md → Parental control`.
- * -------------------------------------------------------------------------- */
-
-/** First-time setup: create + enable the gate with a new PIN. 204. */
-export async function setParentalPin(pin: string): Promise<void> {
-  await apiClient.post(USERS_ROUTES.PARENTAL, { enabled: true, pin });
-}
-
-export interface UpdateParentalPayload {
-  enabled: boolean;
-  /** Future change-PIN — sent only when rotating the PIN. */
-  newPin?: string;
-}
-
-/**
- * Toggle the gate on/off (and later change the PIN via `newPin`). No
- * `currentPin` — re-entry is verified locally before this is called. 204.
+/*
+ * No parental endpoints: the gate is device-level (client-only) as of
+ * 2026-06-16 — the PIN never touches the backend. See `ParentalSlice`.
  */
-export async function updateParental(payload: UpdateParentalPayload): Promise<void> {
-  await apiClient.patch(USERS_ROUTES.PARENTAL, payload);
-}

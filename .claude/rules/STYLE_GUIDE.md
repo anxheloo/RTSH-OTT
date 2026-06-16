@@ -17,6 +17,66 @@ Distilled from real code across RTSH and SOLITAR-FRONTEND_EMERGENT, then elevate
 
 ---
 
+## In-File Ordering
+
+Every file reads top-to-bottom in the same predictable order. This is the single rule that
+keeps 200+ files feeling like one author wrote them. Two principles govern it:
+
+1. **Fixed skeleton.** The top-level shape of a file (imports → module constants → component/hook → exports → styles) never varies.
+2. **Cluster by concern, not by keyword.** *Inside* a component or hook, keep everything for one concern together — the selector, derived value, effect, and callback for "quality" sit as a labelled block, rather than scattering all `useState`s at the top and all `useEffect`s at the bottom. Concern-clustering beats mechanical grouping for readability; the section order below is the default skeleton, not a mandate to split a cohesive block apart.
+
+### File skeleton (all files)
+
+1. **File-level JSDoc** — the *why* / contract / known edge cases (every non-trivial file).
+2. **Imports** — in the order defined in [Import Order](#import-order).
+3. **Module constants & pure helpers** — `as const` tables, `const FOO = …`, file-local pure functions (e.g. `toDateKey`). Above the component, never inside it.
+4. **Types** — `XProps` / local `type`s, immediately above the thing they describe.
+5. **The component / hook / slice** (body order below).
+6. **`StyleSheet.create()`** — after the component (components only).
+7. **`export default`** — the file's **final statement**, after the styles block.
+
+### Component body order
+
+```tsx
+const ChannelCard: React.FC<ChannelCardProps> = (props) => {
+  // 1. Hooks — store selectors first, then router/query/mutation, then refs.
+  const colors = useAppStore((s) => s.colors);
+  const { t } = useTranslation();
+
+  // 2. Local state (useState / useReducer).
+  const [open, setOpen] = useState(false);
+
+  // 3. Derived values & memos (computed from props/state/queries).
+  const label = useMemo(() => formatTitle(props.title), [props.title]);
+
+  // 4. Effects & listeners — each its own block with its cleanup. Co-locate
+  //    a listener's subscribe + teardown; never split them across the file.
+  useEffect(() => { /* … */ }, []);
+
+  // 5. Callbacks / handlers (useCallback or plain fns).
+  const onPress = useCallback(() => setOpen((v) => !v), []);
+
+  // 6. Early returns (loading / gated / error). A skeleton must never be
+  //    replaced by a frame of gated content — wait for all gating inputs.
+  if (isLoading) return <Skeleton />;
+
+  // 7. JSX.
+  return <View />;
+};
+```
+
+When a screen has several concerns (e.g. quality, parental gate, day strip), keep each as a **labelled block** that internally follows 1–5, rather than interleaving them. A one-line `// Quality —` comment above each block is the marker.
+
+### Hook body order
+
+`refs → state → derived → callbacks → effects/listeners → return`. The return shape is **stable** (never conditionally omit keys). JSDoc explains the *why*. See the [Hooks template](#template-1).
+
+### Slice body order
+
+`state fields → updateXSlice (universal setter) → named domain actions`. Group the interface the same way: fields first, `updateXSlice`, then actions. Do I/O before `set` in async actions. See the [Store Slices template](#template).
+
+---
+
 ## TypeScript
 
 ### `interface` vs `type`
@@ -111,19 +171,19 @@ const ChannelCard: React.FC<ChannelCardProps> = ({ channelId, title, logoUrl, on
   );
 };
 
-export default ChannelCard;
-
 const styles = StyleSheet.create({
   container: {
     borderRadius: BORDERRADIUS.radius_12,
     padding: SPACING.space_12,
   },
 });
+
+export default ChannelCard;
 ```
 
 ### Key points
 
-- `StyleSheet.create()` lives at the **bottom**, after `export default`.
+- `export default` is the file's **last statement**; `StyleSheet.create()` sits just above it, after the component.
 - Props type defined **above** the component, named `XProps`.
 - Wrap shared primitives with `Animated.View` from `react-native-reanimated` even when not animating yet — avoids a refactor later.
 - `testID` on every interactive leaf.

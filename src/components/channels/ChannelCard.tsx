@@ -96,8 +96,6 @@ const ChannelCard: React.FC<ChannelCardProps> = ({
   );
 };
 
-export default ChannelCard;
-
 const BADGE_BG = 'rgba(0,0,0,0.5)';
 
 const styles = StyleSheet.create({
@@ -141,3 +139,5 @@ const styles = StyleSheet.create({
     bottom: 11,
   },
 });
+
+export default ChannelCard;

@@ -168,8 +168,6 @@ const SearchScreen: React.FC = () => {
   );
 };
 
-export default SearchScreen;
-
 const styles = StyleSheet.create({
   searchWrap: {
     paddingHorizontal: SCREEN_PADDING,
@@ -198,3 +196,5 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 });
+
+export default SearchScreen;

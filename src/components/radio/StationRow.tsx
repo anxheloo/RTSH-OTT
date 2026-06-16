@@ -62,8 +62,6 @@ const StationRow: React.FC<StationRowProps> = ({ station, isActive = false, onPr
   );
 };
 
-export default StationRow;
-
 const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
@@ -90,3 +88,5 @@ const styles = StyleSheet.create({
     marginTop: SPACING.space_2,
   },
 });
+
+export default StationRow;

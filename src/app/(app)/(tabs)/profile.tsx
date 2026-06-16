@@ -26,7 +26,7 @@ const ProfileScreen: React.FC = () => {
   const colors = useAppStore((s) => s.colors);
   const tabBarHeight = useTabBarHeight();
   const user = useAppStore((s) => s.user);
-  const parentalEnabled = useAppStore((s) => !!s.user?.parentalPin?.enabled);
+  const parentalEnabled = useAppStore((s) => s.parentalEnabled);
   const updateModalSlice = useAppStore((s) => s.updateModalSlice);
   const { mutate: logout } = useLogoutMutation();
 
@@ -145,8 +145,6 @@ const ProfileScreen: React.FC = () => {
   );
 };
 
-export default ProfileScreen;
-
 const styles = StyleSheet.create({
   scroll: {
     paddingHorizontal: SCREEN_PADDING,
@@ -186,3 +184,5 @@ const styles = StyleSheet.create({
     marginTop: SPACING.space_4,
   },
 });
+
+export default ProfileScreen;

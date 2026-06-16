@@ -58,8 +58,6 @@ function BrowseControls<T extends string>({
   );
 }
 
-export default BrowseControls;
-
 const styles = StyleSheet.create({
   container: {
     gap: SPACING.space_12,
@@ -68,3 +66,5 @@ const styles = StyleSheet.create({
     paddingBottom: SPACING.space_12,
   },
 });
+
+export default BrowseControls;

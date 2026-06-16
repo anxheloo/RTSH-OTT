@@ -65,8 +65,6 @@ const Checkbox: React.FC<CheckboxProps> = ({
   );
 };
 
-export default Checkbox;
-
 const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
@@ -88,3 +86,5 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
 });
+
+export default Checkbox;

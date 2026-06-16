@@ -205,7 +205,8 @@
       "subtitle_active": "Aktiv",
       "subtitle_inactive": "Joaktiv",
       "disable_title": "Çaktivizo kontrollin prindëror",
-      "disable_message": "Ky veprim do të heqë PIN-in tuaj prindëror. Jeni i sigurt?"
+      "disable_message": "Ky veprim do të heqë PIN-in tuaj prindëror. Jeni i sigurt?",
+      "change_pin": "Ndrysho PIN-in"
     },
     "language": {
       "title": "Gjuha",
@@ -290,7 +291,8 @@
     "locked": "Shumë përpjekje. Provo pas {{seconds}}s.",
     "error": "Diçka shkoi keq. Provoni sërish.",
     "live_blocked": "Ky program është i kufizuar (18+). Vendos PIN-in për të vazhduar.",
-    "unlock": "Vendos PIN-in"
+    "unlock": "Vendos PIN-in",
+    "change_verify_current": "Vendos PIN-in aktual për të vazhduar."
   },
   "geo": {
     "title": "Jo i disponueshëm në rajonin tuaj",

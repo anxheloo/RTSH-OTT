@@ -53,8 +53,6 @@ const SceneBackground: React.FC<SceneBackgroundProps> = ({
   );
 };
 
-export default SceneBackground;
-
 const styles = StyleSheet.create({
   fill: {
     position: 'absolute',
@@ -70,3 +68,5 @@ const styles = StyleSheet.create({
     bottom: 0,
   },
 });
+
+export default SceneBackground;

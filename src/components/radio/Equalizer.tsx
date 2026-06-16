@@ -92,8 +92,6 @@ const Equalizer: React.FC<EqualizerProps> = ({
   );
 };
 
-export default Equalizer;
-
 const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
@@ -102,3 +100,5 @@ const styles = StyleSheet.create({
     borderRadius: BORDERRADIUS.none,
   },
 });
+
+export default Equalizer;

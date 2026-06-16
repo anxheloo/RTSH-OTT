@@ -62,8 +62,6 @@ function SegmentedToggle<T extends string>({
   );
 }
 
-export default SegmentedToggle;
-
 const styles = StyleSheet.create({
   track: {
     flexDirection: 'row',
@@ -80,3 +78,5 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
 });
+
+export default SegmentedToggle;
