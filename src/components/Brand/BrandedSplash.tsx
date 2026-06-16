@@ -84,12 +84,9 @@ const styles = StyleSheet.create({
     backgroundColor: BRAND_BLACK,
     alignItems: 'center',
     justifyContent: 'center',
+    gap: SPACING.space_48,
   },
   track: {
-    position: 'absolute',
-    alignSelf: 'center',
-    top: '50%',
-    marginTop: LOGO_HEIGHT / 2 + SPACING.space_48,
     width: BAR_WIDTH,
     height: 4,
     borderRadius: BORDERRADIUS.full,

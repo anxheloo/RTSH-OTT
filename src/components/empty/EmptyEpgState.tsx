@@ -1,5 +1,6 @@
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 
 import { SPACING } from '@/theme';
 import { useAppStore } from '@/store/useAppStore';
@@ -12,12 +13,13 @@ type EmptyEpgStateProps = {
 };
 
 const EmptyEpgState: React.FC<EmptyEpgStateProps> = ({ onRetry }) => {
+  const { t } = useTranslation();
   const colors = useAppStore((s) => s.colors);
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <ReusableText variant="heading3" themeColor="text" textAlign="center">
-        No programme guide
+        {t('empty.epg_title')}
       </ReusableText>
       <ReusableText
         variant="body"
@@ -25,11 +27,11 @@ const EmptyEpgState: React.FC<EmptyEpgStateProps> = ({ onRetry }) => {
         textAlign="center"
         style={styles.subtitle}
       >
-        EPG data is not available for this date.
+        {t('empty.epg_subtitle')}
       </ReusableText>
       {!!onRetry && (
         <ReusableBtn
-          label="Retry"
+          label={t('empty.retry')}
           variant="primary"
           size="medium"
           onPress={onRetry}

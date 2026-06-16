@@ -16,7 +16,6 @@ import { useOTA } from './useOTA';
 export interface BootstrapState {
   /** True once the keychain check has resolved. Splash gate uses this. */
   isReady: boolean;
-  isAuthenticated: boolean;
   ota: ReturnType<typeof useOTA>;
 }
 
@@ -45,6 +44,8 @@ export interface BootstrapState {
  * Splash gate (`isReady`) only blocks on (1) fonts (in `_layout.tsx`) and
  * (2) the keychain read — both essentially instant. The app boots offline.
  */
+// Runs once when this module first loads — before any React render. The guard
+// is defense-in-depth against HMR or future import-side-effects re-executing this.
 let bootstrapWired = false;
 const wireOnceAtBoot = (): void => {
   if (bootstrapWired) return;
@@ -53,13 +54,13 @@ const wireOnceAtBoot = (): void => {
   setupFocusManager(); // AppState → TanStack focusManager, for refetchOnWindowFocus
   initI18n();
 };
+wireOnceAtBoot();
 
 export function useBootstrap(): BootstrapState {
-  wireOnceAtBoot();
-
   useNetworkMonitor();
   useDeviceIdentity();
-  useMeQuery(); // boot-time user profile fetch; staleTime: Infinity, no auto-refetch
+  // Starts disabled; fires once useCheckToken sets isAuthenticated: true in the store.
+  useMeQuery();
   const ota = useOTA();
   const auth = useCheckToken();
 
@@ -84,7 +85,6 @@ export function useBootstrap(): BootstrapState {
 
   return {
     isReady: !auth.isLoading,
-    isAuthenticated: auth.data?.authenticated ?? false,
     ota,
   };
 }
