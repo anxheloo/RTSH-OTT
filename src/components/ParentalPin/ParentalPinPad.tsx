@@ -19,6 +19,7 @@ import { BORDERRADIUS } from '@/theme/borders';
 import { FONTSIZE } from '@/theme/fonts';
 import { SPACING } from '@/theme/spacing';
 import { useAppStore } from '@/store/useAppStore';
+import { useHaptic } from '@/hooks/useHaptic';
 import ReusableText from '@/components/Inputs/ReusableText';
 
 const PIN_LENGTH = 4;
@@ -42,6 +43,7 @@ export type ParentalPinPadProps = {
 const ParentalPinPad: React.FC<ParentalPinPadProps> = ({ onComplete, isWrong = false, title }) => {
   const { t } = useTranslation();
   const colors = useAppStore((s) => s.colors);
+  const haptics = useHaptic();
   const isLocked = useAppStore((s) => s.isLocked);
   const lockoutSecondsRemaining = useAppStore((s) => s.lockoutSecondsRemaining);
   const [pin, setPin] = useState('');
@@ -57,9 +59,10 @@ const ParentalPinPad: React.FC<ParentalPinPadProps> = ({ onComplete, isWrong = f
     return () => clearInterval(id);
   }, [lockoutSecondsRemaining]);
 
-  // Shake on wrong attempt
+  // Shake + error haptic on wrong attempt — co-located so audio and visual fire together.
   useEffect(() => {
     if (isWrong && !prevWrong.current) {
+      haptics.error();
       setPin('');
       shakeX.value = withRepeat(
         withSequence(
@@ -71,17 +74,19 @@ const ParentalPinPad: React.FC<ParentalPinPadProps> = ({ onComplete, isWrong = f
       );
     }
     prevWrong.current = isWrong;
-  }, [isWrong, shakeX]);
+  }, [isWrong, shakeX, haptics]);
 
   const dotsStyle = useAnimatedStyle(() => ({ transform: [{ translateX: shakeX.value }] }));
 
   const handleKey = (key: string) => {
     if (isLocked()) return;
     if (key === '⌫') {
+      haptics.selection();
       setPin((p) => p.slice(0, -1));
       return;
     }
     if (!key) return;
+    haptics.light();
     const next = pin + key;
     setPin(next);
     if (next.length === PIN_LENGTH) {

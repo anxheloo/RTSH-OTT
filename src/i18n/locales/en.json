@@ -19,11 +19,11 @@
       "welcome_subtitle": "Sign in to your RTSH TANI account.",
       "email_placeholder": "Email",
       "password_placeholder": "Password",
-      "remember_me": "Remember Me",
-      "forgot_password": "Forgot Password?",
+      "remember_me": "Remember me",
+      "forgot_password": "Forgot password?",
       "submit": "Login",
       "no_account": "Don't have an account?",
-      "sign_up": "Sign up",
+      "sign_up": "Sign up now",
       "failed": "Login failed. Please try again."
     },
     "register": {
@@ -125,7 +125,16 @@
     "days_ago_one": "{{count}} day ago",
     "days_ago_other": "{{count}} days ago",
     "in_days_one": "in {{count}} day",
-    "in_days_other": "in {{count}} days"
+    "in_days_other": "in {{count}} days",
+    "day_names": {
+      "sun": "Sun",
+      "mon": "Mon",
+      "tue": "Tue",
+      "wed": "Wed",
+      "thu": "Thu",
+      "fri": "Fri",
+      "sat": "Sat"
+    }
   },
   "catchup": {
     "epg": "EPG",
@@ -137,7 +146,8 @@
     "channels": "Channels",
     "programs": "Programs",
     "recent": "Recent searches",
-    "no_results": "No results for \"{{query}}\""
+    "no_results": "No results for \"{{query}}\"",
+    "all_channels": "ALL CHANNELS"
   },
   "guide": {
     "title": "Guide",
@@ -156,6 +166,7 @@
     "account": {
       "title": "Account details",
       "subtitle": "Username, email, age, location",
+      "subtitle_alt": "Name, email, password",
       "username": "Username",
       "email": "Email",
       "age": "Age",
@@ -229,6 +240,17 @@
     "version": {
       "title": "Version",
       "subtitle": "RTSH TANI {{version}}"
+    },
+    "default_quality": {
+      "title": "Default quality"
+    },
+    "cast": {
+      "title": "Cast",
+      "subtitle": "To TV or device"
+    },
+    "haptics": {
+      "title": "Haptic feedback",
+      "subtitle": "Vibrations on toggles and inputs"
     }
   },
   "player": {
@@ -303,5 +325,33 @@
     "label": "AD",
     "skip": "Skip ad",
     "skip_in": "Skip in {{seconds}}s"
+  },
+  "nav": {
+    "home": "Home",
+    "guide": "Guide",
+    "search": "Search",
+    "profile": "Profile"
+  },
+  "onboard": {
+    "title": "Initial Setup",
+    "skip": "Skip",
+    "parental_title": "Parental Control",
+    "parental_body": "Disabled by default. Enable and select an age to protect content based on the EPG.",
+    "parental_enable": "Enable parental control",
+    "parental_enable_subtitle": "Blocks events by age",
+    "age_label": "Minimum age",
+    "cellular_title": "Cellular data",
+    "cellular_enable": "Allow streaming over cellular",
+    "cellular_enable_subtitle": "Otherwise Wi-Fi only",
+    "continue": "Continue"
+  },
+  "empty": {
+    "channels_title": "No channels available",
+    "channels_subtitle": "Channels could not be loaded. Check your connection and try again.",
+    "epg_title": "No programme guide",
+    "epg_subtitle": "EPG data is not available for this date.",
+    "catchup_title": "No catch-up available",
+    "catchup_subtitle": "There are no archived programmes right now. Check back later.",
+    "retry": "Retry"
   }
 }

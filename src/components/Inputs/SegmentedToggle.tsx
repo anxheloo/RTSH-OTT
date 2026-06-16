@@ -9,6 +9,7 @@ import { StyleSheet, TouchableOpacity, View } from 'react-native';
 import { BORDERRADIUS } from '@/theme/borders';
 import { SPACING } from '@/theme/spacing';
 import { useAppStore } from '@/store/useAppStore';
+import { useHaptic } from '@/hooks/useHaptic';
 
 import ReusableText from './ReusableText';
 
@@ -31,6 +32,13 @@ function SegmentedToggle<T extends string>({
   testID,
 }: SegmentedToggleProps<T>) {
   const colors = useAppStore((s) => s.colors);
+  const haptics = useHaptic();
+
+  const handleSelect = (next: T) => {
+    if (next === value) return;
+    haptics.selection();
+    onChange(next);
+  };
 
   return (
     <View
@@ -42,7 +50,7 @@ function SegmentedToggle<T extends string>({
         return (
           <TouchableOpacity
             key={opt.value}
-            onPress={() => onChange(opt.value)}
+            onPress={() => handleSelect(opt.value)}
             activeOpacity={0.8}
             style={[styles.segment, isActive && { backgroundColor: colors.surfaceHigh }]}
             accessibilityRole="button"

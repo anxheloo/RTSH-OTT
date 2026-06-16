@@ -592,6 +592,34 @@ Branch naming: `feat/<scope>-<short>`, `fix/<scope>-<short>`.
 
 ---
 
+## Haptics
+
+Haptic feedback follows the native mobile model: **the primitive owns it, callers configure intensity**. `useHaptic()` is called inside the component, not by the caller. It gates on `settings.hapticsEnabled` automatically — no per-call guard needed.
+
+Three semantic families, used as intended:
+
+| Method | When | Examples |
+|--------|------|---------|
+| `selection()` | Discrete value change | `Switch` toggle, `Checkbox`, `SegmentedToggle`, `FilterChipRow`, PIN backspace |
+| `light()` / `medium()` | Physical-feeling input | PIN digit press (`light`), opt-in on `ReusableBtn` via `haptic` prop |
+| `success()` / `warning()` / `error()` | Task outcome | PIN correct/wrong, mutation success/failure |
+
+**`ReusableBtn` haptic prop** defaults to `'none'` — opt-in only. Use `haptic="medium"` on consequential CTAs (confirm, submit, destructive). Use `haptic="light"` for low-stakes actions that benefit from feedback. Never add haptics to navigation / cancel buttons.
+
+**Guard pattern for selection components** (segmented, chips): extract a named `handleSelect` before the JSX — never inline a multi-statement `onPress`. Early-return on no-op (same value selected):
+
+```tsx
+const handleSelect = (next: T) => {
+  if (next === value) return;
+  haptics.selection();
+  onChange(next);
+};
+// in JSX:
+onPress={() => handleSelect(opt.value)}
+```
+
+---
+
 ## Things Worth Avoiding
 
 | Pattern | Preferred approach |
@@ -610,3 +638,5 @@ Branch naming: `feat/<scope>-<short>`, `fix/<scope>-<short>`.
 | Magic numbers for spacing/font/radius | Token files (`SPACING`, `FONTSIZE`, `BORDERRADIUS`) |
 | `React.memo` on non-list components | Memoize only in lists or high-frequency renders |
 | Ad-hoc `setInterval` countdown in a component | `useCountdown` (`hooks/useCountdown.ts`) — deadline-based, background-aware (`proceedInBackground: false` to pause while backgrounded) |
+| Multi-statement inline `onPress` (`() => { a(); b(); }`) | Extract a named handler before the JSX return — cleaner, nameable, testable |
+| Calling `useHaptic()` at the call site | Haptics belong inside the primitive; callers only set `haptic` prop intensity |

@@ -19,11 +19,11 @@
       "welcome_subtitle": "Hyni në llogarinë tuaj RTSH TANI.",
       "email_placeholder": "Email",
       "password_placeholder": "Fjalëkalimi",
-      "remember_me": "Mbaj mend",
-      "forgot_password": "Keni harruar fjalëkalimin?",
+      "remember_me": "Më mbaj mend",
+      "forgot_password": "Harruat fjalëkalimin?",
       "submit": "Hyr",
       "no_account": "Nuk keni llogari?",
-      "sign_up": "Regjistrohu",
+      "sign_up": "Regjistrohuni",
       "failed": "Identifikimi dështoi. Provoni përsëri."
     },
     "register": {
@@ -125,7 +125,16 @@
     "days_ago_one": "{{count}} ditë më parë",
     "days_ago_other": "{{count}} ditë më parë",
     "in_days_one": "Pas {{count}} dite",
-    "in_days_other": "Pas {{count}} ditësh"
+    "in_days_other": "Pas {{count}} ditësh",
+    "day_names": {
+      "sun": "E Diel",
+      "mon": "E Hënë",
+      "tue": "E Martë",
+      "wed": "E Mërkurë",
+      "thu": "E Enjte",
+      "fri": "E Premte",
+      "sat": "E Shtunë"
+    }
   },
   "catchup": {
     "epg": "EPG",
@@ -137,7 +146,8 @@
     "channels": "Kanale",
     "programs": "Programe",
     "recent": "Kërkime të fundit",
-    "no_results": "Asnjë rezultat për \"{{query}}\""
+    "no_results": "Asnjë rezultat për \"{{query}}\"",
+    "all_channels": "TË GJITHA KANALET"
   },
   "guide": {
     "title": "Guida",
@@ -156,6 +166,7 @@
     "account": {
       "title": "Të dhënat e llogarisë",
       "subtitle": "Përdoruesi, email, mosha, vendndodhja",
+      "subtitle_alt": "Emri, email, fjalëkalimi",
       "username": "Përdoruesi",
       "email": "Email",
       "age": "Mosha",
@@ -215,7 +226,7 @@
     },
     "notifications": {
       "title": "Njoftimet",
-      "subtitle": "Premierë & lajme"
+      "subtitle": "Premiera & lajme"
     },
     "terms": {
       "title": "Kushtet e përdorimit"
@@ -229,6 +240,17 @@
     "version": {
       "title": "Versioni",
       "subtitle": "RTSH TANI {{version}}"
+    },
+    "default_quality": {
+      "title": "Cilësia e parazgjedhur"
+    },
+    "cast": {
+      "title": "Transmeto (Cast)",
+      "subtitle": "Në TV ose pajisje"
+    },
+    "haptics": {
+      "title": "Reagime haptike",
+      "subtitle": "Dridhje në prekjet dhe ndryshimet"
     }
   },
   "player": {
@@ -303,5 +325,33 @@
     "label": "REKLAMË",
     "skip": "Kalo reklamën",
     "skip_in": "Kalo pas {{seconds}}s"
+  },
+  "nav": {
+    "home": "Kreu",
+    "guide": "Guida",
+    "search": "Kërko",
+    "profile": "Profili"
+  },
+  "onboard": {
+    "title": "Konfigurimi fillestar",
+    "skip": "Kapërce",
+    "parental_title": "Kontrolli prindëror",
+    "parental_body": "I çaktivizuar si parazgjedhje. Aktivizoni dhe zgjidhni moshën për të mbrojtur përmbajtjen sipas EPG-së.",
+    "parental_enable": "Aktivizo kontrollin prindëror",
+    "parental_enable_subtitle": "Bllokon eventet sipas moshës",
+    "age_label": "Mosha minimale",
+    "cellular_title": "Të dhënat celulare",
+    "cellular_enable": "Lejo transmetimin me të dhëna celulare",
+    "cellular_enable_subtitle": "Përndryshe vetëm me WiFi",
+    "continue": "Vazhdo"
+  },
+  "empty": {
+    "channels_title": "Nuk ka kanale",
+    "channels_subtitle": "Kanalet nuk mund të ngarkoheshin. Kontrolloni lidhjen dhe provoni përsëri.",
+    "epg_title": "Nuk ka program",
+    "epg_subtitle": "Të dhënat EPG nuk janë të disponueshme për këtë datë.",
+    "catchup_title": "Nuk ka catch-up",
+    "catchup_subtitle": "Nuk ka programe të arkivuara tani. Provoni më vonë.",
+    "retry": "Provo përsëri"
   }
 }

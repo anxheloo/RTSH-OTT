@@ -19,6 +19,7 @@ import { BORDERRADIUS } from '@/theme/borders';
 import { FONTSIZE } from '@/theme/fonts';
 import { SPACING } from '@/theme/spacing';
 import { useAppStore } from '@/store/useAppStore';
+import { useHaptic } from '@/hooks/useHaptic';
 import { Icon, IconButton } from '@/components/Icons';
 import ReusableText from '@/components/Inputs/ReusableText';
 import { hashPin, verifyPin } from '@/utils/pin';
@@ -44,6 +45,7 @@ const ParentalPinModal: React.FC<ParentalPinModalProps> = ({
 }) => {
   const { t } = useTranslation();
   const colors = useAppStore((s) => s.colors);
+  const haptics = useHaptic();
   const insets = useSafeAreaInsets();
   const recordFailedAttempt = useAppStore((s) => s.recordFailedAttempt);
   const resetAttempts = useAppStore((s) => s.resetAttempts);
@@ -66,6 +68,7 @@ const ParentalPinModal: React.FC<ParentalPinModalProps> = ({
   const settleVerify = (ok: boolean) => {
     if (ok) {
       resetAttempts();
+      haptics.success();
       onSuccess();
     } else {
       recordFailedAttempt();
@@ -106,6 +109,7 @@ const ParentalPinModal: React.FC<ParentalPinModalProps> = ({
       setParentalConfig({ enabled: true, pin: hash });
       setPendingPin(null);
       setError('');
+      haptics.success();
       onSuccess();
     } finally {
       setIsBusy(false);
@@ -156,6 +160,7 @@ const ParentalPinModal: React.FC<ParentalPinModalProps> = ({
       setPendingPin(null);
       setChangeStep('verify-current');
       setError('');
+      haptics.success();
       onSuccess();
     } finally {
       setIsBusy(false);

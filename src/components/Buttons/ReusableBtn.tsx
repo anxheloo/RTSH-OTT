@@ -21,6 +21,7 @@ import {
 
 import type { ThemeColors } from '@/theme/colors';
 import { useAppStore } from '@/store/useAppStore';
+import { useHaptic } from '@/hooks/useHaptic';
 
 import ReusableText, { FontWeight } from '../Inputs/ReusableText';
 
@@ -68,6 +69,12 @@ export type ReusableBtnProps = Omit<TouchableOpacityProps, 'style' | 'disabled'>
   leftIcon?: React.ReactNode;
   rightIcon?: React.ReactNode;
   testID?: string;
+  /**
+   * Haptic intensity on press. Defaults to 'none' — opt-in only.
+   * Use 'medium' for consequential CTAs (confirm, submit, destructive).
+   * Use 'light' for low-stakes actions that still benefit from feedback.
+   */
+  haptic?: 'light' | 'medium' | 'none';
   /** Escape hatch for one-off layout (height, borderRadius, width). Applied last. */
   style?: StyleProp<ViewStyle>;
 };
@@ -83,12 +90,20 @@ const ReusableBtn: React.FC<ReusableBtnProps> = ({
   leftIcon,
   rightIcon,
   testID,
+  haptic = 'none',
   style,
   ...rest
 }) => {
   const colors = useAppStore((s) => s.colors);
+  const haptics = useHaptic();
   const variantSpec = VARIANTS[variant];
   const sizeSpec = SIZES[size];
+
+  const handlePress = () => {
+    if (haptic === 'light') haptics.light();
+    else if (haptic === 'medium') haptics.medium();
+    onPress();
+  };
 
   const backgroundColor =
     variantSpec.backgroundColor === 'transparent'
@@ -104,7 +119,7 @@ const ReusableBtn: React.FC<ReusableBtnProps> = ({
       {...rest}
       activeOpacity={0.8}
       disabled={isPressDisabled}
-      onPress={onPress}
+      onPress={handlePress}
       accessibilityRole="button"
       accessibilityState={{ disabled: isPressDisabled, busy: isLoading }}
       accessibilityLabel={typeof label === 'string' ? label : undefined}

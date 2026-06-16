@@ -14,6 +14,7 @@ import Animated, {
 
 import { BORDERRADIUS } from '@/theme/borders';
 import { useAppStore } from '@/store/useAppStore';
+import { useHaptic } from '@/hooks/useHaptic';
 
 const TRACK_W = 46;
 const TRACK_H = 27;
@@ -31,6 +32,7 @@ export interface SwitchProps {
 
 const Switch: React.FC<SwitchProps> = ({ value, onValueChange, isDisabled = false, testID }) => {
   const colors = useAppStore((s) => s.colors);
+  const haptics = useHaptic();
   const progress = useSharedValue(value ? 1 : 0);
 
   useEffect(() => {
@@ -49,7 +51,7 @@ const Switch: React.FC<SwitchProps> = ({ value, onValueChange, isDisabled = fals
     <TouchableOpacity
       activeOpacity={0.8}
       disabled={isDisabled}
-      onPress={() => onValueChange(!value)}
+      onPress={() => { haptics.selection(); onValueChange(!value); }}
       accessibilityRole="switch"
       accessibilityState={{ checked: value, disabled: isDisabled }}
       testID={testID}

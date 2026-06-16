@@ -14,6 +14,7 @@
  */
 import React, { useEffect, useRef, useState } from 'react';
 import { StyleSheet, TouchableOpacity, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 
 import type { VideoPlayer } from 'expo-video';
@@ -59,6 +60,7 @@ const PlayerControls: React.FC<PlayerControlsProps> = ({
   channelName,
   programTitle,
 }) => {
+  const { t } = useTranslation();
   const [visible, setVisible] = useState(true);
   const [isPlaying, setIsPlaying] = useState(player.playing);
   const [seekBarWidth, setSeekBarWidth] = useState(1);
@@ -126,7 +128,7 @@ const PlayerControls: React.FC<PlayerControlsProps> = ({
         <View style={styles.liveTag} testID="controls-live-badge">
           <View style={styles.liveDot} />
           <ReusableText fontSize={FONTSIZE.xxs} fontWeight="extraBold" style={styles.liveText}>
-            LIVE
+            {t('player.live')}
           </ReusableText>
         </View>
       ) : null}

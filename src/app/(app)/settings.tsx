@@ -32,6 +32,7 @@ import {
   KeyIcon,
   LanguageIcon,
   LayersIcon,
+  MobileIcon,
   ShieldIcon,
   WifiIcon,
 } from '@/assets/icons';
@@ -45,6 +46,8 @@ const SettingsScreen: React.FC = () => {
   const setCellularPlaybackAllowed = useAppStore((s) => s.setCellularPlaybackAllowed);
   const notificationsEnabled = useAppStore((s) => s.notificationsEnabled);
   const setNotificationsEnabled = useAppStore((s) => s.setNotificationsEnabled);
+  const hapticsEnabled = useAppStore((s) => s.hapticsEnabled);
+  const setHapticsEnabled = useAppStore((s) => s.setHapticsEnabled);
   const locale = useAppStore((s) => s.locale);
   const mode = useAppStore((s) => s.mode);
   const parentalEnabled = useAppStore((s) => s.parentalEnabled);
@@ -199,6 +202,19 @@ const SettingsScreen: React.FC = () => {
               />
             }
             testID="settings-notifications-row"
+          />
+          <ListRow
+            title={t('settings.haptics.title')}
+            subtitle={t('settings.haptics.subtitle')}
+            leading={<Icon as={MobileIcon} size={20} color={colors.text} />}
+            right={
+              <Switch
+                value={hapticsEnabled}
+                onValueChange={setHapticsEnabled}
+                testID="settings-haptics-switch"
+              />
+            }
+            testID="settings-haptics-row"
           />
           <ListRow
             title={t('settings.theme.title')}

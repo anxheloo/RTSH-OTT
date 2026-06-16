@@ -10,6 +10,7 @@
  */
 import React from 'react';
 import { Platform, StyleSheet, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { BlurView } from 'expo-blur';
@@ -24,6 +25,7 @@ const TabsLayout: React.FC = () => {
   const colors = useAppStore((s) => s.colors);
   const mode = useAppStore((s) => s.mode);
   const insets = useSafeAreaInsets();
+  const { t } = useTranslation();
 
   return (
     <Tabs
@@ -61,7 +63,7 @@ const TabsLayout: React.FC = () => {
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Kreu',
+          title: t('nav:home'),
           tabBarAccessibilityLabel: 'tab-home',
           tabBarIcon: ({ focused }) => (
             <Icon
@@ -75,7 +77,7 @@ const TabsLayout: React.FC = () => {
       <Tabs.Screen
         name="guide"
         options={{
-          title: 'Guida',
+          title: t('nav:guide'),
           tabBarAccessibilityLabel: 'tab-guide',
           tabBarIcon: ({ focused }) => (
             <Icon
@@ -89,7 +91,7 @@ const TabsLayout: React.FC = () => {
       <Tabs.Screen
         name="search"
         options={{
-          title: 'Kërko',
+          title: t('nav:search'),
           tabBarAccessibilityLabel: 'tab-search',
           tabBarIcon: ({ focused }) => (
             <Icon
@@ -103,7 +105,7 @@ const TabsLayout: React.FC = () => {
       <Tabs.Screen
         name="profile"
         options={{
-          title: 'Profili',
+          title: t('nav:profile'),
           tabBarAccessibilityLabel: 'tab-profile',
           tabBarIcon: ({ focused }) => (
             <Icon

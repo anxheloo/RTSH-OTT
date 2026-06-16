@@ -9,6 +9,7 @@ import { ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
 import { BORDERRADIUS } from '@/theme/borders';
 import { SCREEN_PADDING, SPACING } from '@/theme/spacing';
 import { useAppStore } from '@/store/useAppStore';
+import { useHaptic } from '@/hooks/useHaptic';
 
 import ReusableText from './ReusableText';
 
@@ -31,6 +32,13 @@ function FilterChipRow<T extends string>({
   testID,
 }: FilterChipRowProps<T>) {
   const colors = useAppStore((s) => s.colors);
+  const haptics = useHaptic();
+
+  const handleSelect = (next: T) => {
+    if (next === value) return;
+    haptics.selection();
+    onChange(next);
+  };
 
   return (
     <ScrollView
@@ -44,7 +52,7 @@ function FilterChipRow<T extends string>({
         return (
           <TouchableOpacity
             key={chip.value}
-            onPress={() => onChange(chip.value)}
+            onPress={() => handleSelect(chip.value)}
             activeOpacity={0.8}
             accessibilityRole="button"
             accessibilityState={{ selected: isActive }}

@@ -9,6 +9,7 @@ import { StyleSheet, TouchableOpacity, View } from 'react-native';
 import { BORDERRADIUS } from '@/theme/borders';
 import { SPACING } from '@/theme/spacing';
 import { useAppStore } from '@/store/useAppStore';
+import { useHaptic } from '@/hooks/useHaptic';
 import { Icon } from '@/components/Icons';
 import { CheckIcon } from '@/assets/icons';
 
@@ -33,12 +34,13 @@ const Checkbox: React.FC<CheckboxProps> = ({
   testID,
 }) => {
   const colors = useAppStore((s) => s.colors);
+  const haptics = useHaptic();
 
   return (
     <TouchableOpacity
       activeOpacity={0.7}
       disabled={isDisabled}
-      onPress={() => onValueChange(!value)}
+      onPress={() => { haptics.selection(); onValueChange(!value); }}
       accessibilityRole="checkbox"
       accessibilityState={{ checked: value, disabled: isDisabled }}
       style={[styles.row, isDisabled && styles.disabled]}
