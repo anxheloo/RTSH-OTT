@@ -78,14 +78,15 @@ apiClient.interceptors.response.use(
 export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 5 * 60 * 1000,
-      gcTime: 10 * 60 * 1000,
+      staleTime: Infinity,
+      gcTime: 60 * 60 * 1000,
       retry: (failureCount, error) => {
         if (error instanceof AxiosError && error.response?.status === 401) return false;
         return failureCount < 1;
       },
-      refetchOnWindowFocus: false,
+      refetchOnWindowFocus: true,
       refetchOnReconnect: true,
+      refetchOnMount: true,
     },
     mutations: {
       retry: false,

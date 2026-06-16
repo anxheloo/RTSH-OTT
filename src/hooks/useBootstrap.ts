@@ -1,15 +1,13 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import { Appearance } from 'react-native';
 
 import { resolveColors } from '@/store/createThemeSlice';
 import { useAppStore } from '@/store/useAppStore';
-import { queryClient } from '@/api/client';
 import { setupFocusManager } from '@/api/focusManager';
 import { refreshAccessToken, setupAuthRefresh } from '@/api/mutations/authRefresh';
 import { useMeQuery } from '@/api/queries';
 import { initI18n } from '@/i18n';
 
-import { useAppState } from './useAppState';
 import { useCheckToken } from './useCheckToken';
 import { useDeviceIdentity } from './useDeviceIdentity';
 import { useNetworkMonitor } from './useNetworkMonitor';
@@ -31,10 +29,11 @@ export interface BootstrapState {
  *   3. Mount `useOTA` (exposes update state; runtime auto-checks on launch).
  *   3b. Mount `useDeviceIdentity` (stamps the static `X-Device-*` headers
  *      onto the api client once the keychain device ID resolves).
- *   3c. Mount `useMeQuery` + wire `setupFocusManager` — cross-device profile
- *      sync (refetch `/users/me` on foreground / reconnect / 5-min active poll,
- *      mirrored into the store). Lets a parental change on one device reach the
- *      others without sockets.
+ *   3c. Mount `useMeQuery` — fetches the user profile once on cold start and
+ *      mirrors it into the store (staleTime: Infinity; pull-to-refresh in the
+ *      home tab is the only explicit refresh path). Wire `setupFocusManager`
+ *      (AppState → TanStack focusManager) so any future query that opts into
+ *      `refetchOnWindowFocus: true` with a finite staleTime works correctly.
  *   4. Run boot auth check via `useCheckToken` (keychain-only — never blocks
  *      splash on the network).
  *   5. Kick off a background access-token refresh once the keychain check
@@ -60,7 +59,7 @@ export function useBootstrap(): BootstrapState {
 
   useNetworkMonitor();
   useDeviceIdentity();
-  useMeQuery(); // cross-device profile sync (foreground + reconnect + 5-min active poll)
+  useMeQuery(); // boot-time user profile fetch; staleTime: Infinity, no auto-refetch
   const ota = useOTA();
   const auth = useCheckToken();
 
@@ -73,14 +72,6 @@ export function useBootstrap(): BootstrapState {
       if (!useAppStore.getState().token) void refreshAccessToken();
     }
   }, [auth.data?.authenticated]);
-
-  // Invalidate live data on foreground so stale channels / EPG auto-refetch.
-  // staleTime (5 min) naturally rate-limits how often a real network request fires.
-  const handleForeground = useCallback(() => {
-    queryClient.invalidateQueries({ queryKey: ['channels'] });
-    queryClient.invalidateQueries({ queryKey: ['epg'] });
-  }, []);
-  useAppState({ onForeground: handleForeground });
 
   useEffect(() => {
     const sub = Appearance.addChangeListener(() => {

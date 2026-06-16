@@ -6,8 +6,8 @@
  * `ListHeaderComponent` (re-keyed on mode so the column count switches
  * cleanly).
  */
-import React, { useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import React, { useCallback, useState } from 'react';
+import { RefreshControl, StyleSheet, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
 import { FlashList } from '@shopify/flash-list';
@@ -43,9 +43,23 @@ const HomeScreen: React.FC = () => {
 
   const [mode, setMode] = useState<HomeMode>('tv');
 
-  const { channels, isLoading: channelsLoading } = useChannelsQuery();
-  const { stations, isLoading: stationsLoading } = useRadioStationsQuery();
-  const { heroes, isLoading: heroesLoading } = useHomeFeedQuery();
+  const { channels, isLoading: channelsLoading, refetch: refetchChannels } = useChannelsQuery();
+  const { stations, isLoading: stationsLoading, refetch: refetchStations } = useRadioStationsQuery();
+  const { heroes, isLoading: heroesLoading, refetch: refetchHeroes } = useHomeFeedQuery();
+
+  const [refreshing, setRefreshing] = useState(false);
+
+  const handleTvRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await Promise.all([refetchChannels(), refetchHeroes()]);
+    setRefreshing(false);
+  }, [refetchChannels, refetchHeroes]);
+
+  const handleRadioRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await refetchStations();
+    setRefreshing(false);
+  }, [refetchStations]);
 
   const openChannel = (id: string) => router.push(`/(app)/channel/${id}`);
 
@@ -160,6 +174,14 @@ const HomeScreen: React.FC = () => {
             ItemSeparatorComponent={() => <View style={styles.rowGap} />}
             contentContainerStyle={[styles.listContent, { paddingBottom: tabBarHeight + SPACING.space_24 }]}
             showsVerticalScrollIndicator={false}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={handleTvRefresh}
+                tintColor={colors.primary}
+                colors={[colors.primary]}
+              />
+            }
             testID="home-tv-grid"
           />
         ) : (
@@ -175,6 +197,14 @@ const HomeScreen: React.FC = () => {
               { paddingBottom: tabBarHeight + SPACING.space_24 },
             ]}
             showsVerticalScrollIndicator={false}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={handleRadioRefresh}
+                tintColor={colors.primary}
+                colors={[colors.primary]}
+              />
+            }
             testID="home-radio-list"
           />
         )}
