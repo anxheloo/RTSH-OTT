@@ -1,17 +1,30 @@
 /**
- * Home (Kreu) — design screen 6. Brand header (logo + profile icon), a
- * search entry, and a Televizion/Radio toggle. TV mode: hero carousel, then
- * the 2-column channel grid. Radio mode: the station list. One FlashList
- * carries the grid/list; the scrolling top content rides in
- * `ListHeaderComponent` (re-keyed on mode so the column count switches
- * cleanly).
+ * Home (Kreu) — design screen 6. Brand header (logo), a search entry, and a
+ * Televizion/Radio toggle. TV mode: hero carousel, then the channel grid.
+ * Radio mode: the station list.
+ *
+ * One FlashList owns the screen's scroll (the `Artists.tsx` pattern): the
+ * primary vertical dataset (channel grid / station list) is the list `data`;
+ * the search + toggle + horizontal hero carousel + section title all ride in
+ * `ListHeaderComponent`, so they scroll up with the content. A horizontal list
+ * nested in a vertical list's header is fine (different orientation); never
+ * nest a vertical list in a vertical scroller.
+ *
+ * The list re-keys per mode (`key`) because the grid's column count differs
+ * from the radio list — FlashList can't change `numColumns` in place. The
+ * remount is invisible (the header has no animation/internal state) and resets
+ * scroll to top, which is the right UX when swapping to a different dataset.
+ *
+ * Responsive: the TV column count comes from `useResponsiveGrid()` (device
+ * class + orientation — phone 2, tablet 3/4, TV 4), so the grid widens on
+ * tablet/large screens. Cards self-size via `flex: 1`. Radio stays
+ * single-column at every size. (TV focus/D-pad nav → plan 22.18.)
  */
 import React, { useCallback, useState } from 'react';
 import { RefreshControl, StyleSheet, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
 import { FlashList } from '@shopify/flash-list';
-import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 
 import { SCREEN_PADDING, SPACING } from '@/theme/spacing';
@@ -21,18 +34,17 @@ import { useTabBarHeight } from '@/hooks';
 import { BrandHeader } from '@/components/Brand';
 import ChannelCard from '@/components/channels/ChannelCard';
 import ChannelCardSkeleton from '@/components/channels/ChannelCardSkeleton';
+import { EmptyChannelsState, EmptyStationsState, ErrorState } from '@/components/empty';
 import { HeroCarousel } from '@/components/home';
-import { Icon, IconButton } from '@/components/Icons';
 import { BrowseControls, ScreenLayout, SectionHeader } from '@/components/Layout';
 import StationRow from '@/components/radio/StationRow';
 import StationRowSkeleton from '@/components/radio/StationRowSkeleton';
 import type { Channel, RadioStation } from '@/types/domain';
-import { ProfileIcon } from '@/assets/icons';
+import { useResponsiveGrid } from '@/responsive';
 
 type HomeMode = 'tv' | 'radio';
 
-/** Gap between the two grid columns. Edge cells pad out to SCREEN_PADDING so the
- * list itself stays full-bleed (its header rows own their internal padding). */
+/** Gutter between grid columns; cells pad out to SCREEN_PADDING on the edges. */
 const GRID_GAP = SPACING.space_10;
 
 const HomeScreen: React.FC = () => {
@@ -43,52 +55,80 @@ const HomeScreen: React.FC = () => {
 
   const [mode, setMode] = useState<HomeMode>('tv');
 
-  const { channels, isLoading: channelsLoading, refetch: refetchChannels } = useChannelsQuery();
-  const { stations, isLoading: stationsLoading, refetch: refetchStations } = useRadioStationsQuery();
+  const {
+    channels,
+    isLoading: channelsLoading,
+    error: channelsError,
+    refetch: refetchChannels,
+  } = useChannelsQuery();
+  const {
+    stations,
+    isLoading: stationsLoading,
+    error: stationsError,
+    refetch: refetchStations,
+  } = useRadioStationsQuery();
   const { heroes, isLoading: heroesLoading, refetch: refetchHeroes } = useHomeFeedQuery();
 
   const [refreshing, setRefreshing] = useState(false);
 
-  const handleTvRefresh = useCallback(async () => {
-    setRefreshing(true);
-    await Promise.all([refetchChannels(), refetchHeroes()]);
-    setRefreshing(false);
-  }, [refetchChannels, refetchHeroes]);
+  const isTv = mode === 'tv';
+  // TV grid columns come from device class + orientation; radio is always 1 col.
+  const gridColumns = useResponsiveGrid();
+  const numColumns = isTv ? gridColumns : 1;
+  const data = isTv ? channels : stations;
+  const isLoading = isTv ? channelsLoading : stationsLoading;
+  const error = isTv ? channelsError : stationsError;
+  const refetchActive = isTv ? refetchChannels : refetchStations;
 
-  const handleRadioRefresh = useCallback(async () => {
+  const handleRefresh = useCallback(async () => {
     setRefreshing(true);
-    await refetchStations();
+    await (isTv ? Promise.all([refetchChannels(), refetchHeroes()]) : refetchStations());
     setRefreshing(false);
-  }, [refetchStations]);
+  }, [isTv, refetchChannels, refetchHeroes, refetchStations]);
 
   const openChannel = (id: string) => router.push(`/(app)/channel/${id}`);
+  const openStation = (id: string) => router.push(`/(app)/radio/${id}`);
 
-  const tvHeader = (
+  // Search + toggle scroll up with the content (no stickyHeaderIndices). The
+  // mode-specific top content (hero + section title) is part of the same header.
+  const listHeader = (
     <View>
-      <View style={styles.heroWrap}>
-        <HeroCarousel
-          items={heroes}
-          isLoading={heroesLoading}
-          onPressItem={openChannel}
-          testID="home-hero"
-        />
-      </View>
-      <SectionHeader title={t('home.tv_channels')} />
+      <BrowseControls
+        searchPlaceholder={t('home.search_placeholder')}
+        onSearchPress={() => router.push('/(app)/(tabs)/search')}
+        toggleOptions={[
+          { label: t('home.toggle_tv'), value: 'tv' },
+          { label: t('home.toggle_radio'), value: 'radio' },
+        ]}
+        toggleValue={mode}
+        onToggleChange={setMode}
+        testID="home-browse-controls"
+      />
+      {isTv ? (
+        <>
+          <View style={styles.heroWrap}>
+            <HeroCarousel
+              items={heroes}
+              isLoading={heroesLoading}
+              onPressItem={openChannel}
+              testID="home-hero"
+            />
+          </View>
+          <SectionHeader title={t('home.tv_channels')} />
+        </>
+      ) : (
+        <SectionHeader title={t('home.radio_stations')} />
+      )}
     </View>
   );
 
   // Skeleton stacks ride ListEmptyComponent: the grid/list swaps placeholders
   // for data in place once the query lands, with no layout jump.
   const tvSkeleton = (
-    <View testID="home-tv-skeleton">
-      {Array.from({ length: 3 }, (_, i) => (
-        <View key={i} style={[styles.skeletonGridRow, i > 0 && styles.skeletonRowGap]}>
-          <View style={styles.cellLeft}>
-            <ChannelCardSkeleton />
-          </View>
-          <View style={styles.cellRight}>
-            <ChannelCardSkeleton />
-          </View>
+    <View testID="home-tv-skeleton" style={styles.skeletonGrid}>
+      {Array.from({ length: numColumns * 3 }, (_, i) => (
+        <View key={i} style={[styles.skeletonCell, { width: `${100 / numColumns}%` }]}>
+          <ChannelCardSkeleton />
         </View>
       ))}
     </View>
@@ -102,122 +142,81 @@ const HomeScreen: React.FC = () => {
     </View>
   );
 
-  const radioHeader = (
-    <View>
-      <SectionHeader title={t('home.radio_stations')} />
-    </View>
+  // Non-data placeholder: skeleton while loading, ErrorState (with Retry) on a
+  // failed load, else the mode's empty state for a genuine `[]`.
+  const listEmpty = isLoading ? (
+    isTv ? tvSkeleton : radioSkeleton
+  ) : error ? (
+    <ErrorState onRetry={() => void refetchActive()} testID="home-error" />
+  ) : isTv ? (
+    <EmptyChannelsState testID="home-empty" />
+  ) : (
+    <EmptyStationsState testID="home-empty" />
   );
 
-  const renderChannel = ({ item, index }: { item: Channel; index: number }) => (
-    <View style={index % 2 === 0 ? styles.cellLeft : styles.cellRight}>
-      <ChannelCard
-        channelId={item.id}
-        name={item.name}
-        thumbnailUri={item.thumbnailUrl}
-        isLive={item.isLive}
-        isAdult={item.isAdult}
-        geoBlocked={item.geoBlocked}
-        onPress={() => openChannel(item.id)}
+  const renderItem = ({ item, index }: { item: Channel | RadioStation; index: number }) => {
+    if (isTv) {
+      const channel = item as Channel;
+      const col = index % numColumns;
+      return (
+        <View
+          style={[
+            styles.cell,
+            {
+              paddingLeft: col === 0 ? SCREEN_PADDING : GRID_GAP / 2,
+              paddingRight: col === numColumns - 1 ? SCREEN_PADDING : GRID_GAP / 2,
+            },
+          ]}
+        >
+          <ChannelCard
+            channelId={channel.id}
+            name={channel.name}
+            thumbnailUri={channel.thumbnailUrl}
+            isLive={channel.isLive}
+            isAdult={channel.isAdult}
+            geoBlocked={channel.geoBlocked}
+            onPress={() => openChannel(channel.id)}
+          />
+        </View>
+      );
+    }
+
+    const station = item as RadioStation;
+    return (
+      <StationRow
+        station={station}
+        isActive={station.id === activeStationId}
+        onPress={() => openStation(station.id)}
       />
-    </View>
-  );
-
-  const renderStation = ({ item }: { item: RadioStation }) => (
-    <StationRow
-      station={item}
-      isActive={item.id === activeStationId}
-      onPress={() => router.push(`/(app)/radio/${item.id}`)}
-    />
-  );
+    );
+  };
 
   return (
     <ScreenLayout>
-      <BrandHeader
-        testID="home-header"
-        rightSlot={
-          <IconButton
-            size={40}
-            backgroundColor={colors.surface}
-            onPress={() => router.push('/(app)/(tabs)/profile')}
-            accessibilityLabel="Profili"
-            testID="home-profile-btn"
-          >
-            <Icon as={ProfileIcon} size={20} color={colors.text} />
-          </IconButton>
+      <BrandHeader testID="home-header" />
+
+      <FlashList
+        // Re-key on mode + column count: FlashList can't change numColumns in
+        // place, so a fresh instance is mounted (cheap; header has no state).
+        key={`${mode}-${numColumns}`}
+        data={data}
+        renderItem={renderItem}
+        keyExtractor={(item) => item.id}
+        numColumns={numColumns}
+        ListHeaderComponent={listHeader}
+        ListEmptyComponent={listEmpty}
+        contentContainerStyle={{ paddingBottom: tabBarHeight + SPACING.space_24 }}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            tintColor={colors.primary}
+            colors={[colors.primary]}
+          />
         }
+        testID="home-list"
       />
-
-      {/* Pinned (not in the list header) so toggling TV↔Radio — which re-keys
-          the FlashList — never remounts or jolts the search + toggle. */}
-      <BrowseControls
-        searchPlaceholder={t('home.search_placeholder')}
-        onSearchPress={() => router.push('/(app)/(tabs)/search')}
-        toggleOptions={[
-          { label: t('home.toggle_tv'), value: 'tv' },
-          { label: t('home.toggle_radio'), value: 'radio' },
-        ]}
-        toggleValue={mode}
-        onToggleChange={setMode}
-        testID="home-browse-controls"
-      />
-
-      <View style={styles.listWrap}>
-        {mode === 'tv' ? (
-          <FlashList
-            key="tv"
-            data={channels}
-            renderItem={renderChannel}
-            keyExtractor={(item) => item.id}
-            numColumns={2}
-            ListHeaderComponent={tvHeader}
-            ListEmptyComponent={channelsLoading ? tvSkeleton : null}
-            ItemSeparatorComponent={() => <View style={styles.rowGap} />}
-            contentContainerStyle={[styles.listContent, { paddingBottom: tabBarHeight + SPACING.space_24 }]}
-            showsVerticalScrollIndicator={false}
-            refreshControl={
-              <RefreshControl
-                refreshing={refreshing}
-                onRefresh={handleTvRefresh}
-                tintColor={colors.primary}
-                colors={[colors.primary]}
-              />
-            }
-            testID="home-tv-grid"
-          />
-        ) : (
-          <FlashList
-            key="radio"
-            data={stations}
-            renderItem={renderStation}
-            keyExtractor={(item) => item.id}
-            ListHeaderComponent={radioHeader}
-            ListEmptyComponent={stationsLoading ? radioSkeleton : null}
-            contentContainerStyle={[
-              styles.listContentRadio,
-              { paddingBottom: tabBarHeight + SPACING.space_24 },
-            ]}
-            showsVerticalScrollIndicator={false}
-            refreshControl={
-              <RefreshControl
-                refreshing={refreshing}
-                onRefresh={handleRadioRefresh}
-                tintColor={colors.primary}
-                colors={[colors.primary]}
-              />
-            }
-            testID="home-radio-list"
-          />
-        )}
-        {/* Content dissolves into the background as it scrolls under the
-            search + toggle, instead of clipping hard at the list edge
-            (same docked-CTA fade as guide). */}
-        <LinearGradient
-          colors={[colors.background, `${colors.background}B3`, `${colors.background}00`]}
-          locations={[0, 0.35, 1]}
-          style={styles.topFade}
-          pointerEvents="none"
-        />
-      </View>
     </ScreenLayout>
   );
 };
@@ -226,40 +225,18 @@ const styles = StyleSheet.create({
   heroWrap: {
     paddingTop: SPACING.space_16,
   },
-  listWrap: {
+  cell: {
     flex: 1,
+    paddingBottom: GRID_GAP,
   },
-  topFade: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: SPACING.space_48,
-  },
-  listContent: {
-    paddingBottom: SPACING.space_24,
-  },
-  listContentRadio: {
-    paddingBottom: SPACING.space_24,
-  },
-  cellLeft: {
-    flex: 1,
-    paddingLeft: SCREEN_PADDING,
-    paddingRight: GRID_GAP / 2,
-  },
-  cellRight: {
-    flex: 1,
-    paddingLeft: GRID_GAP / 2,
-    paddingRight: SCREEN_PADDING,
-  },
-  rowGap: {
-    height: SPACING.space_10,
-  },
-  skeletonGridRow: {
+  skeletonGrid: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
+    paddingHorizontal: SCREEN_PADDING - GRID_GAP / 2,
   },
-  skeletonRowGap: {
-    marginTop: SPACING.space_10,
+  skeletonCell: {
+    paddingHorizontal: GRID_GAP / 2,
+    paddingBottom: GRID_GAP,
   },
 });
 

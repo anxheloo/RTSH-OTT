@@ -295,12 +295,19 @@
   "errors": {
     "api_default": "Diçka shkoi keq",
     "network": "Nuk ka lidhje me internetin",
-    "session_expired": "Sesioni skadoi"
+    "session_expired": "Sesioni skadoi",
+    "session_expired_body": "Sesioni juaj ka skaduar. Ju lutemi identifikohuni përsëri.",
+    "list_failed_title": "Nuk u ngarkua",
+    "list_failed_subtitle": "Diçka shkoi keq. Kontrolloni lidhjen dhe provoni përsëri."
   },
   "update": {
     "title": "Kërkohet përditësim",
     "message": "Ky version i RTSH Tani nuk mbështetet më. Ju lutemi përditësojeni për të vazhduar.",
-    "cta": "Përditëso"
+    "cta": "Përditëso",
+    "ota_title": "Përditësim i disponueshëm",
+    "ota_message": "Një version i ri i RTSH Tani është i disponueshëm. Përditëso tani?",
+    "ota_cta": "Përditëso",
+    "ota_later": "Më vonë"
   },
   "parental": {
     "title": "Kontroll prindëror",
@@ -347,7 +354,9 @@
   },
   "empty": {
     "channels_title": "Nuk ka kanale",
-    "channels_subtitle": "Kanalet nuk mund të ngarkoheshin. Kontrolloni lidhjen dhe provoni përsëri.",
+    "channels_subtitle": "Nuk ka kanale për të shfaqur për momentin.",
+    "stations_title": "Nuk ka stacione radio",
+    "stations_subtitle": "Nuk ka stacione për të shfaqur për momentin.",
     "epg_title": "Nuk ka program",
     "epg_subtitle": "Të dhënat EPG nuk janë të disponueshme për këtë datë.",
     "catchup_title": "Nuk ka catch-up",

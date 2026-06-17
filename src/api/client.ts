@@ -1,12 +1,40 @@
-import { QueryClient } from '@tanstack/react-query';
+import { MutationCache, QueryCache, QueryClient } from '@tanstack/react-query';
 import axios, { AxiosError, AxiosRequestConfig, InternalAxiosRequestConfig } from 'axios';
 
 import { useAppStore } from '@/store/useAppStore';
 import { ENV } from '@/config/env';
+import i18n from '@/i18n';
+
+/**
+ * Hybrid error routing for forms. Screens that render an inline error (auth
+ * forms, change-password) set `meta: INLINE_CLIENT_ERROR`: the global modal is
+ * suppressed for *client* (4xx) failures — the expected, field-actionable ones
+ * the form already shows inline — but still fires for *unexpected* failures
+ * (5xx, network, timeout) the form can't meaningfully render. The inline side
+ * mirrors the same 4xx boundary via `authErrorMessage` (returns `undefined` for
+ * 5xx/network), so a request never shows both an inline message and a modal.
+ */
+export const INLINE_CLIENT_ERROR = { inlineClientError: true } as const;
+
+// Type `meta.inlineClientError` for both queries and mutations.
+declare module '@tanstack/react-query' {
+  interface Register {
+    queryMeta: { inlineClientError?: boolean };
+    mutationMeta: { inlineClientError?: boolean };
+  }
+}
 
 type RetriableRequest = InternalAxiosRequestConfig & { _retry?: boolean };
 
-/** Registered by the auth mutation layer (4.6). Returns a fresh access token, or null on failure. */
+/**
+ * Refresh handler injected by the auth layer at boot via `setupAuthRefresh()`.
+ * This client stays a thin transport module: it knows *when* to refresh (401)
+ * but not *how* — the handler (which touches the store, keychain, and logout)
+ * is registered from one layer up. Same shape as `axios-auth-refresh`'s
+ * `createAuthRefreshInterceptor(instance, refreshLogic)` / `react-native-axios-jwt`'s
+ * `applyAuthTokenInterceptor` — injection also breaks the client↔auth-service
+ * import cycle. Returns a fresh access token, or null on failure.
+ */
 let refreshTokens: (() => Promise<string | null>) | null = null;
 
 export function registerRefreshHandler(fn: (() => Promise<string | null>) | null): void {
@@ -75,7 +103,66 @@ apiClient.interceptors.response.use(
   },
 );
 
+/**
+ * Statuses the interceptor already owns end-to-end, so the global error handler
+ * must stay silent on them: 401/403 → refresh-or-logout (+ session-expired
+ * notify in `refreshAccessToken`), 426 → blocking `forceUpdate` modal.
+ */
+const isHandledByInterceptor = (status?: number): boolean =>
+  status === 401 || status === 403 || status === 426;
+
+/**
+ * A 4xx the user can act on (validation, conflict, bad credentials). These are
+ * the inline-rendered class — forms with `meta: INLINE_CLIENT_ERROR` suppress
+ * the modal for them. 5xx / network / timeout (no `status`) fall through to the
+ * modal. Keep this boundary in lock-step with `authErrorMessage`'s 4xx gate.
+ */
+const isClientError = (status?: number): boolean =>
+  status !== undefined && status >= 400 && status < 500;
+
+/** Prefer the backend's message when present; else `undefined` → ModalWrapper's localized default. */
+const apiErrorDescription = (error: unknown): string | undefined => {
+  if (error instanceof AxiosError) {
+    const data = error.response?.data as { message?: string; error?: string } | undefined;
+    return data?.message ?? data?.error ?? undefined;
+  }
+  return undefined;
+};
+
+/**
+ * Centralized error handling (TanStack v5 removed per-`useQuery` `onError`).
+ * Unexpected failures (5xx, network, 404…) surface the `apiError` modal once,
+ * from one place — queries offer Retry (refetch), mutations a dismiss. Forms
+ * that render inline set `meta: INLINE_CLIENT_ERROR`, which suppresses the modal
+ * only for client (4xx) errors — 5xx/network still modal (see the meta JSDoc).
+ */
 export const queryClient = new QueryClient({
+  queryCache: new QueryCache({
+    onError: (error, query) => {
+      const status = error instanceof AxiosError ? error.response?.status : undefined;
+      if (query.meta?.inlineClientError && isClientError(status)) return;
+      if (isHandledByInterceptor(status)) return;
+      useAppStore.getState().updateModalSlice({
+        currentModal: 'apiError',
+        modalData: {
+          description: apiErrorDescription(error),
+          button: i18n.t('common.retry'),
+          action: () => void query.fetch(),
+        },
+      });
+    },
+  }),
+  mutationCache: new MutationCache({
+    onError: (error, _variables, _onMutateResult, mutation) => {
+      const status = error instanceof AxiosError ? error.response?.status : undefined;
+      if (mutation.meta?.inlineClientError && isClientError(status)) return;
+      if (isHandledByInterceptor(status)) return;
+      useAppStore.getState().updateModalSlice({
+        currentModal: 'apiError',
+        modalData: { description: apiErrorDescription(error) },
+      });
+    },
+  }),
   defaultOptions: {
     queries: {
       staleTime: Infinity,

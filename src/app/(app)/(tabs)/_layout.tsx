@@ -18,6 +18,7 @@ import { Tabs } from 'expo-router';
 
 import { TAB_BAR_BASE_HEIGHT, TabBar } from '@/theme/tabBar';
 import { useAppStore } from '@/store/useAppStore';
+import { useHaptic } from '@/hooks/useHaptic';
 import { Icon } from '@/components/Icons';
 import { GuideIcon, HomeIcon, ProfileIcon, SearchIcon } from '@/assets/icons';
 
@@ -26,9 +27,13 @@ const TabsLayout: React.FC = () => {
   const mode = useAppStore((s) => s.mode);
   const insets = useSafeAreaInsets();
   const { t } = useTranslation();
+  const haptics = useHaptic();
 
   return (
     <Tabs
+      // Discrete value change → selection haptic on each tab switch (gated on
+      // settings.hapticsEnabled inside useHaptic). JS Tabs don't fire this natively.
+      screenListeners={{ tabPress: () => haptics.selection() }}
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: colors.text,

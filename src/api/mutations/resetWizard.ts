@@ -7,8 +7,11 @@
  */
 import { useMutation } from '@tanstack/react-query';
 
+import { INLINE_CLIENT_ERROR } from '../client';
 import { resetPassword, resetRequest, resetVerifyOtp } from '../services/auth';
 
-export const useResetRequest = () => useMutation({ mutationFn: resetRequest });
-export const useResetVerifyOtp = () => useMutation({ mutationFn: resetVerifyOtp });
-export const useResetPassword = () => useMutation({ mutationFn: resetPassword });
+// 4xx errors render inline on each wizard step; 5xx/network → global modal.
+export const useResetRequest = () => useMutation({ mutationFn: resetRequest, meta: INLINE_CLIENT_ERROR });
+export const useResetVerifyOtp = () =>
+  useMutation({ mutationFn: resetVerifyOtp, meta: INLINE_CLIENT_ERROR });
+export const useResetPassword = () => useMutation({ mutationFn: resetPassword, meta: INLINE_CLIENT_ERROR });

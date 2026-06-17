@@ -9,6 +9,7 @@ import { StyleProp, StyleSheet, Text, TextProps, TextStyle } from 'react-native'
 import type { ThemeColors } from '@/theme/colors';
 import { Fonts } from '@/theme/fonts';
 import { useAppStore } from '@/store/useAppStore';
+import { scaled } from '@/responsive';
 
 export type TextVariant =
   | 'heading1'
@@ -30,14 +31,16 @@ interface VariantSpec {
 
 // Type ramp from the designer HTML (Phase 22.2): headings 800, section/title 700,
 // labels/links 600, body 400/500. This table is the canonical text scale.
+// fontSize/lineHeight pass through `scaled()` so the ramp steps up on tablet/TV
+// (phone factor is 1 → unchanged). See `responsive/scale.ts`.
 const VARIANTS: Record<TextVariant, VariantSpec> = {
-  heading1: { fontSize: 25, fontWeight: 'extraBold', lineHeight: 30 }, // welcome / large h2
-  heading2: { fontSize: 22, fontWeight: 'extraBold', lineHeight: 28 },
-  heading3: { fontSize: 17, fontWeight: 'bold', lineHeight: 22 }, // header / section title
-  body: { fontSize: 15, fontWeight: 'regular', lineHeight: 21 },
-  bodySmall: { fontSize: 13, fontWeight: 'regular', lineHeight: 18 },
-  caption: { fontSize: 12, fontWeight: 'regular', lineHeight: 16 },
-  label: { fontSize: 14, fontWeight: 'semiBold', lineHeight: 18 }, // labels / links / buttons
+  heading1: { fontSize: scaled(25), fontWeight: 'extraBold', lineHeight: scaled(30) }, // welcome / large h2
+  heading2: { fontSize: scaled(22), fontWeight: 'extraBold', lineHeight: scaled(28) },
+  heading3: { fontSize: scaled(17), fontWeight: 'bold', lineHeight: scaled(22) }, // header / section title
+  body: { fontSize: scaled(15), fontWeight: 'regular', lineHeight: scaled(21) },
+  bodySmall: { fontSize: scaled(13), fontWeight: 'regular', lineHeight: scaled(18) },
+  caption: { fontSize: scaled(12), fontWeight: 'regular', lineHeight: scaled(16) },
+  label: { fontSize: scaled(14), fontWeight: 'semiBold', lineHeight: scaled(18) }, // labels / links / buttons
 };
 
 export type ReusableTextProps = Omit<TextProps, 'style'> & {

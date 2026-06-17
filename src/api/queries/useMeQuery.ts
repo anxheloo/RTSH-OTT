@@ -8,7 +8,7 @@ import { getMe } from '../services/users';
  * Fetches the user profile once on app open and keeps it in the store for the
  * session. With global staleTime: Infinity the query never auto-refetches —
  * explicit invalidation (pull-to-refresh, re-launch) is the only refresh path.
- * Mount once in `useBootstrap`.
+ * Mount once in `(app)/_layout.tsx`.
  */
 export function useMeQuery() {
   const isAuthenticated = useAppStore((s) => s.isAuthenticated);

@@ -48,7 +48,6 @@ const RegisterScreen: React.FC = () => {
   /** Verified OTP → activated account + tokens: persist + log straight in. */
   const completeLogin = async ({ user, accessToken, refreshToken }: AuthResponse) => {
     await storeOnKeychain(REFRESH_TOKEN_KEY, refreshToken);
-    useAppStore.getState().acceptTC(); // the form's accept-terms checkbox is the acceptance
     useAppStore.getState().login(user, accessToken);
   };
 

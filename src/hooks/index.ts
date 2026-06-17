@@ -1,6 +1,5 @@
 export * from './useAppState';
 export * from './useBlurAndUnMount';
-export * from './useBootstrap';
 export * from './useCellularGate';
 export * from './useCheckToken';
 export * from './useCountdown';
@@ -13,5 +12,6 @@ export * from './useNetworkMonitor';
 export * from './useOrientation';
 export * from './useOTA';
 export * from './useSearch';
+export * from './useSystemTheme';
 export * from './useTabBarHeight';
 

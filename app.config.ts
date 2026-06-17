@@ -65,41 +65,40 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     android: {
       package: androidPackage,
       adaptiveIcon: {
-        backgroundColor: '#E6F4FE',
+        // Logo centered with ~17% transparent padding so Android's launcher
+        // mask (circle/squircle) never crops the mark. Background is brand
+        // black to match the splash; the foreground's own black areas blend in.
         foregroundImage: './assets/images/android-icon-foreground.png',
-        backgroundImage: './assets/images/android-icon-background.png',
-        monochromeImage: './assets/images/android-icon-monochrome.png',
+        backgroundColor: '#000000',
       },
       predictiveBackGestureEnabled: false,
     },
     web: {
       output: 'static',
-      favicon: './assets/images/favicon.png',
     },
     plugins: [
       'expo-router',
       'expo-secure-store',
       'expo-localization',
+      // Allow plain-HTTP (cleartext) traffic for the LAN dev backend (http://<ip>:port).
+      // Android blocks cleartext by default in release builds; this enables it app-wide.
+      ['expo-build-properties', { android: { usesCleartextTraffic: true } }],
       [
         'expo-splash-screen',
         {
-          // Native phase shows the logo from frame zero (user decision
-          // 2026-06-12, supersedes the transparent-icon approach); the JS
-          // BrandedSplash (lockup + progress bar) takes over once React mounts.
-          // iOS gets the full lockup at the same 160pt width the JS clone
-          // renders, so the handoff is pixel-identical. Android 12+ constrains
-          // the splash icon to a ~192dp circle — the wide lockup can't survive
-          // that, so Android shows the square mark instead (128dp: its diagonal
-          // ~181dp fits inside the circle uncropped) and hands off to the
-          // lockup in JS.
+          // Native splash shows the RTSH 2020 logo lockup from frame zero on a
+          // black background, and holds for the whole boot (no JS splash phase).
+          // Android 12+ constrains the splash icon to a ~192dp circle, so the
+          // wide lockup is kept narrow (160dp wide → ~175dp diagonal) to fit
+          // inside the circle uncropped.
           backgroundColor: '#000000',
           ios: {
-            image: './assets/images/splash-lockup.png',
-            imageWidth: 160,
+            image: './assets/images/splash-icon.png',
+            imageWidth: 200,
           },
           android: {
-            image: './assets/images/splash-logo.png',
-            imageWidth: 128,
+            image: './assets/images/splash-icon.png',
+            imageWidth: 160,
           },
         },
       ],

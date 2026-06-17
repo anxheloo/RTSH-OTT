@@ -3,10 +3,10 @@
  * toggle (e.g. Televizion / Radio). One global component so the search field and
  * the toggle are pixel-identical across every screen that browses content.
  *
- * Render it PINNED (outside a list's `ListHeaderComponent`): the Home grid
- * re-keys its FlashList when the column count changes between modes, which would
- * remount — and visually jolt — anything inside the list header. Kept pinned
- * above the list, the search + toggle stay put while only the content swaps.
+ * Designed to ride inside a list's `ListHeaderComponent` so it scrolls up with
+ * the content (not pinned). For that to be jolt-free the host list must NOT
+ * re-key on mode switch — Home keeps a constant column count (TV rows are
+ * pre-chunked into pairs) so the header stays mounted across the toggle.
  *
  * Generic over the toggle value so it's reusable beyond TV/Radio.
  */

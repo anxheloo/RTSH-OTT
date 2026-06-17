@@ -295,12 +295,19 @@
   "errors": {
     "api_default": "Something went wrong",
     "network": "No internet connection",
-    "session_expired": "Session expired"
+    "session_expired": "Session expired",
+    "session_expired_body": "Your session has expired. Please sign in again.",
+    "list_failed_title": "Couldn't load",
+    "list_failed_subtitle": "Something went wrong. Check your connection and try again."
   },
   "update": {
     "title": "Update required",
     "message": "This version of RTSH Tani is no longer supported. Please update to continue watching.",
-    "cta": "Update"
+    "cta": "Update",
+    "ota_title": "Update available",
+    "ota_message": "A new version of RTSH Tani is available. Update now?",
+    "ota_cta": "Update",
+    "ota_later": "Later"
   },
   "parental": {
     "title": "Parental control",
@@ -347,7 +354,9 @@
   },
   "empty": {
     "channels_title": "No channels available",
-    "channels_subtitle": "Channels could not be loaded. Check your connection and try again.",
+    "channels_subtitle": "There are no channels to show right now.",
+    "stations_title": "No radio stations",
+    "stations_subtitle": "There are no stations to show right now.",
     "epg_title": "No programme guide",
     "epg_subtitle": "EPG data is not available for this date.",
     "catchup_title": "No catch-up available",

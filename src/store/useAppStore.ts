@@ -41,7 +41,6 @@ export const useAppStore = create<AppStore>()(
       partialize: (state) => ({
         user: state.user,
         locale: state.locale,
-        tcAcceptedAt: state.tcAcceptedAt,
         mode: state.mode,
         cellularPlaybackAllowed: state.cellularPlaybackAllowed,
         backgroundVideoAllowed: state.backgroundVideoAllowed,

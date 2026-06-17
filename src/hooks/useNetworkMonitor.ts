@@ -10,8 +10,8 @@ const deriveOnline = (s: NetInfoState): boolean =>
   Boolean(s.isConnected && (s.isInternetReachable ?? true));
 
 /**
- * Single NetInfo listener for the whole app. Mount ONCE at root (via
- * `useBootstrap`). It:
+ * Single NetInfo listener for the whole app. Mount ONCE at root (in
+ * `RootLayoutNav`, `_layout.tsx`). It:
  *   - bridges NetInfo into TanStack `onlineManager` (queries pause offline,
  *     refetch on reconnect),
  *   - mirrors connectivity into the store (`isOnline` / `connectionType`) so any

@@ -1,8 +1,11 @@
 /**
  * Guide (Guida) — design screen 7. A "now & next" programme guide. Shares the
- * brand header with Home (logo taps back to Kreu); a TV/Radio toggle sits below
- * it, mirroring Home's browse controls. The body is a single FlashList of
- * `GuideRow`s under an overline ("TANI NË TV" / "TANI NË RADIO"). TV rows derive
+ * brand header with Home (logo taps back to Kreu); a TV/Radio toggle rides in
+ * the list's `ListHeaderComponent` so it scrolls up with the rows (not pinned),
+ * mirroring Home's browse controls. The body is a single FlashList of
+ * `GuideRow`s under an overline ("TANI NË TV" / "TANI NË RADIO"). The list does
+ * not re-key on mode switch (column count is constant), so the header stays
+ * mounted through the toggle. TV rows derive
  * now/next + an elapsed-progress bar per channel from the EPG; radio rows show
  * the station + genre with a live badge (radio now/next has no schedule source
  * yet — gap).
@@ -12,7 +15,6 @@ import { StyleSheet, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
 import { FlashList } from '@shopify/flash-list';
-import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 
 import { SCREEN_PADDING, SPACING } from '@/theme/spacing';
@@ -21,6 +23,7 @@ import { useChannelsQuery, useEpgQuery, useRadioStationsQuery } from '@/api/quer
 import { useDateTime } from '@/hooks/useDateTime';
 import { useTabBarHeight } from '@/hooks/useTabBarHeight';
 import { BrandHeader } from '@/components/Brand';
+import { EmptyChannelsState, EmptyStationsState, ErrorState } from '@/components/empty';
 import { GuideRow, GuideRowSkeleton } from '@/components/epg';
 import { Icon, IconButton } from '@/components/Icons';
 import { SegmentedToggle } from '@/components/Inputs';
@@ -54,8 +57,18 @@ const GuideScreen: React.FC = () => {
   // (matches the design's static bars). A periodic tick can refresh it later.
   const [nowMs] = useState(() => Date.now());
 
-  const { channels, isLoading: channelsLoading } = useChannelsQuery();
-  const { stations, isLoading: stationsLoading } = useRadioStationsQuery();
+  const {
+    channels,
+    isLoading: channelsLoading,
+    error: channelsError,
+    refetch: refetchChannels,
+  } = useChannelsQuery();
+  const {
+    stations,
+    isLoading: stationsLoading,
+    error: stationsError,
+    refetch: refetchStations,
+  } = useRadioStationsQuery();
   const { items: epg } = useEpgQuery();
 
   const tvRows = useMemo<GuideRowVM[]>(() => {
@@ -114,10 +127,13 @@ const GuideScreen: React.FC = () => {
     [stations, t],
   );
 
-  const rows = mode === 'tv' ? tvRows : radioRows;
+  const isTv = mode === 'tv';
+  const rows = isTv ? tvRows : radioRows;
   // Rows derive from the channel/station catalogues — EPG arriving later only
-  // upgrades the now/next lines, so the skeleton keys on the catalogue queries.
-  const rowsLoading = mode === 'tv' ? channelsLoading : stationsLoading;
+  // upgrades the now/next lines, so the skeleton/error key on the catalogue queries.
+  const rowsLoading = isTv ? channelsLoading : stationsLoading;
+  const rowsError = isTv ? channelsError : stationsError;
+  const refetchRows = isTv ? refetchChannels : refetchStations;
 
   const listSkeleton = (
     <View testID="guide-skeleton">
@@ -127,10 +143,36 @@ const GuideScreen: React.FC = () => {
     </View>
   );
 
-  const overline = (
-    <ReusableText variant="bodySmall" fontWeight="extraBold" style={styles.overline}>
-      {mode === 'tv' ? t('guide.now_on_tv') : t('guide.now_on_radio')}
-    </ReusableText>
+  // Skeleton while loading, ErrorState (with Retry) on a failed catalogue load,
+  // else the mode's empty state for a genuine `[]`.
+  const listEmpty = rowsLoading ? (
+    listSkeleton
+  ) : rowsError ? (
+    <ErrorState onRetry={() => void refetchRows()} testID="guide-error" />
+  ) : isTv ? (
+    <EmptyChannelsState testID="guide-empty" />
+  ) : (
+    <EmptyStationsState testID="guide-empty" />
+  );
+
+  // Toggle + overline scroll up with the rows (in the list header), not pinned.
+  const listHeader = (
+    <View>
+      <View style={styles.toggleWrap}>
+        <SegmentedToggle
+          options={[
+            { label: t('guide.toggle_tv'), value: 'tv' },
+            { label: t('guide.toggle_radio'), value: 'radio' },
+          ]}
+          value={mode}
+          onChange={setMode}
+          testID="guide-mode-toggle"
+        />
+      </View>
+      <ReusableText variant="bodySmall" fontWeight="extraBold" style={styles.overline}>
+        {mode === 'tv' ? t('guide.now_on_tv') : t('guide.now_on_radio')}
+      </ReusableText>
+    </View>
   );
 
   return (
@@ -151,52 +193,29 @@ const GuideScreen: React.FC = () => {
         }
       />
 
-      <View style={styles.toggleWrap}>
-        <SegmentedToggle
-          options={[
-            { label: t('guide.toggle_tv'), value: 'tv' },
-            { label: t('guide.toggle_radio'), value: 'radio' },
-          ]}
-          value={mode}
-          onChange={setMode}
-          testID="guide-mode-toggle"
-        />
-      </View>
-
-      <View style={styles.listWrap}>
-        <FlashList
-          key={mode}
-          data={rows}
-          keyExtractor={(item) => item.id}
-          renderItem={({ item }) => (
-            <GuideRow
-              logoLabel={item.logoLabel}
-              thumbnailUrl={item.thumbnailUrl}
-              nowTitle={item.nowTitle}
-              nextLabel={item.nextLabel}
-              progress={item.progress}
-              badge={item.badge}
-              leading={
-                item.isRadio ? <Icon as={RadioIcon} size={18} color={colors.onPrimary} /> : undefined
-              }
-              onPress={item.onPress}
-            />
-          )}
-          ListHeaderComponent={overline}
-          ListEmptyComponent={rowsLoading ? listSkeleton : null}
-          contentContainerStyle={[styles.listContent, { paddingBottom: tabBarHeight + SPACING.space_24 }]}
-          showsVerticalScrollIndicator={false}
-          testID="guide-list"
-        />
-        {/* Rows dissolve into the background as they scroll under the toggle,
-            instead of clipping hard at the list edge (RTSH docked-CTA fade). */}
-        <LinearGradient
-          colors={[colors.background, `${colors.background}B3`, `${colors.background}00`]}
-          locations={[0, 0.35, 1]}
-          style={styles.topFade}
-          pointerEvents="none"
-        />
-      </View>
+      <FlashList
+        data={rows}
+        keyExtractor={(item) => item.id}
+        renderItem={({ item }) => (
+          <GuideRow
+            logoLabel={item.logoLabel}
+            thumbnailUrl={item.thumbnailUrl}
+            nowTitle={item.nowTitle}
+            nextLabel={item.nextLabel}
+            progress={item.progress}
+            badge={item.badge}
+            leading={
+              item.isRadio ? <Icon as={RadioIcon} size={18} color={colors.onPrimary} /> : undefined
+            }
+            onPress={item.onPress}
+          />
+        )}
+        ListHeaderComponent={listHeader}
+        ListEmptyComponent={listEmpty}
+        contentContainerStyle={[styles.listContent, { paddingBottom: tabBarHeight + SPACING.space_24 }]}
+        showsVerticalScrollIndicator={false}
+        testID="guide-list"
+      />
     </ScreenLayout>
   );
 };
@@ -215,16 +234,6 @@ const styles = StyleSheet.create({
   },
   listContent: {
     paddingBottom: SPACING.space_24,
-  },
-  listWrap: {
-    flex: 1,
-  },
-  topFade: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: SPACING.space_48,
   },
 });
 

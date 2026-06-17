@@ -42,6 +42,10 @@ const LoginScreen: React.FC = () => {
 
   const onSubmit = handleSubmit(({ email, password }) => login({ email, password }));
 
+  // Inline only for client (4xx) errors; 5xx/network resolves to undefined and
+  // the global apiError modal owns it (authErrorMessage gates the boundary).
+  const errorMessage = authErrorMessage(error, { 401: t('auth.login.failed') });
+
   return (
     <AuthScreen testID="login-screen">
       <View style={styles.welcome}>
@@ -107,9 +111,9 @@ const LoginScreen: React.FC = () => {
         </TouchableOpacity>
       </View>
 
-      {error ? (
+      {errorMessage ? (
         <ReusableText variant="caption" themeColor="error" textAlign="center">
-          {authErrorMessage(error, { 401: t('auth.login.failed') })}
+          {errorMessage}
         </ReusableText>
       ) : null}
 

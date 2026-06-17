@@ -1,7 +1,8 @@
 /**
  * Profile tab — shares the brand header with Home (logo taps back to Kreu);
- * avatar, package badge, and navigation rows to account details / parental /
- * settings + a logout confirmation. All toggles live in Settings.
+ * avatar, package badge, and navigation rows to account details / settings +
+ * a logout confirmation. Parental control lives inside Settings (no separate
+ * Profile row). All toggles live in Settings.
  */
 import React from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
@@ -19,14 +20,13 @@ import { BrandHeader } from '@/components/Brand';
 import { Icon } from '@/components/Icons';
 import ReusableText from '@/components/Inputs/ReusableText';
 import { ListRow, ScreenLayout } from '@/components/Layout';
-import { OutIcon, SettingsIcon, ShieldIcon, UserIcon } from '@/assets/icons';
+import { OutIcon, SettingsIcon, UserIcon } from '@/assets/icons';
 
 const ProfileScreen: React.FC = () => {
   const { t } = useTranslation();
   const colors = useAppStore((s) => s.colors);
   const tabBarHeight = useTabBarHeight();
   const user = useAppStore((s) => s.user);
-  const parentalEnabled = useAppStore((s) => s.parentalEnabled);
   const updateModalSlice = useAppStore((s) => s.updateModalSlice);
   const { mutate: logout } = useLogoutMutation();
 
@@ -109,15 +109,6 @@ const ProfileScreen: React.FC = () => {
             leading={<Icon as={UserIcon} size={20} color={colors.text} />}
             onPress={() => router.push('/(app)/account')}
             testID="profile-account-row"
-          />
-          <ListRow
-            title={t('profile.parental.title')}
-            subtitle={parentalEnabled
-              ? t('profile.parental.subtitle_active')
-              : t('profile.parental.subtitle_inactive')}
-            leading={<Icon as={ShieldIcon} size={20} color={colors.text} />}
-            onPress={() => router.push('/(app)/settings')}
-            testID="profile-parental-row"
           />
           <ListRow
             title={t('profile.settings_row.title')}

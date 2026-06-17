@@ -151,6 +151,7 @@ const AdOverlay: React.FC<AdOverlayProps> = ({
               <Pressable style={styles.cta} onPress={handleCta} testID="ad-cta">
                 <ReusableText
                   fontSize={FONTSIZE.regular}
+                  lineHeight={FONTSIZE.regular}
                   fontWeight="extraBold"
                   style={{ color: AD.ctaText }}
                 >
@@ -167,7 +168,12 @@ const AdOverlay: React.FC<AdOverlayProps> = ({
               disabled={!canSkip}
               testID="ad-skip"
             >
-              <ReusableText fontSize={FONTSIZE.sm} fontWeight="bold" style={{ color: AD.white }}>
+              <ReusableText
+                fontSize={FONTSIZE.sm}
+                lineHeight={FONTSIZE.sm}
+                fontWeight="bold"
+                style={{ color: AD.white }}
+              >
                 {canSkip ? t('ads.skip') : t('ads.skip_in', { seconds: remaining })}
               </ReusableText>
               {canSkip ? <Icon as={ChevronRightIcon} size={14} color={AD.white} /> : null}
@@ -254,8 +260,8 @@ const styles = StyleSheet.create({
   },
   skip: {
     position: 'absolute',
-    bottom: SPACING.space_12,
-    right: SPACING.space_12,
+    bottom: SPACING.space_20,
+    right: SPACING.space_20,
     flexDirection: 'row',
     alignItems: 'center',
     gap: SPACING.space_8,

@@ -401,7 +401,8 @@ export const useLogin = () => {
 
 - Query keys are always arrays: `['channels']`, `['epg', date]`, `['channel', id]`. First element is the resource name.
 - Always return safe defaults from query hooks (`data ?? []`, `data ?? null`).
-- Don't use `useEffect` to react to query `data`/`error` — use `onSuccess`/`onError` in mutation/query options.
+- Don't use `useEffect` to react to query `data`/`error`. v5 removed per-`useQuery` `onSuccess`/`onError`, so **unexpected** errors are handled once, centrally, by the `QueryCache`/`MutationCache` `onError` on the `queryClient` (`client.ts`) — they open the `apiError` modal (query → Retry/refetch, mutation → dismiss). Mutations keep `onError` for *expected* failures rendered inline.
+- **Route form errors through `meta: INLINE_CLIENT_ERROR`** (exported from `client.ts`) — the hybrid model. Auth forms, change-password, and the register/reset wizards set it: the global modal is suppressed only for **client (4xx)** failures — the field-actionable ones they render inline — while **unexpected** failures (5xx, network, timeout) still fire the modal. The inline side mirrors the same boundary: `authErrorMessage` returns `undefined` for 5xx/network, so the form renders nothing and never doubles up with the modal. Keep `client.ts → isClientError` and `authErrorMessage`'s 4xx gate in lock-step. The global handler also skips 401/403/426 (owned by the interceptor: refresh-or-logout, force-update).
 - A bare axios instance (`refreshClient`) handles the refresh endpoint only — prevents interceptor deadlock on 401.
 
 ---
@@ -471,7 +472,8 @@ Data screens never block on a full-screen spinner. Navigation is instant: the sc
 
 - **`Skeleton` (`components/Layout/Skeleton.tsx`) is the only pulsing primitive** — theme `colors.skeleton`, Reanimated opacity pulse. Compose it; never hand-roll shimmer.
 - **Every list row component gets an `XSkeleton` sibling in the same folder** (`ChannelCardSkeleton`, `StationRowSkeleton`, `GuideRowSkeleton`, `ProgramRowSkeleton`) mirroring the real row's footprint — same paddings, tile sizes, hairline divider — so data swaps in with no layout jump. Use `FONTSIZE` tokens as text-line heights.
-- **Lists:** pass the skeleton stack as `ListEmptyComponent` while `isLoading` (FlashList), or via `AnimatedFlashList`'s `skeletonComponent` prop. Headers/toggles stay live.
+- **Lists drive `ListEmptyComponent` off the full query state, not just `isLoading`.** The placeholder is a three-way pick: `isLoading` → skeleton stack; `error` → `<ErrorState onRetry={refetch} />` (`components/empty`) — the quiet persistent screen state behind the global `apiError` modal, with a Retry; otherwise (genuine `[]`) → the domain `Empty*State`. Compute it once into a `listEmpty` node above the JSX rather than nesting ternaries in the prop. (Or use `AnimatedFlashList`'s `skeletonComponent` for the loading slice.) Headers/toggles stay live.
+- **List state-views compose `ListStateView`** (`components/empty/ListStateView.tsx`) — the shared centered title + subtitle + optional-Retry block. `ErrorState` (generic load-failure copy, always offers Retry) and the domain `Empty*State` wrappers (`EmptyChannelsState`, `EmptyStationsState`, `EmptyEpgState`, `EmptyCatchupState` — genuine-empty copy, no Retry) are thin wrappers over it, so every list placeholder is visually identical. Error ≠ empty: a failed load shows Retry, a genuine `[]` doesn't.
 - **Detail screens with heavy children** (channel player): mount the heavy component only when its inputs are resolved; until then a `Skeleton` holds its exact slot. Never gate the route on the query. If the child is gated content (adult/geo), wait for **all** gating inputs before mounting — a skeleton must never be replaced by a frame of gated content.
 - **`FullScreenLoader` is reserved** for full-screen player surfaces (live/VOD buffering overlays, `program/[id]`) and boot — not for data screens.
 
@@ -484,6 +486,32 @@ export const removeFromKeychain = async (key: string): Promise<void> => { ... };
 ```
 
 For the full data → storage matrix (with rationale), see `rules/ARCHITECTURE.md` → Persistence boundaries — the single source of truth.
+
+---
+
+## Lists & Screen Composition
+
+A scrolling content screen is built around **one** vertically-scrolling virtualized list (`FlashList`) that owns the whole scroll. The primary vertical dataset — the channel grid, the station list, the guide rows — is that list's `data`. Everything that isn't that dataset (search bar, segmented toggle, a horizontal carousel, the section title) goes into `ListHeaderComponent` so it scrolls with the content. This is the Home (`(tabs)/index.tsx`) + Guide (`(tabs)/guide.tsx`) pattern.
+
+- **Never nest a vertical list inside a vertical scroller.** A `FlashList`/`FlatList` inside a `ScrollView` (or another vertical list) with the same orientation breaks windowing and throws *"VirtualizedLists should never be nested…"*. Put the second region in `ListHeaderComponent` instead — don't reach for a parent `ScrollView`.
+- **Horizontal-in-vertical is fine.** A horizontal `FlashList` (hero carousel) nested in the vertical list's header is legal and idiomatic — different orientation, no virtualization conflict.
+- **Header pinned vs scroll-away.** Default is scroll-away (controls live in `ListHeaderComponent`, no `stickyHeaderIndices`). Add `stickyHeaderIndices={[0]}` only when the search/toggle must stay reachable mid-scroll.
+- **Mode toggles that change list shape re-key, don't restructure.** When a toggle swaps between a grid and a single-column list, `numColumns` changes — neither `FlashList` nor `FlatList` can change `numColumns` in place (both require a fresh instance). Drive it with `key={`${mode}-${numColumns}`}` and swap `data`; the remount is invisible **as long as the header has no animation/internal state** (a state-driven `SegmentedToggle` re-renders synchronously). Resetting scroll-to-top on the swap is correct UX. Do **not** hand-roll a constant-column workaround (e.g. chunking grid items into pairs) to dodge the re-key.
+- **Responsive columns (tablet/large screens).** Drive grid `numColumns` from `useResponsiveGrid()` (`@/responsive`), never a hardcoded `2` and no per-screen `floor(width / target)`. It returns columns by **device class + orientation** (phone 2/2, tablet 3/4, TV 4/4 — see `responsive/breakpoints.ts → GRID_COLUMNS`). Classification is by **shortest side** (`Math.min(width, height)`, orientation-independent — `sw600dp` standard), so a phone in landscape never reflows like a tablet. Cards self-size via `flex: 1`; single-column **lists stay single-column** at every size. This is the per-component large-screen mechanism (plan 22.18); full TV focus/D-pad nav is separate.
+- **Grid gutters from column position, not separators.** With `numColumns`, compute edge/inner padding per cell from `index % numColumns` (`paddingLeft: col === 0 ? SCREEN_PADDING : GAP/2`), and use `paddingBottom` on the cell for row gaps. `ItemSeparatorComponent` renders between every item (including within a row) and is wrong for grids.
+- **`EdgeFade` (`components/Layout/EdgeFade.tsx`) is the reusable fade scrim** — drop it as the last child of a `position: relative` container to dissolve content into the background along an edge (`edge`, `size`, `color`). Compose it; don't hand-roll a `LinearGradient` per screen.
+
+---
+
+## Responsive Sizing (`@/responsive`)
+
+A self-contained, portable module (`src/responsive/`, depends only on `react` + `react-native`) owns every device-size decision. Two concerns, deliberately separate — this mirrors the industry standard (don't linearly scale a UI; a tablet should show *more*, not *bigger*).
+
+- **Layout = reactive, by device class + orientation.** `useResponsive()` → `{ deviceClass, isLandscape, width, height }`; `useResponsiveGrid()` → `numColumns`. Classification is **shortest-side** (`Math.min(width, height) ≥ 600` = tablet; `Platform.isTV` = tv), so it's rotation-stable. Reads the live window via `useWindowDimensions`, so an iPad in split-view correctly drops to the phone layout.
+- **Sizing = static step multiplier at the token layer.** `scaled(n)` multiplies a token by a **discrete per-class step** (`UI_SCALE`: phone 1, tablet 1.15, TV 1.3), resolved **once at launch**. Apply it at the token *source* only — `FONTSIZE`, `SPACING`, and the primitive size tables in `ReusableText`/`ReusableBtn` already pass through it. **Never** call `scaled()` (or hand-roll a multiplier) inside a feature component; consume the tokens and you scale for free. Phone factor is `1`, so the phone UI is byte-for-byte unchanged.
+- **Why static for type, reactive for layout:** font sizes that jump on rotate/resize are jarring, and a device's class doesn't change mid-session; column counts *should* track the live window.
+- **Tune in one place:** `responsive/breakpoints.ts` (`GRID_COLUMNS`, `UI_SCALE`, `TABLET_MIN_SHORTEST_SIDE`). Do not scatter breakpoints.
+- **Not for backend device type.** Physical form-factor reporting for the device registry stays in `utils/device.ts` (`getDeviceType()`); it reports the *physical* device, this module reports the *window*. Keep them separate.
 
 ---
 
@@ -556,7 +584,6 @@ export { default as EpgRow } from './EpgRow';
 
 // Auth
 export { useCheckToken } from './useCheckToken';
-export { useBootstrap } from './useBootstrap';
 
 // Network
 export { useNetworkReconnect } from './useNetworkReconnect';
@@ -631,7 +658,7 @@ onPress={() => handleSelect(opt.value)}
 | `console.log` in commits | Sentry breadcrumb or remove |
 | Navigation guard in `useEffect` | `Stack.Protected` |
 | `FullScreenLoader` gating a data screen | Skeleton strategy (see Loading States) |
-| `useEffect` reacting to query `data`/`error` | `onSuccess`/`onError` in mutation options |
+| `useEffect` reacting to query `data`/`error` | Global `QueryCache`/`MutationCache` `onError` (`client.ts`); forms render 4xx inline + modal on 5xx/network via `meta: INLINE_CLIENT_ERROR` |
 | Direct `expo-secure-store` calls | `services/keychain.ts` wrapper |
 | Context for theme | `useAppStore((s) => s.colors)` |
 | Inline `StyleSheet` objects in JSX | `styles.xxx` from `StyleSheet.create()` |
@@ -640,3 +667,7 @@ onPress={() => handleSelect(opt.value)}
 | Ad-hoc `setInterval` countdown in a component | `useCountdown` (`hooks/useCountdown.ts`) — deadline-based, background-aware (`proceedInBackground: false` to pause while backgrounded) |
 | Multi-statement inline `onPress` (`() => { a(); b(); }`) | Extract a named handler before the JSX return — cleaner, nameable, testable |
 | Calling `useHaptic()` at the call site | Haptics belong inside the primitive; callers only set `haptic` prop intensity |
+| Vertical list nested in a vertical `ScrollView`/list | One `FlashList`; secondary regions go in `ListHeaderComponent` (see Lists & Screen Composition) |
+| Hardcoded `numColumns={2}` or per-screen `floor(width/target)` | `useResponsiveGrid()` from `@/responsive` (device class + orientation) |
+| Hand-scaling a component's font/size for tablet | Scale at the token layer — `scaled()` wraps `FONTSIZE`/`SPACING`/primitive size tables once (`@/responsive`) |
+| Per-screen inline `LinearGradient` fade | `EdgeFade` (`components/Layout`) |

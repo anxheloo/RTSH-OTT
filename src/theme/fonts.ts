@@ -7,7 +7,12 @@
  *
  * Sub-400 weights (`thin`/`extraLight`/`light`) alias to 400 — the design never
  * goes below Regular, and nothing references them; kept for API stability.
+ *
+ * `FONTSIZE` values pass through `scaled()` so type ramps up a step on tablet/TV
+ * (phone factor is 1 → identical to the Figma values). Apply scaling here at the
+ * token source, not at call sites. See `responsive/scale.ts`.
  */
+import { scaled } from '@/responsive';
 export const Fonts = {
   thin: 'Inter_400Regular',
   extraLight: 'Inter_400Regular',
@@ -25,18 +30,18 @@ export const Fonts = {
   captionMedium: 'Inter_500Medium',
 } as const;
 
-/** Type-safe font size scale — verified against Figma (2026-06-02) */
+/** Type-safe font size scale — verified against Figma (2026-06-02), scaled per device class. */
 export const FONTSIZE = {
-  xxs: 8,
-  xs: 10,
-  sm: 12,   // EPG description, caption
-  regular: 14, // channel names, tab labels, EPG titles
-  md: 16,   // inputs, buttons
-  lg: 18,
-  xl: 20,   // player channel title
-  xxl: 22,
-  title: 26,
-  display: 32, // large hero titles
+  xxs: scaled(8),
+  xs: scaled(10),
+  sm: scaled(12), // EPG description, caption
+  regular: scaled(14), // channel names, tab labels, EPG titles
+  md: scaled(16), // inputs, buttons
+  lg: scaled(18),
+  xl: scaled(20), // player channel title
+  xxl: scaled(22),
+  title: scaled(26),
+  display: scaled(32), // large hero titles
 } as const;
 
 export const FONTWEIGHT = {

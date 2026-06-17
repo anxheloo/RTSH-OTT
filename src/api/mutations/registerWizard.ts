@@ -5,8 +5,12 @@
  */
 import { useMutation } from '@tanstack/react-query';
 
+import { INLINE_CLIENT_ERROR } from '../client';
 import { register, registerResendOtp, registerVerifyOtp } from '../services/auth';
 
-export const useRegister = () => useMutation({ mutationFn: register });
-export const useRegisterVerifyOtp = () => useMutation({ mutationFn: registerVerifyOtp });
-export const useRegisterResendOtp = () => useMutation({ mutationFn: registerResendOtp });
+// 4xx errors render inline on the form / OTP screen; 5xx/network → global modal.
+export const useRegister = () => useMutation({ mutationFn: register, meta: INLINE_CLIENT_ERROR });
+export const useRegisterVerifyOtp = () =>
+  useMutation({ mutationFn: registerVerifyOtp, meta: INLINE_CLIENT_ERROR });
+export const useRegisterResendOtp = () =>
+  useMutation({ mutationFn: registerResendOtp, meta: INLINE_CLIENT_ERROR });

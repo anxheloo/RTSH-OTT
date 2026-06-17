@@ -2,6 +2,7 @@ import axios from 'axios';
 
 import { useAppStore } from '@/store/useAppStore';
 import { REFRESH_TOKEN_KEY } from '@/config/auth';
+import i18n from '@/i18n';
 import { getFromKeychain } from '@/services/keychain';
 
 import { registerRefreshHandler } from '../client';
@@ -15,9 +16,9 @@ let inflight: Promise<string | null> | null = null;
  * carries no user, so on success only the in-memory access token is updated;
  * `isAuthenticated` stays whatever the boot/login flow set it to.
  *
- * Single-flighted at this layer so every caller (401 interceptor, boot
- * background refresh) shares one in-flight request — concurrent refreshes
- * would be logout bugs the day the backend switches to rotating tokens.
+ * Single-flighted at this layer so every caller shares one in-flight request —
+ * concurrent refreshes would be logout bugs the day the backend switches to
+ * rotating tokens.
  *
  * Only confirmed auth failures (401/403) clear the keychain — transient
  * network errors (offline, 5xx) bubble up as null without wiping the token,
@@ -25,9 +26,9 @@ let inflight: Promise<string | null> | null = null;
  * and only here; callers must treat null as "no token this attempt", never
  * as a logout signal.
  *
- * Used by:
- *   - The 401 interceptor (via `setupAuthRefresh()`)
- *   - App bootstrap (via `useCheckToken`) to hydrate on launch
+ * Used by the 401 interceptor (via `setupAuthRefresh()`): on a cold boot the
+ * access token is null, so the first authed request 401s and is refreshed +
+ * retried here — no proactive boot refresh needed.
  */
 export function refreshAccessToken(): Promise<string | null> {
   // A refresh is already in flight — share it instead of firing a duplicate.
@@ -52,6 +53,16 @@ async function doRefresh(): Promise<string | null> {
       const status = error.response?.status;
       if (status === 401 || status === 403) {
         await useAppStore.getState().logout();
+        // Tell the user why they were bounced to login — this is the only path
+        // that logs out from a *failed refresh* (user-initiated logout is
+        // silent). No explicit button: `notify` defaults to an OK that closes.
+        useAppStore.getState().updateModalSlice({
+          currentModal: 'notify',
+          modalData: {
+            title: i18n.t('errors.session_expired'),
+            description: i18n.t('errors.session_expired_body'),
+          },
+        });
         return null;
       }
     }

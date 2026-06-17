@@ -6,7 +6,6 @@ export type Locale = 'sq' | 'en';
 
 export interface SettingsSlice {
   locale: Locale;
-  tcAcceptedAt: number | null;
 
   // Playback preferences (spec-mandated)
   cellularPlaybackAllowed: boolean;
@@ -23,7 +22,6 @@ export interface SettingsSlice {
   updateSettingsSlice: (state: Partial<SettingsSlice>) => void;
 
   setLocale: (locale: Locale) => void;
-  acceptTC: () => void;
   setCellularPlaybackAllowed: (v: boolean) => void;
   setBackgroundVideoAllowed: (v: boolean) => void;
   setAutoplayEnabled: (v: boolean) => void;
@@ -34,7 +32,6 @@ export interface SettingsSlice {
 
 export const createSettingsSlice: StateCreator<AppStore, [], [], SettingsSlice> = (set) => ({
   locale: 'sq',
-  tcAcceptedAt: null,
 
   cellularPlaybackAllowed: false,
   backgroundVideoAllowed: true,
@@ -45,7 +42,6 @@ export const createSettingsSlice: StateCreator<AppStore, [], [], SettingsSlice> 
 
   updateSettingsSlice: (state) => set(state),
   setLocale: (locale) => set({ locale }),
-  acceptTC: () => set({ tcAcceptedAt: Date.now() }),
   setCellularPlaybackAllowed: (cellularPlaybackAllowed) => set({ cellularPlaybackAllowed }),
   setBackgroundVideoAllowed: (backgroundVideoAllowed) => set({ backgroundVideoAllowed }),
   setAutoplayEnabled: (autoplayEnabled) => set({ autoplayEnabled }),

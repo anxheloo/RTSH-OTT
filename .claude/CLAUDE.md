@@ -70,7 +70,7 @@ Expo Router file-based. Root `_layout.tsx` uses `Stack.Protected` guards:
 
 Single `useAppStore` composed from slices (see `src/store/`):
 - `UserSlice` — auth state, user, access token (access in store, refresh in keychain)
-- `SettingsSlice` — locale, theme mode, haptics, autoplay, data-saver, T&C timestamp, cellular/background-video flags, notifications flag
+- `SettingsSlice` — locale, theme mode, haptics, autoplay, data-saver, cellular/background-video flags, notifications flag
 - `ThemeSlice` — mode + colors (light/dark objects, swapped on toggle)
 - `ModalSlice` — single active modal (`currentModal` + `modalData`, RTSH/SOLITAR style; apiError, noInternet, notify, confirmation, forceUpdate). One modal at a time; `updateModalSlice({ currentModal: null })` to close (`forceUpdate` is blocking and never closes).
 - `NetworkSlice` — runtime connectivity (`isOnline`, `connectionType`), written by `useNetworkMonitor`; not persisted
@@ -92,7 +92,7 @@ Persist via MMKV (`zustandStorage`). `partialize` controls what persists. `onReh
 
 ### Networking (`src/api/`)
 
-- `client.ts` — single `apiClient` (axios) + `queryClient`. Request interceptor injects token + `Accept-Language` from store. Response interceptor refreshes on 401 (single-flight lives inside `refreshAccessToken`, shared with the boot refresh) — it never logs out itself; only a confirmed 401/403 inside `refreshAccessToken` wipes the session. 426 → blocking `forceUpdate` modal. Static `X-Device-Id` / `X-Device-Platform` / `X-App-Version` headers are stamped at boot by `useDeviceIdentity`, which also fire-and-forgets the `PUT /users/me/device` registration upsert whenever `isAuthenticated` flips true (see `rules/ARCHITECTURE.md` → Device identity; contract in `docs/API.md`).
+- `client.ts` — single `apiClient` (axios) + `queryClient`. Request interceptor injects token + `Accept-Language` from store. Response interceptor refreshes on 401 (single-flight lives inside `refreshAccessToken`) — it never logs out itself; only a confirmed 401/403 inside `refreshAccessToken` wipes the session. On a cold boot the access token is null, so the first authed request 401s and is refreshed-and-retried here (no proactive boot refresh). 426 → blocking `forceUpdate` modal. Static `X-Device-Id` / `X-Device-Platform` / `X-App-Version` headers are stamped on app entry by `useDeviceIdentity` (mounted in `(app)/_layout.tsx`), which also fire-and-forgets the `PUT /users/me/device` registration upsert on every app open (see `rules/ARCHITECTURE.md` → Device identity; contract in `docs/API.md`).
 - `endpoints.ts` — string constants for routes (`AUTH_ROUTES`, `CHANNELS_ROUTES`, etc).
 - `services/*.ts` — domain-grouped axios calls (`auth.ts`, `channels.ts`, `epg.ts`, `catchup.ts`, `radio.ts`, `streams.ts`, `users.ts`, `config.ts`, `devices.ts`).
 - `queries/*.ts` — TanStack Query hooks wrapping services.
@@ -120,9 +120,19 @@ Tokens live in `src/theme/`:
 - `borders.ts` — `BORDERRADIUS`
 - `spacing.ts` — `SPACING` scale (4px base)
 
+`FONTSIZE` / `SPACING` (and the `ReusableText` / `ReusableBtn` size tables) pass through `scaled()` from `@/responsive`, which applies a per-device-class step (phone 1 / tablet 1.15 / TV 1.3) — phone is unchanged. See **Responsive** below.
+
+### Responsive (`src/responsive/`)
+
+Portable, self-contained module (`react`+`react-native` only) for all device-size decisions, split into layout (reactive) + sizing (static):
+- **Layout** — `useResponsiveGrid()` → grid `numColumns` by device class + orientation (phone 2/2, tablet 3/4, TV 4/4); `useResponsive()` → `{ deviceClass, isLandscape }`. Classifier is shortest-side (`sw600dp` standard), so phone-landscape ≠ tablet-portrait.
+- **Sizing** — `scaled(n)` applies the per-class `UI_SCALE` step at the token layer only (never per-component).
+- **Config** — tune `responsive/breakpoints.ts` (`GRID_COLUMNS`, `UI_SCALE`, `TABLET_MIN_SHORTEST_SIDE`).
+- Distinct from `utils/device.ts → getDeviceType()` (physical device for the backend registry vs this module's live window). Down-payment on 22.18; full rationale: `rules/ARCHITECTURE.md → Responsive layout & sizing`.
+
 ### Auth flow
 
-Access token in memory, refresh token in keychain. Boot is offline-first (keychain-first check; network only on manual-wipe recovery). 401s single-flight refresh through a bare axios instance to prevent loop deadlocks. Logout is async + atomic. No app-lock — the root `(auth)` vs `(app)` guard keys on `isAuthenticated` ONLY (never the in-memory access token, which is null on cold boot until the background refresh lands). Parental PIN is content-level, not app-entry.
+Access token in memory, refresh token in keychain. Boot is offline-first (keychain-first check; network only on manual-wipe recovery). 401s single-flight refresh through a bare axios instance to prevent loop deadlocks. Logout is async + atomic. No app-lock — the root `(auth)` vs `(app)` guard keys on `isAuthenticated` ONLY (never the in-memory access token, which is null on cold boot until the first request's 401-refresh lands). Parental PIN is content-level, not app-entry.
 
 Full rationale, behavior, and known gaps: `rules/ARCHITECTURE.md` → Auth flow.
 
@@ -172,7 +182,7 @@ All deliverable files go inside this repo (`RTSH-OTT/`). Source spec lives in `.
 
 Beyond the architecture scaffold, these features are spec-mandated for v1 — do not treat as optional:
 
-- **T&C acceptance** — first-launch gate after register/login. Settings flag `tcAcceptedAt`.
+- **T&C acceptance** — enforced once at registration: the `acceptTerms` checkbox (zod-required) on the register form, with an inline link that opens the T&C URL in `expo-web-browser`. Acceptance is account-level (sent to backend as `termsAccepted`), not re-prompted on login — no client gate, no `tcAcceptedAt` flag (removed 2026-06-17).
 - **Geoblocking overlay** — streams endpoint returns geo-error → full-screen overlay (RTSH branded). Checked on every channel open.
 - **Cellular-data gate** — confirmation modal before playback over cellular when `settings.cellularPlaybackAllowed === false`.
 - ~~**Mosaic view**~~ — **cut from v1 by user decision (2026-06-11, plan 22.14f)**; route + components removed.

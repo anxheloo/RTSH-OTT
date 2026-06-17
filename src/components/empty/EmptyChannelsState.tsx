@@ -1,61 +1,30 @@
+/**
+ * EmptyChannelsState — shown when the channel list loaded successfully but is
+ * empty (`[]`). For a *load failure*, use `ErrorState` instead (the screen
+ * picks based on the query's `error`). Thin wrapper over `ListStateView`.
+ */
 import React from 'react';
-import { StyleSheet, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
-import { SPACING } from '@/theme';
-import { useAppStore } from '@/store/useAppStore';
-
-import ReusableBtn from '../Buttons/ReusableBtn';
-import ReusableText from '../Inputs/ReusableText';
+import ListStateView from './ListStateView';
 
 type EmptyChannelsStateProps = {
   onRetry?: () => void;
+  testID?: string;
 };
 
-const EmptyChannelsState: React.FC<EmptyChannelsStateProps> = ({ onRetry }) => {
+const EmptyChannelsState: React.FC<EmptyChannelsStateProps> = ({ onRetry, testID }) => {
   const { t } = useTranslation();
-  const colors = useAppStore((s) => s.colors);
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <ReusableText variant="heading3" themeColor="text" textAlign="center">
-        {t('empty.channels_title')}
-      </ReusableText>
-      <ReusableText
-        variant="body"
-        themeColor="textMuted"
-        textAlign="center"
-        style={styles.subtitle}
-      >
-        {t('empty.channels_subtitle')}
-      </ReusableText>
-      {!!onRetry && (
-        <ReusableBtn
-          label={t('empty.retry')}
-          variant="primary"
-          size="medium"
-          onPress={onRetry}
-          style={styles.btn}
-        />
-      )}
-    </View>
+    <ListStateView
+      title={t('empty.channels_title')}
+      subtitle={t('empty.channels_subtitle')}
+      retryLabel={t('empty.retry')}
+      onRetry={onRetry}
+      testID={testID}
+    />
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: SPACING.space_32,
-  },
-  subtitle: {
-    marginTop: SPACING.space_8,
-    marginBottom: SPACING.space_24,
-  },
-  btn: {
-    minWidth: 160,
-  },
-});
 
 export default EmptyChannelsState;

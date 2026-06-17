@@ -22,6 +22,7 @@ import {
 import type { ThemeColors } from '@/theme/colors';
 import { useAppStore } from '@/store/useAppStore';
 import { useHaptic } from '@/hooks/useHaptic';
+import { scaled } from '@/responsive';
 
 import ReusableText, { FontWeight } from '../Inputs/ReusableText';
 
@@ -51,10 +52,12 @@ interface SizeSpec {
 
 // Design (2026-06-06): primary CTA is a h54 capsule, bold label. `large` matches;
 // borderRadius defaults to height/2 (capsule). small/medium are scale variants.
+// height/padding/label/gap pass through `scaled()` so controls grow a step on
+// tablet/TV (phone factor is 1 → unchanged). See `responsive/scale.ts`.
 const SIZES: Record<ButtonSize, SizeSpec> = {
-  small: { height: 40, paddingHorizontal: 14, labelFontSize: 14, labelFontWeight: 'semiBold', gap: 6 },
-  medium: { height: 48, paddingHorizontal: 16, labelFontSize: 15, labelFontWeight: 'semiBold', gap: 8 },
-  large: { height: 54, paddingHorizontal: 20, labelFontSize: 16, labelFontWeight: 'bold', gap: 8 },
+  small: { height: scaled(40), paddingHorizontal: scaled(14), labelFontSize: scaled(14), labelFontWeight: 'semiBold', gap: scaled(6) },
+  medium: { height: scaled(48), paddingHorizontal: scaled(16), labelFontSize: scaled(15), labelFontWeight: 'semiBold', gap: scaled(8) },
+  large: { height: scaled(54), paddingHorizontal: scaled(20), labelFontSize: scaled(16), labelFontWeight: 'bold', gap: scaled(8) },
 };
 
 export type ReusableBtnProps = Omit<TouchableOpacityProps, 'style' | 'disabled'> & {

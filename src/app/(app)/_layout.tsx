@@ -8,20 +8,19 @@ import { StyleSheet, View } from 'react-native';
 import { NavigationBar } from 'expo-navigation-bar';
 import { Stack } from 'expo-router';
 
+import { useMeQuery } from '@/api/queries';
+import { useDeviceIdentity } from '@/hooks/useDeviceIdentity';
 import RadioMiniPlayer from '@/components/Layout/RadioMiniPlayer';
 import LaunchAdHost from '@/components/Media/LaunchAdHost';
 import RadioAudioHost from '@/components/Media/RadioAudioHost';
 import { getModalScreenOptions } from '@/utils/navigation';
 
 const AppLayout: React.FC = () => {
+  useDeviceIdentity();
+  useMeQuery();
+
   return (
     <View style={styles.root}>
-      {/*
-        Android immersive mode: hide the system nav bar so it can't collide with
-        our bottom tab bar (SDK 56 forces edge-to-edge). Declarative — the native
-        side manages the transient swipe-reveal + auto-rehide. No-op on iOS.
-      */}
-      <NavigationBar hidden />
       {/* Pushed screens slide in from the right (matches the auth stack);
           full-screen player modals slide up from the bottom — modal semantics,
           and the gesture/back direction reads correctly on both platforms. */}

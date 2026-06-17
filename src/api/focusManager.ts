@@ -2,7 +2,8 @@
  * React Native has no browser "window focus", so TanStack Query's
  * `refetchOnWindowFocus` is a no-op until we bridge `AppState` into its
  * `focusManager` — the focus analogue of the `onlineManager` ↔ NetInfo bridge
- * in `useNetworkMonitor`. Wire ONCE at boot (`useBootstrap`); after that, any
+ * in `useNetworkMonitor`. Wired ONCE at boot (module scope in `_layout.tsx`);
+ * after that, any
  * query with `refetchOnWindowFocus: true` refetches when the app returns to the
  * foreground.
  */

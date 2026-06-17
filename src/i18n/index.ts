@@ -3,7 +3,7 @@
  * is sourced from the persisted store on init, then re-applied via
  * `setI18nLocale` when the user changes it in settings.
  *
- * `useBootstrap` calls `initI18n()` once at app start so screens can use
+ * `_layout.tsx` calls `initI18n()` once at module scope so screens can use
  * `useTranslation` from first render.
  */
 import { initReactI18next } from 'react-i18next';

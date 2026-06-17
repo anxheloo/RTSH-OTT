@@ -4,6 +4,7 @@ import { useAppStore } from '@/store/useAppStore';
 import { REFRESH_TOKEN_KEY } from '@/config/auth';
 import { storeOnKeychain } from '@/services/keychain';
 
+import { INLINE_CLIENT_ERROR } from '../client';
 import { changePassword } from '../services/users';
 
 /**
@@ -15,6 +16,7 @@ import { changePassword } from '../services/users';
 export function useChangePasswordMutation() {
   return useMutation({
     mutationFn: changePassword,
+    meta: INLINE_CLIENT_ERROR, // 4xx inline on the form; 5xx/network → modal
     onSuccess: async ({ accessToken, refreshToken }) => {
       await storeOnKeychain(REFRESH_TOKEN_KEY, refreshToken);
       useAppStore.getState().updateUserSlice({ token: accessToken });

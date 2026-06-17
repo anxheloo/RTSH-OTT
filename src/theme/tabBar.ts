@@ -51,7 +51,7 @@ export const TabBar: TabBarConfig = {
   },
   tabBarIconStyle: {
     // Lift the glyph slightly toward the bar's top edge (sits too low otherwise).
-    marginTop: -2,
+    marginTop: -5,
   },
   iconSize: 24,
 };

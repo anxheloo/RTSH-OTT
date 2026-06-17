@@ -1,6 +1,6 @@
-import { useCallback, useState } from 'react';
+import { useEffect } from 'react';
+import { StatusBar, StyleSheet, View } from 'react-native';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import {
   Inter_400Regular,
@@ -12,15 +12,20 @@ import {
 } from '@expo-google-fonts/inter';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { useFonts } from 'expo-font';
+import { NavigationBar } from 'expo-navigation-bar';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 
 import { useAppStore } from '@/store/useAppStore';
+import { setupAuthRefresh } from '@/api';
 import { queryClient } from '@/api/client';
-import { useBootstrap } from '@/hooks/useBootstrap';
-import { BrandedSplash } from '@/components/Brand';
-import { TCGateOverlay, ToastHost } from '@/components/Layout';
+import { setupFocusManager } from '@/api/focusManager';
+import { useNetworkMonitor, useOTA } from '@/hooks';
+import { useCheckToken } from '@/hooks/useCheckToken';
+import { useSystemTheme } from '@/hooks/useSystemTheme';
+import { ToastHost } from '@/components/Layout';
 import ModalWrapper from '@/components/ModalWrapper';
+import { initI18n } from '@/i18n';
 
 // Start mock server before any React rendering so the first API call is intercepted.
 // Tree-shaken in production — the conditional is evaluated at module load time.
@@ -31,14 +36,20 @@ if (process.env.EXPO_PUBLIC_API_MODE === 'mock') {
 
 SplashScreen.preventAutoHideAsync();
 
-function RootLayoutInner() {
-  const { isReady } = useBootstrap();
-  const isAuthenticated = useAppStore((s) => s.isAuthenticated);
-  const [splashDone, setSplashDone] = useState(false);
+// One-time, app-session-wide wiring. At module scope (not in render) so it runs
+// exactly once: 401 → refresh on the api client, AppState → TanStack focus
+// bridge, and i18n init before the first screen renders. All three are
+// internally idempotent, but keeping them here avoids re-running on every render.
+setupAuthRefresh();
+setupFocusManager();
+initI18n();
 
-  // Inter is the design's sole family (Phase 22.2). Keys are the family names the
-  // `Fonts` tokens in theme/fonts.ts alias to.
-  const [fontsLoaded, fontError] = useFonts({
+const RootLayoutNav = () => {
+  const colors = useAppStore((s) => s.colors);
+  const mode = useAppStore((s) => s.mode);
+  const isAuthenticated = useAppStore((s) => s.isAuthenticated);
+
+  const [fontsLoaded] = useFonts({
     Inter_400Regular,
     Inter_500Medium,
     Inter_600SemiBold,
@@ -46,38 +57,33 @@ function RootLayoutInner() {
     Inter_800ExtraBold,
     Inter_900Black,
   });
+  const { tokenChecked } = useCheckToken();
+  useNetworkMonitor();
+  useSystemTheme();
 
-  // Hide the native splash only once its JS clone (BrandedSplash) has laid
-  // out — the clone is pixel-identical, so the swap is invisible.
-  const handleSplashLayout = useCallback(() => {
-    SplashScreen.hideAsync();
-  }, []);
+  useEffect(() => {
+    StatusBar.setBarStyle(mode === 'dark' ? 'light-content' : 'dark-content');
+  }, [mode]);
 
-  const handleSplashComplete = useCallback(() => setSplashDone(true), []);
+  useEffect(() => {
+    if (fontsLoaded && tokenChecked) {
+      SplashScreen.hideAsync();
+    }
+  }, [fontsLoaded, tokenChecked]);
 
-  // Hold the branded splash until the progress bar has visibly filled to 100%
-  // (BrandedSplash fires onComplete when the fill animation lands).
-  const bootComplete = (fontsLoaded || !!fontError) && isReady;
-  if (!splashDone) {
-    return (
-      <BrandedSplash
-        onLayout={handleSplashLayout}
-        isComplete={bootComplete}
-        onComplete={handleSplashComplete}
-      />
-    );
-  }
+  useOTA();
+
+  if (!fontsLoaded || !tokenChecked) return null;
 
   return (
-    <>
-      {/*
-        Gate on `isAuthenticated` ONLY — never on `token`. The access token is
-        in-memory and null on every cold boot until the background refresh
-        lands; gating on it would route a logged-in user (esp. offline) back to
-        (auth). The interceptor lazily refreshes the access token on the first
-        401 once inside the app.
-      */}
-      <Stack screenOptions={{ headerShown: false }}>
+    <View style={[styles.root, { backgroundColor: colors.background }]}>
+      <NavigationBar hidden />
+      <Stack
+        screenOptions={{
+          headerShown: false,
+          contentStyle: { backgroundColor: colors.background },
+        }}
+      >
         <Stack.Protected guard={!isAuthenticated}>
           <Stack.Screen name="(auth)" />
         </Stack.Protected>
@@ -86,20 +92,22 @@ function RootLayoutInner() {
         </Stack.Protected>
       </Stack>
       <ModalWrapper />
-      <TCGateOverlay />
       <ToastHost />
-    </>
+    </View>
   );
-}
+};
 
-export default function RootLayout() {
-  return (
-    <SafeAreaProvider>
-      <QueryClientProvider client={queryClient}>
-        <KeyboardProvider>
-          <RootLayoutInner />
-        </KeyboardProvider>
-      </QueryClientProvider>
-    </SafeAreaProvider>
-  );
-}
+/** Root layout — all wrappers / providers live here. No hooks. */
+const RootLayout = () => (
+  <QueryClientProvider client={queryClient}>
+    <KeyboardProvider>
+      <RootLayoutNav />
+    </KeyboardProvider>
+  </QueryClientProvider>
+);
+
+const styles = StyleSheet.create({
+  root: { flex: 1 },
+});
+
+export default RootLayout;
