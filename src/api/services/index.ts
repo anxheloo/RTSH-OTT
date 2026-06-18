@@ -4,7 +4,5 @@ export * as channels from './channels';
 export * as config from './config';
 export * as devices from './devices';
 export * as epg from './epg';
-export * as radio from './radio';
-export * as streams from './streams';
 export * as users from './users';
 

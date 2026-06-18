@@ -24,6 +24,12 @@ export interface AuthScreenProps {
   topSlot?: React.ReactNode;
   /** Vertical gap between children. Defaults to 16. */
   contentGap?: number;
+  /**
+   * Disable KeyboardAvoidingView for long forms (register). The ScrollView's
+   * own scroll is enough — KAV shrinks the container on Android and creates a
+   * blank gap below the content when the keyboard opens.
+   */
+  keyboardAvoidingEnabled?: boolean;
   testID?: string;
 }
 
@@ -32,6 +38,7 @@ const AuthScreen: React.FC<AuthScreenProps> = ({
   header,
   topSlot,
   contentGap = SPACING.space_16,
+  keyboardAvoidingEnabled = true,
   testID,
 }) => {
   const colors = useAppStore((s) => s.colors);
@@ -40,6 +47,7 @@ const AuthScreen: React.FC<AuthScreenProps> = ({
     <KeyboardAvoidingView
       style={[styles.flex, { backgroundColor: colors.background }]}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      enabled={keyboardAvoidingEnabled}
       testID={testID}
     >
       {header ?? <BrandHeader testID={testID ? `${testID}-header` : 'auth-header'} />}

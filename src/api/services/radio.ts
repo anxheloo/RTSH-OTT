@@ -1,14 +1,12 @@
-import type { RadioStation } from '@/types/domain';
+import type { Channel } from '@/types/domain';
 
-import { apiClient } from '../client';
-import { RADIO_ROUTES } from '../endpoints';
+import { getChannelById, getChannels } from './channels';
 
-export async function getRadioStations(): Promise<RadioStation[]> {
-  const { data } = await apiClient.get<{ stations: RadioStation[] }>(RADIO_ROUTES.LIST);
-  return data.stations;
+/** Radio stations are channels with `type: 'RADIO'` from the unified endpoint. */
+export async function getRadioStations(): Promise<Channel[]> {
+  return getChannels('RADIO');
 }
 
-export async function getRadioById(id: string): Promise<RadioStation> {
-  const { data } = await apiClient.get<{ station: RadioStation }>(RADIO_ROUTES.BY_ID(id));
-  return data.station;
+export async function getRadioById(id: string): Promise<Channel> {
+  return getChannelById(id);
 }

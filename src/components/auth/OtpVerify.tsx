@@ -51,7 +51,6 @@ const OtpVerify: React.FC<OtpVerifyProps> = ({
   const handleChange = (text: string) => {
     const digits = text.replace(/\D/g, '').slice(0, length);
     setCode(digits);
-    if (digits.length === length) onVerify(digits);
   };
 
   const handleResend = () => {

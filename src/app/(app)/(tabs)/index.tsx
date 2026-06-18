@@ -39,7 +39,7 @@ import { HeroCarousel } from '@/components/home';
 import { BrowseControls, ScreenLayout, SectionHeader } from '@/components/Layout';
 import StationRow from '@/components/radio/StationRow';
 import StationRowSkeleton from '@/components/radio/StationRowSkeleton';
-import type { Channel, RadioStation } from '@/types/domain';
+import type { Channel } from '@/types/domain';
 import { useResponsiveGrid } from '@/responsive';
 
 type HomeMode = 'tv' | 'radio';
@@ -60,7 +60,7 @@ const HomeScreen: React.FC = () => {
     isLoading: channelsLoading,
     error: channelsError,
     refetch: refetchChannels,
-  } = useChannelsQuery();
+  } = useChannelsQuery('TV');
   const {
     stations,
     isLoading: stationsLoading,
@@ -154,9 +154,8 @@ const HomeScreen: React.FC = () => {
     <EmptyStationsState testID="home-empty" />
   );
 
-  const renderItem = ({ item, index }: { item: Channel | RadioStation; index: number }) => {
+  const renderItem = ({ item, index }: { item: Channel; index: number }) => {
     if (isTv) {
-      const channel = item as Channel;
       const col = index % numColumns;
       return (
         <View
@@ -169,24 +168,22 @@ const HomeScreen: React.FC = () => {
           ]}
         >
           <ChannelCard
-            channelId={channel.id}
-            name={channel.name}
-            thumbnailUri={channel.thumbnailUrl}
-            isLive={channel.isLive}
-            isAdult={channel.isAdult}
-            geoBlocked={channel.geoBlocked}
-            onPress={() => openChannel(channel.id)}
+            channelId={item.id}
+            name={item.name}
+            thumbnailUri={item.imageUrl}
+            isAdult={item.isAdult}
+            geoBlocked={item.geoBlocked}
+            onPress={() => openChannel(item.id)}
           />
         </View>
       );
     }
 
-    const station = item as RadioStation;
     return (
       <StationRow
-        station={station}
-        isActive={station.id === activeStationId}
-        onPress={() => openStation(station.id)}
+        station={item}
+        isActive={item.id === activeStationId}
+        onPress={() => openStation(item.id)}
       />
     );
   };

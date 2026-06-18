@@ -94,7 +94,7 @@ Persist via MMKV (`zustandStorage`). `partialize` controls what persists. `onReh
 
 - `client.ts` — single `apiClient` (axios) + `queryClient`. Request interceptor injects token + `Accept-Language` from store. Response interceptor refreshes on 401 (single-flight lives inside `refreshAccessToken`) — it never logs out itself; only a confirmed 401/403 inside `refreshAccessToken` wipes the session. On a cold boot the access token is null, so the first authed request 401s and is refreshed-and-retried here (no proactive boot refresh). 426 → blocking `forceUpdate` modal. Static `X-Device-Id` / `X-Device-Platform` / `X-App-Version` headers are stamped on app entry by `useDeviceIdentity` (mounted in `(app)/_layout.tsx`), which also fire-and-forgets the `PUT /users/me/device` registration upsert on every app open (see `rules/ARCHITECTURE.md` → Device identity; contract in `docs/API.md`).
 - `endpoints.ts` — string constants for routes (`AUTH_ROUTES`, `CHANNELS_ROUTES`, etc).
-- `services/*.ts` — domain-grouped axios calls (`auth.ts`, `channels.ts`, `epg.ts`, `catchup.ts`, `radio.ts`, `streams.ts`, `users.ts`, `config.ts`, `devices.ts`).
+- `services/*.ts` — domain-grouped axios calls (`auth.ts`, `channels.ts`, `epg.ts`, `catchup.ts`, `users.ts`, `config.ts`, `devices.ts`). `streams.ts` removed — stream URLs are now embedded in the `PlaybackDecisionDTO` returned by `GET /channels/{id}` (no separate streams service).
 - `queries/*.ts` — TanStack Query hooks wrapping services.
 - `mutations/*.ts` — TanStack Mutation hooks.
 - `mocks/` — **custom axios-adapter mock** (not MSW) + fixtures, active when `EXPO_PUBLIC_API_MODE=mock`. `handlers.ts` is an array of `{ method, test(url), delay?, respond(config) }`; `server.ts` swaps it into the axios adapter.

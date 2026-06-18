@@ -30,33 +30,34 @@ export interface User {
 
 /** A user's package entitlement (design profile/settings badge). */
 export interface Subscription {
-  package: ChannelPackage;
+  package: string;
   /** Number of channels the package unlocks (design "· 32 kanale"). */
   channelCount: number;
 }
 
-/**
- * Channel package — the design's filter chips (`PKGS`). "Të gjitha" (All) is a
- * UI-only filter sentinel, not a package, so it is not part of this union.
- */
-export type ChannelPackage = 'base' | 'sport' | 'news' | 'kids' | 'music' | 'regional';
 
+/** Discriminator for the unified channels endpoint (`GET /channels?type=TV|RADIO`). */
+export type ChannelType = 'TV' | 'RADIO';
+
+/**
+ * Unified channel / radio-station — maps `EndUserChannelDTO` from
+ * `GET /api/v1/channels?type=TV|RADIO`. The service transforms `id` (int32 →
+ * string) and `geoRestricted` → `geoBlocked` before returning this shape.
+ *
+ * `isAdult` is absent from the list response and only populated by the detail
+ * endpoint (`GET /channels/{id}`); the list query leaves it undefined.
+ */
 export interface Channel {
   id: string;
   name: string;
+  type: ChannelType;
+  sortOrder: number;
   logoUrl: string;
-  /** Scene / last-frame artwork for cards (design `scene`). */
-  thumbnailUrl?: string;
-  /** Package the channel belongs to (design chip filter). */
-  package: ChannelPackage;
-  /** Broadcasting live right now → design LIVE tag. */
-  isLive: boolean;
-  /** Adult / parental-locked channel → PIN gate (design `lock` 18+ tag). */
-  isAdult: boolean;
-  /** Geo-restricted channel → geo overlay (design `geo` tag). */
+  /** Thumbnail for TV cards; artwork for the radio player (design `scene` / `rp-art`). */
+  imageUrl?: string;
   geoBlocked: boolean;
-  /** Optional inline stream URL; live streams normally come from the streams endpoint. */
-  streamUrl?: string;
+  /** Present only on the detail response (`GET /channels/{id}`). */
+  isAdult?: boolean;
 }
 
 /**
@@ -88,6 +89,12 @@ export interface EpgItem {
   /** Currently airing — design `prog` now-state (highlighted row + play glyph). */
   isLive?: boolean;
   thumbnail?: string;
+  // Playback data — same shape as PlaybackDecision, embedded so tapping a
+  // program row can swap the player source without an extra network request.
+  decision: string;
+  programId: string;
+  noticeMessage?: string;
+  streams: Record<string, string>;
 }
 
 export interface CatchupItem {
@@ -112,18 +119,8 @@ export interface CatchupDay {
   /** Short date label (design `31.05`). */
   date: string;
   isToday: boolean;
-}
-
-export interface RadioStation {
-  id: string;
-  name: string;
-  genre: string;
-  streamUrl: string;
-  logoUrl: string;
-  /** Scene artwork for the radio player (design `rp-art`). */
-  artworkUrl?: string;
-  /** Stream bitrate shown in the player subtitle (design "128 kbps"). */
-  bitrateKbps?: number;
+  /** True for dates after today — EPG is a schedule, not catch-up. */
+  isFuture: boolean;
 }
 
 /** Player quality / ABR level (design `QUAL` picker). `auto` = adaptive ABR. */
@@ -138,18 +135,17 @@ export interface QualityOption {
 }
 
 /**
- * A single selectable resolution of a stream. `url` is the rendition's own
- * (child) HLS playlist — manual quality selection works by swapping the player
- * source to it, since `expo-video` cannot pin a variant within a master. A
- * non-`auto` `QualityId` only appears here when the backend gives us its URL.
+ * Playback decision returned by `GET /channels/{id}`.
+ * `decision` is a loose string for now — exact union values TBD with the backend.
+ * `streams` maps quality keys (`master`, `720`, `480`, …) to HLS URLs;
+ * `master` is the ABR playlist, numeric keys are fixed-rendition child playlists.
  */
-export interface Rendition {
-  id: Exclude<QualityId, 'auto'>;
-  url: string;
-  /** Peak bitrate in bits/s, if known (display / future analytics). */
-  bitrate?: number;
-  width?: number;
-  height?: number;
+export interface PlaybackDecision {
+  decision: string;
+  channelId: string;
+  programId: string;
+  noticeMessage?: string;
+  streams: Record<string, string>;
 }
 
 /* ===========================================================================
@@ -293,8 +289,6 @@ export interface AppConfig {
   minVersion: string;
   tcUrl: string;
   privacyUrl: string;
-  /** Channel packages offered to this client (design `PKGS`, minus the All filter). */
-  packages?: ChannelPackage[];
   ads: {
     launchEnabled: boolean;
     channelSwitchEnabled: boolean;

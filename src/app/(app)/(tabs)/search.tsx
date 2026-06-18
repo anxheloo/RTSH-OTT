@@ -27,7 +27,6 @@ import { SearchBar } from '@/components/Inputs';
 import ReusableText from '@/components/Inputs/ReusableText';
 import { ScreenLayout, SectionHeader } from '@/components/Layout';
 import { ProfileIcon } from '@/assets/icons';
-import { PACKAGE_LABEL } from '@/constants/packages';
 
 const MAX_RECENT = 8;
 const MAX_PROGRAM_RESULTS = 20;
@@ -40,7 +39,7 @@ const SearchScreen: React.FC = () => {
   const { query, debouncedQuery, setQuery } = useSearch();
   const [recent, setRecent] = useState<string[]>([]);
 
-  const { channels } = useChannelsQuery();
+  const { channels } = useChannelsQuery('TV');
   const { items: epg } = useEpgQuery();
 
   const needle = debouncedQuery.trim().toLowerCase();
@@ -138,8 +137,8 @@ const SearchScreen: React.FC = () => {
                   <SearchResultRow
                     key={c.id}
                     name={c.name}
-                    meta={`TV · ${PACKAGE_LABEL[c.package]}`}
-                    thumbnailUri={c.thumbnailUrl}
+                    meta="TV"
+                    thumbnailUri={c.imageUrl}
                     onPress={() => openChannel(c.id)}
                     testID={`search-channel-${c.id}`}
                   />

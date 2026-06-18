@@ -17,11 +17,11 @@ import { Icon } from '@/components/Icons';
 import ReusableText from '@/components/Inputs/ReusableText';
 import SceneBackground from '@/components/Media/SceneBackground';
 import Equalizer from '@/components/radio/Equalizer';
-import type { RadioStation } from '@/types/domain';
+import type { Channel } from '@/types/domain';
 import { ChevronRightIcon, RadioIcon } from '@/assets/icons';
 
 export interface StationRowProps {
-  station: RadioStation;
+  station: Channel;
   /** Highlights the row + shows the live Equalizer when this station is playing. */
   isActive?: boolean;
   onPress: () => void;
@@ -40,16 +40,13 @@ const StationRow: React.FC<StationRowProps> = ({ station, isActive = false, onPr
       testID={`station-row-${station.id}`}
     >
       <View style={styles.tile}>
-        <SceneBackground source={station.artworkUrl} />
+        <SceneBackground source={station.imageUrl} />
         <Icon as={RadioIcon} size={22} color={colors.onPrimary} />
       </View>
 
       <View style={styles.info}>
         <ReusableText fontSize={FONTSIZE.regular} fontWeight="bold" themeColor="text" numberOfLines={1}>
           {station.name}
-        </ReusableText>
-        <ReusableText fontSize={FONTSIZE.sm} themeColor="textMuted" numberOfLines={1} style={styles.genre}>
-          {station.genre}
         </ReusableText>
       </View>
 
@@ -83,9 +80,6 @@ const styles = StyleSheet.create({
   info: {
     flex: 1,
     gap: SPACING.space_2,
-  },
-  genre: {
-    marginTop: SPACING.space_2,
   },
 });
 

@@ -1,10 +1,19 @@
 /**
  * Channel screen — design `sPlayer`. A portrait layout: an inline 16:9 live
- * player at the top, a catch-up day strip (today + 7 days back), then the
- * EPG / catch-up programme list for the selected day. Selecting today shows the
- * live EPG (currently-airing highlighted); a past day shows recorded programmes
- * under a catch-up banner. Fullscreen is owned here — it expands the player to
- * cover the screen and locks landscape.
+ * player at the top, a 15-day strip (7 days back · today · 7 days forward),
+ * then the EPG / catch-up programme list for the selected day. Today shows the
+ * live schedule (currently-airing highlighted); past days show recorded
+ * programmes under a catch-up banner; future days show the schedule. The
+ * backend returns an empty array when no data exists for a date — shown via
+ * `EmptyEpgState`. Fullscreen is owned here.
+ *
+ * Two queries on entry:
+ *  1. `useChannelPlaybackQuery` — `GET /channels/{id}` → PlaybackDecision (stream URLs)
+ *  2. `useChannelEpgQuery`      — `GET /channels/{id}/epg?date=today` → EPG list
+ *
+ * Channel metadata (name, geoBlocked) is read from the already-cached TV list.
+ * Tapping a past EPG item swaps `activePlayback` to that item's embedded streams
+ * so the player replays the recording without an extra network request.
  */
 import React, { useEffect, useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
@@ -17,11 +26,12 @@ import { BORDERRADIUS } from '@/theme/borders';
 import { PLAYER_COLORS } from '@/theme/playerColors';
 import { SCREEN_PADDING, SPACING } from '@/theme/spacing';
 import { useAppStore } from '@/store/useAppStore';
-import { useChannelQuery, useChannelStreamQuery, useEpgQuery } from '@/api/queries';
+import { useChannelEpgQuery, useChannelPlaybackQuery, useChannelsQuery } from '@/api/queries';
 import { useCellularGate } from '@/hooks/useCellularGate';
 import { useDateTime } from '@/hooks/useDateTime';
 import { useLiveParentalGuard } from '@/hooks/useLiveParentalGuard';
 import { CatchupBanner, DayStrip } from '@/components/catchup';
+import { EmptyEpgState } from '@/components/empty';
 import { ProgramRow, ProgramRowSkeleton } from '@/components/epg';
 import type { ProgramRowState } from '@/components/epg/ProgramRow';
 import { Icon, IconButton } from '@/components/Icons';
@@ -30,11 +40,12 @@ import { CenteredMessage, ScreenLayout, Skeleton, TabHeader } from '@/components
 import LivePlayer from '@/components/Media/LivePlayer';
 import { ParentalPinModal } from '@/components/ParentalPin';
 import { availableQualityIds, resolveStreamSource } from '@/utils';
-import type { CatchupDay, EpgItem } from '@/types/domain';
+import type { CatchupDay, EpgItem, PlaybackDecision } from '@/types/domain';
 import { ChevronLeftIcon, GlobeIcon, LockIcon } from '@/assets/icons';
 import { DEFAULT_QUALITY } from '@/constants/player';
 
 const CATCHUP_DAYS_BACK = 7;
+const CATCHUP_DAYS_FORWARD = 7;
 
 /** Local `YYYY-MM-DD` (matches the EPG mock's date keys). */
 function toDateKey(d: Date): string {
@@ -51,92 +62,89 @@ const ChannelScreen: React.FC = () => {
   const colors = useAppStore((s) => s.colors);
   const { formatWeekday, formatDate, formatTime } = useDateTime();
 
-  const { stream, isLoading: streamLoading } = useChannelStreamQuery(channelId);
-  const { channel, isLoading: channelLoading } = useChannelQuery(channelId);
+  // Channel metadata from the cached TV list (name, geoBlocked).
+  const { channels } = useChannelsQuery('TV');
+  const channelMeta = channels.find((c) => c.id === channelId) ?? null;
 
-  // Loading-state strategy: navigation is instant — the screen renders its
-  // chrome immediately and the player slot holds a Skeleton until BOTH queries
-  // land. Waiting on the channel (not just the stream) matters: the adult/geo
-  // gates derive from channel flags, so mounting the player earlier could leak
-  // gated content for a frame.
-  const mediaPending = streamLoading || channelLoading;
+  // Playback decision — stream URLs for this channel.
+  const { playback, isLoading: playbackLoading } = useChannelPlaybackQuery(channelId);
 
-  // Quality: `videoQuality` is the active (session) pick; on each channel open we
-  // reset it to Auto so a manual pin from a prior channel doesn't carry over. The
-  // resolver maps it + the manifest to the URL to play; `auto` prefers the master
-  // (native ABR) and degrades gracefully to a single source.
+  // The player skeleton holds until the playback decision lands — we need streams
+  // before mounting the player.
+  const mediaPending = playbackLoading;
+
+  // Active playback — starts as the live channel decision, swapped to an EPG
+  // item's embedded streams when the user taps a recorded programme.
+  const [activePlayback, setActivePlayback] = useState<PlaybackDecision | null>(null);
+
+  useEffect(() => {
+    if (playback) setActivePlayback(playback);
+  }, [playback]);
+
+  // Quality: reset to Auto on each channel open so a manual pin from a prior
+  // channel doesn't carry over.
   const videoQuality = useAppStore((s) => s.videoQuality);
   const setVideoQuality = useAppStore((s) => s.setVideoQuality);
   const setAvailableQualities = useAppStore((s) => s.setAvailableQualities);
 
   useEffect(() => {
     setVideoQuality(DEFAULT_QUALITY);
-    // Reset once per channel open; intentionally not reacting to quality changes mid-watch.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [channelId]);
 
-  // Publish the stream's selectable renditions so the quality sheet only offers
-  // qualities this stream actually provides (Auto-only when there are none).
+  // Publish the selectable renditions from the active playback's streams map.
   useEffect(() => {
-    setAvailableQualities(availableQualityIds(stream));
+    setAvailableQualities(availableQualityIds(activePlayback?.streams));
     return () => setAvailableQualities([]);
-  }, [stream, setAvailableQualities]);
+  }, [activePlayback, setAvailableQualities]);
 
-  const streamSource = stream ? resolveStreamSource(stream, videoQuality) : '';
+  const streamSource = activePlayback
+    ? resolveStreamSource(activePlayback.streams, videoQuality)
+    : '';
 
   const [nowMs] = useState(() => Date.now());
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [pinUnlocked, setPinUnlocked] = useState(false);
 
-  // Content gates (22.14). Geo → block the channel inline; adult-flagged
-  // channel → PIN before play (cancel leaves the channel). Live program-level
-  // re-check is 22.14c. `geoBlocked` keys on the channel flag today; real
-  // trigger is the streams/CDN geo error (451 / GEO_BLOCKED) — see plan 15.2.
-  const geoBlocked = !!channel?.geoBlocked;
-  // Gating only applies when device parental control is enabled — a user who
-  // never set a PIN sees adult content ungated (their choice).
+  // Geo-blocking comes from the channel list flag (CDN geo is plan 15.2).
+  const geoBlocked = !!channelMeta?.geoBlocked;
+
+  // isAdult channel-level gate deferred — not present in the list or
+  // PlaybackDecision yet. Live programme-level re-check (22.14c) still works.
   const parentalEnabled = useAppStore((s) => s.parentalEnabled);
-  const needsPin = parentalEnabled && !!channel?.isAdult && !pinUnlocked;
+  const needsPin = false; // TODO: wire when isAdult is available in the API response
 
-  // Live program-level re-check (22.14c). Only for *clean* channels — an
-  // adult-flagged channel is already covered by the channel-level gate above,
-  // so we disable the live guard there to avoid double-prompting.
   const live = useLiveParentalGuard(channelId, {
-    enabled: parentalEnabled && !channel?.isAdult && !geoBlocked,
+    enabled: parentalEnabled && !geoBlocked,
   });
   const blockPlayer = needsPin || live.isBlocked;
-  // Blocked mid-watch and the user dismissed the prompt → keep the player
-  // blocked but offer a way back in (not a dead end).
   const liveBlockedDismissed = live.isBlocked && !live.showPrompt;
 
-  // Day strip — oldest → today (today rightmost). Built at local noon so the
-  // localized weekday/date never slips across the day boundary by timezone.
+  // Day strip — past (7) · today · future (7), oldest left.
   const days = useMemo<CatchupDay[]>(() => {
     const out: CatchupDay[] = [];
     const today = new Date();
-    for (let i = CATCHUP_DAYS_BACK; i >= 0; i--) {
-      const d = new Date(today.getFullYear(), today.getMonth(), today.getDate() - i, 12);
-      const isToday = i === 0;
+    for (let offset = -CATCHUP_DAYS_BACK; offset <= CATCHUP_DAYS_FORWARD; offset++) {
+      const d = new Date(today.getFullYear(), today.getMonth(), today.getDate() + offset, 12);
+      const isToday = offset === 0;
+      const isFuture = offset > 0;
       out.push({
         key: toDateKey(d),
         weekday: isToday ? t('datetime.today') : formatWeekday(d.toISOString(), 'short'),
         date: formatDate(d.toISOString(), { day: '2-digit', month: '2-digit' }),
         isToday,
+        isFuture,
       });
     }
     return out;
   }, [formatWeekday, formatDate, t]);
 
-  const [selectedKey, setSelectedKey] = useState(() => days[days.length - 1].key);
-  const selectedDay = days.find((d) => d.key === selectedKey) ?? days[days.length - 1];
+  const [selectedKey, setSelectedKey] = useState(() => days[CATCHUP_DAYS_BACK].key);
+  const selectedDay = days.find((d) => d.key === selectedKey) ?? days[CATCHUP_DAYS_BACK];
 
-  const { items: epg, isLoading: epgLoading } = useEpgQuery(selectedKey);
+  const { items: epg, isLoading: epgLoading } = useChannelEpgQuery(channelId, selectedKey);
   const programs = useMemo(
-    () =>
-      epg
-        .filter((e) => e.channelId === channelId)
-        .sort((a, b) => Date.parse(a.startTime) - Date.parse(b.startTime)),
-    [epg, channelId],
+    () => [...epg].sort((a, b) => Date.parse(a.startTime) - Date.parse(b.startTime)),
+    [epg],
   );
 
   // Lock landscape while fullscreen; release on exit/unmount.
@@ -152,18 +160,25 @@ const ChannelScreen: React.FC = () => {
   }, [isFullscreen]);
 
   const programState = (p: EpgItem): ProgramRowState => {
+    if (selectedDay.isFuture) return 'scheduled';
     if (!selectedDay.isToday) return 'recorded';
     const airing = p.isLive ?? (nowMs >= Date.parse(p.startTime) && nowMs < Date.parse(p.endTime));
     return airing ? 'now' : 'scheduled';
   };
 
-  const openProgram = (p: EpgItem, state: ProgramRowState) => {
-    // Only recorded (catch-up) rows are playable from here; the live row is
-    // already on screen and scheduled rows haven't aired.
-    if (state === 'recorded') router.push(`/(app)/program/${p.id}`);
+  const handleSelectProgram = (p: EpgItem, state: ProgramRowState) => {
+    if (state === 'recorded') {
+      setActivePlayback({
+        decision: p.decision,
+        channelId: p.channelId,
+        programId: p.programId,
+        noticeMessage: p.noticeMessage,
+        streams: p.streams,
+      });
+    }
   };
 
-  // Geo-restricted — block the channel inline (design `sGeo`) instead of playing.
+  // Geo-restricted — block the channel inline (design `sGeo`).
   if (geoBlocked) {
     return (
       <ScreenLayout edges={['top', 'bottom']}>
@@ -188,9 +203,6 @@ const ChannelScreen: React.FC = () => {
     );
   }
 
-  // Block playback while gated (channel-level adult, or a live adult programme).
-  // The player is unmounted — never just hidden — so no audio/video leaks behind
-  // the gate. When the live prompt was dismissed, show a re-unlock affordance.
   const player = mediaPending ? (
     <Skeleton borderRadius={BORDERRADIUS.none} style={styles.playerSkeleton} testID="player-skeleton" />
   ) : blockPlayer ? (
@@ -210,8 +222,7 @@ const ChannelScreen: React.FC = () => {
     <LivePlayer
       channelId={channelId}
       streamUrl={streamSource}
-      streamHeaders={stream?.headers}
-      channelName={channel?.name ?? channelId}
+      channelName={channelMeta?.name ?? channelId}
       isFullscreen={isFullscreen}
       onToggleFullscreen={() => setIsFullscreen((f) => !f)}
       onOpenOptions={() => router.push('/(app)/player-options')}
@@ -237,7 +248,7 @@ const ChannelScreen: React.FC = () => {
       />
 
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-        {!selectedDay.isToday ? (
+        {!selectedDay.isToday && !selectedDay.isFuture ? (
           <CatchupBanner label={t('catchup.banner', { day: dayLabel })} testID="catchup-banner" />
         ) : null}
 
@@ -245,29 +256,33 @@ const ChannelScreen: React.FC = () => {
           {selectedDay.isToday ? t('catchup.epg') : t('catchup.catchup_for', { day: dayLabel })}
         </ReusableText>
 
-        {epgLoading
-          ? Array.from({ length: 6 }, (_, i) => <ProgramRowSkeleton key={i} />)
-          : programs.map((p) => {
-              const state = programState(p);
-              return (
-                <ProgramRow
-                  key={p.id}
-                  title={p.title}
-                  meta={p.description}
-                  time={formatTime(p.startTime)}
-                  state={state}
-                  onPress={() => openProgram(p, state)}
-                  testID={`epg-row-${p.id}`}
-                />
-              );
-            })}
+        {epgLoading ? (
+          Array.from({ length: 6 }, (_, i) => <ProgramRowSkeleton key={i} />)
+        ) : programs.length === 0 ? (
+          <EmptyEpgState testID="epg-empty" />
+        ) : (
+          programs.map((p) => {
+            const state = programState(p);
+            return (
+              <ProgramRow
+                key={p.id}
+                title={p.title}
+                meta={p.description}
+                time={formatTime(p.startTime)}
+                state={state}
+                onPress={() => handleSelectProgram(p, state)}
+                testID={`epg-row-${p.id}`}
+              />
+            );
+          })
+        )}
       </ScrollView>
 
       <ParentalPinModal
         visible={needsPin || live.showPrompt}
         mode="verify"
-        onSuccess={needsPin ? () => setPinUnlocked(true) : live.onVerified}
-        onDismiss={needsPin ? () => router.back() : live.onDismiss}
+        onSuccess={live.onVerified}
+        onDismiss={live.onDismiss}
       />
     </ScreenLayout>
   );

@@ -38,6 +38,8 @@ export const USERS_ROUTES = {
 export const CHANNELS_ROUTES = {
   LIST: '/channels',
   BY_ID: (id: string) => `/channels/${id}`,
+  /** Programme guide for a single channel. Pass `date` via axios `params` (YYYY-MM-DD). */
+  EPG: (id: string) => `/channels/${id}/epg`,
 } as const;
 
 export const HOME_ROUTES = {
@@ -55,17 +57,6 @@ export const EPG_ROUTES = {
 export const CATCHUP_ROUTES = {
   LIST: '/catchup',
   BY_ID: (id: string) => `/catchup/${id}`,
-} as const;
-
-export const RADIO_ROUTES = {
-  LIST: '/radio',
-  BY_ID: (id: string) => `/radio/${id}`,
-} as const;
-
-export const STREAMS_ROUTES = {
-  CHANNEL: (id: string) => `/streams/channel/${id}`,
-  CATCHUP: (id: string) => `/streams/catchup/${id}`,
-  RADIO: (id: string) => `/streams/radio/${id}`,
 } as const;
 
 export const CONFIG_ROUTES = {

@@ -1,8 +1,11 @@
 /**
  * Channel package metadata (design `PKGS`). Shared by the Home filter chips,
  * Guide, and Search. Labels are Albanian for now — move to i18n in 22.16.
+ * `ChannelPackage` was removed from the domain type (2026-06-18); the type is
+ * defined locally here since it's a UI concern (filter chips), not a backend field.
  */
-import type { ChannelPackage } from '@/types/domain';
+
+export type ChannelPackage = 'base' | 'sport' | 'news' | 'kids' | 'music' | 'regional';
 
 export const CHANNEL_PACKAGES: readonly ChannelPackage[] = [
   'base',

@@ -17,6 +17,8 @@ import * as WebBrowser from 'expo-web-browser';
 import { SPACING } from '@/theme/spacing';
 import ReusableBtn from '@/components/Buttons/ReusableBtn';
 import Checkbox from '@/components/Inputs/Checkbox';
+import CountryPickerInput from '@/components/Inputs/CountryPickerInput';
+import DatePickerInput from '@/components/Inputs/DatePickerInput';
 import ReusableInput from '@/components/Inputs/ReusableInput';
 import ReusableText from '@/components/Inputs/ReusableText';
 import SegmentedChoice from '@/components/Inputs/SegmentedChoice';
@@ -135,15 +137,11 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onSubmit, isSubmitting = fa
       <Controller
         control={control}
         name="birthDate"
-        render={({ field: { value, onChange, onBlur }, fieldState: { error } }) => (
-          <ReusableInput
+        render={({ field: { value, onChange }, fieldState: { error } }) => (
+          <DatePickerInput
             value={value}
-            onChangeText={onChange}
-            onBlur={onBlur}
+            onChange={onChange}
             label={t('auth.register.birthday_label')}
-            placeholder={t('auth.register.birthday_placeholder')}
-            keyboardType="numbers-and-punctuation"
-            autoCapitalize="none"
             errorText={tr(error?.message)}
             testID="register-birthdate-input"
           />
@@ -169,13 +167,11 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onSubmit, isSubmitting = fa
       <Controller
         control={control}
         name="country"
-        render={({ field: { value, onChange, onBlur }, fieldState: { error } }) => (
-          <ReusableInput
+        render={({ field: { value, onChange }, fieldState: { error } }) => (
+          <CountryPickerInput
             value={value}
-            onChangeText={onChange}
-            onBlur={onBlur}
+            onChange={onChange}
             label={t('auth.register.country_label')}
-            placeholder={t('auth.register.country_placeholder')}
             errorText={tr(error?.message)}
             testID="register-country-input"
           />

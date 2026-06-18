@@ -23,7 +23,7 @@
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
-import { useEpgQuery } from '@/api/queries';
+import { useChannelEpgQuery } from '@/api/queries';
 
 import { useAppState } from './useAppState';
 
@@ -55,14 +55,11 @@ export function useLiveParentalGuard(
   const enabled = opts?.enabled ?? true;
 
   // Always watch TODAY's live schedule, independent of the catch-up day strip.
-  const { items } = useEpgQuery(todayKey());
+  const { items } = useChannelEpgQuery(enabled ? channelId : undefined, todayKey());
 
   const programs = useMemo(
-    () =>
-      items
-        .filter((e) => e.channelId === channelId)
-        .sort((a, b) => Date.parse(a.startTime) - Date.parse(b.startTime)),
-    [items, channelId],
+    () => [...items].sort((a, b) => Date.parse(a.startTime) - Date.parse(b.startTime)),
+    [items],
   );
 
   // Re-evaluation is driven by a timestamp in state: the boundary timer and

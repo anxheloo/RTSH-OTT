@@ -100,6 +100,79 @@ The swagger also accepts an optional `device: DeviceInfoDTO` inside the login / 
 - Failures are swallowed client-side (metadata, not auth) — don't gate any user flow on this call.
 - **No device cap exists** (confirmed 2026-06-12): the PUT has no limit-error contract and `PlaybackDecisionDTO.decision` has no too-many-devices value — the registry is metadata ("manage my devices" / analytics), entitlement is package-based (`NOT_ENTITLED`).
 
+## Channels
+
+### `GET /channels?type=TV|RADIO`
+
+Returns a plain array of `EndUserChannelDTO` — channel metadata only (name, logo, geoRestricted). No stream URLs.
+
+```jsonc
+// 200 — array (not wrapped)
+[
+  {
+    "id": 1,
+    "name": "RTSH 1",
+    "type": "TV",
+    "sortOrder": 1,
+    "logoUrl": "https://…",
+    "imageUrl": "https://…",
+    "geoRestricted": false
+  }
+]
+```
+
+### `GET /channels/{id}` — PlaybackDecisionDTO
+
+Returns the playback decision for a single channel. No channel metadata — name/logo come from the list cache.
+
+```jsonc
+// 200
+{
+  "decision": "ALLOWED",        // loose string — exact union TBD with backend
+  "channelId": 1,
+  "programId": 9007199254740991, // currently-live program ID
+  "noticeMessage": "string",    // optional human-readable notice
+  "streams": {
+    "master": "https://…",      // ABR multivariant playlist (use for `auto`)
+    "720":    "https://…",      // fixed-rendition child playlist
+    "576":    "https://…",
+    "360":    "https://…"
+    // numeric keys map to QualityId by stripping the trailing 'p'
+  }
+}
+```
+
+The client maps `streams` keys to `QualityId` via `resolveStreamSource` / `availableQualityIds` (`utils/resolveStreamSource.ts`): `master` → `auto`, `720` → `720p`, etc.
+
+### `GET /channels/{id}/epg?date=YYYY-MM-DD`
+
+Returns EPG items for the channel on the given date. Each item embeds the same `PlaybackDecisionDTO` fields so tapping a recorded programme swaps the player source without an extra network request.
+
+```jsonc
+// 200
+{
+  "items": [
+    {
+      // EPG metadata
+      "id": "epg-1-2026-06-18-1",
+      "channelId": "1",
+      "channelName": "RTSH 1",
+      "title": "Lajmet",
+      "description": "…",
+      "startTime": "2026-06-18T06:00:00.000Z",
+      "endTime":   "2026-06-18T06:30:00.000Z",
+      "isAdult": false,
+      "isLive": true,
+      "thumbnail": "https://…",
+      // Playback data (same shape as PlaybackDecisionDTO)
+      "decision": "ALLOWED",
+      "programId": "epg-1-2026-06-18-1",
+      "streams": { "master": "https://…", "720": "https://…" }
+    }
+  ]
+}
+```
+
 ## Out of band
 
 - CDN segment / AES-key requests carry **no** app headers. Per-device or geo enforcement at the edge rides backend-issued **signed playback URLs** (see plan 15.2), not headers.

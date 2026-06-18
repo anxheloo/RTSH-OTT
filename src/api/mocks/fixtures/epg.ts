@@ -17,6 +17,16 @@ const PROGRAMS_PER_CHANNEL = [
   { title: 'Muzikë Shqipe', duration: 60, isAdult: false },
 ];
 
+const BIPBOP = 'https://devstreaming-cdn.apple.com/videos/streaming/examples/bipbop_4x3';
+
+/** Playback data embedded in every EPG item — mirrors the PlaybackDecisionDTO shape. */
+const MOCK_EPG_STREAMS: Record<string, string> = {
+  master: `${BIPBOP}/bipbop_4x3_variant.m3u8`,
+  '720': `${BIPBOP}/gear4/prog_index.m3u8`,
+  '576': `${BIPBOP}/gear3/prog_index.m3u8`,
+  '360': `${BIPBOP}/gear2/prog_index.m3u8`,
+};
+
 let epgIdCounter = 0;
 
 function generateDayEpg(channelId: string, channelName: string, dateStr: string) {
@@ -29,8 +39,9 @@ function generateDayEpg(channelId: string, channelName: string, dateStr: string)
     const start = new Date(cursor);
     const end = new Date(cursor.getTime() + prog.duration * 60_000);
     epgIdCounter += 1;
+    const id = `epg-${channelId}-${dateStr}-${epgIdCounter}`;
     items.push({
-      id: `epg-${channelId}-${dateStr}-${epgIdCounter}`,
+      id,
       channelId,
       channelName,
       title: prog.title,
@@ -38,9 +49,12 @@ function generateDayEpg(channelId: string, channelName: string, dateStr: string)
       startTime: start.toISOString(),
       endTime: end.toISOString(),
       isAdult: prog.isAdult,
-      // Currently airing → design `prog` now-state (highlighted row).
       isLive: now >= start.getTime() && now < end.getTime(),
       thumbnail: `https://placehold.co/320x180/212121/fff?text=${encodeURIComponent(prog.title)}`,
+      // Playback data — same shape as PlaybackDecisionDTO
+      decision: 'ALLOWED',
+      programId: id,
+      streams: MOCK_EPG_STREAMS,
     });
     cursor = end;
   }
@@ -62,13 +76,15 @@ function localTodayKey(): string {
  * afternoon adult slot. Scoped to one channel (see `getMockEpg`) so it never
  * surprises other channels; today only. Plausible title (reads as real EPG).
  */
-const LIVE_RECHECK_CHANNEL = 'ch1';
+// RTSH 1 (id=1 → transformed to '1' by the service layer).
+const LIVE_RECHECK_CHANNEL = '1';
 
 function lateNightAdultProgram(channelId: string, channelName: string) {
   const start = new Date(Date.now() + 2 * 60_000);
   const end = new Date(start.getTime() + 30 * 60_000);
+  const id = `epg-${channelId}-late18`;
   return {
-    id: `epg-${channelId}-late18`,
+    id,
     channelId,
     channelName,
     title: 'Kinema e Natës (18+)',
@@ -78,6 +94,9 @@ function lateNightAdultProgram(channelId: string, channelName: string) {
     isAdult: true,
     isLive: false,
     thumbnail: 'https://placehold.co/320x180/212121/fff?text=18%2B',
+    decision: 'ALLOWED',
+    programId: id,
+    streams: MOCK_EPG_STREAMS,
   };
 }
 
@@ -95,16 +114,17 @@ function getDateStrings(daysBack: number, daysForward: number): string[] {
 export function getMockEpg(channelId?: string, date?: string): object[] {
   const dates = date ? [date] : getDateStrings(1, 5);
   const channels = channelId
-    ? mockChannels.filter((c) => c.id === channelId)
+    ? mockChannels.filter((c) => String(c.id) === channelId)
     : mockChannels;
 
   const today = localTodayKey();
   const items: object[] = [];
   for (const ch of channels) {
+    const chId = String(ch.id);
     for (const d of dates) {
-      items.push(...generateDayEpg(ch.id, ch.name, d));
-      if (d === today && ch.id === LIVE_RECHECK_CHANNEL) {
-        items.push(lateNightAdultProgram(ch.id, ch.name));
+      items.push(...generateDayEpg(chId, ch.name, d));
+      if (d === today && chId === LIVE_RECHECK_CHANNEL) {
+        items.push(lateNightAdultProgram(chId, ch.name));
       }
     }
   }

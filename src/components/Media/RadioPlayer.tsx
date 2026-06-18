@@ -11,18 +11,17 @@ import React from 'react';
 import { StyleSheet, TouchableOpacity, View } from 'react-native';
 
 import { BORDERRADIUS } from '@/theme/borders';
-import { FONTSIZE } from '@/theme/fonts';
 import { SPACING } from '@/theme/spacing';
 import { useAppStore } from '@/store/useAppStore';
 import { Icon } from '@/components/Icons';
 import ReusableText from '@/components/Inputs/ReusableText';
 import SceneBackground from '@/components/Media/SceneBackground';
 import Equalizer from '@/components/radio/Equalizer';
-import type { RadioStation } from '@/types/domain';
+import type { Channel } from '@/types/domain';
 import { ChevronLeftIcon, ChevronRightIcon, PauseIcon, PlayIcon, RadioIcon } from '@/assets/icons';
 
 export interface RadioPlayerProps {
-  station: RadioStation;
+  station: Channel;
   isPlaying: boolean;
   onTogglePlay: () => void;
   onPrev?: () => void;
@@ -42,23 +41,16 @@ const RadioPlayer: React.FC<RadioPlayerProps> = ({
 }) => {
   const colors = useAppStore((s) => s.colors);
 
-  const subtitle = station.bitrateKbps
-    ? `${station.genre} · ${station.bitrateKbps} kbps`
-    : station.genre;
-
   return (
     <View style={styles.container}>
       <View style={styles.art}>
-        <SceneBackground source={station.artworkUrl} />
+        <SceneBackground source={station.imageUrl} />
         <Icon as={RadioIcon} size={60} color={colors.onPrimary} />
       </View>
 
       <View style={styles.meta}>
         <ReusableText variant="heading2" themeColor="text" textAlign="center" numberOfLines={2}>
           {station.name}
-        </ReusableText>
-        <ReusableText fontSize={FONTSIZE.sm} themeColor="textMuted" textAlign="center" style={styles.sub}>
-          {subtitle}
         </ReusableText>
       </View>
 

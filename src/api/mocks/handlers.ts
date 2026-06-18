@@ -20,8 +20,6 @@ import { mockChannels } from './fixtures/channels';
 import { getMockAppVersion, mockAppConfig } from './fixtures/config';
 import { getMockEpg } from './fixtures/epg';
 import { mockHeroes } from './fixtures/home';
-import { mockRadioStations } from './fixtures/radio';
-import { buildMockStreamManifest } from './fixtures/streams';
 
 type MockResponse = { status?: number; data: unknown };
 
@@ -43,6 +41,16 @@ function parseBody<T>(data: unknown): T {
   }
   return (data ?? {}) as T;
 }
+
+const BIPBOP = 'https://devstreaming-cdn.apple.com/videos/streaming/examples/bipbop_4x3';
+
+/** Playback streams returned by `GET /channels/{id}` and embedded in EPG items. */
+const MOCK_STREAMS: Record<string, string> = {
+  master: `${BIPBOP}/bipbop_4x3_variant.m3u8`,
+  '720': `${BIPBOP}/gear4/prog_index.m3u8`,
+  '576': `${BIPBOP}/gear3/prog_index.m3u8`,
+  '360': `${BIPBOP}/gear2/prog_index.m3u8`,
+};
 
 export const handlers: Handler[] = [
   // ── Auth ──────────────────────────────────────────────────────────────────
@@ -143,32 +151,53 @@ export const handlers: Handler[] = [
     respond: () => ({ data: { heroes: mockHeroes } }),
   },
 
-  // ── Channels ───────────────────────────────────────────────────────────────
+  // ── Channels (TV + Radio unified) ─────────────────────────────────────────
+  // Real API: plain array, `type` query param required by the client.
   {
     method: 'get',
     test: (u) => u === '/channels',
     delay: 500,
-    respond: () => ({ data: { channels: mockChannels } }),
-  },
-  {
-    method: 'get',
-    test: (u) => /^\/channels\/[^/]+$/.test(u),
-    delay: 350,
     respond: (cfg) => {
-      const id = cfg.url?.split('/').pop();
-      const ch = mockChannels.find((c) => c.id === id);
-      return ch ? { data: { channel: ch } } : { status: 404, data: { error: 'Channel not found' } };
+      const type = (cfg.params as { type?: string } | undefined)?.type;
+      const filtered = type ? mockChannels.filter((c) => c.type === type) : mockChannels;
+      return { data: filtered };
     },
   },
 
-  // ── Streams ────────────────────────────────────────────────────────────────
-  // Manifest shape is driven by `MOCK_STREAM_SHAPE` (fixtures/streams.ts) — flip
-  // it to test single-URL / master-only / 4-renditions / full against the resolver.
+  // Channel detail — `GET /channels/{id}` returns a PlaybackDecisionDTO:
+  // stream URLs + access decision. Channel metadata (name, logo) comes from the list.
   {
     method: 'get',
-    test: (u) => /^\/streams\//.test(u),
-    delay: 600,
-    respond: () => ({ data: buildMockStreamManifest() }),
+    test: (u) => /^\/channels\/[^/]+$/.test(u),
+    delay: 300,
+    respond: (cfg) => {
+      const id = cfg.url?.split('/').pop();
+      const channel = mockChannels.find((c) => String(c.id) === id);
+      if (!channel) return { status: 404, data: { error: 'Channel not found' } };
+      return {
+        data: {
+          decision: 'ALLOWED',
+          channelId: channel.id,
+          programId: channel.id,
+          streams: MOCK_STREAMS,
+        },
+      };
+    },
+  },
+
+  // Per-channel EPG — `GET /channels/{id}/epg?date=YYYY-MM-DD`.
+  // Each item embeds the same PlaybackDecisionDTO fields so tapping a program
+  // row swaps the player source without a separate network request.
+  {
+    method: 'get',
+    test: (u) => /^\/channels\/[^/]+\/epg$/.test(u),
+    delay: 400,
+    respond: (cfg) => {
+      const parts = cfg.url?.split('/') ?? [];
+      const channelId = parts[parts.length - 2];
+      const params = cfg.params as { date?: string } | undefined;
+      return { data: { items: getMockEpg(channelId, params?.date) } };
+    },
   },
 
   // ── EPG ────────────────────────────────────────────────────────────────────
@@ -188,7 +217,9 @@ export const handlers: Handler[] = [
       const id = cfg.url?.split('/').pop();
       const items = getMockEpg();
       const item = items.find((i) => (i as { id: string }).id === id);
-      return item ? { data: { program: item } } : { status: 404, data: { error: 'Program not found' } };
+      return item
+        ? { data: { program: item } }
+        : { status: 404, data: { error: 'Program not found' } };
     },
   },
 
@@ -207,24 +238,6 @@ export const handlers: Handler[] = [
       const id = cfg.url?.split('/').pop();
       const item = mockCatchupItems.find((c) => c.id === id);
       return item ? { data: { item } } : { status: 404, data: { error: 'Not found' } };
-    },
-  },
-
-  // ── Radio ──────────────────────────────────────────────────────────────────
-  {
-    method: 'get',
-    test: (u) => u === '/radio',
-    delay: 450,
-    respond: () => ({ data: { stations: mockRadioStations } }),
-  },
-  {
-    method: 'get',
-    test: (u) => /^\/radio\/[^/]+$/.test(u),
-    delay: 350,
-    respond: (cfg) => {
-      const id = cfg.url?.split('/').pop();
-      const st = mockRadioStations.find((r) => r.id === id);
-      return st ? { data: { station: st } } : { status: 404, data: { error: 'Not found' } };
     },
   },
 
@@ -251,7 +264,6 @@ export const handlers: Handler[] = [
     test: (u) => u === '/users/me/device',
     delay: 150,
     respond: (cfg) => {
-      // Bare DeviceInfoDTO body (no envelope), per the end-user spec.
       const body = cfg.data ? (JSON.parse(cfg.data as string) as { deviceKey?: string }) : {};
       return body.deviceKey
         ? { data: {} }
@@ -266,7 +278,6 @@ export const handlers: Handler[] = [
     delay: 200,
     respond: (cfg) => {
       const slot = cfg.url?.split('/').pop() as AdSlot | undefined;
-      // Launch slot is gated on the config flag; other slots are Phase 16.
       const ad =
         slot === 'launch' && mockAppConfig.ads.launchEnabled
           ? (mockAdCreatives.launch ?? null)

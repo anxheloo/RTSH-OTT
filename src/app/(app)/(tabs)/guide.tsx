@@ -62,7 +62,7 @@ const GuideScreen: React.FC = () => {
     isLoading: channelsLoading,
     error: channelsError,
     refetch: refetchChannels,
-  } = useChannelsQuery();
+  } = useChannelsQuery('TV');
   const {
     stations,
     isLoading: stationsLoading,
@@ -99,7 +99,7 @@ const GuideScreen: React.FC = () => {
       return {
         id: channel.id,
         logoLabel: channel.name,
-        thumbnailUrl: channel.thumbnailUrl,
+        thumbnailUrl: channel.imageUrl,
         nowTitle: now?.title ?? channel.name,
         nextLabel: next
           ? t('guide.next', { time: formatTime(next.startTime), title: next.title })
@@ -117,9 +117,9 @@ const GuideScreen: React.FC = () => {
       stations.map((station) => ({
         id: station.id,
         logoLabel: station.name,
-        thumbnailUrl: station.artworkUrl,
+        thumbnailUrl: station.imageUrl,
         nowTitle: station.name,
-        nextLabel: station.genre,
+        nextLabel: '',
         badge: t('guide.live'),
         isRadio: true,
         onPress: () => router.push(`/(app)/radio/${station.id}`),

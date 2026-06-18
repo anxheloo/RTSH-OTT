@@ -67,6 +67,7 @@ const RegisterScreen: React.FC = () => {
     <AuthScreen
       header={<AuthHeader title={t('auth.register.title')} onBack={onBack} testID="register-header" />}
       topSlot={<StepHeader currentStep={step} totalSteps={2} />}
+      keyboardAvoidingEnabled={false}
       testID="register-screen"
     >
       {step === 1 ? (

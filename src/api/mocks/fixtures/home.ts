@@ -6,7 +6,7 @@
 import { mockChannels } from './channels';
 
 const sceneFor = (id: string): string =>
-  mockChannels.find((c) => c.id === id)?.thumbnailUrl ??
+  mockChannels.find((c) => String(c.id) === id)?.imageUrl ??
   'https://placehold.co/320x180/141417/EB122F?text=RTSH';
 
 export const mockHeroes = [
@@ -15,23 +15,23 @@ export const mockHeroes = [
     kicker: 'PREMIERË SONTE',
     title: 'Historia që nuk e dini',
     meta: 'RTSH Film · 20:45 · Dokumentar',
-    imageUrl: sceneFor('ch8'),
-    channelId: 'ch8',
+    imageUrl: sceneFor('8'),
+    channelId: '8',
   },
   {
     id: 'hero2',
     kicker: 'DREJTPËRDREJT',
     title: 'Edicioni Qendror i Lajmeve',
     meta: 'RTSH 1 · 19:30 · Lajme',
-    imageUrl: sceneFor('ch1'),
-    channelId: 'ch1',
+    imageUrl: sceneFor('1'),
+    channelId: '1',
   },
   {
     id: 'hero3',
     kicker: 'SPORT',
     title: 'Magazina Sportive',
     meta: 'RTSH Sport · 21:30 · Sport',
-    imageUrl: sceneFor('ch4'),
-    channelId: 'ch4',
+    imageUrl: sceneFor('4'),
+    channelId: '4',
   },
 ] as const;

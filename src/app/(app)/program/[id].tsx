@@ -1,6 +1,6 @@
 /**
  * Program modal — full-screen catch-up player for a specific program.
- * Title and stream URL are resolved from the catch-up query hooks.
+ * Title and stream URL are resolved from the catch-up item query.
  */
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
@@ -8,7 +8,7 @@ import { StyleSheet, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 
 import { useAppStore } from '@/store/useAppStore';
-import { useCatchupItemQuery, useCatchupStreamQuery } from '@/api/queries';
+import { useCatchupItemQuery } from '@/api/queries';
 import { useCellularGate } from '@/hooks/useCellularGate';
 import { FullScreenLoader } from '@/components/Layout';
 import VodPlayer from '@/components/Media/VodPlayer';
@@ -18,10 +18,9 @@ const ProgramScreen: React.FC = () => {
   const colors = useAppStore((s) => s.colors);
   const { id } = useLocalSearchParams<{ id: string }>();
 
-  const { stream, isLoading: streamLoading } = useCatchupStreamQuery(id ?? '');
-  const { item } = useCatchupItemQuery(id ?? '');
+  const { item, isLoading } = useCatchupItemQuery(id ?? '');
 
-  if (streamLoading) {
+  if (isLoading) {
     return <FullScreenLoader />;
   }
 
@@ -29,7 +28,7 @@ const ProgramScreen: React.FC = () => {
     <View style={[styles.screen, { backgroundColor: colors.background }]}>
       <VodPlayer
         programId={id ?? ''}
-        streamUrl={stream?.hlsUrl ?? ''}
+        streamUrl={item?.streamUrl ?? ''}
         title={item?.title ?? id ?? 'Program'}
         resumePosition={0}
         onClose={() => router.back()}

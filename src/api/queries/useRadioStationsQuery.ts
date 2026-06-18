@@ -1,11 +1,7 @@
-import { useQuery } from '@tanstack/react-query';
+import { useChannelsQuery } from './useChannelsQuery';
 
-import { getRadioStations } from '../services/radio';
-
+/** Convenience wrapper — radio stations are `Channel` objects with `type: 'RADIO'`. */
 export const useRadioStationsQuery = () => {
-  const { data, isLoading, error, refetch } = useQuery({
-    queryKey: ['radio-stations'],
-    queryFn: getRadioStations,
-  });
-  return { stations: data ?? [], isLoading, error, refetch };
+  const { channels, isLoading, error, refetch } = useChannelsQuery('RADIO');
+  return { stations: channels, isLoading, error, refetch };
 };

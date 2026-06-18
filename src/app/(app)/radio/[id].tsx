@@ -21,13 +21,14 @@ import { BORDERRADIUS } from '@/theme/borders';
 import { FONTSIZE } from '@/theme/fonts';
 import { SPACING } from '@/theme/spacing';
 import { useAppStore } from '@/store/useAppStore';
-import { useRadioStationQuery, useRadioStationsQuery } from '@/api/queries';
+import { useChannelPlaybackQuery, useChannelsQuery, useRadioStationQuery } from '@/api/queries';
 import { useCellularGate } from '@/hooks/useCellularGate';
 import { useDateTime } from '@/hooks/useDateTime';
 import { ProgramRow } from '@/components/epg';
 import { Icon, IconButton } from '@/components/Icons';
 import { ScreenLayout, SectionHeader, Skeleton, TabHeader } from '@/components/Layout';
 import RadioPlayer from '@/components/Media/RadioPlayer';
+import { resolveStreamSource } from '@/utils';
 import { ChevronLeftIcon, StarIcon } from '@/assets/icons';
 
 /** Mirrors RadioPlayer's artwork sizing (62% width capped at 230). */
@@ -47,24 +48,26 @@ const RadioPlayerScreen: React.FC = () => {
   const showToast = useAppStore((s) => s.showToast);
 
   const { station, isLoading } = useRadioStationQuery(id);
-  const { stations } = useRadioStationsQuery();
+  const { playback } = useChannelPlaybackQuery(id);
+  const { channels: stations } = useChannelsQuery('RADIO');
 
   const isActive = radioChannelId === id;
   const isPlaying = isActive && radioIsPlaying;
 
   // Select this station in the store on entry (idempotent — skip if already live).
+  // Both station metadata and playback decision must be ready before wiring the audio host.
   useEffect(() => {
-    if (!station || radioChannelId === station.id) return;
+    if (!station || !playback || radioChannelId === station.id) return;
     setRadioChannel({
       channelId: station.id,
-      streamUrl: station.streamUrl,
+      streamUrl: resolveStreamSource(playback.streams, 'auto'),
       title: station.name,
-      artworkUrl: station.artworkUrl,
+      artworkUrl: station.imageUrl,
     });
-  }, [station, radioChannelId, setRadioChannel]);
+  }, [station, playback, radioChannelId, setRadioChannel]);
 
   const { prevId, nextId } = useMemo(() => {
-    const i = stations.findIndex((s) => s.id === id);
+    const i = stations.findIndex((s: { id: string }) => s.id === id);
     if (i === -1) return { prevId: undefined, nextId: undefined };
     return {
       prevId: i > 0 ? stations[i - 1].id : undefined,
@@ -72,8 +75,19 @@ const RadioPlayerScreen: React.FC = () => {
     };
   }, [stations, id]);
 
-  // Loading-state strategy: the header renders immediately; the now-playing
-  // core shows its skeleton footprint until the station query lands.
+  const togglePlay = () => {
+    if (isActive) {
+      setRadioPlaying(!radioIsPlaying);
+    } else if (station && playback) {
+      setRadioChannel({
+        channelId: station.id,
+        streamUrl: resolveStreamSource(playback.streams, 'auto'),
+        title: station.name,
+        artworkUrl: station.imageUrl,
+      });
+    }
+  };
+
   if (isLoading && !station) {
     return (
       <ScreenLayout>
@@ -94,6 +108,7 @@ const RadioPlayerScreen: React.FC = () => {
       </ScreenLayout>
     );
   }
+
   if (!station) {
     return (
       <ScreenLayout>
@@ -109,19 +124,6 @@ const RadioPlayerScreen: React.FC = () => {
       </ScreenLayout>
     );
   }
-
-  const togglePlay = () => {
-    if (isActive) {
-      setRadioPlaying(!radioIsPlaying);
-    } else {
-      setRadioChannel({
-        channelId: station.id,
-        streamUrl: station.streamUrl,
-        title: station.name,
-        artworkUrl: station.artworkUrl,
-      });
-    }
-  };
 
   return (
     <ScreenLayout>
@@ -157,7 +159,7 @@ const RadioPlayerScreen: React.FC = () => {
         <View style={styles.programs}>
           <SectionHeader title={t('radio.program')} />
           <ProgramRow
-            title={station.genre}
+            title={station.name}
             meta={t('radio.live_now')}
             time={formatTime(new Date().toISOString())}
             state="now"

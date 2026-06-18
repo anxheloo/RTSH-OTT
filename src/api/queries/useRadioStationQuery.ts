@@ -1,12 +1,11 @@
-import { useQuery } from '@tanstack/react-query';
+import { useChannelsQuery } from './useChannelsQuery';
 
-import { getRadioById } from '../services/radio';
-
+/**
+ * Returns a single radio station's metadata by looking it up in the cached
+ * RADIO list — avoids a separate network request when the list is already warm.
+ */
 export const useRadioStationQuery = (id: string | undefined) => {
-  const { data, isLoading, error, refetch } = useQuery({
-    queryKey: ['radio-station', id],
-    queryFn: () => getRadioById(id as string),
-    enabled: Boolean(id),
-  });
-  return { station: data ?? null, isLoading, error, refetch };
+  const { channels, isLoading, error } = useChannelsQuery('RADIO');
+  const station = id ? (channels.find((c) => c.id === id) ?? null) : null;
+  return { station, isLoading, error };
 };
