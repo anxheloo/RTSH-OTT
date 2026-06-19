@@ -1,199 +1,176 @@
 /**
- * Search (Kërko) — design screen 8. Shares the brand header with Home (logo
- * taps back to Kreu); the live search field sits below it, mirroring Home's
- * browse controls. Results render as two list sections (Kanale rows, Programe
- * rows) filtered client-side as the debounced query settles. With no query,
- * shows recent searches as tappable chips. Programs are drawn from today's EPG
- * until a backend search endpoint lands — `useSearch`'s debounce already
- * rate-limits the query for that swap.
+ * Search (Kërko) — design screen 8. TV/Radio toggle + shared search input.
+ *
+ * - TV (default): filters the cached TV channels list client-side.
+ * - Radio: lazy — `useChannelsQuery('RADIO')` fires only on first mode switch;
+ *   skeleton rows show while loading, cache hit on subsequent switches.
+ *
+ * Search term persists across mode switches. One FlashList, re-keyed on mode
+ * switch (row heights differ: SearchResultRow vs StationRow).
  */
 import React, { useCallback, useMemo, useState } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
+import { FlashList } from '@shopify/flash-list';
 import { router } from 'expo-router';
 
-import { SCREEN_PADDING, SPACING } from '@/theme/spacing';
+import { SPACING } from '@/theme/spacing';
 import { useAppStore } from '@/store/useAppStore';
-import { useChannelsQuery, useEpgQuery } from '@/api/queries';
-import { useDateTime } from '@/hooks/useDateTime';
+import { useChannelsQuery } from '@/api/queries';
 import { useSearch } from '@/hooks/useSearch';
 import { useTabBarHeight } from '@/hooks/useTabBarHeight';
 import { BrandHeader } from '@/components/Brand';
-import { SearchResultRow } from '@/components/channels';
-import { ProgramRow } from '@/components/epg';
-import { Icon, IconButton } from '@/components/Icons';
-import { SearchBar } from '@/components/Inputs';
-import ReusableText from '@/components/Inputs/ReusableText';
-import { ScreenLayout, SectionHeader } from '@/components/Layout';
-import { ProfileIcon } from '@/assets/icons';
+import { SearchResultRow, SearchResultRowSkeleton } from '@/components/channels';
+import { EmptyChannelsState, EmptyStationsState, ErrorState } from '@/components/empty';
+import { BrowseControls, ScreenLayout } from '@/components/Layout';
+import StationRow from '@/components/radio/StationRow';
+import StationRowSkeleton from '@/components/radio/StationRowSkeleton';
+import type { SegmentedToggleOption } from '@/components/Inputs/SegmentedToggle';
+import type { Channel } from '@/types/domain';
 
-const MAX_RECENT = 8;
-const MAX_PROGRAM_RESULTS = 20;
+type SearchMode = 'tv' | 'radio';
+
+const SKELETON_COUNT = 8;
 
 const SearchScreen: React.FC = () => {
   const { t } = useTranslation();
-  const colors = useAppStore((s) => s.colors);
+  const activeStationId = useAppStore((s) => s.radioChannelId);
   const tabBarHeight = useTabBarHeight();
-  const { formatTime } = useDateTime();
-  const { query, debouncedQuery, setQuery } = useSearch();
-  const [recent, setRecent] = useState<string[]>([]);
+  const { search, updateSearch, debouncedSearch } = useSearch();
 
-  const { channels } = useChannelsQuery('TV');
-  const { items: epg } = useEpgQuery();
+  const [mode, setMode] = useState<SearchMode>('tv');
+  const radioEnabled = mode === 'radio';
 
-  const needle = debouncedQuery.trim().toLowerCase();
-  const hasQuery = needle.length > 0;
+  const {
+    channels: tvChannels,
+    isLoading: tvLoading,
+    error: tvError,
+    refetch: refetchTv,
+  } = useChannelsQuery('TV');
 
-  const channelResults = useMemo(
-    () => (hasQuery ? channels.filter((c) => c.name.toLowerCase().includes(needle)) : []),
-    [channels, needle, hasQuery],
+  const {
+    channels: radioStations,
+    isLoading: radioLoading,
+    error: radioError,
+    refetch: refetchRadio,
+  } = useChannelsQuery('RADIO', { enabled: radioEnabled });
+
+  const needle = debouncedSearch.trim().toLowerCase();
+
+  const filteredTv = useMemo(
+    () => (needle ? tvChannels.filter((c) => c.name.toLowerCase().includes(needle)) : tvChannels),
+    [tvChannels, needle],
   );
 
-  const programResults = useMemo(
+  const filteredRadio = useMemo(
     () =>
-      hasQuery
-        ? epg.filter((e) => e.title.toLowerCase().includes(needle)).slice(0, MAX_PROGRAM_RESULTS)
-        : [],
-    [epg, needle, hasQuery],
+      needle ? radioStations.filter((c) => c.name.toLowerCase().includes(needle)) : radioStations,
+    [radioStations, needle],
   );
 
-  const hasResults = channelResults.length > 0 || programResults.length > 0;
+  const openChannel = useCallback((id: string) => router.push(`/(app)/channel/${id}`), []);
+  const openStation = useCallback((id: string) => router.push(`/(app)/radio/${id}`), []);
 
-  const openChannel = (id: string) => router.push(`/(app)/channel/${id}`);
+  const handleModeChange = useCallback((next: SearchMode) => setMode(next), []);
 
-  const commitSearch = useCallback(() => {
-    const term = query.trim();
-    if (!term) return;
-    setRecent((prev) =>
-      [term, ...prev.filter((x) => x.toLowerCase() !== term.toLowerCase())].slice(0, MAX_RECENT),
-    );
-  }, [query]);
+  const toggleOptions: SegmentedToggleOption<SearchMode>[] = useMemo(
+    () => [
+      { label: t('home.toggle_tv'), value: 'tv' },
+      { label: t('home.toggle_radio'), value: 'radio' },
+    ],
+    [t],
+  );
+
+  const isTv = mode === 'tv';
+  const isLoading = isTv ? tvLoading : radioLoading;
+  const hasError = isTv ? !!tvError : !!radioError;
+  const refetch = isTv ? refetchTv : refetchRadio;
+  const listData: Channel[] = isTv ? filteredTv : filteredRadio;
+
+  const tvSkeleton = (
+    <View testID="search-tv-skeleton">
+      {Array.from({ length: SKELETON_COUNT }, (_, i) => (
+        <SearchResultRowSkeleton key={i} />
+      ))}
+    </View>
+  );
+
+  const radioSkeleton = (
+    <View testID="search-radio-skeleton">
+      {Array.from({ length: SKELETON_COUNT }, (_, i) => (
+        <StationRowSkeleton key={i} />
+      ))}
+    </View>
+  );
+
+  const listEmpty = isLoading ? (
+    isTv ? tvSkeleton : radioSkeleton
+  ) : hasError ? (
+    <ErrorState onRetry={() => void refetch()} testID="search-error" />
+  ) : isTv ? (
+    <EmptyChannelsState testID="search-empty" />
+  ) : (
+    <EmptyStationsState testID="search-empty" />
+  );
+
+  const renderItem = useCallback(
+    ({ item }: { item: Channel }) => {
+      if (isTv) {
+        return (
+          <SearchResultRow
+            name={item.name}
+            meta="TV"
+            thumbnailUri={item.imageUrl}
+            onPress={() => openChannel(item.id)}
+            testID={`search-channel-${item.id}`}
+          />
+        );
+      }
+      return (
+        <StationRow
+          station={item}
+          isActive={item.id === activeStationId}
+          onPress={() => openStation(item.id)}
+        />
+      );
+    },
+    [isTv, activeStationId, openChannel, openStation],
+  );
+
+  const listHeader = (
+    <BrowseControls
+      searchPlaceholder={t('home.search_placeholder')}
+      searchValue={search}
+      onSearchChange={updateSearch}
+      autoFocus
+      toggleOptions={toggleOptions}
+      toggleValue={mode}
+      onToggleChange={handleModeChange}
+      testID="search-browse-controls"
+    />
+  );
 
   return (
     <ScreenLayout>
       <BrandHeader
         testID="search-header"
         onLogoPress={() => router.navigate('/(app)/(tabs)')}
-        rightSlot={
-          <IconButton
-            size={40}
-            backgroundColor={colors.surface}
-            onPress={() => router.push('/(app)/(tabs)/profile')}
-            accessibilityLabel="Profili"
-            testID="search-profile-btn"
-          >
-            <Icon as={ProfileIcon} size={20} color={colors.text} />
-          </IconButton>
-        }
       />
 
-      <View style={styles.searchWrap}>
-        <SearchBar
-          placeholder={t('home.search_placeholder')}
-          value={query}
-          onChangeText={setQuery}
-          onSubmit={commitSearch}
-          autoFocus
-          testID="search-input"
-        />
-      </View>
-
-      <ScrollView
-        contentContainerStyle={[styles.body, { paddingBottom: tabBarHeight + SPACING.space_24 }]}
+      <FlashList
+        key={mode}
+        data={listData}
+        keyExtractor={(item) => item.id}
+        renderItem={renderItem}
+        ListHeaderComponent={listHeader}
+        ListEmptyComponent={listEmpty}
+        contentContainerStyle={{ paddingBottom: tabBarHeight + SPACING.space_24 }}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
-      >
-        {!hasQuery ? (
-          recent.length > 0 ? (
-            <>
-              <SectionHeader title={t('search.recent')} />
-              <View style={styles.chips}>
-                {recent.map((term) => (
-                  <ReusableText
-                    key={term}
-                    variant="bodySmall"
-                    themeColor="textMuted"
-                    onPress={() => setQuery(term)}
-                    style={[styles.chip, { backgroundColor: colors.surface, borderColor: colors.border }]}
-                    testID={`search-recent-${term}`}
-                  >
-                    {term}
-                  </ReusableText>
-                ))}
-              </View>
-            </>
-          ) : null
-        ) : !hasResults ? (
-          <ReusableText variant="body" themeColor="textMuted" style={styles.empty}>
-            {t('search.no_results', { query: debouncedQuery.trim() })}
-          </ReusableText>
-        ) : (
-          <>
-            {channelResults.length > 0 ? (
-              <>
-                <SectionHeader title={t('search.channels')} />
-                {channelResults.map((c) => (
-                  <SearchResultRow
-                    key={c.id}
-                    name={c.name}
-                    meta="TV"
-                    thumbnailUri={c.imageUrl}
-                    onPress={() => openChannel(c.id)}
-                    testID={`search-channel-${c.id}`}
-                  />
-                ))}
-              </>
-            ) : null}
-
-            {programResults.length > 0 ? (
-              <>
-                <SectionHeader title={t('search.programs')} />
-                {programResults.map((p) => (
-                  <ProgramRow
-                    key={p.id}
-                    title={p.title}
-                    meta={`${p.channelName} · ${formatTime(p.startTime)}`}
-                    onPress={() => openChannel(p.channelId)}
-                    testID={`search-program-${p.id}`}
-                  />
-                ))}
-              </>
-            ) : null}
-          </>
-        )}
-      </ScrollView>
+      />
     </ScreenLayout>
   );
 };
-
-const styles = StyleSheet.create({
-  searchWrap: {
-    paddingHorizontal: SCREEN_PADDING,
-    paddingTop: SPACING.space_4,
-    paddingBottom: SPACING.space_12,
-  },
-  body: {
-    paddingBottom: SPACING.space_24,
-  },
-  chips: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: SPACING.space_8,
-    paddingHorizontal: SCREEN_PADDING,
-  },
-  chip: {
-    paddingHorizontal: SPACING.space_15,
-    paddingVertical: SPACING.space_8,
-    borderRadius: 20,
-    borderWidth: 1,
-    overflow: 'hidden',
-  },
-  empty: {
-    paddingHorizontal: SCREEN_PADDING,
-    paddingTop: SPACING.space_24,
-    textAlign: 'center',
-  },
-});
 
 export default SearchScreen;

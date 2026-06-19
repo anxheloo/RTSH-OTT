@@ -73,8 +73,21 @@ export interface HeroItem {
   /** Secondary line under the title (design `.meta`). */
   meta: string;
   imageUrl: string;
-  /** Channel opened on tap. */
+  /** Channel opened on tap. Only live/airing items are tappable; upcoming items are not. */
   channelId: string;
+  /** True when the programme is currently airing — enables tap-to-open. Upcoming items are false. */
+  isLive: boolean;
+}
+
+/** Wire DTO from `GET /channels/{id}/epg` — plain array, minimal fields. */
+export interface GuideProgramDto {
+  id: number;
+  name: string;
+  description: string;
+  start: string;   // ISO 8601
+  end: string;     // ISO 8601
+  ageRating?: string;
+  isAdult: boolean;
 }
 
 export interface EpgItem {
@@ -89,12 +102,12 @@ export interface EpgItem {
   /** Currently airing — design `prog` now-state (highlighted row + play glyph). */
   isLive?: boolean;
   thumbnail?: string;
-  // Playback data — same shape as PlaybackDecision, embedded so tapping a
-  // program row can swap the player source without an extra network request.
-  decision: string;
-  programId: string;
+  // Playback data — embedded by the mock; fetched separately from /epg/{programId}
+  // in production once the backend implements the catch-up endpoint.
+  decision?: string;
+  programId?: string;
   noticeMessage?: string;
-  streams: Record<string, string>;
+  streams?: Record<string, string>;
 }
 
 export interface CatchupItem {
@@ -149,33 +162,22 @@ export interface PlaybackDecision {
 }
 
 /* ===========================================================================
- * Ads (design `adpop`). v1 creatives are static (image / brand gradient + copy
- * + CTA); video creatives are a later capability. The `AdOverlay` component
- * renders an `AdCreative`; the slot orchestration (when/where, frequency cap,
- * scheduling) is Phase 16, driven by `AppConfig.ads` + an ad-manifest service.
+ * Ads. The backend decides whether an ad applies for a placement; the client
+ * renders whatever creative it receives. Placement orchestration (frequency
+ * cap, scheduling) is server-authoritative.
  * =========================================================================== */
 
-/** Where an ad is triggered. Orchestration lives in Phase 16. */
-export type AdSlot = 'launch' | 'channelSwitch' | 'scheduled';
+/** Ad trigger placement passed as a query param to `GET /ads`. */
+export type AdPlacement = 'APP_OPEN' | 'CHANNEL_CHANGE' | 'MID_ROLL';
 
-/** A single promotional creative shown in the AdOverlay. */
+/** Creative returned by `GET /ads?placement=...` — mirrors `AdCreativeDTO`. */
 export interface AdCreative {
-  id: string;
-  /** Advertiser name shown in the brand row (design "NOVA"). */
-  brand: string;
-  /** Monogram fallback when there's no `brandLogoUrl` (design white "N" tile). */
-  brandMonogram?: string;
-  brandLogoUrl?: string;
-  /** Eyebrow above the headline (design "Ofertë speciale"). */
-  tag: string;
-  headline: string;
-  subtitle?: string;
-  /** Call-to-action label (design "Mëso më shumë"). */
-  ctaLabel: string;
-  /** Clickthrough URL opened on CTA tap. */
-  ctaUrl?: string;
-  /** Creative art; falls back to the brand gradient when absent. */
-  imageUrl?: string;
+  id: number;
+  type: 'IMAGE' | 'VIDEO';
+  mediaUrl: string;
+  durationSeconds: number;
+  skippable: boolean;
+  skipAfterSeconds: number;
 }
 
 /* ===========================================================================

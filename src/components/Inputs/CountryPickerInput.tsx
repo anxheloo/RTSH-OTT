@@ -1,13 +1,15 @@
 /**
- * CountryPickerInput — a ReusableInput-styled pressable that opens the
- * react-native-country-picker-modal search modal. The selected country
- * name (string) is surfaced via `onChange`; the ISO cca2 code is tracked
- * internally so the modal highlights the correct entry on re-open.
+ * CountryPickerInput — a ReusableInput-styled pressable that opens a bottom-sheet
+ * modal with the country picker. We own the Modal so safe-area insets are applied
+ * correctly; the library renders inline (withModal={false}) inside our sheet.
  */
 import React, { useState } from 'react';
-import { StyleSheet, TouchableOpacity, View } from 'react-native';
+import { Dimensions, Modal, StyleSheet, TouchableOpacity, View } from 'react-native';
 import CountryPicker, { Country, CountryCode, DARK_THEME } from 'react-native-country-picker-modal';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { BORDERRADIUS } from '@/theme/borders';
+import { SPACING } from '@/theme/spacing';
 import { useAppStore } from '@/store/useAppStore';
 import { Icon } from '@/components/Icons';
 import { ChevronRightIcon, GlobeIcon } from '@/assets/icons';
@@ -22,6 +24,8 @@ export interface CountryPickerInputProps {
   errorText?: string;
   testID?: string;
 }
+
+const SHEET_HEIGHT = Math.round(Dimensions.get('window').height * 0.75);
 
 /** world-countries `name` can be a string or a `{ common, official }` object. */
 const extractName = (name: unknown): string => {
@@ -42,6 +46,7 @@ const CountryPickerInput: React.FC<CountryPickerInputProps> = ({
   testID,
 }) => {
   const colors = useAppStore((s) => s.colors);
+  const insets = useSafeAreaInsets();
   const [open, setOpen] = useState(false);
   const [countryCode, setCountryCode] = useState<CountryCode>('AL');
 
@@ -50,6 +55,8 @@ const CountryPickerInput: React.FC<CountryPickerInputProps> = ({
     onChange(extractName(country.name));
     setOpen(false);
   };
+
+  const handleClose = () => setOpen(false);
 
   const hasError = Boolean(errorText);
   const borderColor = hasError ? colors.error : colors.border;
@@ -89,32 +96,60 @@ const CountryPickerInput: React.FC<CountryPickerInputProps> = ({
         </ReusableText>
       ) : null}
 
-      {/* Renders nothing visible — modal is fully controlled via `visible`. */}
-      <CountryPicker
-        countryCode={countryCode}
-        withFilter
-        withFlag
-        withEmoji
-        withAlphaFilter
-        withCallingCode={false}
-        withCurrencyButton={false}
-        withCountryNameButton={false}
+      <Modal
         visible={open}
-        onClose={() => setOpen(false)}
-        onSelect={handleSelect}
-        renderFlagButton={() => null}
-        theme={{
-          ...DARK_THEME,
-          backgroundColor: colors.surface,
-          primaryColor: colors.primary,
-          primaryColorVariant: colors.surfaceElevated,
-          onBackgroundTextColor: colors.text,
-          filterPlaceholderTextColor: colors.textMuted,
-          fontSize: 15,
-          flagSize: 24,
-          itemHeight: 52,
-        }}
-      />
+        transparent
+        animationType="slide"
+        statusBarTranslucent
+        onRequestClose={handleClose}
+      >
+        <View style={styles.backdrop}>
+          {/* Tapping outside the sheet closes the modal */}
+          <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={handleClose} />
+
+          {/* Sheet — onStartShouldSetResponder prevents touches on empty space
+              from reaching the backdrop TouchableOpacity */}
+          <View
+            style={[
+              styles.sheet,
+              {
+                backgroundColor: colors.surface,
+                paddingBottom: Math.max(insets.bottom, SPACING.space_16),
+              },
+            ]}
+            onStartShouldSetResponder={() => true}
+          >
+            {open && (
+              <CountryPicker
+                countryCode={countryCode}
+                withFilter
+                withFlag
+                withEmoji
+                withAlphaFilter
+                withCallingCode={false}
+                withCurrencyButton={false}
+                withCountryNameButton={false}
+                withModal={false}
+                visible
+                onClose={handleClose}
+                onSelect={handleSelect}
+                renderFlagButton={() => null}
+                theme={{
+                  ...DARK_THEME,
+                  backgroundColor: colors.surface,
+                  primaryColor: colors.primary,
+                  primaryColorVariant: colors.surfaceElevated,
+                  onBackgroundTextColor: colors.text,
+                  filterPlaceholderTextColor: colors.textMuted,
+                  fontSize: 15,
+                  flagSize: 24,
+                  itemHeight: 52,
+                }}
+              />
+            )}
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };
@@ -141,6 +176,17 @@ const styles = StyleSheet.create({
   },
   subtext: {
     marginTop: 6,
+  },
+  backdrop: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0,0,0,0.55)',
+  },
+  sheet: {
+    height: SHEET_HEIGHT,
+    borderTopLeftRadius: BORDERRADIUS.radius_20,
+    borderTopRightRadius: BORDERRADIUS.radius_20,
+    overflow: 'hidden',
   },
 });
 

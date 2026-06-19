@@ -1,22 +1,19 @@
-/**
- * Mock ad creatives (design `adpop`). The launch creative mirrors the HTML
- * mockup's NOVA "Internet 5G" promo — a static image ad (brand surface + copy +
- * CTA), no `imageUrl` so it renders the brand-dark creative exactly like the
- * design. `channelSwitch` / `scheduled` are wired in Phase 16.
- */
-import type { AdCreative, AdSlot } from '@/types/domain';
+import type { AdCreative } from '@/types/domain';
 
-const novaLaunch: AdCreative = {
-  id: 'ad-launch-nova',
-  brand: 'NOVA',
-  brandMonogram: 'N',
-  tag: 'Ofertë speciale',
-  headline: 'Internet 5G\npa limit',
-  subtitle: 'Vetëm 1.500 L / muaj · Aktivizo sot',
-  ctaLabel: 'Mëso më shumë',
-  ctaUrl: 'https://www.rtsh.al',
+export const mockAdAppOpen: AdCreative = {
+  id: 1,
+  type: 'IMAGE',
+  mediaUrl: 'https://picsum.photos/seed/rtsh-ad-open/600/800',
+  durationSeconds: 15,
+  skippable: true,
+  skipAfterSeconds: 5,
 };
 
-export const mockAdCreatives: Partial<Record<AdSlot, AdCreative>> = {
-  launch: novaLaunch,
+export const mockAdChannelChange: AdCreative = {
+  id: 2,
+  type: 'IMAGE',
+  mediaUrl: 'https://picsum.photos/seed/rtsh-ad-channel/600/800',
+  durationSeconds: 10,
+  skippable: true,
+  skipAfterSeconds: 3,
 };

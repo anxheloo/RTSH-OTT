@@ -3,25 +3,45 @@ import { useQuery } from '@tanstack/react-query';
 import type { ChannelType, PlaybackDecision } from '@/types/domain';
 
 import { getChannelById, getChannels } from '../services/channels';
+import { getCatchupPlayback } from '../services/epg';
 
-export const useChannelsQuery = (type: ChannelType) => {
+type ChannelTypeInput = ChannelType | 'tv' | 'radio';
+
+export const useChannelsQuery = (
+  input: ChannelTypeInput,
+  options?: { enabled?: boolean },
+) => {
+  const type = input.toUpperCase() as ChannelType;
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['channels', type],
     queryFn: () => getChannels(type),
+    enabled: options?.enabled ?? true,
   });
   return { channels: data ?? [], isLoading, error, refetch };
 };
 
 /**
- * Fetches the playback decision for a channel via `GET /channels/{id}`.
- * Returns stream URLs + access decision — channel metadata (name, logo) comes
- * from the list cache (`useChannelsQuery`).
+ * Unified playback decision query for live and catch-up.
+ *
+ * - `programId` omitted/null → `GET /channels/{id}` (live stream)
+ * - `programId` set → `GET /channels/{id}/epg/{programId}` (recorded programme)
+ *
+ * Each (channelId, programId) pair is cached independently, so switching between
+ * programmes and back to live never re-fetches a decision that's already cached.
+ * The caller invalidates the live key (`[channelId, null]`) when returning to live
+ * because stream URLs may be short-lived signed tokens.
  */
-export const useChannelPlaybackQuery = (id: string | undefined) => {
+export const useChannelPlaybackQuery = (
+  channelId: string | undefined,
+  programId?: string | null,
+) => {
+  const pid = programId ?? null;
   const { data, isLoading, error } = useQuery<PlaybackDecision>({
-    queryKey: ['channel-playback', id],
-    queryFn: () => getChannelById(id!),
-    enabled: !!id,
+    queryKey: ['channel-playback', channelId, pid],
+    queryFn: () =>
+      pid ? getCatchupPlayback(channelId!, pid) : getChannelById(channelId!),
+    enabled: !!channelId,
+    staleTime: Infinity,
   });
   return { playback: data ?? null, isLoading, error };
 };

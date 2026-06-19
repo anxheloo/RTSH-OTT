@@ -2,22 +2,24 @@
  * Authenticated app layout — wraps tabs + full-screen player modals.
  * System header is hidden; player modals are presented as full-screen sheets.
  */
-import React from 'react';
+import React, { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
-import { NavigationBar } from 'expo-navigation-bar';
 import { Stack } from 'expo-router';
 
-import { useMeQuery } from '@/api/queries';
+import { useAdQuery, useMeQuery } from '@/api/queries';
 import { useDeviceIdentity } from '@/hooks/useDeviceIdentity';
 import RadioMiniPlayer from '@/components/Layout/RadioMiniPlayer';
-import LaunchAdHost from '@/components/Media/LaunchAdHost';
+import AdOverlay from '@/components/Media/AdOverlay';
 import RadioAudioHost from '@/components/Media/RadioAudioHost';
 import { getModalScreenOptions } from '@/utils/navigation';
 
 const AppLayout: React.FC = () => {
   useDeviceIdentity();
   useMeQuery();
+
+  const [launchAdDismissed, setLaunchAdDismissed] = useState(false);
+  const { creative: launchAd } = useAdQuery({ placement: 'APP_OPEN' });
 
   return (
     <View style={styles.root}>
@@ -50,7 +52,9 @@ const AppLayout: React.FC = () => {
       </Stack>
       <RadioAudioHost />
       <RadioMiniPlayer />
-      <LaunchAdHost />
+      {launchAd && !launchAdDismissed && (
+        <AdOverlay creative={launchAd} onComplete={() => setLaunchAdDismissed(true)} />
+      )}
     </View>
   );
 };

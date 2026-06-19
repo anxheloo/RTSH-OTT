@@ -4,9 +4,9 @@
  */
 import { InternalAxiosRequestConfig } from 'axios';
 
-import type { AdSlot, DevicePlatform } from '@/types/domain';
+import type { DevicePlatform } from '@/types/domain';
 
-import { mockAdCreatives } from './fixtures/ads';
+import { mockAdAppOpen, mockAdChannelChange } from './fixtures/ads';
 import { mockTokens, mockUserDto } from './fixtures/auth';
 import {
   mockRegister,
@@ -185,9 +185,34 @@ export const handlers: Handler[] = [
     },
   },
 
+  // Catch-up playback decision — `GET /channels/{channelId}/epg/{programId}`.
+  // Must appear before the channel EPG list handler (more specific path).
+  {
+    method: 'get',
+    test: (u) => /^\/channels\/[^/]+\/epg\/[^/]+$/.test(u),
+    delay: 300,
+    respond: (cfg) => {
+      const parts = cfg.url?.split('/') ?? [];
+      const channelId = parts[parts.length - 3];
+      const programId = parts[parts.length - 1];
+      const BIPBOP = 'https://devstreaming-cdn.apple.com/videos/streaming/examples/bipbop_4x3';
+      return {
+        data: {
+          decision: 'ALLOWED',
+          channelId: Number(channelId),
+          programId: Number(programId),
+          streams: {
+            master: `${BIPBOP}/bipbop_4x3_variant.m3u8`,
+            '720': `${BIPBOP}/gear4/prog_index.m3u8`,
+            '576': `${BIPBOP}/gear3/prog_index.m3u8`,
+            '360': `${BIPBOP}/gear2/prog_index.m3u8`,
+          },
+        },
+      };
+    },
+  },
+
   // Per-channel EPG — `GET /channels/{id}/epg?date=YYYY-MM-DD`.
-  // Each item embeds the same PlaybackDecisionDTO fields so tapping a program
-  // row swaps the player source without a separate network request.
   {
     method: 'get',
     test: (u) => /^\/channels\/[^/]+\/epg$/.test(u),
@@ -271,18 +296,17 @@ export const handlers: Handler[] = [
     },
   },
 
-  // ── Ads (server-authoritative slot gating — plan 16.1) ──────────────────────
+  // ── Ads (`GET /ads?placement=APP_OPEN|CHANNEL_CHANGE`) ────────────────────
   {
     method: 'get',
-    test: (u) => /^\/ads\/[^/]+$/.test(u),
+    test: (u) => u === '/ads',
     delay: 200,
     respond: (cfg) => {
-      const slot = cfg.url?.split('/').pop() as AdSlot | undefined;
-      const ad =
-        slot === 'launch' && mockAppConfig.ads.launchEnabled
-          ? (mockAdCreatives.launch ?? null)
-          : null;
-      return { data: { ad } };
+      const params = cfg.params as { placement?: string; channelId?: string } | undefined;
+      const placement = params?.placement;
+      if (placement === 'APP_OPEN') return { data: mockAdAppOpen };
+      if (placement === 'CHANNEL_CHANGE') return { data: mockAdChannelChange };
+      return { data: null };
     },
   },
 ];

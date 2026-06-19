@@ -5,3 +5,4 @@
 export { default as ChannelCard } from './ChannelCard';
 export { default as ChannelCardSkeleton } from './ChannelCardSkeleton';
 export { default as SearchResultRow } from './SearchResultRow';
+export { default as SearchResultRowSkeleton } from './SearchResultRowSkeleton';

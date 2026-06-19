@@ -79,6 +79,7 @@ const DatePickerInput: React.FC<DatePickerInputProps> = ({
       DateTimePickerAndroid.open({
         value: currentDate,
         mode: 'date',
+        display: 'spinner',
         maximumDate: MAX_DATE,
         minimumDate: MIN_DATE,
         onChange: (event, date) => {

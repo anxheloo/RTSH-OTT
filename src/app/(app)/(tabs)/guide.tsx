@@ -9,6 +9,10 @@
  * now/next + an elapsed-progress bar per channel from the EPG; radio rows show
  * the station + genre with a live badge (radio now/next has no schedule source
  * yet — gap).
+ *
+ * EPG data: sourced from the mock fixture directly while the global `/epg`
+ * endpoint is not yet available on the backend. Swap back to `useEpgQuery`
+ * once the endpoint lands.
  */
 import React, { useMemo, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
@@ -17,20 +21,21 @@ import { useTranslation } from 'react-i18next';
 import { FlashList } from '@shopify/flash-list';
 import { router } from 'expo-router';
 
+import { getMockEpg } from '@/api/mocks/fixtures/epg';
 import { SCREEN_PADDING, SPACING } from '@/theme/spacing';
 import { useAppStore } from '@/store/useAppStore';
-import { useChannelsQuery, useEpgQuery, useRadioStationsQuery } from '@/api/queries';
+import { useChannelsQuery } from '@/api/queries';
 import { useDateTime } from '@/hooks/useDateTime';
 import { useTabBarHeight } from '@/hooks/useTabBarHeight';
 import { BrandHeader } from '@/components/Brand';
 import { EmptyChannelsState, EmptyStationsState, ErrorState } from '@/components/empty';
 import { GuideRow, GuideRowSkeleton } from '@/components/epg';
-import { Icon, IconButton } from '@/components/Icons';
+import { Icon } from '@/components/Icons';
 import { SegmentedToggle } from '@/components/Inputs';
 import ReusableText from '@/components/Inputs/ReusableText';
 import { ScreenLayout } from '@/components/Layout';
 import type { EpgItem } from '@/types/domain';
-import { ProfileIcon, RadioIcon } from '@/assets/icons';
+import { RadioIcon } from '@/assets/icons';
 
 type GuideMode = 'tv' | 'radio';
 
@@ -63,13 +68,9 @@ const GuideScreen: React.FC = () => {
     error: channelsError,
     refetch: refetchChannels,
   } = useChannelsQuery('TV');
-  const {
-    stations,
-    isLoading: stationsLoading,
-    error: stationsError,
-    refetch: refetchStations,
-  } = useRadioStationsQuery();
-  const { items: epg } = useEpgQuery();
+
+  // TODO: replace with useEpgQuery() once GET /epg is available on the backend.
+  const epg = useMemo(() => getMockEpg() as EpgItem[], []);
 
   const tvRows = useMemo<GuideRowVM[]>(() => {
     const byChannel = new Map<string, EpgItem[]>();
@@ -112,28 +113,14 @@ const GuideScreen: React.FC = () => {
     });
   }, [channels, epg, nowMs, formatTime, t]);
 
-  const radioRows = useMemo<GuideRowVM[]>(
-    () =>
-      stations.map((station) => ({
-        id: station.id,
-        logoLabel: station.name,
-        thumbnailUrl: station.imageUrl,
-        nowTitle: station.name,
-        nextLabel: '',
-        badge: t('guide.live'),
-        isRadio: true,
-        onPress: () => router.push(`/(app)/radio/${station.id}`),
-      })),
-    [stations, t],
-  );
+  // Radio guide rows pending a dedicated live-programme endpoint.
+  const radioRows: GuideRowVM[] = [];
 
   const isTv = mode === 'tv';
   const rows = isTv ? tvRows : radioRows;
-  // Rows derive from the channel/station catalogues — EPG arriving later only
-  // upgrades the now/next lines, so the skeleton/error key on the catalogue queries.
-  const rowsLoading = isTv ? channelsLoading : stationsLoading;
-  const rowsError = isTv ? channelsError : stationsError;
-  const refetchRows = isTv ? refetchChannels : refetchStations;
+  const rowsLoading = isTv ? channelsLoading : false;
+  const rowsError = isTv ? channelsError : null;
+  const refetchRows = isTv ? refetchChannels : async () => {};
 
   const listSkeleton = (
     <View testID="guide-skeleton">
@@ -180,17 +167,6 @@ const GuideScreen: React.FC = () => {
       <BrandHeader
         testID="guide-header"
         onLogoPress={() => router.navigate('/(app)/(tabs)')}
-        rightSlot={
-          <IconButton
-            size={40}
-            backgroundColor={colors.surface}
-            onPress={() => router.push('/(app)/(tabs)/profile')}
-            accessibilityLabel="Profili"
-            testID="guide-profile-btn"
-          >
-            <Icon as={ProfileIcon} size={20} color={colors.text} />
-          </IconButton>
-        }
       />
 
       <FlashList

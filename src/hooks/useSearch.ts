@@ -1,39 +1,37 @@
 /**
  * useSearch — controlled search input with a debounced mirror.
  *
- * `query` drives the text field (updates every keystroke); `debouncedQuery`
- * settles `delayMs` after typing stops and is what you filter/fetch on, so the
- * list isn't recomputed on every character. Adapted from SOLITAR's `useSearch`,
- * with a ref-held timer that's cleared on unmount (avoids a late state update
- * after the screen is gone).
+ * `search` drives the text field (updates every keystroke); `debouncedSearch`
+ * settles 300 ms after typing stops and is what you filter on, so the list
+ * isn't recomputed on every character.
  *
- * Today filtering is client-side; when a backend search endpoint lands, feed
- * `debouncedQuery` into the query key — the debounce already rate-limits it.
+ * The timer is held in a ref and cleared on unmount to avoid a late state
+ * update after the screen is gone.
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-const DEFAULT_DELAY_MS = 300;
+const DEBOUNCE_MS = 300;
 
-export function useSearch(initialValue = '', delayMs = DEFAULT_DELAY_MS) {
-  const [query, setQueryState] = useState(initialValue);
-  const [debouncedQuery, setDebouncedQuery] = useState(initialValue);
+export function useSearch(initialValue = '') {
+  const [search, setSearch] = useState(initialValue);
+  const [debouncedSearch, setDebouncedSearch] = useState(initialValue);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    timer.current = setTimeout(() => setDebouncedQuery(query), delayMs);
+    timer.current = setTimeout(() => setDebouncedSearch(search), DEBOUNCE_MS);
     return () => {
       if (timer.current) clearTimeout(timer.current);
     };
-  }, [query, delayMs]);
+  }, [search]);
 
-  const setQuery = useCallback((value: string) => setQueryState(value), []);
+  const updateSearch = useCallback((value: string) => setSearch(value), []);
 
-  const clearQuery = useCallback(() => {
-    setQueryState('');
-    setDebouncedQuery('');
+  const clearSearch = useCallback(() => {
+    setSearch('');
+    setDebouncedSearch('');
   }, []);
 
-  return { query, debouncedQuery, setQuery, clearQuery };
+  return { search, updateSearch, clearSearch, debouncedSearch };
 }
 
 export default useSearch;

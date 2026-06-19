@@ -1,16 +1,31 @@
 import { useQuery } from '@tanstack/react-query';
 
-import type { AdSlot } from '@/types/domain';
+import type { AdCreative } from '@/types/domain';
 
-import { getAdManifest } from '../services/ads';
+import { getAd } from '../services/ads';
 
-/** Ad creative for a slot, or null when none applies. Server decides (16.1). */
-export const useAdQuery = (slot: AdSlot, opts?: { enabled?: boolean }) => {
+type AppOpenParams = { placement: 'APP_OPEN'; channelId?: never };
+type ChannelChangeParams = { placement: 'CHANNEL_CHANGE'; channelId: number };
+type AdQueryParams = AppOpenParams | ChannelChangeParams;
+
+/** Ad creative for a placement, or null when the server decides none applies. */
+export const useAdQuery = (params: AdQueryParams, opts?: { enabled?: boolean }): { creative: AdCreative | null } => {
+  const { placement, channelId } = params;
+
   const { data } = useQuery({
-    queryKey: ['ad', slot],
-    queryFn: () => getAdManifest(slot),
+    queryKey: ['ad', placement, channelId],
+    queryFn: () =>
+      placement === 'CHANNEL_CHANGE'
+        ? getAd('CHANNEL_CHANGE', channelId as number)
+        : getAd('APP_OPEN'),
     enabled: opts?.enabled ?? true,
-    staleTime: Infinity,
+    staleTime: 0,
+    gcTime: 5 * 60 * 1000,
+    refetchOnMount: true,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    retry: 0,
   });
+
   return { creative: data ?? null };
 };

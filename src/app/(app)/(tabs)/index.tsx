@@ -29,7 +29,7 @@ import { router } from 'expo-router';
 
 import { SCREEN_PADDING, SPACING } from '@/theme/spacing';
 import { useAppStore } from '@/store/useAppStore';
-import { useChannelsQuery, useHomeFeedQuery, useRadioStationsQuery } from '@/api/queries';
+import { useChannelsQuery } from '@/api/queries';
 import { useTabBarHeight } from '@/hooks';
 import { BrandHeader } from '@/components/Brand';
 import ChannelCard from '@/components/channels/ChannelCard';
@@ -39,13 +39,44 @@ import { HeroCarousel } from '@/components/home';
 import { BrowseControls, ScreenLayout, SectionHeader } from '@/components/Layout';
 import StationRow from '@/components/radio/StationRow';
 import StationRowSkeleton from '@/components/radio/StationRowSkeleton';
-import type { Channel } from '@/types/domain';
+import type { Channel, HeroItem } from '@/types/domain';
 import { useResponsiveGrid } from '@/responsive';
 
 type HomeMode = 'tv' | 'radio';
 
 /** Gutter between grid columns; cells pad out to SCREEN_PADDING on the edges. */
 const GRID_GAP = SPACING.space_10;
+
+// TODO: replace with useHomeFeedQuery once the /home endpoint is live (backend pending).
+const MOCK_HERO_ITEMS: HeroItem[] = [
+  {
+    id: '1',
+    kicker: 'PREMIERË SONTE',
+    title: 'Fiks Fare',
+    meta: 'E Hënë · 21:00 · RTSH 1',
+    imageUrl: '',
+    channelId: '1',
+    isLive: false,
+  },
+  {
+    id: '2',
+    kicker: 'LIVE',
+    title: 'Lajmet e Mbrëmjes',
+    meta: 'E Hënë · 20:00 · RTSH 1',
+    imageUrl: '',
+    channelId: '1',
+    isLive: true,
+  },
+  {
+    id: '3',
+    kicker: 'NË VAZHDIM',
+    title: 'Shqipëria Direkt',
+    meta: 'E Hënë · 18:30 · RTSH 2',
+    imageUrl: '',
+    channelId: '2',
+    isLive: true,
+  },
+];
 
 const HomeScreen: React.FC = () => {
   const { t } = useTranslation();
@@ -55,36 +86,19 @@ const HomeScreen: React.FC = () => {
 
   const [mode, setMode] = useState<HomeMode>('tv');
 
-  const {
-    channels,
-    isLoading: channelsLoading,
-    error: channelsError,
-    refetch: refetchChannels,
-  } = useChannelsQuery('TV');
-  const {
-    stations,
-    isLoading: stationsLoading,
-    error: stationsError,
-    refetch: refetchStations,
-  } = useRadioStationsQuery();
-  const { heroes, isLoading: heroesLoading, refetch: refetchHeroes } = useHomeFeedQuery();
-
+  const { channels: data, isLoading, error, refetch } = useChannelsQuery(mode);
   const [refreshing, setRefreshing] = useState(false);
 
   const isTv = mode === 'tv';
   // TV grid columns come from device class + orientation; radio is always 1 col.
   const gridColumns = useResponsiveGrid();
   const numColumns = isTv ? gridColumns : 1;
-  const data = isTv ? channels : stations;
-  const isLoading = isTv ? channelsLoading : stationsLoading;
-  const error = isTv ? channelsError : stationsError;
-  const refetchActive = isTv ? refetchChannels : refetchStations;
 
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
-    await (isTv ? Promise.all([refetchChannels(), refetchHeroes()]) : refetchStations());
+    await refetch();
     setRefreshing(false);
-  }, [isTv, refetchChannels, refetchHeroes, refetchStations]);
+  }, [refetch]);
 
   const openChannel = (id: string) => router.push(`/(app)/channel/${id}`);
   const openStation = (id: string) => router.push(`/(app)/radio/${id}`);
@@ -104,18 +118,15 @@ const HomeScreen: React.FC = () => {
         onToggleChange={setMode}
         testID="home-browse-controls"
       />
+      {isTv && (
+        <HeroCarousel
+          items={MOCK_HERO_ITEMS}
+          onPressItem={openChannel}
+          testID="home-hero"
+        />
+      )}
       {isTv ? (
-        <>
-          <View style={styles.heroWrap}>
-            <HeroCarousel
-              items={heroes}
-              isLoading={heroesLoading}
-              onPressItem={openChannel}
-              testID="home-hero"
-            />
-          </View>
-          <SectionHeader title={t('home.tv_channels')} />
-        </>
+        <SectionHeader title={t('home.tv_channels')} />
       ) : (
         <SectionHeader title={t('home.radio_stations')} />
       )}
@@ -147,7 +158,7 @@ const HomeScreen: React.FC = () => {
   const listEmpty = isLoading ? (
     isTv ? tvSkeleton : radioSkeleton
   ) : error ? (
-    <ErrorState onRetry={() => void refetchActive()} testID="home-error" />
+    <ErrorState onRetry={() => void refetch()} testID="home-error" />
   ) : isTv ? (
     <EmptyChannelsState testID="home-empty" />
   ) : (
@@ -170,6 +181,7 @@ const HomeScreen: React.FC = () => {
           <ChannelCard
             channelId={item.id}
             name={item.name}
+            logoUrl={item.logoUrl}
             thumbnailUri={item.imageUrl}
             isAdult={item.isAdult}
             geoBlocked={item.geoBlocked}
@@ -219,9 +231,6 @@ const HomeScreen: React.FC = () => {
 };
 
 const styles = StyleSheet.create({
-  heroWrap: {
-    paddingTop: SPACING.space_16,
-  },
   cell: {
     flex: 1,
     paddingBottom: GRID_GAP,

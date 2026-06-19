@@ -1,15 +1,27 @@
-import type { AdCreative, AdSlot } from '@/types/domain';
+import type { AdCreative, AdPlacement } from '@/types/domain';
 
 import { apiClient } from '../client';
 import { ADS_ROUTES } from '../endpoints';
 
 /**
- * Ad manifest for a slot. The backend (mock today) decides whether an ad should
- * run for the slot — it returns a creative when one applies, or `null` when the
- * slot is disabled / frequency-capped. The client just renders whatever it gets
- * (slot orchestration + frequency cap policy stay server-authoritative). 16.1.
+ * Fetch the ad creative for a placement. Returns `null` when the server decides
+ * no ad should run (frequency cap, slot disabled, etc.) — the client just
+ * renders whatever it gets; slot policy is server-authoritative.
+ *
+ * APP_OPEN:      no channelId — called once on app entry.
+ * CHANNEL_CHANGE: channelId required — called each time a channel is opened.
  */
-export async function getAdManifest(slot: AdSlot): Promise<AdCreative | null> {
-  const { data } = await apiClient.get<{ ad: AdCreative | null }>(ADS_ROUTES.MANIFEST(slot));
-  return data.ad ?? null;
+export async function getAd(placement: 'APP_OPEN'): Promise<AdCreative | null>;
+export async function getAd(
+  placement: 'CHANNEL_CHANGE',
+  channelId: number,
+): Promise<AdCreative | null>;
+export async function getAd(
+  placement: AdPlacement,
+  channelId?: number,
+): Promise<AdCreative | null> {
+  const params: Record<string, unknown> = { placement };
+  if (channelId !== undefined) params.channelId = channelId;
+  const { data } = await apiClient.get<AdCreative | null>(ADS_ROUTES.AD, { params });
+  return data ?? null;
 }

@@ -1,13 +1,13 @@
 /**
  * Login screen — RTSH TANI auth entry point. Design 2026-06-06: welcome heading,
- * pill inputs with leading mail/key glyphs, a remember-me checkbox beside the
- * forgot-password link, red CTA, and a register footer link.
+ * pill inputs with leading mail/key glyphs, a forgot-password link, red CTA,
+ * and a register footer link.
  *
  * Form state via react-hook-form + zodResolver(loginSchema). On valid submit →
  * useLoginMutation (refresh token → keychain, access token → store; the
  * Stack.Protected guard handles the redirect). Chrome from shared `AuthScreen`.
  */
-import React, { useState } from 'react';
+import React from 'react';
 import { StyleSheet, TouchableOpacity, View } from 'react-native';
 import { Controller, useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
@@ -20,7 +20,7 @@ import { useLoginMutation } from '@/api/mutations/useLoginMutation';
 import { AuthFooterLink, AuthScreen } from '@/components/auth';
 import ReusableBtn from '@/components/Buttons/ReusableBtn';
 import { Icon } from '@/components/Icons';
-import { Checkbox, ReusableInput, ReusableText } from '@/components/Inputs';
+import { ReusableInput, ReusableText } from '@/components/Inputs';
 import { KeyIcon, MailIcon } from '@/assets/icons';
 import { authErrorMessage } from '@/features/auth/errors';
 import { type LoginFormData, loginSchema } from '@/features/auth/schemas';
@@ -28,8 +28,6 @@ import { type LoginFormData, loginSchema } from '@/features/auth/schemas';
 const LoginScreen: React.FC = () => {
   const { t } = useTranslation();
   const colors = useAppStore((s) => s.colors);
-  const [rememberMe, setRememberMe] = useState(true);
-
   const { mutate: login, isPending, error } = useLoginMutation();
 
   const { control, handleSubmit } = useForm<LoginFormData>({
@@ -92,25 +90,6 @@ const LoginScreen: React.FC = () => {
         )}
       />
 
-      {/* Remember me + forgot password */}
-      <View style={styles.metaRow}>
-        <Checkbox
-          value={rememberMe}
-          onValueChange={setRememberMe}
-          label={t('auth.login.remember_me')}
-          testID="login-remember-me"
-        />
-        <TouchableOpacity
-          onPress={() => router.push('/(auth)/forgot')}
-          activeOpacity={0.7}
-          testID="login-forgot-password"
-        >
-          <ReusableText variant="label" themeColor="primary">
-            {t('auth.login.forgot_password')}
-          </ReusableText>
-        </TouchableOpacity>
-      </View>
-
       {errorMessage ? (
         <ReusableText variant="caption" themeColor="error" textAlign="center">
           {errorMessage}
@@ -133,6 +112,17 @@ const LoginScreen: React.FC = () => {
         onPress={() => router.push('/(auth)/register')}
         testID="login-register-link"
       />
+
+      <TouchableOpacity
+        onPress={() => router.push('/(auth)/forgot')}
+        activeOpacity={0.7}
+        style={styles.forgotRow}
+        testID="login-forgot-password"
+      >
+        <ReusableText variant="label" themeColor="primary">
+          {t('auth.login.forgot_password')}
+        </ReusableText>
+      </TouchableOpacity>
     </AuthScreen>
   );
 };
@@ -141,10 +131,8 @@ const styles = StyleSheet.create({
   welcome: {
     gap: 4,
   },
-  metaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+  forgotRow: {
+    alignSelf: 'center',
   },
 });
 

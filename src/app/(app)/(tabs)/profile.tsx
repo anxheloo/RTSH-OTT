@@ -65,6 +65,7 @@ const ProfileScreen: React.FC = () => {
       <BrandHeader
         testID="profile-header"
         onLogoPress={() => router.navigate('/(app)/(tabs)')}
+        rightSlot={null}
       />
 
       <ScrollView

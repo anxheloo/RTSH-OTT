@@ -40,6 +40,8 @@ export const CHANNELS_ROUTES = {
   BY_ID: (id: string) => `/channels/${id}`,
   /** Programme guide for a single channel. Pass `date` via axios `params` (YYYY-MM-DD). */
   EPG: (id: string) => `/channels/${id}/epg`,
+  /** Catch-up playback decision for a recorded programme — returns `PlaybackDecisionDTO`. */
+  CATCHUP_PLAYBACK: (channelId: string, programId: string) => `/channels/${channelId}/epg/${programId}`,
 } as const;
 
 export const HOME_ROUTES = {
@@ -66,6 +68,6 @@ export const CONFIG_ROUTES = {
 } as const;
 
 export const ADS_ROUTES = {
-  /** Ad creative for a slot (`launch` | `channelSwitch` | `scheduled`). */
-  MANIFEST: (slot: string) => `/ads/${slot}`,
+  /** `GET /ads?placement=APP_OPEN` or `?placement=CHANNEL_CHANGE&channelId=N`. */
+  AD: '/ads',
 } as const;

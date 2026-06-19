@@ -12,6 +12,8 @@
 import React from 'react';
 import { StyleSheet, TouchableOpacity, View } from 'react-native';
 
+import { BlurView } from 'expo-blur';
+
 import { FONTSIZE } from '@/theme/fonts';
 import { SCREEN_PADDING, SPACING } from '@/theme/spacing';
 import { useAppStore } from '@/store/useAppStore';
@@ -54,6 +56,7 @@ const ProgramRow: React.FC<ProgramRowProps> = ({
       style={[styles.row, { borderBottomColor: colors.border }]}
       onPress={onPress}
       activeOpacity={0.7}
+      disabled={state === 'scheduled'}
       testID={testID}
     >
       <View style={styles.playSlot}>
@@ -73,6 +76,10 @@ const ProgramRow: React.FC<ProgramRowProps> = ({
         <ReusableText fontSize={FONTSIZE.sm} fontWeight="bold" themeColor={titleColor} style={styles.time}>
           {time}
         </ReusableText>
+      ) : null}
+
+      {state === 'scheduled' ? (
+        <BlurView intensity={18} tint="dark" style={StyleSheet.absoluteFill} />
       ) : null}
     </TouchableOpacity>
   );

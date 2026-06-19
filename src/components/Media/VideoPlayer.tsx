@@ -71,14 +71,16 @@ function VideoPlayer({
 
   // In-place source swap on quality change. `useVideoPlayer` only consumes the
   // source at creation, so a quality switch (new `source` URL) is applied via
-  // `player.replace` — this avoids a full remount, so fullscreen/PiP survive. A
-  // last-URI ref skips the redundant initial replace (source already loaded).
+  // `replaceAsync` — this avoids a full remount, so fullscreen/PiP survive, and
+  // loads off the main thread (avoids UI freezes vs sync `replace`). A last-URI
+  // ref skips the redundant initial replace (source already loaded).
   const lastUriRef = useRef(source);
   useEffect(() => {
     if (source === lastUriRef.current) return;
     lastUriRef.current = source;
-    player.replace(source ? { uri: source, headers: headers ?? {} } : null);
-    if (autoPlay && source) player.play();
+    void player.replaceAsync(source ? { uri: source, headers: headers ?? {} } : null).then(() => {
+      if (autoPlay && source) player.play();
+    });
   }, [player, source, headers, autoPlay]);
 
   useEffect(() => {

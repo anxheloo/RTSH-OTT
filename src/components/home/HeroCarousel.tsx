@@ -68,8 +68,9 @@ const HeroCarousel: React.FC<HeroCarouselProps> = ({ items, onPressItem, isLoadi
         {items.map((item) => (
           <View key={item.id} style={{ width: pageWidth, paddingHorizontal: H_MARGIN }}>
             <TouchableOpacity
-              activeOpacity={0.9}
-              onPress={() => onPressItem(item.channelId)}
+              activeOpacity={item.isLive ? 0.9 : 1}
+              onPress={item.isLive ? () => onPressItem(item.channelId) : undefined}
+              disabled={!item.isLive}
               style={[styles.card, { width: cardWidth, backgroundColor: colors.videoPlaceholderBg }]}
               testID={testID ? `${testID}-${item.id}` : undefined}
             >

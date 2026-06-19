@@ -4,9 +4,8 @@ export { useMeQuery } from './useMeQuery';
 // Channels (TV + Radio unified under GET /channels?type=TV|RADIO)
 export { useChannelPlaybackQuery, useChannelsQuery } from './useChannelsQuery';
 
-// Radio — convenience wrappers over the unified channel queries
+// Radio — convenience wrapper over the unified channel query
 export { useRadioStationQuery } from './useRadioStationQuery';
-export { useRadioStationsQuery } from './useRadioStationsQuery';
 
 // Home feed (heroes + continue-watching)
 export { useHomeFeedQuery } from './useHomeFeedQuery';

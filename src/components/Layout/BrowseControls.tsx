@@ -23,6 +23,7 @@ export interface BrowseControlsProps<T extends string> {
   /** Input mode (live value). */
   searchValue?: string;
   onSearchChange?: (next: string) => void;
+  autoFocus?: boolean;
   toggleOptions: SegmentedToggleOption<T>[];
   toggleValue: T;
   onToggleChange: (value: T) => void;
@@ -34,6 +35,7 @@ function BrowseControls<T extends string>({
   onSearchPress,
   searchValue,
   onSearchChange,
+  autoFocus,
   toggleOptions,
   toggleValue,
   onToggleChange,
@@ -46,6 +48,7 @@ function BrowseControls<T extends string>({
         value={searchValue}
         onChangeText={onSearchChange}
         onPress={onSearchPress}
+        autoFocus={autoFocus}
         testID={testID ? `${testID}-search` : undefined}
       />
       <SegmentedToggle

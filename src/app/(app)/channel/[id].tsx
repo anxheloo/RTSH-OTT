@@ -26,7 +26,9 @@ import { BORDERRADIUS } from '@/theme/borders';
 import { PLAYER_COLORS } from '@/theme/playerColors';
 import { SCREEN_PADDING, SPACING } from '@/theme/spacing';
 import { useAppStore } from '@/store/useAppStore';
-import { useChannelEpgQuery, useChannelPlaybackQuery, useChannelsQuery } from '@/api/queries';
+import { useQueryClient } from '@tanstack/react-query';
+
+import { useAdQuery, useChannelEpgQuery, useChannelPlaybackQuery, useChannelsQuery } from '@/api/queries';
 import { useCellularGate } from '@/hooks/useCellularGate';
 import { useDateTime } from '@/hooks/useDateTime';
 import { useLiveParentalGuard } from '@/hooks/useLiveParentalGuard';
@@ -37,10 +39,11 @@ import type { ProgramRowState } from '@/components/epg/ProgramRow';
 import { Icon, IconButton } from '@/components/Icons';
 import ReusableText from '@/components/Inputs/ReusableText';
 import { CenteredMessage, ScreenLayout, Skeleton, TabHeader } from '@/components/Layout';
+import AdOverlay from '@/components/Media/AdOverlay';
 import LivePlayer from '@/components/Media/LivePlayer';
 import { ParentalPinModal } from '@/components/ParentalPin';
 import { availableQualityIds, resolveStreamSource } from '@/utils';
-import type { CatchupDay, EpgItem, PlaybackDecision } from '@/types/domain';
+import type { CatchupDay, EpgItem } from '@/types/domain';
 import { ChevronLeftIcon, GlobeIcon, LockIcon } from '@/assets/icons';
 import { DEFAULT_QUALITY } from '@/constants/player';
 
@@ -66,20 +69,20 @@ const ChannelScreen: React.FC = () => {
   const { channels } = useChannelsQuery('TV');
   const channelMeta = channels.find((c) => c.id === channelId) ?? null;
 
-  // Playback decision — stream URLs for this channel.
-  const { playback, isLoading: playbackLoading } = useChannelPlaybackQuery(channelId);
+  const queryClient = useQueryClient();
 
-  // The player skeleton holds until the playback decision lands — we need streams
-  // before mounting the player.
-  const mediaPending = playbackLoading;
+  // null = watching live; non-null = watching a recorded programme.
+  const [selectedProgramId, setSelectedProgramId] = useState<string | null>(null);
 
-  // Active playback — starts as the live channel decision, swapped to an EPG
-  // item's embedded streams when the user taps a recorded programme.
-  const [activePlayback, setActivePlayback] = useState<PlaybackDecision | null>(null);
+  // Single query — branches on programId: live → GET /channels/{id},
+  // recorded → GET /channels/{id}/epg/{programId}. Each pair cached independently.
+  const { playback: currentPlayback, isLoading: playbackLoading } = useChannelPlaybackQuery(
+    channelId,
+    selectedProgramId,
+  );
 
-  useEffect(() => {
-    if (playback) setActivePlayback(playback);
-  }, [playback]);
+  // The player skeleton holds until the first decision lands.
+  const mediaPending = playbackLoading && !currentPlayback;
 
   // Quality: reset to Auto on each channel open so a manual pin from a prior
   // channel doesn't carry over.
@@ -92,18 +95,26 @@ const ChannelScreen: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [channelId]);
 
-  // Publish the selectable renditions from the active playback's streams map.
+  // Publish the selectable renditions from the current playback's streams map.
   useEffect(() => {
-    setAvailableQualities(availableQualityIds(activePlayback?.streams));
+    setAvailableQualities(availableQualityIds(currentPlayback?.streams));
     return () => setAvailableQualities([]);
-  }, [activePlayback, setAvailableQualities]);
+  }, [currentPlayback, setAvailableQualities]);
 
-  const streamSource = activePlayback
-    ? resolveStreamSource(activePlayback.streams, videoQuality)
+  const streamSource = currentPlayback
+    ? resolveStreamSource(currentPlayback.streams, videoQuality)
     : '';
 
   const [nowMs] = useState(() => Date.now());
   const [isFullscreen, setIsFullscreen] = useState(false);
+
+  // Channel-change ad — fetch once per channel entry; show before playback.
+  const [adDone, setAdDone] = useState(false);
+  const numericChannelId = Number(channelId);
+  const { creative: channelAd } = useAdQuery(
+    { placement: 'CHANNEL_CHANGE', channelId: numericChannelId },
+    { enabled: !Number.isNaN(numericChannelId) },
+  );
 
   // Geo-blocking comes from the channel list flag (CDN geo is plan 15.2).
   const geoBlocked = !!channelMeta?.geoBlocked;
@@ -167,14 +178,13 @@ const ChannelScreen: React.FC = () => {
   };
 
   const handleSelectProgram = (p: EpgItem, state: ProgramRowState) => {
+    if (state === 'now') {
+      setSelectedProgramId(null);
+      queryClient.invalidateQueries({ queryKey: ['channel-playback', channelId, null] });
+      return;
+    }
     if (state === 'recorded') {
-      setActivePlayback({
-        decision: p.decision,
-        channelId: p.channelId,
-        programId: p.programId,
-        noticeMessage: p.noticeMessage,
-        streams: p.streams,
-      });
+      setSelectedProgramId(p.id);
     }
   };
 
@@ -284,6 +294,14 @@ const ChannelScreen: React.FC = () => {
         onSuccess={live.onVerified}
         onDismiss={live.onDismiss}
       />
+
+      {channelAd && !adDone ? (
+        <AdOverlay
+          creative={channelAd}
+          onComplete={() => setAdDone(true)}
+          testID="channel-ad"
+        />
+      ) : null}
     </ScreenLayout>
   );
 };

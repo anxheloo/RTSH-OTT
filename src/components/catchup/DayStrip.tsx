@@ -31,11 +31,16 @@ const DayStrip: React.FC<DayStripProps> = ({ days, selectedKey, onSelect, testID
   const listRef = useRef<FlatList<CatchupDay>>(null);
 
   const selectedIdx = days.findIndex((d) => d.key === selectedKey);
+  const hasMounted = useRef(false);
 
   useEffect(() => {
-    if (listRef.current && selectedIdx >= 0) {
-      listRef.current.scrollToIndex({ index: selectedIdx, animated: true, viewPosition: 0.5 });
-    }
+    if (!listRef.current || selectedIdx < 0) return;
+    listRef.current.scrollToIndex({
+      index: selectedIdx,
+      animated: hasMounted.current,
+      viewPosition: 0.5,
+    });
+    hasMounted.current = true;
   }, [selectedIdx]);
 
   const getItemLayout = useCallback(
@@ -97,7 +102,11 @@ const DayStrip: React.FC<DayStripProps> = ({ days, selectedKey, onSelect, testID
         getItemLayout={getItemLayout}
         initialScrollIndex={selectedIdx >= 0 ? selectedIdx : 0}
         showsHorizontalScrollIndicator={false}
-        onScrollToIndexFailed={() => {}}
+        onScrollToIndexFailed={({ index }) => {
+          setTimeout(() => {
+            listRef.current?.scrollToIndex({ index, animated: false, viewPosition: 0.5 });
+          }, 50);
+        }}
       />
     </View>
   );

@@ -12,8 +12,10 @@ import { useAppStore } from '@/store/useAppStore';
 import ReusableImage, { type ImagePriority } from '@/components/Media/ReusableImage';
 
 export interface SceneBackgroundProps {
-  /** Scene image URL. Undefined → just the placeholder bg (+ optional scrim). */
+  /** Scene image URL. Undefined → renders blurhash placeholder (+ optional scrim). */
   source?: string;
+  /** Blurhash string shown while loading or when source is absent. */
+  blurhash?: string;
   /** Add a bottom-up dark scrim for overlaid text. Default false. */
   scrim?: boolean;
   /** Vertical start of the scrim as a top offset. Default '40%'. */
@@ -25,6 +27,7 @@ export interface SceneBackgroundProps {
 
 const SceneBackground: React.FC<SceneBackgroundProps> = ({
   source,
+  blurhash,
   scrim = false,
   scrimFrom = '40%',
   scrimOpacity = 0.32,
@@ -34,9 +37,10 @@ const SceneBackground: React.FC<SceneBackgroundProps> = ({
 
   return (
     <View style={[styles.fill, { backgroundColor: colors.videoPlaceholderBg }]} pointerEvents="none">
-      {source ? (
+      {source || blurhash ? (
         <ReusableImage
-          source={source}
+          source={source ?? ''}
+          blurhash={blurhash}
           width="100%"
           height="100%"
           contentFit="cover"

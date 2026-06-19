@@ -8,15 +8,26 @@ import { StyleSheet, TouchableOpacity, View } from 'react-native';
 
 import { BORDERRADIUS } from '@/theme/borders';
 import { FONTSIZE } from '@/theme/fonts';
+import { scaled } from '@/responsive';
 import { useAppStore } from '@/store/useAppStore';
 import { Icon } from '@/components/Icons';
+import ReusableImage from '@/components/Media/ReusableImage';
 import ReusableText from '@/components/Inputs/ReusableText';
 import SceneBackground from '@/components/Media/SceneBackground';
 import { GlobeIcon, LockIcon } from '@/assets/icons';
 
+const DEFAULT_BLURHASH =
+  '|rF?hV%2WCj[ayj[a|j[az_NaeWBj@ayfRayfQfQM{M|azj[azf6fQfQfQIpWXofj[ayj[j[fQayWCoeoeaya}j[ayfQa{oLj?j[WVj[ayayj[fQoff7azayj[ayj[j[ayofayayayj[fQj[ayayj[ayfjj[j[ayjuayj[';
+
+// 3:1 logo badge — scaled once at launch via the responsive token step (phone 1×, tablet 1.15×, TV 1.3×).
+const LOGO_W = scaled(54);
+const LOGO_H = scaled(18);
+
 export interface ChannelCardProps {
   channelId: string;
   name: string;
+  /** Channel logo — 3:1 aspect ratio. Undefined/error shows a blurhash placeholder. */
+  logoUrl?: string;
   /** Scene / last-frame thumbnail. Undefined shows the placeholder bg. */
   thumbnailUri?: string;
   isLive?: boolean;
@@ -27,15 +38,12 @@ export interface ChannelCardProps {
   onPress: () => void;
 }
 
-/** Short frosted-badge label (design `logoTxt`): RTSH channels show "RTSH". */
-const logoLabel = (name: string): string =>
-  name.toUpperCase().startsWith('RTSH') ? 'RTSH' : name.slice(0, 1).toUpperCase();
-
 const ChannelCard: React.FC<ChannelCardProps> = ({
   channelId,
   name,
+  logoUrl,
   thumbnailUri,
-  isLive = false,
+  isLive = true,
   isAdult = false,
   geoBlocked = false,
   onPress,
@@ -49,13 +57,20 @@ const ChannelCard: React.FC<ChannelCardProps> = ({
       activeOpacity={0.9}
       testID={`channel-card-${channelId}`}
     >
-      <SceneBackground source={thumbnailUri} scrim scrimFrom="45%" scrimOpacity={0.28} />
+      <SceneBackground source={thumbnailUri} blurhash={DEFAULT_BLURHASH} scrim scrimFrom="45%" scrimOpacity={0.28} />
 
-      {/* clogo — frosted short label, top-left */}
+      {/* clogo — frosted badge with channel logo (3:1), top-left */}
       <View style={styles.clogo}>
-        <ReusableText fontSize={FONTSIZE.xs} fontWeight="black" themeColor="onPrimary">
-          {logoLabel(name)}
-        </ReusableText>
+        <ReusableImage
+          source={logoUrl ?? ''}
+          blurhash={DEFAULT_BLURHASH}
+          width={LOGO_W}
+          height={LOGO_H}
+          contentFit="contain"
+          cachePolicy="disk"
+          priority="high"
+          transitionDurationMs={150}
+        />
       </View>
 
       {/* tagchip — top-right state badge */}

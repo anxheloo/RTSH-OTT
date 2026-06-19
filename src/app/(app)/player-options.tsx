@@ -1,7 +1,7 @@
 /**
  * Player options sheet (design `.sheet` → `openPlayerOpts`). A native form sheet
  * (decision 7) listing playback settings: video quality (drills into the
- * quality sheet), audio language, subtitles, and cast. Presented via
+ * quality sheet) and cast. Presented via
  * `getModalScreenOptions` from the (app) layout; reads/writes the store so it
  * stays decoupled from the player route underneath.
  */
@@ -46,19 +46,6 @@ const PlayerOptionsSheet: React.FC = () => {
         description={qualityLabel}
         onPress={() => router.replace('/(app)/quality')}
         testID="opt-quality"
-      />
-      {/* TODO(anx 2026-06-09): audio-track + subtitle sub-sheets (own step). */}
-      <SheetOptionRow
-        label={t('player.audio_language')}
-        description={t('player.audio_default')}
-        onPress={() => {}}
-        testID="opt-audio"
-      />
-      <SheetOptionRow
-        label={t('player.subtitles')}
-        description={t('player.subtitles_off')}
-        onPress={() => {}}
-        testID="opt-subtitles"
       />
       <SheetOptionRow
         label={t('player.cast')}
