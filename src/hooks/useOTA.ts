@@ -11,11 +11,15 @@ import { useAppStore } from '@/store/useAppStore';
  *
  * User flow: Update → fetchUpdateAsync + reloadAsync. Later → dismiss.
  */
+
+const IS_DEV = process.env.APP_VARIANT === 'development';
+
 export function useOTA() {
   const updateModalSlice = useAppStore((s) => s.updateModalSlice);
   const { t } = useTranslation();
 
   useEffect(() => {
+    if (IS_DEV) return; // Skip the whole effect in dev, where OTAs are disabled and the check would be a no-op.
     if (!Updates.isEnabled) return;
 
     const checkForUpdate = async () => {
@@ -27,10 +31,10 @@ export function useOTA() {
         updateModalSlice({
           currentModal: 'confirmation',
           modalData: {
-            title: t('update:ota_title'),
-            description: t('update:ota_message'),
-            button: t('update:ota_cta'),
-            button2: t('update:ota_later'),
+            title: t('update.ota_title'),
+            description: t('update.ota_message'),
+            button: t('update.ota_cta'),
+            button2: t('update.ota_later'),
             action: async () => {
               await Updates.fetchUpdateAsync();
               await Updates.reloadAsync();
@@ -43,6 +47,6 @@ export function useOTA() {
       }
     };
 
-    void checkForUpdate();
+    checkForUpdate();
   }, []);
 }

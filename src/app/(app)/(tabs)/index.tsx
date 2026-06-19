@@ -40,7 +40,7 @@ import { BrowseControls, ScreenLayout, SectionHeader } from '@/components/Layout
 import StationRow from '@/components/radio/StationRow';
 import StationRowSkeleton from '@/components/radio/StationRowSkeleton';
 import type { Channel, HeroItem } from '@/types/domain';
-import { useResponsiveGrid } from '@/responsive';
+import { useResponsive, useResponsiveGrid } from '@/responsive';
 
 type HomeMode = 'tv' | 'radio';
 
@@ -93,6 +93,10 @@ const HomeScreen: React.FC = () => {
   // TV grid columns come from device class + orientation; radio is always 1 col.
   const gridColumns = useResponsiveGrid();
   const numColumns = isTv ? gridColumns : 1;
+  // Orientation feeds the list key (below): on a phone numColumns is identical
+  // in both orientations, so without this FlashList never remounts on rotation
+  // and keeps a stale multi-column layout (header wedged beside the grid).
+  const { isLandscape } = useResponsive();
 
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -183,8 +187,6 @@ const HomeScreen: React.FC = () => {
             name={item.name}
             logoUrl={item.logoUrl}
             thumbnailUri={item.imageUrl}
-            isAdult={item.isAdult}
-            geoBlocked={item.geoBlocked}
             onPress={() => openChannel(item.id)}
           />
         </View>
@@ -205,9 +207,11 @@ const HomeScreen: React.FC = () => {
       <BrandHeader testID="home-header" />
 
       <FlashList
-        // Re-key on mode + column count: FlashList can't change numColumns in
-        // place, so a fresh instance is mounted (cheap; header has no state).
-        key={`${mode}-${numColumns}`}
+        // Re-key on mode + column count + orientation: FlashList can't change
+        // numColumns in place, and on a phone the count is the same in both
+        // orientations — so orientation must force the remount too, else the
+        // grid keeps a stale layout after rotating (cheap; header has no state).
+        key={`${mode}-${numColumns}-${isLandscape ? 'l' : 'p'}`}
         data={data}
         renderItem={renderItem}
         keyExtractor={(item) => item.id}

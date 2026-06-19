@@ -87,7 +87,7 @@ const DayStrip: React.FC<DayStripProps> = ({ days, selectedKey, onSelect, testID
         </TouchableOpacity>
       );
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
     [selectedKey, colors, onSelect, testID],
   );
 

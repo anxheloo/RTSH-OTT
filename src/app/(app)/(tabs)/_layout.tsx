@@ -68,7 +68,7 @@ const TabsLayout: React.FC = () => {
       <Tabs.Screen
         name="index"
         options={{
-          title: t('nav:home'),
+          title: t('nav.home'),
           tabBarAccessibilityLabel: 'tab-home',
           tabBarIcon: ({ focused }) => (
             <Icon
@@ -82,7 +82,7 @@ const TabsLayout: React.FC = () => {
       <Tabs.Screen
         name="guide"
         options={{
-          title: t('nav:guide'),
+          title: t('nav.guide'),
           tabBarAccessibilityLabel: 'tab-guide',
           tabBarIcon: ({ focused }) => (
             <Icon
@@ -96,7 +96,7 @@ const TabsLayout: React.FC = () => {
       <Tabs.Screen
         name="search"
         options={{
-          title: t('nav:search'),
+          title: t('nav.search'),
           tabBarAccessibilityLabel: 'tab-search',
           tabBarIcon: ({ focused }) => (
             <Icon
@@ -110,7 +110,7 @@ const TabsLayout: React.FC = () => {
       <Tabs.Screen
         name="profile"
         options={{
-          title: t('nav:profile'),
+          title: t('nav.profile'),
           tabBarAccessibilityLabel: 'tab-profile',
           tabBarIcon: ({ focused }) => (
             <Icon

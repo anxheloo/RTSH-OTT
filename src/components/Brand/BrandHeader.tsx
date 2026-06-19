@@ -1,11 +1,10 @@
 /**
- * Branded top bar — RTSH mark on the left, profile icon on the right.
+ * Branded top bar — RTSH mark on the left, optional action on the right.
  * The one shared header across every tab route (Kreu / Guida / Kërko / Profili)
  * so the top of the app reads identically everywhere.
  *
- * By default renders a profile icon button that navigates to the Profile tab.
- * Pass `rightSlot={null}` to suppress it (Profile screen itself does this).
- * Pass any ReactNode to override with a custom right action.
+ * Renders nothing on the right by default. Pass any ReactNode to `rightSlot`
+ * to add a custom right action.
  *
  * Handles its own top safe-area inset. Background follows the theme
  * (`headerBackground`). Pass `onLogoPress` to make the mark tappable
@@ -15,20 +14,13 @@ import React from 'react';
 import { StyleProp, StyleSheet, TouchableOpacity, View, ViewStyle } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { router } from 'expo-router';
-
 import type { ThemeColors } from '@/theme/colors';
 import { SCREEN_PADDING } from '@/theme/spacing';
 import { useAppStore } from '@/store/useAppStore';
-import { ProfileIcon } from '@/assets/icons';
 import { RtshLogoFull } from '@/assets/icons/Brand';
-import { Icon, IconButton } from '@/components/Icons';
 
 export interface BrandHeaderProps {
-  /**
-   * Override the right slot. Pass `null` to render nothing (e.g. Profile tab).
-   * Omit to get the default profile icon button.
-   */
+  /** Optional right-side action. Omitted = nothing on the right. */
   rightSlot?: React.ReactNode;
   /** Makes the RTSH mark tappable (e.g. navigate back to Home). */
   onLogoPress?: () => void;
@@ -56,18 +48,6 @@ const BrandHeader: React.FC<BrandHeaderProps> = ({
 
   const logo = <RtshLogoFull height={logoHeight} taglineColor={colors.text} />;
 
-  const defaultRight = (
-    <IconButton
-      size={40}
-      backgroundColor={colors.surface}
-      onPress={() => router.push('/(app)/(tabs)/profile')}
-      accessibilityLabel="Profili"
-      testID={testID ? `${testID}-profile-btn` : 'header-profile-btn'}
-    >
-      <Icon as={ProfileIcon} size={20} color={colors.text} />
-    </IconButton>
-  );
-
   return (
     <View
       style={[
@@ -93,7 +73,7 @@ const BrandHeader: React.FC<BrandHeaderProps> = ({
       ) : (
         logo
       )}
-      {rightSlot === undefined ? defaultRight : rightSlot}
+      {rightSlot}
     </View>
   );
 };

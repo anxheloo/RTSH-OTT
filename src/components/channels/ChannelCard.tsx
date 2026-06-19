@@ -1,20 +1,22 @@
 /**
  * ChannelCard — 2-column grid card (design `.card`): a 16/10 scene thumbnail
- * with a frosted `clogo` badge (top-left), a state `tagchip` (top-right:
- * LIVE / 18+ lock / GEO), and the channel name over a bottom scrim.
+ * with a frosted `clogo` badge (top-left), a LIVE `tagchip` (top-right), and
+ * the channel name over a bottom scrim.
+ *
+ * The card shows only the LIVE state. 18+ / GEO are intentionally NOT surfaced
+ * here — the parental PIN gate and geo-restriction are enforced on channel open
+ * (`channel/[id]`), where the list lacks the data to decide anyway.
  */
 import React from 'react';
 import { StyleSheet, TouchableOpacity, View } from 'react-native';
 
 import { BORDERRADIUS } from '@/theme/borders';
 import { FONTSIZE } from '@/theme/fonts';
-import { scaled } from '@/responsive';
 import { useAppStore } from '@/store/useAppStore';
-import { Icon } from '@/components/Icons';
-import ReusableImage from '@/components/Media/ReusableImage';
 import ReusableText from '@/components/Inputs/ReusableText';
+import ReusableImage from '@/components/Media/ReusableImage';
 import SceneBackground from '@/components/Media/SceneBackground';
-import { GlobeIcon, LockIcon } from '@/assets/icons';
+import { scaled } from '@/responsive';
 
 const DEFAULT_BLURHASH =
   '|rF?hV%2WCj[ayj[a|j[az_NaeWBj@ayfRayfQfQM{M|azj[azf6fQfQfQIpWXofj[ayj[j[fQayWCoeoeaya}j[ayfQa{oLj?j[WVj[ayayj[fQoff7azayj[ayj[j[ayofayayayj[fQj[ayayj[ayfjj[j[ayjuayj[';
@@ -31,10 +33,6 @@ export interface ChannelCardProps {
   /** Scene / last-frame thumbnail. Undefined shows the placeholder bg. */
   thumbnailUri?: string;
   isLive?: boolean;
-  /** Adult/locked channel → 18+ tag (PIN gate handled by the open flow). */
-  isAdult?: boolean;
-  /** Geo-restricted channel → GEO tag. */
-  geoBlocked?: boolean;
   onPress: () => void;
 }
 
@@ -44,8 +42,6 @@ const ChannelCard: React.FC<ChannelCardProps> = ({
   logoUrl,
   thumbnailUri,
   isLive = true,
-  isAdult = false,
-  geoBlocked = false,
   onPress,
 }) => {
   const colors = useAppStore((s) => s.colors);
@@ -57,7 +53,13 @@ const ChannelCard: React.FC<ChannelCardProps> = ({
       activeOpacity={0.9}
       testID={`channel-card-${channelId}`}
     >
-      <SceneBackground source={thumbnailUri} blurhash={DEFAULT_BLURHASH} scrim scrimFrom="45%" scrimOpacity={0.28} />
+      <SceneBackground
+        source={thumbnailUri}
+        blurhash={DEFAULT_BLURHASH}
+        scrim
+        scrimFrom="60%"
+        scrimOpacity={0.28}
+      />
 
       {/* clogo — frosted badge with channel logo (3:1), top-left */}
       <View style={styles.clogo}>
@@ -70,25 +72,12 @@ const ChannelCard: React.FC<ChannelCardProps> = ({
           cachePolicy="disk"
           priority="high"
           transitionDurationMs={150}
+          containerStyle={styles.logoContainer}
         />
       </View>
 
-      {/* tagchip — top-right state badge */}
-      {isAdult ? (
-        <View style={styles.tagchip}>
-          <Icon as={LockIcon} size={11} color="#FFFFFF" />
-          <ReusableText fontSize={FONTSIZE.xs} fontWeight="bold" themeColor="onPrimary">
-            18+
-          </ReusableText>
-        </View>
-      ) : geoBlocked ? (
-        <View style={styles.tagchip}>
-          <Icon as={GlobeIcon} size={11} color="#FFFFFF" />
-          <ReusableText fontSize={FONTSIZE.xs} fontWeight="bold" themeColor="onPrimary">
-            GEO
-          </ReusableText>
-        </View>
-      ) : isLive ? (
+      {/* tagchip — top-right LIVE badge */}
+      {isLive ? (
         <View style={[styles.tagchip, { backgroundColor: colors.primary }]}>
           <View style={styles.liveDot} />
           <ReusableText fontSize={FONTSIZE.xs} fontWeight="bold" themeColor="onPrimary">
@@ -124,7 +113,6 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 10,
     top: 10,
-    backgroundColor: BADGE_BG,
     borderRadius: BORDERRADIUS.radius_8,
     paddingHorizontal: 7,
     paddingVertical: 3,
@@ -152,6 +140,9 @@ const styles = StyleSheet.create({
     left: 12,
     right: 12,
     bottom: 11,
+  },
+  logoContainer: {
+    backgroundColor: 'transparent',
   },
 });
 

@@ -10,7 +10,7 @@
  * shipping. Fallback: react-native-video if headers don't propagate.
  */
 import React, { useEffect, useRef, useState } from 'react';
-import { StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
+import { AppState, StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
 
 import { useKeepAwake } from 'expo-keep-awake';
 import { useVideoPlayer, VideoPlayer as ExpoVideoPlayer, VideoSource, VideoView } from 'expo-video';
@@ -74,6 +74,15 @@ function VideoPlayer({
   // `replaceAsync` — this avoids a full remount, so fullscreen/PiP survive, and
   // loads off the main thread (avoids UI freezes vs sync `replace`). A last-URI
   // ref skips the redundant initial replace (source already loaded).
+  // PIP stop fires for BOTH the restore button (returns to app → AppState
+  // becomes `active`) and the X/close button (app stays backgrounded). They
+  // share one native event, so we disambiguate by AppState: a stop while still
+  // backgrounded means the user dismissed PIP via X → pause so audio + the CDN
+  // pull don't keep running invisibly. Restore (active) keeps playing.
+  const handlePictureInPictureStop = () => {
+    if (AppState.currentState !== 'active') player.pause();
+  };
+
   const lastUriRef = useRef(source);
   useEffect(() => {
     if (source === lastUriRef.current) return;
@@ -116,6 +125,7 @@ function VideoPlayer({
         nativeControls={false}
         allowsPictureInPicture={allowsPictureInPicture}
         startsPictureInPictureAutomatically={startsPictureInPictureAutomatically}
+        onPictureInPictureStop={handlePictureInPictureStop}
         testID="video-view"
       />
       {renderOverlay ? (

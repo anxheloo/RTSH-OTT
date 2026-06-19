@@ -19,6 +19,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
+import { useQueryClient } from '@tanstack/react-query';
 import { router, useLocalSearchParams } from 'expo-router';
 import * as ScreenOrientation from 'expo-screen-orientation';
 
@@ -26,8 +27,6 @@ import { BORDERRADIUS } from '@/theme/borders';
 import { PLAYER_COLORS } from '@/theme/playerColors';
 import { SCREEN_PADDING, SPACING } from '@/theme/spacing';
 import { useAppStore } from '@/store/useAppStore';
-import { useQueryClient } from '@tanstack/react-query';
-
 import { useAdQuery, useChannelEpgQuery, useChannelPlaybackQuery, useChannelsQuery } from '@/api/queries';
 import { useCellularGate } from '@/hooks/useCellularGate';
 import { useDateTime } from '@/hooks/useDateTime';
@@ -115,6 +114,11 @@ const ChannelScreen: React.FC = () => {
     { placement: 'CHANNEL_CHANGE', channelId: numericChannelId },
     { enabled: !Number.isNaN(numericChannelId) },
   );
+
+  // Hold the player unmounted while a channel-change ad is showing — the live
+  // stream must not start (autoplay + audio + CDN) behind the ad overlay. A
+  // skeleton fills the 16:9 slot; the player mounts only once the ad completes.
+  const adPending = !!channelAd && !adDone;
 
   // Geo-blocking comes from the channel list flag (CDN geo is plan 15.2).
   const geoBlocked = !!channelMeta?.geoBlocked;
@@ -213,7 +217,7 @@ const ChannelScreen: React.FC = () => {
     );
   }
 
-  const player = mediaPending ? (
+  const player = mediaPending || adPending ? (
     <Skeleton borderRadius={BORDERRADIUS.none} style={styles.playerSkeleton} testID="player-skeleton" />
   ) : blockPlayer ? (
     liveBlockedDismissed ? (

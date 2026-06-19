@@ -48,6 +48,10 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     name,
     slug: 'rtshtani',
     version: '1.0.0',
+    // Mobile/TV only — no web target. Without this, `eas update --platform=all`
+    // also bundles web, which fails resolving react-native-country-picker-modal's
+    // `react-async-hook` dep (its `module` field points at an unshipped .esm.js).
+    platforms: ['ios', 'android'],
     orientation: 'default',
     icon: './assets/images/icon.png',
     scheme: 'rtshtani',

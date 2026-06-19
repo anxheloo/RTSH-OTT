@@ -183,7 +183,7 @@
 - [x] **16.1** `services/ads.ts` — `getAdManifest(slot)` returns the slot's `AdCreative` or null; **server-authoritative** (mock gates on `config.ads.launchEnabled`). Endpoint `ADS_ROUTES.MANIFEST(slot)`, `useAdQuery(slot)`, `fixtures/ads.ts` (NOVA launch creative — static, design `adpop`). Real manifest/targeting → backend.
 - [x] **16.2** `AdOverlay` — design `adpop` static image creative + REKLAMË + skip countdown (built in **22.15c**). (Second `expo-video` instance = future video-ad capability, not v1.)
 - [x] **16.3** Launch ad — `LaunchAdHost` (mounted above the router in `(app)/_layout`) shows the `launch` creative once per session via `useAdQuery('launch')`. (Pre-demo wiring; `useBootstrap`-prefetch is an optional refinement.)
-- [ ] **16.4** Channel-switch ad — frequency-capped via `playerSlice.adsLastShownAt`.
+- [~] **16.4** Channel-switch ad — wired in `channel/[id].tsx` (`useAdQuery({placement:'CHANNEL_CHANGE'})` → `AdOverlay`, `adDone` state). **Preroll gating done:** the content player stays unmounted while the ad is active (`adPending = !!channelAd && !adDone` folded into the player gate → skeleton in the 16:9 slot), so the live stream never autoplays (audio/CDN, or a second VIDEO-ad surface) behind the overlay. **Remaining:** frequency-cap via `playerSlice.adsLastShownAt`.
 - [ ] **16.5** Scheduled ads — timer from `/config` triggers `AdOverlay`.
 - [ ] **16.6** Analytics: impression, skip, complete, clickthrough.
 

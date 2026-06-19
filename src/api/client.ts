@@ -2,7 +2,6 @@ import { MutationCache, QueryCache, QueryClient } from '@tanstack/react-query';
 import axios, { AxiosError, AxiosRequestConfig, InternalAxiosRequestConfig } from 'axios';
 
 import { useAppStore } from '@/store/useAppStore';
-import { ENV } from '@/config/env';
 import i18n from '@/i18n';
 
 /**
@@ -41,8 +40,12 @@ export function registerRefreshHandler(fn: (() => Promise<string | null>) | null
   refreshTokens = fn;
 }
 
-/** All backend routes live under this version prefix; route constants stay bare. */
-export const API_BASE_URL = `${ENV.EXPO_PUBLIC_API_BASE_URL.replace(/\/+$/, '')}/api/v1`;
+/**
+ * Backend base URL — hardcoded in source so it's bundled identically for local,
+ * EAS, and OTA builds (no dependency on a build-time `.env`). Route constants
+ * stay bare; the `/api/v1` version prefix lives here.
+ */
+export const API_BASE_URL = 'http://46.183.121.56:8089/api/v1';
 
 export const apiClient = axios.create({
   baseURL: API_BASE_URL,

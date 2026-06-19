@@ -21,9 +21,9 @@ import { useTranslation } from 'react-i18next';
 import { FlashList } from '@shopify/flash-list';
 import { router } from 'expo-router';
 
-import { getMockEpg } from '@/api/mocks/fixtures/epg';
 import { SCREEN_PADDING, SPACING } from '@/theme/spacing';
 import { useAppStore } from '@/store/useAppStore';
+import { getMockEpg } from '@/api/mocks/fixtures/epg';
 import { useChannelsQuery } from '@/api/queries';
 import { useDateTime } from '@/hooks/useDateTime';
 import { useTabBarHeight } from '@/hooks/useTabBarHeight';

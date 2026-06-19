@@ -9,6 +9,7 @@
  */
 import React, { useState } from 'react';
 import { Modal, Platform, StyleSheet, TouchableOpacity, View } from 'react-native';
+
 import DateTimePicker, {
   DateTimePickerAndroid,
   DateTimePickerChangeEvent,

@@ -23,10 +23,10 @@ import { useTabBarHeight } from '@/hooks/useTabBarHeight';
 import { BrandHeader } from '@/components/Brand';
 import { SearchResultRow, SearchResultRowSkeleton } from '@/components/channels';
 import { EmptyChannelsState, EmptyStationsState, ErrorState } from '@/components/empty';
+import type { SegmentedToggleOption } from '@/components/Inputs/SegmentedToggle';
 import { BrowseControls, ScreenLayout } from '@/components/Layout';
 import StationRow from '@/components/radio/StationRow';
 import StationRowSkeleton from '@/components/radio/StationRowSkeleton';
-import type { SegmentedToggleOption } from '@/components/Inputs/SegmentedToggle';
 import type { Channel } from '@/types/domain';
 
 type SearchMode = 'tv' | 'radio';
