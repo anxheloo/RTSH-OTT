@@ -103,7 +103,6 @@ Persist via MMKV (`zustandStorage`). `partialize` controls what persists. `onReh
 
 - `components/Media/VideoPlayer.tsx` — base `expo-video` wrapper, our controls.
 - `components/Media/LivePlayer.tsx` — HLS player for **both** live and recorded (catch-up). The channel screen swaps `streamUrl` to the recorded URL and flips `isLive={false}`; that drops the LIVE badge and makes the seek bar draggable from 0 (the recorded VOD reports a finite duration, so `PlayerControls` flips `isSeekable` automatically — no separate player). Live stays `isLive` → bar pinned to the edge, non-seekable. AES-128 + DVR (extends VideoPlayer).
-- `components/Media/VodPlayer.tsx` — **orphaned / redundant.** Recorded playback now runs through `LivePlayer` (`isLive={false}`, above), so this component is unused. Candidate for deletion.
 - `components/Media/RadioAudioHost.tsx` — the single `expo-audio` engine, mounted above the router in `(app)/_layout`. Rationale + flow: `rules/ARCHITECTURE.md` → Radio audio.
 - `components/Media/RadioPlayer.tsx` — presentational now-playing core (art + `Equalizer` + transport); no playback logic. `RadioMiniPlayer` (Layout/) is the docked strip.
 - `components/Media/PlayerControls.tsx` — overlay (auto-hide, fullscreen, PIP, audio tracks).
