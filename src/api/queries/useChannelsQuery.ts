@@ -16,6 +16,12 @@ export const useChannelsQuery = (
     queryKey: ['channels', type],
     queryFn: () => getChannels(type),
     enabled: options?.enabled ?? true,
+    // Override the global `staleTime: Infinity` so the foreground / reconnect /
+    // mount refetch triggers fire (Home + Guide reuse `useRefreshOnFocus` for
+    // tab focus, which forces a refetch regardless). 5min gates re-hits; 15min
+    // keeps the cache after the screen unmounts.
+    staleTime: 5 * 60_000,
+    gcTime: 15 * 60_000,
   });
   return { channels: data ?? [], isLoading, error, refetch };
 };

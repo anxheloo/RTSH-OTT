@@ -323,11 +323,6 @@
     "unlock": "Enter PIN",
     "change_verify_current": "Enter your current PIN to continue."
   },
-  "geo": {
-    "title": "Not available in your region",
-    "body": "This service is not available in your region due to broadcasting rights.",
-    "back_home": "Back to home"
-  },
   "ads": {
     "label": "AD",
     "skip": "Skip ad",

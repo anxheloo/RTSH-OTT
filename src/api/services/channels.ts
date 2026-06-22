@@ -11,7 +11,6 @@ interface ChannelDto {
   sortOrder?: number;
   logoUrl: string;
   imageUrl?: string | null;
-  geoRestricted: boolean;
 }
 
 /** Wire shape from `GET /api/v1/channels/{id}` — playback decision only, no metadata. */
@@ -31,7 +30,6 @@ function toChannel(dto: ChannelDto): Channel {
     sortOrder: dto.sortOrder ?? 0,
     logoUrl: dto.logoUrl,
     imageUrl: dto.imageUrl ?? undefined,
-    geoBlocked: dto.geoRestricted,
   };
 }
 

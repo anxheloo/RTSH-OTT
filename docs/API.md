@@ -104,7 +104,7 @@ The swagger also accepts an optional `device: DeviceInfoDTO` inside the login / 
 
 ### `GET /channels?type=TV|RADIO`
 
-Returns a plain array of `EndUserChannelDTO` — channel metadata only (name, logo, geoRestricted). No stream URLs.
+Returns a plain array of `EndUserChannelDTO` — channel metadata only (name, logo). No stream URLs. Geo-blocking is **not** a list flag — it's enforced by the CDN on channel open (`GET /channels/{id}`); a blocked request surfaces as a player error.
 
 ```jsonc
 // 200 — array (not wrapped)
@@ -115,8 +115,7 @@ Returns a plain array of `EndUserChannelDTO` — channel metadata only (name, lo
     "type": "TV",
     "sortOrder": 1,
     "logoUrl": "https://…",
-    "imageUrl": "https://…",
-    "geoRestricted": false
+    "imageUrl": "https://…"
   }
 ]
 ```
@@ -172,6 +171,35 @@ Returns EPG items for the channel on the given date. Each item embeds the same `
   ]
 }
 ```
+
+## Guide
+
+### `GET /guide?type=TV|RADIO`
+
+"Now" guide — one entry per channel/station with the **currently airing** programme (`now`). `type` mirrors the channels endpoint (`TV` or `RADIO`); the Guide tab's TV/Radio toggle drives it. No `next` is returned. Each row's progress bar is derived client-side from `now.start` / `now.end` vs the fetch time. Server-driven freshness: the client never times programme boundaries here — it refetches on tab focus, app foreground, reconnect, and pull-to-refresh (no polling). TV rows open `channel/{id}`, radio rows open `radio/{id}`.
+
+```jsonc
+// 200 — bare array (GuideChannelDto[])
+[
+  {
+    "id": 1,                  // channel id (same as the channels endpoint)
+    "name": "RTSH 1",         // channel name
+    "logoUrl": "https://…",
+    "imageUrl": "https://…",
+    "now": {
+      "id": 9007199254740991,
+      "name": "Edicioni Qendror i Lajmeve",
+      "description": "…",
+      "start": "2026-06-22T17:00:00.000Z",
+      "end":   "2026-06-22T17:30:00.000Z",
+      "ageRating": "",
+      "isAdult": false
+    }
+  }
+]
+```
+
+The channel identity is `id` / `name` (not `channelId` / `channelName`). Mapped at the service boundary (`services/guide.ts`) to the domain `GuideChannel` (`id` int64 → `channelId` string, `name` → `channelName`, `now.name` → `now.title`). `now` may be `null` if nothing is airing.
 
 ## Out of band
 

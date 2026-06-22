@@ -15,7 +15,7 @@ import ReusableText from '@/components/Inputs/ReusableText';
 import SceneBackground from '@/components/Media/SceneBackground';
 
 export interface GuideRowProps {
-  /** Short label shown on the scene tile (e.g. "RTSH"). Ignored when `leading` is set. */
+  /** Used for the row testID (e.g. "RTSH"); no longer rendered on the tile. */
   logoLabel: string;
   thumbnailUrl?: string;
   /** Currently-airing programme title. */
@@ -56,11 +56,7 @@ const GuideRow: React.FC<GuideRowProps> = ({
     >
       <View style={styles.tile}>
         <SceneBackground source={thumbnailUrl} />
-        {leading ?? (
-          <ReusableText fontSize={FONTSIZE.xxs} fontWeight="black" themeColor="onPrimary">
-            {logoLabel}
-          </ReusableText>
-        )}
+        {leading}
       </View>
 
       <View style={styles.meta}>

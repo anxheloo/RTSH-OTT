@@ -42,7 +42,8 @@ export type ChannelType = 'TV' | 'RADIO';
 /**
  * Unified channel / radio-station — maps `EndUserChannelDTO` from
  * `GET /api/v1/channels?type=TV|RADIO`. The service transforms `id` (int32 →
- * string) and `geoRestricted` → `geoBlocked` before returning this shape.
+ * string) before returning this shape. Geo-blocking is no longer a list flag —
+ * it's enforced by the CDN on channel open (`GET /channels/{id}`).
  *
  * `isAdult` is absent from the list response and only populated by the detail
  * endpoint (`GET /channels/{id}`); the list query leaves it undefined.
@@ -55,7 +56,6 @@ export interface Channel {
   logoUrl: string;
   /** Thumbnail for TV cards; artwork for the radio player (design `scene` / `rp-art`). */
   imageUrl?: string;
-  geoBlocked: boolean;
   /** Present only on the detail response (`GET /channels/{id}`). */
   isAdult?: boolean;
 }
@@ -77,6 +77,39 @@ export interface HeroItem {
   channelId: string;
   /** True when the programme is currently airing — enables tap-to-open. Upcoming items are false. */
   isLive: boolean;
+}
+
+/**
+ * Wire DTO from `GET /api/v1/guide` — one entry per channel with its currently
+ * airing programme (`now`). The channel identity is `id` / `name` (same as the
+ * channels endpoint), NOT `channelId` / `channelName`. No `next` is returned.
+ */
+export interface GuideChannelDto {
+  id: number | string;
+  name: string;
+  logoUrl?: string;
+  imageUrl?: string;
+  now: GuideProgramDto | null;
+}
+
+/**
+ * Domain "now on TV" guide row — `GET /api/v1/guide` mapped (int64 id → string).
+ * `now` carries only the airing programme; the bar's progress is derived
+ * client-side from `now.start` / `now.end`.
+ */
+export interface GuideChannel {
+  channelId: string;
+  channelName: string;
+  logoUrl?: string;
+  imageUrl?: string;
+  now: {
+    id: string;
+    title: string;
+    description: string;
+    start: string; // ISO 8601
+    end: string;   // ISO 8601
+    isAdult: boolean;
+  } | null;
 }
 
 /** Wire DTO from `GET /channels/{id}/epg` — plain array, minimal fields. */
@@ -108,19 +141,6 @@ export interface EpgItem {
   programId?: string;
   noticeMessage?: string;
   streams?: Record<string, string>;
-}
-
-export interface CatchupItem {
-  id: string;
-  channelId: string;
-  channelName: string;
-  title: string;
-  description: string;
-  duration: number;  // seconds
-  thumbnail?: string;
-  streamUrl: string;
-  airDate: string;   // ISO 8601
-  isAdult: boolean;
 }
 
 /** Catch-up day-strip entry (design `DAYS` → `[weekday, date]`, today flagged). */

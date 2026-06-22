@@ -323,11 +323,6 @@
     "unlock": "Vendos PIN-in",
     "change_verify_current": "Vendos PIN-in aktual për të vazhduar."
   },
-  "geo": {
-    "title": "Jo i disponueshëm në rajonin tuaj",
-    "body": "Ky shërbim nuk është i disponueshëm në rajonin tuaj për arsye të të drejtave të transmetimit.",
-    "back_home": "Kthehu te kreu"
-  },
   "ads": {
     "label": "REKLAMË",
     "skip": "Kalo reklamën",

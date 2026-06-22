@@ -35,13 +35,6 @@ const AppLayout: React.FC = () => {
             animation: 'slide_from_bottom',
           }}
         />
-        <Stack.Screen
-          name="program/[id]"
-          options={{
-            presentation: 'fullScreenModal',
-            animation: 'slide_from_bottom',
-          }}
-        />
         <Stack.Screen name="settings" />
         <Stack.Screen name="account" />
         <Stack.Screen name="change-password" />

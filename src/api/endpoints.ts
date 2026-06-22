@@ -49,6 +49,11 @@ export const HOME_ROUTES = {
   FEED: '/home',
 } as const;
 
+export const GUIDE_ROUTES = {
+  // "Now on TV" guide: one entry per channel with its currently-airing programme.
+  LIST: '/guide',
+} as const;
+
 export const EPG_ROUTES = {
   // Pass `date` via axios `params`, not template-interpolated, so values are
   // properly URL-encoded.
@@ -56,10 +61,6 @@ export const EPG_ROUTES = {
   PROGRAM: (id: string) => `/epg/program/${id}`,
 } as const;
 
-export const CATCHUP_ROUTES = {
-  LIST: '/catchup',
-  BY_ID: (id: string) => `/catchup/${id}`,
-} as const;
 
 export const CONFIG_ROUTES = {
   APP_CONFIG: '/config',

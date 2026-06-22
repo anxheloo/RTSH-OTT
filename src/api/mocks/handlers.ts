@@ -15,10 +15,10 @@ import {
   mockResetRequest,
   mockResetVerify,
 } from './fixtures/authFlow';
-import { mockCatchupItems } from './fixtures/catchup';
 import { mockChannels } from './fixtures/channels';
 import { getMockAppVersion, mockAppConfig } from './fixtures/config';
 import { getMockEpg } from './fixtures/epg';
+import { getMockGuide } from './fixtures/guide';
 import { mockHeroes } from './fixtures/home';
 
 type MockResponse = { status?: number; data: unknown };
@@ -235,6 +235,17 @@ export const handlers: Handler[] = [
       return { data: { items: getMockEpg(params?.channelId, params?.date) } };
     },
   },
+
+  // ── Guide ("now", one entry per channel/station; type=TV|RADIO) ─────────────
+  {
+    method: 'get',
+    test: (u) => u === '/guide',
+    delay: 400,
+    respond: (cfg) => {
+      const type = (cfg.params as { type?: 'TV' | 'RADIO' } | undefined)?.type;
+      return { data: getMockGuide(type) };
+    },
+  },
   {
     method: 'get',
     test: (u) => /^\/epg\/program\/[^/]+$/.test(u),
@@ -245,24 +256,6 @@ export const handlers: Handler[] = [
       return item
         ? { data: { program: item } }
         : { status: 404, data: { error: 'Program not found' } };
-    },
-  },
-
-  // ── Catch-up ───────────────────────────────────────────────────────────────
-  {
-    method: 'get',
-    test: (u) => u === '/catchup',
-    delay: 300,
-    respond: () => ({ data: { items: mockCatchupItems } }),
-  },
-  {
-    method: 'get',
-    test: (u) => /^\/catchup\/[^/]+$/.test(u),
-    delay: 300,
-    respond: (cfg) => {
-      const id = cfg.url?.split('/').pop();
-      const item = mockCatchupItems.find((c) => c.id === id);
-      return item ? { data: { item } } : { status: 404, data: { error: 'Not found' } };
     },
   },
 

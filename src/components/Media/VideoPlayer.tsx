@@ -93,8 +93,14 @@ function VideoPlayer({
   }, [player, source, headers, autoPlay]);
 
   useEffect(() => {
-    const statusSub = player.addListener('statusChange', ({ status: s }) => {
+    const statusSub = player.addListener('statusChange', ({ status: s, error }) => {
       const mapped = s as VideoStatus;
+      // Surface playback failures (e.g. CDN geo-block on our IP) so we can see
+      // the underlying error message/source while testing.
+      if (mapped === 'error') {
+        // eslint-disable-next-line no-console
+        console.log('[VideoPlayer] playback error', { source, error });
+      }
       setStatus(mapped);
       onStatusChange?.(mapped);
     });
@@ -115,7 +121,7 @@ function VideoPlayer({
       timeSub.remove();
       endSub.remove();
     };
-  }, [player, onStatusChange, onTimeUpdate, onPlayEnd]);
+  }, [player, source, onStatusChange, onTimeUpdate, onPlayEnd]);
 
   return (
     <View style={[styles.container, style]} testID="video-player-container">

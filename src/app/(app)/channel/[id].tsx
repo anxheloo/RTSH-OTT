@@ -31,19 +31,20 @@ import { useAdQuery, useChannelEpgQuery, useChannelPlaybackQuery, useChannelsQue
 import { useCellularGate } from '@/hooks/useCellularGate';
 import { useDateTime } from '@/hooks/useDateTime';
 import { useLiveParentalGuard } from '@/hooks/useLiveParentalGuard';
+import { useNowProgram } from '@/hooks/useNowProgram';
 import { CatchupBanner, DayStrip } from '@/components/catchup';
 import { EmptyEpgState } from '@/components/empty';
 import { ProgramRow, ProgramRowSkeleton } from '@/components/epg';
 import type { ProgramRowState } from '@/components/epg/ProgramRow';
-import { Icon, IconButton } from '@/components/Icons';
+import { Icon } from '@/components/Icons';
 import ReusableText from '@/components/Inputs/ReusableText';
-import { CenteredMessage, ScreenLayout, Skeleton, TabHeader } from '@/components/Layout';
+import { CenteredMessage, ScreenLayout, Skeleton } from '@/components/Layout';
 import AdOverlay from '@/components/Media/AdOverlay';
 import LivePlayer from '@/components/Media/LivePlayer';
 import { ParentalPinModal } from '@/components/ParentalPin';
 import { availableQualityIds, resolveStreamSource } from '@/utils';
 import type { CatchupDay, EpgItem } from '@/types/domain';
-import { ChevronLeftIcon, GlobeIcon, LockIcon } from '@/assets/icons';
+import { LockIcon } from '@/assets/icons';
 import { DEFAULT_QUALITY } from '@/constants/player';
 
 const CATCHUP_DAYS_BACK = 7;
@@ -72,6 +73,7 @@ const ChannelScreen: React.FC = () => {
 
   // null = watching live; non-null = watching a recorded programme.
   const [selectedProgramId, setSelectedProgramId] = useState<string | null>(null);
+  const isLive = selectedProgramId === null;
 
   // Single query — branches on programId: live → GET /channels/{id},
   // recorded → GET /channels/{id}/epg/{programId}. Each pair cached independently.
@@ -104,7 +106,6 @@ const ChannelScreen: React.FC = () => {
     ? resolveStreamSource(currentPlayback.streams, videoQuality)
     : '';
 
-  const [nowMs] = useState(() => Date.now());
   const [isFullscreen, setIsFullscreen] = useState(false);
 
   // Channel-change ad — fetch once per channel entry; show before playback.
@@ -120,8 +121,8 @@ const ChannelScreen: React.FC = () => {
   // skeleton fills the 16:9 slot; the player mounts only once the ad completes.
   const adPending = !!channelAd && !adDone;
 
-  // Geo-blocking comes from the channel list flag (CDN geo is plan 15.2).
-  const geoBlocked = !!channelMeta?.geoBlocked;
+  // Geo-blocking is enforced by the CDN on channel open (no list flag); a blocked
+  // request surfaces as a player error — logged in VideoPlayer's status listener.
 
   // isAdult channel-level gate deferred — not present in the list or
   // PlaybackDecision yet. Live programme-level re-check (22.14c) still works.
@@ -129,7 +130,7 @@ const ChannelScreen: React.FC = () => {
   const needsPin = false; // TODO: wire when isAdult is available in the API response
 
   const live = useLiveParentalGuard(channelId, {
-    enabled: parentalEnabled && !geoBlocked,
+    enabled: parentalEnabled,
   });
   const blockPlayer = needsPin || live.isBlocked;
   const liveBlockedDismissed = live.isBlocked && !live.showPrompt;
@@ -162,6 +163,12 @@ const ChannelScreen: React.FC = () => {
     [epg],
   );
 
+  // Which programme is airing now in this channel's schedule — drives the "now"
+  // play-icon row and rolls it to the next programme at the boundary (client
+  // timer, no network: the EPG is already in memory). Only TODAY's list has a
+  // meaningful "now"; pass [] on other days so nothing is marked.
+  const { playing } = useNowProgram(selectedDay.isToday ? programs : []);
+
   // Lock landscape while fullscreen; release on exit/unmount.
   useEffect(() => {
     if (isFullscreen) {
@@ -177,8 +184,7 @@ const ChannelScreen: React.FC = () => {
   const programState = (p: EpgItem): ProgramRowState => {
     if (selectedDay.isFuture) return 'scheduled';
     if (!selectedDay.isToday) return 'recorded';
-    const airing = p.isLive ?? (nowMs >= Date.parse(p.startTime) && nowMs < Date.parse(p.endTime));
-    return airing ? 'now' : 'scheduled';
+    return playing?.id === p.id ? 'now' : 'scheduled';
   };
 
   const handleSelectProgram = (p: EpgItem, state: ProgramRowState) => {
@@ -191,31 +197,6 @@ const ChannelScreen: React.FC = () => {
       setSelectedProgramId(p.id);
     }
   };
-
-  // Geo-restricted — block the channel inline (design `sGeo`).
-  if (geoBlocked) {
-    return (
-      <ScreenLayout edges={['top', 'bottom']}>
-        <TabHeader
-          title=""
-          showBottomBorder={false}
-          leftAction={
-            <IconButton onPress={() => router.back()} testID="geo-back">
-              <Icon as={ChevronLeftIcon} size={22} color={colors.text} />
-            </IconButton>
-          }
-        />
-        <CenteredMessage
-          icon={<Icon as={GlobeIcon} size={36} color={colors.textMuted} />}
-          title={t('geo.title')}
-          body={t('geo.body')}
-          actionLabel={t('geo.back_home')}
-          onAction={() => router.back()}
-          testID="geo-message"
-        />
-      </ScreenLayout>
-    );
-  }
 
   const player = mediaPending || adPending ? (
     <Skeleton borderRadius={BORDERRADIUS.none} style={styles.playerSkeleton} testID="player-skeleton" />
@@ -236,7 +217,12 @@ const ChannelScreen: React.FC = () => {
     <LivePlayer
       channelId={channelId}
       streamUrl={streamSource}
-      channelName={channelMeta?.name ?? channelId}
+      channelName={
+        isLive
+          ? channelMeta?.name ?? channelId
+          : programs.find((p) => p.id === selectedProgramId)?.title ?? channelMeta?.name ?? channelId
+      }
+      isLive={isLive}
       isFullscreen={isFullscreen}
       onToggleFullscreen={() => setIsFullscreen((f) => !f)}
       onOpenOptions={() => router.push('/(app)/player-options')}

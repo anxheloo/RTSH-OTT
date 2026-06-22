@@ -1,5 +1,4 @@
 export { mockTokens, mockUserDto } from './fixtures/auth';
-export { mockCatchupItems } from './fixtures/catchup';
 export { mockChannels } from './fixtures/channels';
 export { mockAppConfig } from './fixtures/config';
 export { getMockEpg } from './fixtures/epg';

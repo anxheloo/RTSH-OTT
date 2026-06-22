@@ -1,6 +1,10 @@
 /**
- * LivePlayer — HLS live TV player, rendered **inline** (16:9) inside the channel
- * screen. Wraps VideoPlayer (render-prop) + PlayerControls. Fullscreen +
+ * LivePlayer — HLS player rendered **inline** (16:9) inside the channel screen.
+ * Plays **both** live and recorded (catch-up) sources from the same component:
+ * the parent swaps `streamUrl` to the recorded URL and flips `isLive={false}`,
+ * which drops the LIVE badge and lets the seek bar become draggable from 0 (the
+ * recorded VOD reports a finite duration, so `PlayerControls` makes it seekable
+ * automatically). Wraps VideoPlayer (render-prop) + PlayerControls. Fullscreen +
  * orientation are owned by the parent screen (controlled via `isFullscreen` /
  * `onToggleFullscreen`) so the player composes with the day-strip + EPG list
  * below it. Passes streamHeaders through for AES-128 key auth attempt.
@@ -31,6 +35,8 @@ export type LivePlayerProps = {
   channelLogoUrl?: string;
   currentProgramTitle?: string;
   currentProgramEnd?: Date;
+  /** `false` for recorded/catch-up playback — drops the LIVE badge, seekable bar. */
+  isLive?: boolean;
   onClose?: () => void;
   /** Controlled fullscreen state (orientation owned by the parent screen). */
   isFullscreen?: boolean;
@@ -45,6 +51,7 @@ const LivePlayer: React.FC<LivePlayerProps> = ({
   streamHeaders,
   channelName,
   currentProgramTitle,
+  isLive = true,
   onClose,
   isFullscreen = false,
   onToggleFullscreen,
@@ -100,7 +107,7 @@ const LivePlayer: React.FC<LivePlayerProps> = ({
             {!hasError ? (
               <PlayerControls
                 player={player}
-                isLive
+                isLive={isLive}
                 currentTime={currentTime}
                 duration={duration}
                 onToggleFullscreen={onToggleFullscreen}

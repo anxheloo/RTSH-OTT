@@ -13,8 +13,8 @@ export { useHomeFeedQuery } from './useHomeFeedQuery';
 // EPG
 export { useChannelEpgQuery, useEpgQuery } from './useEpgQuery';
 
-// Catch-up
-export { useCatchupItemQuery, useCatchupQuery } from './useCatchupQuery';
+// Guide ("now on TV" per-channel)
+export { useGuideQuery } from './useGuideQuery';
 
 // Ads
 export { useAdQuery } from './useAdQuery';

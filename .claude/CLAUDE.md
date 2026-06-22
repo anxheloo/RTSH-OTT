@@ -64,7 +64,7 @@ It also reads `APP_PLATFORM` (optional; `androidstb`) → `extra.devicePlatform`
 Expo Router file-based. Root `_layout.tsx` uses `Stack.Protected` guards:
 - No token → `(auth)/` (login → register → forgot)
 - Token → `(app)/(tabs)/` (live, epg, catchup, radio, profile)
-- Player routes (`player/[id]`, `channel/[id]`, `program/[id]`) are full-screen modals at root.
+- Player route (`channel/[id]`) is a full-screen modal at root. (The old `player/[id]` and `program/[id]` routes were removed — live + catch-up both play inline in the channel screen.)
 
 ### State (`src/store/`)
 
@@ -94,7 +94,7 @@ Persist via MMKV (`zustandStorage`). `partialize` controls what persists. `onReh
 
 - `client.ts` — single `apiClient` (axios) + `queryClient`. Request interceptor injects token + `Accept-Language` from store. Response interceptor refreshes on 401 (single-flight lives inside `refreshAccessToken`) — it never logs out itself; only a confirmed 401/403 inside `refreshAccessToken` wipes the session. On a cold boot the access token is null, so the first authed request 401s and is refreshed-and-retried here (no proactive boot refresh). 426 → blocking `forceUpdate` modal. Static `X-Device-Id` / `X-Device-Platform` / `X-App-Version` headers are stamped on app entry by `useDeviceIdentity` (mounted in `(app)/_layout.tsx`), which also fire-and-forgets the `PUT /users/me/device` registration upsert on every app open (see `rules/ARCHITECTURE.md` → Device identity; contract in `docs/API.md`).
 - `endpoints.ts` — string constants for routes (`AUTH_ROUTES`, `CHANNELS_ROUTES`, etc).
-- `services/*.ts` — domain-grouped axios calls (`auth.ts`, `channels.ts`, `epg.ts`, `catchup.ts`, `users.ts`, `config.ts`, `devices.ts`). `streams.ts` removed — stream URLs are now embedded in the `PlaybackDecisionDTO` returned by `GET /channels/{id}` (no separate streams service).
+- `services/*.ts` — domain-grouped axios calls (`auth.ts`, `channels.ts`, `epg.ts`, `guide.ts`, `users.ts`, `config.ts`, `devices.ts`). `streams.ts` removed — stream URLs are now embedded in the `PlaybackDecisionDTO` returned by `GET /channels/{id}` (no separate streams service). `guide.ts` → `GET /guide?type=TV|RADIO` ("now", one airing programme per channel/station). `catchup.ts` removed — there is no `/catchup` endpoint; catch-up is the per-channel EPG-by-date list + `GET /channels/{id}/epg/{programId}` for recorded playback.
 - `queries/*.ts` — TanStack Query hooks wrapping services.
 - `mutations/*.ts` — TanStack Mutation hooks.
 - `mocks/` — **custom axios-adapter mock** (not MSW) + fixtures, active when `EXPO_PUBLIC_API_MODE=mock`. `handlers.ts` is an array of `{ method, test(url), delay?, respond(config) }`; `server.ts` swaps it into the axios adapter.
@@ -102,8 +102,8 @@ Persist via MMKV (`zustandStorage`). `partialize` controls what persists. `onReh
 ### Player
 
 - `components/Media/VideoPlayer.tsx` — base `expo-video` wrapper, our controls.
-- `components/Media/LivePlayer.tsx` — HLS + AES-128 + DVR (extends VideoPlayer).
-- `components/Media/VodPlayer.tsx` — catch-up with custom seek bar, resume positions.
+- `components/Media/LivePlayer.tsx` — HLS player for **both** live and recorded (catch-up). The channel screen swaps `streamUrl` to the recorded URL and flips `isLive={false}`; that drops the LIVE badge and makes the seek bar draggable from 0 (the recorded VOD reports a finite duration, so `PlayerControls` flips `isSeekable` automatically — no separate player). Live stays `isLive` → bar pinned to the edge, non-seekable. AES-128 + DVR (extends VideoPlayer).
+- `components/Media/VodPlayer.tsx` — **orphaned / redundant.** Recorded playback now runs through `LivePlayer` (`isLive={false}`, above), so this component is unused. Candidate for deletion.
 - `components/Media/RadioAudioHost.tsx` — the single `expo-audio` engine, mounted above the router in `(app)/_layout`. Rationale + flow: `rules/ARCHITECTURE.md` → Radio audio.
 - `components/Media/RadioPlayer.tsx` — presentational now-playing core (art + `Equalizer` + transport); no playback logic. `RadioMiniPlayer` (Layout/) is the docked strip.
 - `components/Media/PlayerControls.tsx` — overlay (auto-hide, fullscreen, PIP, audio tracks).
@@ -183,7 +183,7 @@ All deliverable files go inside this repo (`RTSH-OTT/`). Source spec lives in `.
 Beyond the architecture scaffold, these features are spec-mandated for v1 — do not treat as optional:
 
 - **T&C acceptance** — enforced once at registration: the `acceptTerms` checkbox (zod-required) on the register form, with an inline link that opens the T&C URL in `expo-web-browser`. Acceptance is account-level (sent to backend as `termsAccepted`), not re-prompted on login — no client gate, no `tcAcceptedAt` flag (removed 2026-06-17).
-- **Geoblocking overlay** — streams endpoint returns geo-error → full-screen overlay (RTSH branded). Checked on every channel open.
+- **Geoblocking** — enforced by the CDN on channel open (no client overlay, no `geoBlocked` list flag — both removed 2026-06-22). A geo-blocked stream surfaces as a player error (logged in `VideoPlayer`'s status listener for diagnostics).
 - **Cellular-data gate** — confirmation modal before playback over cellular when `settings.cellularPlaybackAllowed === false`.
 - ~~**Mosaic view**~~ — **cut from v1 by user decision (2026-06-11, plan 22.14f)**; route + components removed.
 - **PIP + iOS background video** — `expo-video` config plugin toggled by `settings.backgroundVideoAllowed`. Auto-PIP on background per user setting.

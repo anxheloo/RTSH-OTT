@@ -30,7 +30,7 @@ import { router } from 'expo-router';
 import { SCREEN_PADDING, SPACING } from '@/theme/spacing';
 import { useAppStore } from '@/store/useAppStore';
 import { useChannelsQuery } from '@/api/queries';
-import { useTabBarHeight } from '@/hooks';
+import { useRefreshOnFocus, useTabBarHeight } from '@/hooks';
 import { BrandHeader } from '@/components/Brand';
 import ChannelCard from '@/components/channels/ChannelCard';
 import ChannelCardSkeleton from '@/components/channels/ChannelCardSkeleton';
@@ -88,6 +88,11 @@ const HomeScreen: React.FC = () => {
 
   const { channels: data, isLoading, error, refetch } = useChannelsQuery(mode);
   const [refreshing, setRefreshing] = useState(false);
+
+  // Refetch on tab re-focus (same pattern as Guide) — Expo Router keeps tabs
+  // mounted, so window-focus alone misses tab switches. Foreground / reconnect /
+  // mount are covered by the query defaults + the finite `staleTime` override.
+  useRefreshOnFocus(refetch);
 
   const isTv = mode === 'tv';
   // TV grid columns come from device class + orientation; radio is always 1 col.
