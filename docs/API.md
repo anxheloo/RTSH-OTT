@@ -40,15 +40,14 @@ Request `ChangePasswordRequestDTO`: `{ oldPassword, newPassword, logoutOtherDevi
 
 ## Request headers (every API call)
 
-Set by the client on the shared axios instance (`src/api/client.ts` + `useDeviceIdentity`):
+Set by the client on the shared axios instance (`src/api/client.ts`):
 
 | Header | Value | Purpose | Notes |
 |---|---|---|---|
-| `X-Device-Id` | UUIDv4 | Concurrency limits, session tracking, analytics correlation | App-generated, keychain-persisted. Stable per install; on iOS survives reinstall. Treat as **optional metadata, not auth** — a request fired in the first ~ms of boot may omit it |
-| `X-Device-Platform` | `ios \| android \| androidtv \| androidstb \| tizen \| webos` | Manifest / ABR-ladder selection | This app sends `ios`, `android`, `androidtv` (runtime-detected) and `androidstb` (build-time flag). `tizen`/`webos` come from the separate web apps |
-| `X-App-Version` | semver string | Force-update (426) comparison | **Native binary version** (`CFBundleShortVersionString` / `versionName`), not the OTA bundle version |
-| `Authorization` | `Bearer <accessToken>` | Auth on protected calls | Omitted briefly on cold boot until the background refresh lands (client retries via 401-refresh) |
+| `Authorization` | `Bearer <accessToken>` | Auth on protected calls | Omitted briefly on cold boot until the first 401-refresh lands (client retries) |
 | `Accept-Language` | `sq` (default) \| `en` | Localized payloads | The **app** locale (user-switchable in settings), not the OS locale |
+
+> **2026-06-23 — device headers removed (temporary, user decision).** `X-Device-Id` / `X-Device-Platform` / `X-App-Version` are **no longer sent**. Device info reaches the backend two ways only: the `PUT /users/me/device` registration body (once per session, on Home entry) and a **`deviceClass` query param** on the playback requests (see Channels). **Implication:** the **426 force-update gate can't compare version per-request** (no `X-App-Version`); `appVersion` still arrives in the registration body if a version check is wanted there. Reinstate the headers if per-request version/device correlation becomes a hard requirement.
 
 ## `426 Upgrade Required`
 
@@ -78,18 +77,18 @@ Unauthenticated version gate (STBs check it on boot, possibly without a session)
 
 ## `PUT /users/me/device` — device registration (upsert)
 
-Authenticated. The client sends it **fire-and-forget whenever auth becomes ready**: on login success, on register completion, and on every cold boot with an existing session (covers app/OS updates refreshing `appVersion` / `operatingSystem`). PUT is an **idempotent upsert keyed on `(userId, deviceKey)`** — re-sends with identical data are expected and harmless.
+Authenticated. The client sends it **fire-and-forget once on Home-screen entry** (`useDeviceIdentity` → `useRegisterDeviceMutation`, 2026-06-23) — by then the user is authenticated and in the app. PUT is an **idempotent upsert keyed on `(userId, deviceKey)`** — re-sends with identical data are expected and harmless (app/OS updates refresh `appVersion` / `operatingSystem` on the next entry). The mutation carries `meta: SILENT_ERROR`, so a failure never surfaces a modal — registration is metadata, not auth; don't gate any flow on it.
 
 The swagger also accepts an optional `device: DeviceInfoDTO` inside the login / register-verify bodies; **backend confirmed (2026-06-12) this PUT alone is enough** — the client never sends device info at session creation.
 
 ```jsonc
 // Request body — bare DeviceInfoDTO, NO envelope
 {
-  "deviceKey": "3f1c…-uuid",       // SAME value as the X-Device-Id header
+  "deviceKey": "3f1c…-uuid",       // app-generated UUID, keychain-persisted (rtsh.device_id)
   "type": "PHONE_ANDROID",          // see enum below
   "model": "Pixel 8",               // expo-device modelName
   "operatingSystem": "Android 15",  // osName + osVersion
-  "appVersion": "1.0.0"             // native binary version (= X-App-Version)
+  "appVersion": "1.0.0"             // native binary version
 }
 // 200 — empty body; ignored by the client
 ```
@@ -120,9 +119,11 @@ Returns a plain array of `EndUserChannelDTO` — channel metadata only (name, lo
 ]
 ```
 
-### `GET /channels/{id}` — PlaybackDecisionDTO
+### `GET /channels/{id}?deviceClass=MOBILE|TV|STB` — PlaybackDecisionDTO
 
 Returns the playback decision for a single channel. No channel metadata — name/logo come from the list cache.
+
+**`deviceClass` query param** (required, 2026-06-23) — `MOBILE | TV | STB`, from `getDeviceClass()` (derived from the device form factor). The backend uses it to return a **platform-specific player URL** in `streams`. Sent per playback request (stateless) rather than read from the device registry — so a multi-device account and the fire-and-forget registration race are both non-issues. *(Param name unconfirmed with backend — see ARCHITECTURE → Device identity known gaps.)*
 
 ```jsonc
 // 200
@@ -137,11 +138,13 @@ Returns the playback decision for a single channel. No channel metadata — name
     "576":    "https://…",
     "360":    "https://…"
     // numeric keys map to QualityId by stripping the trailing 'p'
-  }
+  },
+  "sessionId": "string",                  // playback session identifier (2026-06-23)
+  "expiresAt": "2026-06-23T08:03:14.952Z" // ISO-8601 — signed stream URLs expire at this instant
 }
 ```
 
-The client maps `streams` keys to `QualityId` via `resolveStreamSource` / `availableQualityIds` (`utils/resolveStreamSource.ts`): `master` → `auto`, `720` → `720p`, etc.
+The client maps `streams` keys to `QualityId` via `resolveStreamSource` / `availableQualityIds` (`utils/resolveStreamSource.ts`): `master` → `auto`, `720` → `720p`, etc. `sessionId` + `expiresAt` are captured on the domain `PlaybackDecision` but not yet consumed (no heartbeat / pre-expiry refetch wired — see ARCHITECTURE → known gaps).
 
 ### `GET /channels/{id}/epg?date=YYYY-MM-DD`
 
@@ -171,6 +174,10 @@ Returns EPG items for the channel on the given date. Each item embeds the same `
   ]
 }
 ```
+
+### `GET /channels/{channelId}/epg/{programId}?deviceClass=MOBILE|TV|STB` — recorded playback
+
+Catch-up playback decision for a single recorded programme (`getCatchupPlayback`). Same `PlaybackDecisionDTO` shape as `GET /channels/{id}`, and the same **`deviceClass` query param** (2026-06-23) so the backend serves a platform-specific recorded-stream URL. Tapping a recorded EPG row that already embeds playback fields avoids this call; it's used when the row's playback data isn't present.
 
 ## Guide
 

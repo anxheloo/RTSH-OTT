@@ -26,8 +26,12 @@ const KEY_TO_QUALITY: Record<string, Exclude<QualityId, 'auto'>> = {
   '360': '360p',
 };
 
-/** The URL to feed the player for the given quality. Returns '' only when streams is empty. */
-export function resolveStreamSource(streams: Record<string, string>, quality: QualityId): string {
+/** The URL to feed the player for the given quality. Returns '' when streams is missing/empty. */
+export function resolveStreamSource(
+  streams: Record<string, string> | null | undefined,
+  quality: QualityId,
+): string {
+  if (!streams) return '';
   if (quality !== 'auto') {
     const key = QUALITY_TO_KEY[quality];
     return streams[key] ?? streams.master ?? Object.values(streams)[0] ?? '';

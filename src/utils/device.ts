@@ -1,13 +1,14 @@
 /**
  * Device identity — the single source for "what device is this" facts the
- * backend consumes: the `X-Device-Id` / `X-Device-Platform` / `X-App-Version`
- * request headers and the store-listing URL for the 426 force-update flow.
+ * backend consumes: the `deviceKey` UUID for the device registry
+ * (`PUT /users/me/device`) and the store-listing URL for the 426 force-update
+ * flow.
  *
- * Pure module (no React) so axios interceptors and services can reach it
- * outside the component tree. `useDeviceIdentity` is the one-shot boot wiring
- * point that resolves the async parts and stamps the headers onto `apiClient`.
+ * Pure module (no React) so services and modals can reach it outside the
+ * component tree. `useDeviceIdentity` is the one-shot wiring point that
+ * resolves the async parts and fires the registration upsert.
  *
- * `X-Device-Id` lives in the keychain (not MMKV): on iOS it survives
+ * The `deviceKey` lives in the keychain (not MMKV): on iOS it survives
  * reinstall, so a reinstalled device keeps its identity instead of leaving a
  * ghost entry in the backend's device registry.
  */
@@ -18,16 +19,15 @@ import Constants from 'expo-constants';
 import * as Crypto from 'expo-crypto';
 import * as Device from 'expo-device';
 
-import type { DevicePlatform, DeviceRegistration, DeviceType } from '@/types/domain';
+import type {
+  DeviceClass,
+  DevicePlatform,
+  DeviceRegistration,
+  DeviceType,
+} from '@/types/domain';
 import { getFromKeychain, storeOnKeychain } from '@/services/keychain';
 
 const DEVICE_ID_KEY = 'rtsh.device_id';
-
-export const DEVICE_HEADERS = {
-  DEVICE_ID: 'X-Device-Id',
-  DEVICE_PLATFORM: 'X-Device-Platform',
-  APP_VERSION: 'X-App-Version',
-} as const;
 
 /**
  * An operator STB and a retail Android TV box are indistinguishable at
@@ -37,12 +37,6 @@ export const DEVICE_HEADERS = {
 const buildTimePlatform = Constants.expoConfig?.extra?.devicePlatform as
   | DevicePlatform
   | undefined;
-
-export function getDevicePlatform(): DevicePlatform {
-  if (buildTimePlatform) return buildTimePlatform;
-  if (Platform.OS === 'android') return Platform.isTV ? 'androidtv' : 'android';
-  return 'ios';
-}
 
 let cachedDeviceId: string | null = null;
 
@@ -60,15 +54,6 @@ export async function getOrCreateDeviceId(): Promise<string> {
   await storeOnKeychain(DEVICE_ID_KEY, id);
   cachedDeviceId = id;
   return id;
-}
-
-/** Static identity headers sent on every API request. Resolved once at boot. */
-export async function buildDeviceHeaders(): Promise<Record<string, string>> {
-  return {
-    [DEVICE_HEADERS.DEVICE_ID]: await getOrCreateDeviceId(),
-    [DEVICE_HEADERS.DEVICE_PLATFORM]: getDevicePlatform(),
-    [DEVICE_HEADERS.APP_VERSION]: Application.nativeApplicationVersion ?? '0.0.0',
-  };
 }
 
 // TODO(anx 2026-06-12): replace with the real App Store ID once the listing
@@ -90,8 +75,8 @@ export async function openStoreListing(): Promise<void> {
 
 /**
  * Backend `DeviceType` enum (form factor + OS, per `DeviceInfoDTO`). The STB
- * build-time override wins first for the same reason as `getDevicePlatform`:
- * an operator STB is runtime-identical to retail Android TV. The enum has no
+ * build-time override (`buildTimePlatform`) wins first because an operator STB
+ * is runtime-identical to retail Android TV. The enum has no
  * UNKNOWN, so an unrecognized form factor falls back to the platform's phone
  * type — the registry cares about OS family more than exact form factor.
  */
@@ -106,9 +91,29 @@ export function getDeviceType(): DeviceType {
 }
 
 /**
- * `PUT /users/me/device` body. `deviceKey` is the same keychain UUID sent as
- * `X-Device-Id` — one identity everywhere, or the backend's device registry
- * and request-header identity drift apart.
+ * Coarse platform class the backend uses to choose the player URL, sent as a
+ * query param on the playback requests. Derived from `getDeviceType()` so the
+ * two never diverge (the `Record` is exhaustive over `DeviceType`). Distinct
+ * from `@/responsive`'s window-size class.
+ */
+const DEVICE_CLASS_BY_TYPE: Record<DeviceType, DeviceClass> = {
+  PHONE_IOS: 'MOBILE',
+  PHONE_ANDROID: 'MOBILE',
+  TABLET_IPADOS: 'MOBILE',
+  TABLET_ANDROID: 'MOBILE',
+  ANDROID_TV: 'TV',
+  TIZEN_TV: 'TV',
+  WEBOS_TV: 'TV',
+  STB_ANDROID: 'STB',
+};
+
+export function getDeviceClass(): DeviceClass {
+  return DEVICE_CLASS_BY_TYPE[getDeviceType()];
+}
+
+/**
+ * `PUT /users/me/device` body. `deviceKey` is the stable keychain UUID — one
+ * identity everywhere, or the backend's device registry drifts from the device.
  */
 export async function buildDeviceRegistration(): Promise<DeviceRegistration> {
   return {

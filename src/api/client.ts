@@ -15,11 +15,18 @@ import i18n from '@/i18n';
  */
 export const INLINE_CLIENT_ERROR = { inlineClientError: true } as const;
 
-// Type `meta.inlineClientError` for both queries and mutations.
+/**
+ * Fully suppresses the global error modal for a query/mutation, at *any* status
+ * — for fire-and-forget metadata calls (e.g. device registration) where a
+ * failure is non-actionable and must never surface to the user.
+ */
+export const SILENT_ERROR = { silentError: true } as const;
+
+// Type the meta flags for both queries and mutations.
 declare module '@tanstack/react-query' {
   interface Register {
-    queryMeta: { inlineClientError?: boolean };
-    mutationMeta: { inlineClientError?: boolean };
+    queryMeta: { inlineClientError?: boolean; silentError?: boolean };
+    mutationMeta: { inlineClientError?: boolean; silentError?: boolean };
   }
 }
 
@@ -143,6 +150,7 @@ export const queryClient = new QueryClient({
   queryCache: new QueryCache({
     onError: (error, query) => {
       const status = error instanceof AxiosError ? error.response?.status : undefined;
+      if (query.meta?.silentError) return;
       if (query.meta?.inlineClientError && isClientError(status)) return;
       if (isHandledByInterceptor(status)) return;
       useAppStore.getState().updateModalSlice({
@@ -158,6 +166,7 @@ export const queryClient = new QueryClient({
   mutationCache: new MutationCache({
     onError: (error, _variables, _onMutateResult, mutation) => {
       const status = error instanceof AxiosError ? error.response?.status : undefined;
+      if (mutation.meta?.silentError) return;
       if (mutation.meta?.inlineClientError && isClientError(status)) return;
       if (isHandledByInterceptor(status)) return;
       useAppStore.getState().updateModalSlice({

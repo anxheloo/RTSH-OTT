@@ -143,7 +143,6 @@ const SearchScreen: React.FC = () => {
       searchPlaceholder={t('home.search_placeholder')}
       searchValue={search}
       onSearchChange={updateSearch}
-      autoFocus
       toggleOptions={toggleOptions}
       toggleValue={mode}
       onToggleChange={handleModeChange}

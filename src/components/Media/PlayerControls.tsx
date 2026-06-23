@@ -3,7 +3,7 @@
  * design's player (design `sPlayer`):
  *  - top bar: glass back (left) + glass options (right) buttons
  *  - centered title (channel/programme name) at the top
- *  - persistent LIVE tag (top-left, stays visible when chrome auto-hides)
+ *  - LIVE tag (bottom-left, YouTube-style — part of the chrome, hides with it)
  *  - bottom control row: play/pause + seek track (fill + knob) + fullscreen
  *
  * Quality / audio / cast / PIP live in the options sheet (opened via the top
@@ -123,31 +123,37 @@ const PlayerControls: React.FC<PlayerControlsProps> = ({
       onPress={handleTapOverlay}
       testID="controls-tap-overlay"
     >
-      {/* Persistent LIVE tag — stays put when the chrome auto-hides. */}
-      {isLive ? (
-        <View style={styles.liveTag} testID="controls-live-badge">
-          <View style={styles.liveDot} />
-          <ReusableText fontSize={FONTSIZE.xxs} fontWeight="extraBold" style={styles.liveText}>
-            {t('player.live')}
-          </ReusableText>
-        </View>
-      ) : null}
-
       <Animated.View
         style={[StyleSheet.absoluteFill, overlayStyle]}
         pointerEvents={visible ? 'box-none' : 'none'}
       >
-        {/* Top bar: glass back + glass options */}
+        {/* LIVE tag — bottom-left, YouTube-style; part of the chrome. */}
+        {isLive ? (
+          <View style={styles.liveTag} testID="controls-live-badge">
+            <View style={styles.liveDot} />
+            <ReusableText fontSize={FONTSIZE.xxs} fontWeight="extraBold" style={styles.liveText}>
+              {t('player.live')}
+            </ReusableText>
+          </View>
+        ) : null}
+
+        {/* Top bar: glass back + glass options. Back renders only when the host
+            wires onClose — the channel screen owns a single screen-level back
+            (consistent across portrait/fullscreen), so it passes none. */}
         <View style={styles.topBar}>
-          <TouchableOpacity
-            style={styles.glassBtn}
-            onPress={onClose}
-            activeOpacity={0.8}
-            accessibilityLabel="Back"
-            testID="controls-close-btn"
-          >
-            <Icon as={ChevronLeftIcon} size={22} color={PLAYER_COLORS.onSurface} />
-          </TouchableOpacity>
+          {onClose ? (
+            <TouchableOpacity
+              style={styles.glassBtn}
+              onPress={onClose}
+              activeOpacity={0.8}
+              accessibilityLabel="Back"
+              testID="controls-close-btn"
+            >
+              <Icon as={ChevronLeftIcon} size={22} color={PLAYER_COLORS.onSurface} />
+            </TouchableOpacity>
+          ) : (
+            <View style={styles.spacer} />
+          )}
 
           {onOpenOptions ? (
             <TouchableOpacity
@@ -254,7 +260,7 @@ const styles = StyleSheet.create({
   },
   liveTag: {
     position: 'absolute',
-    top: SPACING.space_16 + GLASS_BTN + SPACING.space_8,
+    bottom: SPACING.space_12 + GLASS_BTN,
     left: SPACING.space_15,
     flexDirection: 'row',
     alignItems: 'center',

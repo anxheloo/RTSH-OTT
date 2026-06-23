@@ -9,6 +9,7 @@ export * from './useHaptic';
 export * from './useKeyboard';
 export * from './useLiveParentalGuard';
 export * from './useNetworkMonitor';
+export * from './useNow';
 export * from './useNowProgram';
 export * from './useOrientation';
 export * from './useOTA';

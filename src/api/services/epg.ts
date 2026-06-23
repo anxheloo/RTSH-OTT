@@ -1,7 +1,9 @@
+import { getDeviceClass } from '@/utils/device';
 import type { EpgItem, GuideProgramDto, PlaybackDecision } from '@/types/domain';
 
 import { apiClient } from '../client';
 import { CHANNELS_ROUTES, EPG_ROUTES } from '../endpoints';
+import { type PlaybackDecisionDto, toPlaybackDecision } from './channels';
 
 /** Maps the wire `GuideProgramDto` (plain array from real API) to the domain `EpgItem`. */
 function mapGuideProgram(dto: GuideProgramDto, channelId: string): EpgItem {
@@ -47,13 +49,18 @@ export async function getProgramById(id: string): Promise<EpgItem> {
   return data.program;
 }
 
-/** Fetch catch-up playback decision for a recorded programme — `GET /channels/{channelId}/epg/{programId}`. */
+/**
+ * Fetch catch-up playback decision for a recorded programme —
+ * `GET /channels/{channelId}/epg/{programId}`. `deviceClass` lets the backend
+ * serve a platform-specific player URL.
+ */
 export async function getCatchupPlayback(
   channelId: string,
   programId: string,
 ): Promise<PlaybackDecision> {
-  const { data } = await apiClient.get<PlaybackDecision>(
+  const { data } = await apiClient.get<PlaybackDecisionDto>(
     CHANNELS_ROUTES.CATCHUP_PLAYBACK(channelId, programId),
+    { params: { deviceClass: getDeviceClass() } },
   );
-  return data;
+  return toPlaybackDecision(data);
 }

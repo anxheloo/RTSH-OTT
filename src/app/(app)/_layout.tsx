@@ -8,14 +8,12 @@ import { StyleSheet, View } from 'react-native';
 import { Stack } from 'expo-router';
 
 import { useAdQuery, useMeQuery } from '@/api/queries';
-import { useDeviceIdentity } from '@/hooks/useDeviceIdentity';
 import RadioMiniPlayer from '@/components/Layout/RadioMiniPlayer';
 import AdOverlay from '@/components/Media/AdOverlay';
 import RadioAudioHost from '@/components/Media/RadioAudioHost';
 import { getModalScreenOptions } from '@/utils/navigation';
 
 const AppLayout: React.FC = () => {
-  useDeviceIdentity();
   useMeQuery();
 
   const [launchAdDismissed, setLaunchAdDismissed] = useState(false);

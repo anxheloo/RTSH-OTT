@@ -168,10 +168,13 @@ export interface QualityOption {
 }
 
 /**
- * Playback decision returned by `GET /channels/{id}`.
- * `decision` is a loose string for now — exact union values TBD with the backend.
- * `streams` maps quality keys (`master`, `720`, `480`, …) to HLS URLs;
- * `master` is the ABR playlist, numeric keys are fixed-rendition child playlists.
+ * Playback decision returned by `GET /channels/{id}` and
+ * `GET /channels/{channelId}/epg/{programId}`.
+ * `decision` is a loose string for now — exact union values TBD with the backend
+ * (`ALLOWED` confirmed). `streams` maps quality keys (`master`, `720`, `480`, …)
+ * to HLS URLs; `master` is the ABR playlist, numeric keys are fixed-rendition
+ * child playlists. `sessionId` identifies this playback session; `expiresAt` is
+ * the ISO-8601 instant the signed stream URLs stop being valid.
  */
 export interface PlaybackDecision {
   decision: string;
@@ -179,6 +182,8 @@ export interface PlaybackDecision {
   programId: string;
   noticeMessage?: string;
   streams: Record<string, string>;
+  sessionId: string;
+  expiresAt: string;
 }
 
 /* ===========================================================================
@@ -353,8 +358,17 @@ export type DeviceType =
   | 'WEBOS_TV';
 
 /**
+ * Coarse platform class the backend uses to pick the right player URL — sent as
+ * a query param on the playback requests (`GET /channels/{id}` and the catch-up
+ * playback endpoint). Derived from `DeviceType` — see `getDeviceClass()`.
+ * Distinct from the responsive layout class (`@/responsive`, phone/tablet/tv):
+ * this is the *physical platform* the backend serves streams for.
+ */
+export type DeviceClass = 'MOBILE' | 'TV' | 'STB';
+
+/**
  * `PUT /users/me/device` body — registers/upserts this device for the logged-in
- * account. `deviceKey` is the same keychain UUID sent as `X-Device-Id`.
+ * account. `deviceKey` is the stable keychain UUID sent on app entry.
  */
 export interface DeviceRegistration {
   deviceKey: string;

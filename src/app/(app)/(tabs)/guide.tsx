@@ -9,13 +9,19 @@
  * elapsed-progress bar derived client-side from `now.start`/`now.end`; radio
  * rows are pending a dedicated live-programme endpoint (gap).
  *
- * Data: server-driven `GET /api/v1/guide` (`useGuideQuery`) — the backend
- * returns the airing programme per channel, so there's no client boundary timer.
- * Freshness is refetch-only (no poll): tab re-focus (`useRefreshOnFocus`), app
- * foreground / reconnect (query defaults), and pull-to-refresh. The endpoint
- * returns `now` only — there's no "next" line until the backend adds one.
+ * Data: server-driven `GET /api/v1/guide` (`useGuideQuery`). Freshness is
+ * refetch-only (no poll): tab re-focus (`useRefreshOnFocus`), app foreground /
+ * reconnect (query defaults), and pull-to-refresh. The endpoint returns `now`
+ * only — there's no "next" line until the backend adds one.
+ *
+ * Progress is driven by a ticking client clock (`useNow`), NOT the query's
+ * `dataUpdatedAt` — so the bar fills in real time between fetches instead of
+ * freezing until a refetch. The guide carries only `now` (not the full
+ * schedule), so when the earliest airing programme ends a single boundary timer
+ * triggers a `refetch` to learn the next one (chains to the following boundary;
+ * still no poll).
  */
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { RefreshControl, StyleSheet, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
@@ -26,6 +32,7 @@ import { SCREEN_PADDING, SPACING } from '@/theme/spacing';
 import { useAppStore } from '@/store/useAppStore';
 import { useGuideQuery } from '@/api/queries';
 import { useDateTime } from '@/hooks/useDateTime';
+import { useNow } from '@/hooks/useNow';
 import { useRefreshOnFocus } from '@/hooks/useRefreshOnFocus';
 import { useTabBarHeight } from '@/hooks/useTabBarHeight';
 import { BrandHeader } from '@/components/Brand';
@@ -71,17 +78,33 @@ const GuideScreen: React.FC = () => {
     isLoading: rowsLoading,
     error: rowsError,
     refetch: refetchGuide,
-    dataUpdatedAt,
   } = useGuideQuery(isTv ? 'TV' : 'RADIO');
 
   // Tab re-focus refetch — Expo Router keeps tabs mounted, so window-focus alone
   // misses tab switches (see useRefreshOnFocus).
   useRefreshOnFocus(refetchGuide);
 
+  // Ticking client clock drives the progress fill in real time (the server is
+  // refetch-only, so `dataUpdatedAt` would freeze the bar between fetches).
+  const nowMs = useNow();
+
+  // Boundary rollover: the guide carries only `now` (not the full schedule), so
+  // when the earliest airing programme ends we must refetch to learn the next
+  // one. Arm a single timer to that edge and refetch when it passes — chains to
+  // the following boundary as the fresh data re-runs this effect (no poll).
+  useEffect(() => {
+    const nextEnd = guide
+      .map((c) => (c.now ? Date.parse(c.now.end) : NaN))
+      .filter((t) => t > nowMs)
+      .sort((a, b) => a - b)[0];
+    if (nextEnd === undefined) return;
+    const id = setTimeout(() => void refetchGuide(), nextEnd - nowMs + 250);
+    return () => clearTimeout(id);
+  }, [guide, nowMs, refetchGuide]);
+
   const rows = useMemo<GuideRowVM[]>(() => {
-    // `dataUpdatedAt` (fetch time) is the progress clock — pure and advances on
-    // each refetch (focus/reconnect/pull). It's 0 before the first fetch, but
-    // `guide` is empty then so no row reads it.
+    // `nowMs` (ticking client clock) is the progress clock — advances every tick
+    // so the fill moves in real time without a refetch.
     return guide.map((channel) => ({
       id: channel.channelId,
       logoLabel: channel.channelName,
@@ -90,14 +113,14 @@ const GuideScreen: React.FC = () => {
       // No "next" line — `/guide` returns `now` only (backend gap).
       nextLabel: '',
       progress: channel.now
-        ? programProgress(channel.now.start, channel.now.end, dataUpdatedAt)
+        ? programProgress(channel.now.start, channel.now.end, nowMs)
         : undefined,
       badge: channel.now ? formatTime(channel.now.start) : t('guide.live'),
       isRadio: !isTv,
       onPress: () =>
         router.push(isTv ? `/(app)/channel/${channel.channelId}` : `/(app)/radio/${channel.channelId}`),
     }));
-  }, [guide, dataUpdatedAt, isTv, formatTime, t]);
+  }, [guide, nowMs, isTv, formatTime, t]);
 
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);

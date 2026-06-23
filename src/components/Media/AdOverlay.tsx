@@ -19,6 +19,7 @@ import { SPACING } from '@/theme/spacing';
 import { useCountdown } from '@/hooks';
 import { Icon } from '@/components/Icons';
 import ReusableText from '@/components/Inputs/ReusableText';
+import { AnimatedView } from '@/components/Layout';
 import ReusableImage from '@/components/Media/ReusableImage';
 import VideoPlayer from '@/components/Media/VideoPlayer';
 import type { AdCreative } from '@/types/domain';
@@ -61,7 +62,7 @@ const AdOverlay: React.FC<AdOverlayProps> = ({ creative, onComplete, testID }) =
       testID={testID}
     >
       <View style={styles.scrim}>
-        <View style={styles.card}>
+        <AnimatedView style={styles.card}>
           <View style={styles.creative}>
             {creative.type === 'VIDEO' ? (
               // expo-video's VideoView defaults to contentFit="contain", so the clip
@@ -127,7 +128,7 @@ const AdOverlay: React.FC<AdOverlayProps> = ({ creative, onComplete, testID }) =
               {canSkip ? <Icon as={ChevronRightIcon} size={14} color={AD.white} /> : null}
             </Pressable>
           </View>
-        </View>
+        </AnimatedView>
       </View>
     </Modal>
   );

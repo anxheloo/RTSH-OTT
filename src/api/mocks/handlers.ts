@@ -180,6 +180,8 @@ export const handlers: Handler[] = [
           channelId: channel.id,
           programId: channel.id,
           streams: MOCK_STREAMS,
+          sessionId: `mock-session-${channel.id}`,
+          expiresAt: new Date(Date.now() + 3600_000).toISOString(),
         },
       };
     },
@@ -207,6 +209,8 @@ export const handlers: Handler[] = [
             '576': `${BIPBOP}/gear3/prog_index.m3u8`,
             '360': `${BIPBOP}/gear2/prog_index.m3u8`,
           },
+          sessionId: `mock-session-${channelId}-${programId}`,
+          expiresAt: new Date(Date.now() + 3600_000).toISOString(),
         },
       };
     },

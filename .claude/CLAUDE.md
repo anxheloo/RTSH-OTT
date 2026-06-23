@@ -55,7 +55,7 @@ Private (EAS dashboard only): `SENTRY_DSN`, `MMKV_ENCRYPTION_KEY`.
 - preview: `al.rtsh.tani.preview`
 - dev: `al.rtsh.tani.dev`
 
-It also reads `APP_PLATFORM` (optional; `androidstb`) → `extra.devicePlatform`, the build-time platform override for operator STB builds (runtime can't distinguish an STB from retail Android TV). Consumed by `getDevicePlatform()` in `utils/device.ts`.
+It also reads `APP_PLATFORM` (optional; `androidstb`) → `extra.devicePlatform`, the build-time platform override for operator STB builds (runtime can't distinguish an STB from retail Android TV). Consumed by `getDeviceType()` / `getDeviceClass()` in `utils/device.ts` (the `buildTimePlatform` const — STB build-flag wins first).
 
 ## Architecture
 
@@ -92,7 +92,7 @@ Persist via MMKV (`zustandStorage`). `partialize` controls what persists. `onReh
 
 ### Networking (`src/api/`)
 
-- `client.ts` — single `apiClient` (axios) + `queryClient`. Request interceptor injects token + `Accept-Language` from store. Response interceptor refreshes on 401 (single-flight lives inside `refreshAccessToken`) — it never logs out itself; only a confirmed 401/403 inside `refreshAccessToken` wipes the session. On a cold boot the access token is null, so the first authed request 401s and is refreshed-and-retried here (no proactive boot refresh). 426 → blocking `forceUpdate` modal. Static `X-Device-Id` / `X-Device-Platform` / `X-App-Version` headers are stamped on app entry by `useDeviceIdentity` (mounted in `(app)/_layout.tsx`), which also fire-and-forgets the `PUT /users/me/device` registration upsert on every app open (see `rules/ARCHITECTURE.md` → Device identity; contract in `docs/API.md`).
+- `client.ts` — single `apiClient` (axios) + `queryClient`. Request interceptor injects token + `Accept-Language` from store (the **only** headers — device headers were removed 2026-06-23). Response interceptor refreshes on 401 (single-flight lives inside `refreshAccessToken`) — it never logs out itself; only a confirmed 401/403 inside `refreshAccessToken` wipes the session. On a cold boot the access token is null, so the first authed request 401s and is refreshed-and-retried here (no proactive boot refresh). 426 → blocking `forceUpdate` modal. Global `QueryCache`/`MutationCache` `onError` opens `apiError` for unexpected failures; `meta: INLINE_CLIENT_ERROR` mutes it for 4xx (forms render inline), `meta: SILENT_ERROR` mutes it at any status (fire-and-forget calls). **Device info is NOT in headers** — it's sent via `useDeviceIdentity` → `useRegisterDeviceMutation` (`PUT /users/me/device`, fire-and-forget once on Home-screen mount) plus a `deviceClass=MOBILE|TV|STB` **query param** on the playback requests (`GET /channels/{id}` + `/epg/{programId}`) so the backend serves a platform-specific player URL (see `rules/ARCHITECTURE.md` → Device identity; contract in `docs/API.md`).
 - `endpoints.ts` — string constants for routes (`AUTH_ROUTES`, `CHANNELS_ROUTES`, etc).
 - `services/*.ts` — domain-grouped axios calls (`auth.ts`, `channels.ts`, `epg.ts`, `guide.ts`, `users.ts`, `config.ts`, `devices.ts`). `streams.ts` removed — stream URLs are now embedded in the `PlaybackDecisionDTO` returned by `GET /channels/{id}` (no separate streams service). `guide.ts` → `GET /guide?type=TV|RADIO` ("now", one airing programme per channel/station). `catchup.ts` removed — there is no `/catchup` endpoint; catch-up is the per-channel EPG-by-date list + `GET /channels/{id}/epg/{programId}` for recorded playback.
 - `queries/*.ts` — TanStack Query hooks wrapping services.

@@ -16,22 +16,27 @@
  * so the player replays the recording without an extra network request.
  */
 import React, { useEffect, useMemo, useState } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
 import { useQueryClient } from '@tanstack/react-query';
 import { router, useLocalSearchParams } from 'expo-router';
-import * as ScreenOrientation from 'expo-screen-orientation';
 
 import { BORDERRADIUS } from '@/theme/borders';
 import { PLAYER_COLORS } from '@/theme/playerColors';
 import { SCREEN_PADDING, SPACING } from '@/theme/spacing';
 import { useAppStore } from '@/store/useAppStore';
-import { useAdQuery, useChannelEpgQuery, useChannelPlaybackQuery, useChannelsQuery } from '@/api/queries';
+import {
+  useAdQuery,
+  useChannelEpgQuery,
+  useChannelPlaybackQuery,
+  useChannelsQuery,
+} from '@/api/queries';
 import { useCellularGate } from '@/hooks/useCellularGate';
 import { useDateTime } from '@/hooks/useDateTime';
 import { useLiveParentalGuard } from '@/hooks/useLiveParentalGuard';
 import { useNowProgram } from '@/hooks/useNowProgram';
+import { useFullscreenOrientation } from '@/hooks/useOrientation';
 import { CatchupBanner, DayStrip } from '@/components/catchup';
 import { EmptyEpgState } from '@/components/empty';
 import { ProgramRow, ProgramRowSkeleton } from '@/components/epg';
@@ -44,11 +49,19 @@ import LivePlayer from '@/components/Media/LivePlayer';
 import { ParentalPinModal } from '@/components/ParentalPin';
 import { availableQualityIds, resolveStreamSource } from '@/utils';
 import type { CatchupDay, EpgItem } from '@/types/domain';
-import { LockIcon } from '@/assets/icons';
+import { ChevronLeftIcon, InfoIcon, LockIcon } from '@/assets/icons';
 import { DEFAULT_QUALITY } from '@/constants/player';
 
 const CATCHUP_DAYS_BACK = 7;
 const CATCHUP_DAYS_FORWARD = 7;
+
+/**
+ * Weekday i18n keys by JS `Date.getDay()` (0 = Sunday). The strip reads names
+ * from `datetime.day_names.*` rather than `Intl.DateTimeFormat`, because Hermes'
+ * bundled ICU lacks Albanian locale data and silently falls back to English —
+ * so the whole strip follows the app language, never a partial Intl fallback.
+ */
+const WEEKDAY_KEYS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'] as const;
 
 /** Local `YYYY-MM-DD` (matches the EPG mock's date keys). */
 function toDateKey(d: Date): string {
@@ -63,7 +76,7 @@ const ChannelScreen: React.FC = () => {
   const channelId = id ?? '';
   const { t } = useTranslation();
   const colors = useAppStore((s) => s.colors);
-  const { formatWeekday, formatDate, formatTime } = useDateTime();
+  const { formatDate, formatTime } = useDateTime();
 
   // Channel metadata from the cached TV list (name, geoBlocked).
   const { channels } = useChannelsQuery('TV');
@@ -106,7 +119,10 @@ const ChannelScreen: React.FC = () => {
     ? resolveStreamSource(currentPlayback.streams, videoQuality)
     : '';
 
-  const [isFullscreen, setIsFullscreen] = useState(false);
+  // Fullscreen tracks the device orientation: rotating to landscape enters it,
+  // rotating back to portrait exits. The fullscreen button forces the
+  // orientation for users who don't want to physically rotate.
+  const { isFullscreen, toggleFullscreen, exitFullscreen } = useFullscreenOrientation();
 
   // Channel-change ad — fetch once per channel entry; show before playback.
   const [adDone, setAdDone] = useState(false);
@@ -135,6 +151,18 @@ const ChannelScreen: React.FC = () => {
   const blockPlayer = needsPin || live.isBlocked;
   const liveBlockedDismissed = live.isBlocked && !live.showPrompt;
 
+  // Backend access decision — only ALLOWED plays. Anything else (GEO_BLOCKED,
+  // CATCHUP_UNAVAILABLE, NOT_ENTITLED, …) surfaces the server's noticeMessage
+  // in place of the player, for both live and recorded playback.
+  const decisionBlocked = !!currentPlayback && currentPlayback.decision !== 'ALLOWED';
+  const notice = currentPlayback?.noticeMessage?.trim();
+  // Fallback when the backend sends no noticeMessage: geo-specific copy for a
+  // geo-block, generic otherwise.
+  const decisionFallback =
+    currentPlayback?.decision === 'GEO_BLOCKED'
+      ? t('player.geo_blocked')
+      : t('player.unavailable_body');
+
   // Day strip — past (7) · today · future (7), oldest left.
   const days = useMemo<CatchupDay[]>(() => {
     const out: CatchupDay[] = [];
@@ -145,14 +173,16 @@ const ChannelScreen: React.FC = () => {
       const isFuture = offset > 0;
       out.push({
         key: toDateKey(d),
-        weekday: isToday ? t('datetime.today') : formatWeekday(d.toISOString(), 'short'),
+        weekday: isToday
+          ? t('datetime.today')
+          : t(`datetime.day_names.${WEEKDAY_KEYS[d.getDay()]}`),
         date: formatDate(d.toISOString(), { day: '2-digit', month: '2-digit' }),
         isToday,
         isFuture,
       });
     }
     return out;
-  }, [formatWeekday, formatDate, t]);
+  }, [formatDate, t]);
 
   const [selectedKey, setSelectedKey] = useState(() => days[CATCHUP_DAYS_BACK].key);
   const selectedDay = days.find((d) => d.key === selectedKey) ?? days[CATCHUP_DAYS_BACK];
@@ -168,18 +198,6 @@ const ChannelScreen: React.FC = () => {
   // timer, no network: the EPG is already in memory). Only TODAY's list has a
   // meaningful "now"; pass [] on other days so nothing is marked.
   const { playing } = useNowProgram(selectedDay.isToday ? programs : []);
-
-  // Lock landscape while fullscreen; release on exit/unmount.
-  useEffect(() => {
-    if (isFullscreen) {
-      ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.LANDSCAPE).catch(() => {});
-    } else {
-      ScreenOrientation.unlockAsync().catch(() => {});
-    }
-    return () => {
-      ScreenOrientation.unlockAsync().catch(() => {});
-    };
-  }, [isFullscreen]);
 
   const programState = (p: EpgItem): ProgramRowState => {
     if (selectedDay.isFuture) return 'scheduled';
@@ -198,47 +216,87 @@ const ChannelScreen: React.FC = () => {
     }
   };
 
-  const player = mediaPending || adPending ? (
-    <Skeleton borderRadius={BORDERRADIUS.none} style={styles.playerSkeleton} testID="player-skeleton" />
-  ) : blockPlayer ? (
-    liveBlockedDismissed ? (
-      <CenteredMessage
-        icon={<Icon as={LockIcon} size={34} color={colors.textMuted} />}
-        title={t('parental.title')}
-        body={t('parental.live_blocked')}
-        actionLabel={t('parental.unlock')}
-        onAction={live.requestUnlock}
-        testID="live-parental-blocked"
+  const player =
+    mediaPending || adPending ? (
+      <Skeleton
+        borderRadius={BORDERRADIUS.none}
+        style={styles.playerSkeleton}
+        testID="player-skeleton"
       />
+    ) : decisionBlocked ? (
+      <CenteredMessage
+        icon={<Icon as={InfoIcon} size={34} color={colors.textMuted} />}
+        title={notice || decisionFallback}
+        testID="playback-blocked"
+      />
+    ) : blockPlayer ? (
+      liveBlockedDismissed ? (
+        <CenteredMessage
+          icon={<Icon as={LockIcon} size={34} color={colors.textMuted} />}
+          title={t('parental.title')}
+          body={t('parental.live_blocked')}
+          actionLabel={t('parental.unlock')}
+          onAction={live.requestUnlock}
+          testID="live-parental-blocked"
+        />
+      ) : (
+        <View style={styles.blocked} />
+      )
     ) : (
-      <View style={styles.blocked} />
-    )
-  ) : (
-    <LivePlayer
-      channelId={channelId}
-      streamUrl={streamSource}
-      channelName={
-        isLive
-          ? channelMeta?.name ?? channelId
-          : programs.find((p) => p.id === selectedProgramId)?.title ?? channelMeta?.name ?? channelId
-      }
-      isLive={isLive}
-      isFullscreen={isFullscreen}
-      onToggleFullscreen={() => setIsFullscreen((f) => !f)}
-      onOpenOptions={() => router.push('/(app)/player-options')}
-      onClose={() => (isFullscreen ? setIsFullscreen(false) : router.back())}
-    />
+      <LivePlayer
+        channelId={channelId}
+        streamUrl={streamSource}
+        channelName={
+          isLive
+            ? (channelMeta?.name ?? channelId)
+            : (programs.find((p) => p.id === selectedProgramId)?.title ??
+              channelMeta?.name ??
+              channelId)
+        }
+        isLive={isLive}
+        isFullscreen={isFullscreen}
+        onToggleFullscreen={toggleFullscreen}
+        onOpenOptions={() => router.push('/(app)/player-options')}
+      />
+    );
+
+  // Single back button for every player state and orientation: absolutely
+  // positioned over the video surface, exits fullscreen in landscape and
+  // navigates back in portrait. The player draws no back of its own.
+  const handleBack = () => (isFullscreen ? exitFullscreen() : router.back());
+  const backButton = (
+    <TouchableOpacity
+      style={styles.backBtn}
+      onPress={handleBack}
+      activeOpacity={0.8}
+      accessibilityLabel={t('common.back')}
+      testID="channel-back-btn"
+    >
+      <Icon as={ChevronLeftIcon} size={22} color={PLAYER_COLORS.onSurface} />
+    </TouchableOpacity>
   );
 
   if (isFullscreen) {
-    return <View style={styles.fullscreen}>{player}</View>;
+    // Inset bottom + sides so native captions (drawn at the bottom of the
+    // VideoView bounds, no caption-padding API in expo-video) and the back
+    // button clear the home indicator / landscape notch. `contain` re-centers
+    // the video into the safe area; the inset bars use the black video token.
+    return (
+      <ScreenLayout edges={['bottom', 'left', 'right']} backgroundColor="videoPlaceholderBg">
+        {player}
+        {backButton}
+      </ScreenLayout>
+    );
   }
 
   const dayLabel = `${selectedDay.weekday} ${selectedDay.date}`;
 
   return (
     <ScreenLayout edges={['top']}>
-      <View style={styles.video}>{player}</View>
+      <View style={styles.video}>
+        {player}
+        {backButton}
+      </View>
 
       <DayStrip
         days={days}
@@ -286,25 +344,28 @@ const ChannelScreen: React.FC = () => {
       />
 
       {channelAd && !adDone ? (
-        <AdOverlay
-          creative={channelAd}
-          onComplete={() => setAdDone(true)}
-          testID="channel-ad"
-        />
+        <AdOverlay creative={channelAd} onComplete={() => setAdDone(true)} testID="channel-ad" />
       ) : null}
     </ScreenLayout>
   );
 };
 
 const styles = StyleSheet.create({
-  fullscreen: {
-    flex: 1,
-    backgroundColor: PLAYER_COLORS.surface,
-  },
   video: {
     width: '100%',
     aspectRatio: 16 / 9,
     backgroundColor: PLAYER_COLORS.surface,
+  },
+  backBtn: {
+    position: 'absolute',
+    top: SPACING.space_10,
+    left: SPACING.space_10,
+    width: 40,
+    height: 40,
+    borderRadius: BORDERRADIUS.full,
+    backgroundColor: PLAYER_COLORS.glass,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   blocked: {
     flex: 1,
