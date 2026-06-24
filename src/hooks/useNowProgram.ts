@@ -9,7 +9,7 @@
  * the day's EPG is already in memory, so the timer just re-runs the pure
  * `findPlayingProgram` and reschedules.
  *
- * Mechanism (mirrors `useLiveParentalGuard`):
+ * Mechanism (mirrors `useParentalGuard`'s live branch):
  *   - holds `nowMs` in state (seeded at mount so the first frame is correct);
  *   - derives `playing` purely from `nowMs` (render stays pure);
  *   - arms ONE `setTimeout` to the next programme edge, then advances `nowMs` →

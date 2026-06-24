@@ -27,6 +27,10 @@ export type Gender = (typeof GENDERS)[number];
 /** Gender options shown on the design's register form (omits `unspecified`). */
 export const REGISTER_GENDERS = ['male', 'female', 'other'] as const;
 
+/** Education levels (domain lowercase ⇄ wire HIGH/MEDIUM/LOW; see `toEducationDto`). */
+export const EDUCATION_LEVELS = ['high', 'medium', 'low'] as const;
+export type EducationLevel = (typeof EDUCATION_LEVELS)[number];
+
 /* -------------------- Register · single-page form (design) ----------------- *
  * The designer flow collapses credentials + profile details into ONE form
  * shown before OTP (decision 9). Field error messages are i18n keys, resolved
@@ -55,6 +59,7 @@ export const registerSchema = z
     city: z.string().trim().min(1, { error: 'auth.errors.city_required' }),
     country: z.string().trim().min(1, { error: 'auth.errors.country_required' }),
     gender: z.enum(REGISTER_GENDERS, { error: 'auth.errors.gender_required' }),
+    education: z.enum(EDUCATION_LEVELS, { error: 'auth.errors.education_required' }),
     acceptTerms: z.boolean().refine((v) => v === true, { error: 'auth.errors.terms_required' }),
   })
   .refine((d) => d.password === d.confirmPassword, {

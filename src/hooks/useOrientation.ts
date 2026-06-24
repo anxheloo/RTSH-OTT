@@ -60,24 +60,6 @@ export function useOrientation(): Orientation {
   return useSyncExternalStore(subscribe, getSnapshot);
 }
 
-/**
- * Locks orientation to the given mode on mount, restores default on unmount.
- * Use in fullscreen player / landscape-only screens.
- *
- * Errors are swallowed — orientation lock is unsupported on iPad split-view
- * and some Android OEMs, where failures are expected and harmless.
- */
-export function useLockOrientationOnMount(
-  lock: ScreenOrientation.OrientationLock = ScreenOrientation.OrientationLock.LANDSCAPE,
-): void {
-  useEffect(() => {
-    ScreenOrientation.lockAsync(lock).catch(() => {});
-    return () => {
-      ScreenOrientation.unlockAsync().catch(() => {});
-    };
-  }, [lock]);
-}
-
 /** After a manual exit, how long to hold forced-portrait before re-arming the
  * sensor — long enough for the user to lower the phone so auto-rotate doesn't
  * instantly re-enter fullscreen. */

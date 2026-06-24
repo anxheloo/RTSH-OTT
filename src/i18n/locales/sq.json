@@ -54,6 +54,13 @@
         "female": "Femër",
         "other": "Tjetër",
         "unspecified": "Preferoj të mos them"
+      },
+      "education_label": "Edukimi",
+      "education_placeholder": "Zgjidh edukimin",
+      "education": {
+        "high": "I lartë",
+        "medium": "I mesëm",
+        "low": "I ulët"
       }
     },
     "errors": {
@@ -62,6 +69,7 @@
       "password_min": "Fjalëkalimi duhet të ketë të paktën 8 shkronja",
       "password_match": "Fjalëkalimet nuk përputhen",
       "gender_required": "Zgjidhni gjininë",
+      "education_required": "Edukimi",
       "terms_required": "Duhet të pranoni kushtet e përdorimit",
       "password_max": "Fjalëkalimi duhet të ketë më së shumti 30 shkronja",
       "birthday_required": "Datëlindja kërkohet",
@@ -275,12 +283,7 @@
     "cast_toast": "Po transmetohet në TV",
     "quality_title": "Cilësia e videos",
     "quality_changed": "Cilësia: {{quality}}",
-    "quality_value_auto": "Auto (ABR)",
-    "quality_auto": "Përshtatet me lidhjen (ABR)",
-    "quality_1080p": "HD e plotë",
-    "quality_720p": "HD",
-    "quality_576p": "Standard",
-    "quality_360p": "Kursim të dhënash"
+    "quality_value_auto": "Auto (ABR)"
   },
   "tc": {
     "title": "Kushtet e Shërbimit",

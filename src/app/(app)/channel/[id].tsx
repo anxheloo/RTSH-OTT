@@ -15,8 +15,15 @@
  * Tapping a past EPG item swaps `activePlayback` to that item's embedded streams
  * so the player replays the recording without an extra network request.
  */
-import React, { useEffect, useMemo, useState } from 'react';
-import { ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  type LayoutChangeEvent,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import { useTranslation } from 'react-i18next';
 
 import { useQueryClient } from '@tanstack/react-query';
@@ -34,9 +41,9 @@ import {
 } from '@/api/queries';
 import { useCellularGate } from '@/hooks/useCellularGate';
 import { useDateTime } from '@/hooks/useDateTime';
-import { useLiveParentalGuard } from '@/hooks/useLiveParentalGuard';
 import { useNowProgram } from '@/hooks/useNowProgram';
 import { useFullscreenOrientation } from '@/hooks/useOrientation';
+import { useParentalGuard } from '@/hooks/useParentalGuard';
 import { CatchupBanner, DayStrip } from '@/components/catchup';
 import { EmptyEpgState } from '@/components/empty';
 import { ProgramRow, ProgramRowSkeleton } from '@/components/epg';
@@ -140,16 +147,13 @@ const ChannelScreen: React.FC = () => {
   // Geo-blocking is enforced by the CDN on channel open (no list flag); a blocked
   // request surfaces as a player error — logged in VideoPlayer's status listener.
 
-  // isAdult channel-level gate deferred — not present in the list or
-  // PlaybackDecision yet. Live programme-level re-check (22.14c) still works.
+  // Parental gate — keys off each EPG row's `isAdult` (the PlaybackDecision
+  // carries no adult flag). Live: time-matched now-airing re-check (22.14c).
+  // Recorded: gated at tap via `guard.guardPlay`. Channel-level gate stays off
+  // (no `isAdult` on the channel list / PlaybackDecision) — per-program covers it.
   const parentalEnabled = useAppStore((s) => s.parentalEnabled);
-  const needsPin = false; // TODO: wire when isAdult is available in the API response
-
-  const live = useLiveParentalGuard(channelId, {
-    enabled: parentalEnabled,
-  });
-  const blockPlayer = needsPin || live.isBlocked;
-  const liveBlockedDismissed = live.isBlocked && !live.showPrompt;
+  const guard = useParentalGuard(channelId, { isLive, enabled: parentalEnabled });
+  const blockPlayer = guard.isBlocked;
 
   // Backend access decision — only ALLOWED plays. Anything else (GEO_BLOCKED,
   // CATCHUP_UNAVAILABLE, NOT_ENTITLED, …) surfaces the server's noticeMessage
@@ -212,9 +216,65 @@ const ChannelScreen: React.FC = () => {
       return;
     }
     if (state === 'recorded') {
-      setSelectedProgramId(p.id);
+      // Gate adult recordings before the swap so the signed stream URL is never
+      // fetched pre-PIN; clean items play immediately.
+      guard.guardPlay(p, () => setSelectedProgramId(p.id));
     }
   };
+
+  // Auto-center the active programme — the list animates so whatever is on the
+  // player (the recorded selection, or live's now-airing programme) sits in the
+  // middle of the EPG. Offsets come from each row's onLayout; the row's own
+  // measure covers the first paint, the effect covers later changes (boundary
+  // roll-over, recorded selection).
+  const activeProgramId = selectedProgramId ?? playing?.id ?? null;
+  const scrollRef = useRef<ScrollView>(null);
+  const rowOffsetsRef = useRef<Record<string, { y: number; height: number }>>({});
+  const viewportHeightRef = useRef(0);
+
+  const centerOnProgram = useCallback((pid: string) => {
+    const row = rowOffsetsRef.current[pid];
+    const viewport = viewportHeightRef.current;
+    if (!row || !viewport) return;
+    const y = Math.max(0, row.y - viewport / 2 + row.height / 2);
+    scrollRef.current?.scrollTo({ y, animated: true });
+  }, []);
+
+  const handleRowLayout = (pid: string, e: LayoutChangeEvent) => {
+    const { y, height } = e.nativeEvent.layout;
+    rowOffsetsRef.current[pid] = { y, height };
+    if (pid === activeProgramId) centerOnProgram(pid);
+  };
+
+  const handleScrollLayout = (e: LayoutChangeEvent) => {
+    viewportHeightRef.current = e.nativeEvent.layout.height;
+  };
+
+  useEffect(() => {
+    if (activeProgramId) centerOnProgram(activeProgramId);
+  }, [activeProgramId, centerOnProgram]);
+
+  // Drop stale offsets when the day (hence the list) changes, so we never scroll
+  // to a previous day's measurement before the new rows lay out.
+  useEffect(() => {
+    rowOffsetsRef.current = {};
+  }, [selectedKey]);
+
+  // Pull-to-refresh — invalidate every query this screen reads (prefix-matched,
+  // so all cached days / both live + recorded playback entries refetch): the EPG
+  // schedule, the playback decision (re-signs the stream URL — a brief rebuffer
+  // is accepted), the cached TV list (channel name), and the channel-change ad.
+  const [refreshing, setRefreshing] = useState(false);
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ['channel-epg', channelId] }),
+      queryClient.invalidateQueries({ queryKey: ['channel-playback', channelId] }),
+      queryClient.invalidateQueries({ queryKey: ['channels', 'TV'] }),
+      queryClient.invalidateQueries({ queryKey: ['ad', 'CHANNEL_CHANGE', numericChannelId] }),
+    ]);
+    setRefreshing(false);
+  }, [queryClient, channelId, numericChannelId]);
 
   const player =
     mediaPending || adPending ? (
@@ -230,13 +290,13 @@ const ChannelScreen: React.FC = () => {
         testID="playback-blocked"
       />
     ) : blockPlayer ? (
-      liveBlockedDismissed ? (
+      guard.blockedDismissed ? (
         <CenteredMessage
           icon={<Icon as={LockIcon} size={34} color={colors.textMuted} />}
           title={t('parental.title')}
           body={t('parental.live_blocked')}
           actionLabel={t('parental.unlock')}
-          onAction={live.requestUnlock}
+          onAction={guard.requestUnlock}
           testID="live-parental-blocked"
         />
       ) : (
@@ -276,74 +336,96 @@ const ChannelScreen: React.FC = () => {
     </TouchableOpacity>
   );
 
-  if (isFullscreen) {
-    // Inset bottom + sides so native captions (drawn at the bottom of the
-    // VideoView bounds, no caption-padding API in expo-video) and the back
-    // button clear the home indicator / landscape notch. `contain` re-centers
-    // the video into the safe area; the inset bars use the black video token.
-    return (
-      <ScreenLayout edges={['bottom', 'left', 'right']} backgroundColor="videoPlaceholderBg">
-        {player}
-        {backButton}
-      </ScreenLayout>
-    );
-  }
-
   const dayLabel = `${selectedDay.weekday} ${selectedDay.date}`;
 
+  // Single render tree across orientations: the player wrapper stays at the same
+  // tree position whether fullscreen or inline, so rotation only restyles its
+  // container — the LivePlayer (native VideoView) never unmounts, so playback
+  // doesn't reload (the prior two-branch return remounted it on every rotate).
+  // Fullscreen insets bottom + sides so native captions (drawn at the bottom of
+  // the VideoView bounds, no caption-padding API in expo-video) and the back
+  // button clear the home indicator / landscape notch; `contain` re-centers the
+  // video into the safe area, the inset bars use the black video token.
   return (
-    <ScreenLayout edges={['top']}>
-      <View style={styles.video}>
+    <ScreenLayout
+      edges={isFullscreen ? ['bottom', 'left', 'right'] : ['top']}
+      backgroundColor={isFullscreen ? 'videoPlaceholderBg' : 'background'}
+    >
+      <View style={isFullscreen ? styles.videoFull : styles.video}>
         {player}
         {backButton}
       </View>
 
-      <DayStrip
-        days={days}
-        selectedKey={selectedKey}
-        onSelect={setSelectedKey}
-        testID="player-daystrip"
-      />
+      {!isFullscreen && (
+        <>
+          <DayStrip
+            days={days}
+            selectedKey={selectedKey}
+            onSelect={setSelectedKey}
+            testID="player-daystrip"
+          />
 
-      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-        {!selectedDay.isToday && !selectedDay.isFuture ? (
-          <CatchupBanner label={t('catchup.banner', { day: dayLabel })} testID="catchup-banner" />
-        ) : null}
-
-        <ReusableText variant="bodySmall" fontWeight="extraBold" style={styles.epgHeader}>
-          {selectedDay.isToday ? t('catchup.epg') : t('catchup.catchup_for', { day: dayLabel })}
-        </ReusableText>
-
-        {epgLoading ? (
-          Array.from({ length: 6 }, (_, i) => <ProgramRowSkeleton key={i} />)
-        ) : programs.length === 0 ? (
-          <EmptyEpgState testID="epg-empty" />
-        ) : (
-          programs.map((p) => {
-            const state = programState(p);
-            return (
-              <ProgramRow
-                key={p.id}
-                title={p.title}
-                meta={p.description}
-                time={formatTime(p.startTime)}
-                state={state}
-                onPress={() => handleSelectProgram(p, state)}
-                testID={`epg-row-${p.id}`}
+          <ScrollView
+            ref={scrollRef}
+            onLayout={handleScrollLayout}
+            contentContainerStyle={styles.scroll}
+            showsVerticalScrollIndicator={false}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={handleRefresh}
+                tintColor={colors.primary}
+                colors={[colors.primary]}
               />
-            );
-          })
-        )}
-      </ScrollView>
+            }
+          >
+            {!selectedDay.isToday && !selectedDay.isFuture ? (
+              <CatchupBanner
+                label={t('catchup.banner', { day: dayLabel })}
+                testID="catchup-banner"
+              />
+            ) : null}
+
+            <ReusableText variant="bodySmall" fontWeight="extraBold" style={styles.epgHeader}>
+              {selectedDay.isToday ? t('catchup.epg') : t('catchup.catchup_for', { day: dayLabel })}
+            </ReusableText>
+
+            {epgLoading ? (
+              Array.from({ length: 6 }, (_, i) => <ProgramRowSkeleton key={i} />)
+            ) : programs.length === 0 ? (
+              <EmptyEpgState testID="epg-empty" />
+            ) : (
+              programs.map((p) => {
+                const state = programState(p);
+                return (
+                  <View key={p.id} onLayout={(e) => handleRowLayout(p.id, e)}>
+                    <ProgramRow
+                      title={p.title}
+                      meta={p.description}
+                      time={formatTime(p.startTime)}
+                      state={state}
+                      onPress={() => handleSelectProgram(p, state)}
+                      testID={`epg-row-${p.id}`}
+                    />
+                  </View>
+                );
+              })
+            )}
+          </ScrollView>
+        </>
+      )}
 
       <ParentalPinModal
-        visible={needsPin || live.showPrompt}
+        visible={guard.promptVisible}
         mode="verify"
-        onSuccess={live.onVerified}
-        onDismiss={live.onDismiss}
+        onSuccess={guard.onVerified}
+        onDismiss={guard.onDismiss}
       />
 
-      {channelAd && !adDone ? (
+      {/* Hold the ad until today's EPG has settled so it never pops over a
+          loading list. The ad fetches up-front, so `adPending` keeps the player
+          unmounted the whole time (no autoplay leak behind the overlay). */}
+      {channelAd && !adDone && !epgLoading ? (
         <AdOverlay creative={channelAd} onComplete={() => setAdDone(true)} testID="channel-ad" />
       ) : null}
     </ScreenLayout>
@@ -354,6 +436,10 @@ const styles = StyleSheet.create({
   video: {
     width: '100%',
     aspectRatio: 16 / 9,
+    backgroundColor: PLAYER_COLORS.surface,
+  },
+  videoFull: {
+    flex: 1,
     backgroundColor: PLAYER_COLORS.surface,
   },
   backBtn: {

@@ -134,17 +134,17 @@ Returns the playback decision for a single channel. No channel metadata — name
   "noticeMessage": "string",    // optional human-readable notice
   "streams": {
     "master": "https://…",      // ABR multivariant playlist (use for `auto`)
-    "720":    "https://…",      // fixed-rendition child playlist
-    "576":    "https://…",
-    "360":    "https://…"
-    // numeric keys map to QualityId by stripping the trailing 'p'
+    "720p":   "https://…",      // fixed-rendition child playlist
+    "540p":   "https://…",
+    "360p":   "https://…"
+    // rendition keys are used verbatim as the QualityId — no fixed list
   },
   "sessionId": "string",                  // playback session identifier (2026-06-23)
   "expiresAt": "2026-06-23T08:03:14.952Z" // ISO-8601 — signed stream URLs expire at this instant
 }
 ```
 
-The client maps `streams` keys to `QualityId` via `resolveStreamSource` / `availableQualityIds` (`utils/resolveStreamSource.ts`): `master` → `auto`, `720` → `720p`, etc. `sessionId` + `expiresAt` are captured on the domain `PlaybackDecision` but not yet consumed (no heartbeat / pre-expiry refetch wired — see ARCHITECTURE → known gaps).
+The client maps `streams` keys to `QualityId` **dynamically** via `resolveStreamSource` / `availableQualityIds` (`utils/resolveStreamSource.ts`): `master` → `auto`, and **every other key is used verbatim as its own `QualityId`** (the quality sheet lists them in backend order, labelled by the key itself). There is no fixed rendition table — keys the backend renames or adds flow through unchanged, so `QualityId` is `'auto' | (string & {})`. `sessionId` + `expiresAt` are captured on the domain `PlaybackDecision` but not yet consumed (no heartbeat / pre-expiry refetch wired — see ARCHITECTURE → known gaps).
 
 ### `GET /channels/{id}/epg?date=YYYY-MM-DD`
 
@@ -169,7 +169,7 @@ Returns EPG items for the channel on the given date. Each item embeds the same `
       // Playback data (same shape as PlaybackDecisionDTO)
       "decision": "ALLOWED",
       "programId": "epg-1-2026-06-18-1",
-      "streams": { "master": "https://…", "720": "https://…" }
+      "streams": { "master": "https://…", "720p": "https://…" }
     }
   ]
 }

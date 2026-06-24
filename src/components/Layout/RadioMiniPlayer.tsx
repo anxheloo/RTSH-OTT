@@ -7,12 +7,14 @@
  */
 import React from 'react';
 import { StyleSheet, TouchableOpacity, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { router } from 'expo-router';
 
 import { BORDERRADIUS } from '@/theme/borders';
 import { FONTSIZE } from '@/theme/fonts';
 import { SPACING } from '@/theme/spacing';
+import { Z_INDEX } from '@/theme/zIndex';
 import { useAppStore } from '@/store/useAppStore';
 import { Icon } from '@/components/Icons';
 import ReusableText from '@/components/Inputs/ReusableText';
@@ -24,6 +26,7 @@ const STRIP_HEIGHT = 60;
 const TILE = 40;
 
 const RadioMiniPlayer: React.FC = () => {
+  const insets = useSafeAreaInsets();
   const colors = useAppStore((s) => s.colors);
   const radioChannelId = useAppStore((s) => s.radioChannelId);
   const radioIsPlaying = useAppStore((s) => s.radioIsPlaying);
@@ -36,7 +39,15 @@ const RadioMiniPlayer: React.FC = () => {
 
   return (
     <TouchableOpacity
-      style={[styles.strip, { backgroundColor: colors.surfaceElevated, borderTopColor: colors.border }]}
+      style={[
+        styles.strip,
+        {
+          height: STRIP_HEIGHT + insets.top,
+          paddingTop: insets.top,
+          backgroundColor: colors.surfaceElevated,
+          borderBottomColor: colors.border,
+        },
+      ]}
       onPress={() => router.push(`/(app)/radio/${radioChannelId}`)}
       activeOpacity={0.9}
       testID="radio-mini-player"
@@ -83,12 +94,16 @@ const RadioMiniPlayer: React.FC = () => {
 
 const styles = StyleSheet.create({
   strip: {
-    height: STRIP_HEIGHT,
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: Z_INDEX.miniPlayer,
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: SPACING.space_15,
     gap: SPACING.space_12,
-    borderTopWidth: StyleSheet.hairlineWidth,
+    borderBottomWidth: StyleSheet.hairlineWidth,
   },
   tile: {
     width: TILE,

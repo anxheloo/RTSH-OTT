@@ -8,15 +8,23 @@ export function useCheckToken() {
   const [checked, setChecked] = useState(false);
 
   const checkRefreshToken = useCallback(async () => {
-    const refreshToken = await getFromKeychain(REFRESH_TOKEN_KEY);
-    if (refreshToken) {
-      useAppStore.setState({ isAuthenticated: true });
+    try {
+      const refreshToken = await getFromKeychain(REFRESH_TOKEN_KEY);
+      if (refreshToken) {
+        useAppStore.setState({ isAuthenticated: true });
+      }
+    } catch {
+      // The first-ever expo-secure-store read on a fresh install can throw while
+      // Android Keystore initializes (races first-run dexopt on release builds).
+      // Swallow → treat as "no session"; the 401 interceptor recovers a real one.
+      // Without this, `checked` never flips and the splash hangs forever (it only
+      // hides on fontsLoaded && tokenChecked).
+    } finally {
+      setChecked(true);
     }
-    setChecked(true);
   }, []);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     checkRefreshToken();
   }, [checkRefreshToken]);
 

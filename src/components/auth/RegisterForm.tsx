@@ -22,8 +22,10 @@ import DatePickerInput from '@/components/Inputs/DatePickerInput';
 import ReusableInput from '@/components/Inputs/ReusableInput';
 import ReusableText from '@/components/Inputs/ReusableText';
 import SegmentedChoice from '@/components/Inputs/SegmentedChoice';
+import SelectInput from '@/components/Inputs/SelectInput';
 import { LINKS } from '@/config/links';
 import {
+  EDUCATION_LEVELS,
   REGISTER_GENDERS,
   type RegisterFormData,
   registerSchema,
@@ -48,6 +50,8 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onSubmit, isSubmitting = fa
       city: '',
       country: '',
       gender: 'male',
+      // Empty until the user selects — zod's enum rejects '' → required error.
+      education: '' as RegisterFormData['education'],
       acceptTerms: false,
     },
   });
@@ -55,6 +59,11 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onSubmit, isSubmitting = fa
   const genderOptions = REGISTER_GENDERS.map((g) => ({
     value: g,
     label: t(`auth.register.gender.${g}`),
+  }));
+
+  const educationOptions = EDUCATION_LEVELS.map((e) => ({
+    value: e,
+    label: t(`auth.register.education.${e}`),
   }));
 
   const tr = (key?: string) => (key ? t(key) : undefined);
@@ -198,6 +207,22 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onSubmit, isSubmitting = fa
               </ReusableText>
             ) : null}
           </View>
+        )}
+      />
+
+      <Controller
+        control={control}
+        name="education"
+        render={({ field: { value, onChange }, fieldState: { error } }) => (
+          <SelectInput
+            value={value}
+            onChange={onChange}
+            options={educationOptions}
+            label={t('auth.register.education_label')}
+            placeholder={t('auth.register.education_placeholder')}
+            errorText={tr(error?.message)}
+            testID="register-education"
+          />
         )}
       />
 

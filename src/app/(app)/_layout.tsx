@@ -7,7 +7,7 @@ import { StyleSheet, View } from 'react-native';
 
 import { Stack } from 'expo-router';
 
-import { useAdQuery, useMeQuery } from '@/api/queries';
+import { useAdQuery, useChannelsQuery, useMeQuery } from '@/api/queries';
 import RadioMiniPlayer from '@/components/Layout/RadioMiniPlayer';
 import AdOverlay from '@/components/Media/AdOverlay';
 import RadioAudioHost from '@/components/Media/RadioAudioHost';
@@ -17,7 +17,14 @@ const AppLayout: React.FC = () => {
   useMeQuery();
 
   const [launchAdDismissed, setLaunchAdDismissed] = useState(false);
-  const { creative: launchAd } = useAdQuery({ placement: 'APP_OPEN' });
+  // Defer the launch-ad fetch until Home's TV channels have settled, so the ad
+  // never pops over a skeleton/empty first screen. Shared query key — no extra
+  // fetch (TanStack dedupes with Home's `useChannelsQuery('tv')`).
+  const { isLoading: homeLoading } = useChannelsQuery('tv');
+  const { creative: launchAd } = useAdQuery(
+    { placement: 'APP_OPEN' },
+    { enabled: !homeLoading },
+  );
 
   return (
     <View style={styles.root}>

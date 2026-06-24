@@ -19,9 +19,10 @@ import {
   authResponseSchema,
   refreshResponseSchema,
   resetVerifyResponseSchema,
+  toEducationDto,
   toGenderDto,
 } from '@/types';
-import type { Gender } from '@/features/auth/schemas';
+import type { EducationLevel, Gender } from '@/features/auth/schemas';
 
 import { API_BASE_URL, apiClient } from '../client';
 import { AUTH_ROUTES } from '../endpoints';
@@ -81,6 +82,7 @@ export interface RegisterPayload {
   city: string;
   country: string;
   gender: Gender;
+  education: EducationLevel;
   acceptTerms: boolean;
 }
 
@@ -91,11 +93,13 @@ export interface OtpPayload {
 
 /** Single-shot register — saves a pending account and emails the OTP. */
 export async function register(payload: RegisterPayload): Promise<void> {
-  // Wire mapping (RegisterRequestDTO): gender → UPPERCASE enum, acceptTerms → termsAccepted.
+  // Wire mapping (RegisterRequestDTO): gender + education → UPPERCASE enums,
+  // acceptTerms → termsAccepted.
   const { acceptTerms, ...rest } = payload;
   await apiClient.post(AUTH_ROUTES.REGISTER, {
     ...rest,
     gender: toGenderDto(payload.gender),
+    education: toEducationDto(payload.education),
     termsAccepted: acceptTerms,
   });
 }

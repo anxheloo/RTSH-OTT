@@ -18,6 +18,7 @@ interface PendingRegistration {
   city?: string;
   country?: string;
   gender?: string;
+  education?: string;
 }
 
 const registerDb = new Map<string, PendingRegistration>();
@@ -40,6 +41,7 @@ const buildRegisteredUserDto = (email: string, record: PendingRegistration) => (
   city: record.city ?? mockUserDto.city,
   country: record.country ?? mockUserDto.country,
   gender: record.gender ?? mockUserDto.gender,
+  educationLevel: record.education ?? mockUserDto.educationLevel,
 });
 
 /* ----------------------------- Registration ------------------------------- */
@@ -51,6 +53,7 @@ export function mockRegister(body: {
   city?: string;
   country?: string;
   gender?: string;
+  education?: string;
 }): MockResponse {
   const email = normalize(body.email);
   if (!email) return { status: 400, data: { message: 'Email is required' } };
@@ -61,6 +64,7 @@ export function mockRegister(body: {
     city: body.city,
     country: body.country,
     gender: body.gender,
+    education: body.education,
   });
   return { data: { message: 'Verification code sent' } };
 }

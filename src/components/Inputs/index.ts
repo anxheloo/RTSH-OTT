@@ -11,4 +11,5 @@ export { default as ReusableText } from './ReusableText';
 export { default as SearchBar } from './SearchBar';
 export { default as SegmentedChoice } from './SegmentedChoice';
 export { default as SegmentedToggle } from './SegmentedToggle';
+export { default as SelectInput } from './SelectInput';
 export { default as Switch } from './Switch';

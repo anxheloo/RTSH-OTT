@@ -156,8 +156,14 @@ export interface CatchupDay {
   isFuture: boolean;
 }
 
-/** Player quality / ABR level (design `QUAL` picker). `auto` = adaptive ABR. */
-export type QualityId = 'auto' | '1080p' | '720p' | '576p' | '360p';
+/**
+ * Player quality / ABR level (design `QUAL` picker). `auto` = adaptive ABR
+ * (the `master` playlist). Every other value is a backend rendition key taken
+ * verbatim from `PlaybackDecision.streams` (e.g. `720p`, `540p`, `360p`) — the
+ * list is fully dynamic, so a key the backend renames or adds flows through
+ * unchanged. `(string & {})` keeps the `'auto'` literal hint while accepting any key.
+ */
+export type QualityId = 'auto' | (string & {});
 
 export interface QualityOption {
   id: QualityId;
@@ -171,9 +177,9 @@ export interface QualityOption {
  * Playback decision returned by `GET /channels/{id}` and
  * `GET /channels/{channelId}/epg/{programId}`.
  * `decision` is a loose string for now — exact union values TBD with the backend
- * (`ALLOWED` confirmed). `streams` maps quality keys (`master`, `720`, `480`, …)
- * to HLS URLs; `master` is the ABR playlist, numeric keys are fixed-rendition
- * child playlists. `sessionId` identifies this playback session; `expiresAt` is
+ * (`ALLOWED` confirmed). `streams` maps quality keys (`master`, `720p`, `540p`, …)
+ * to HLS URLs; `master` is the ABR playlist, rendition keys are `QualityId`-shaped
+ * fixed-rendition child playlists. `sessionId` identifies this playback session; `expiresAt` is
  * the ISO-8601 instant the signed stream URLs stop being valid.
  */
 export interface PlaybackDecision {
@@ -232,6 +238,11 @@ const EDUCATION_FROM_DTO = {
   MEDIUM: 'medium',
   LOW: 'low',
 } as const;
+
+export type EducationDto = keyof typeof EDUCATION_FROM_DTO;
+
+export const toEducationDto = (education: User['educationLevel'] & string): EducationDto =>
+  education.toUpperCase() as EducationDto;
 
 const ageFromBirthDate = (birthDate?: string | null): number | undefined => {
   if (!birthDate) return undefined;

@@ -47,9 +47,9 @@ const BIPBOP = 'https://devstreaming-cdn.apple.com/videos/streaming/examples/bip
 /** Playback streams returned by `GET /channels/{id}` and embedded in EPG items. */
 const MOCK_STREAMS: Record<string, string> = {
   master: `${BIPBOP}/bipbop_4x3_variant.m3u8`,
-  '720': `${BIPBOP}/gear4/prog_index.m3u8`,
-  '576': `${BIPBOP}/gear3/prog_index.m3u8`,
-  '360': `${BIPBOP}/gear2/prog_index.m3u8`,
+  '720p': `${BIPBOP}/gear4/prog_index.m3u8`,
+  '540p': `${BIPBOP}/gear3/prog_index.m3u8`,
+  '360p': `${BIPBOP}/gear2/prog_index.m3u8`,
 };
 
 export const handlers: Handler[] = [
@@ -205,9 +205,9 @@ export const handlers: Handler[] = [
           programId: Number(programId),
           streams: {
             master: `${BIPBOP}/bipbop_4x3_variant.m3u8`,
-            '720': `${BIPBOP}/gear4/prog_index.m3u8`,
-            '576': `${BIPBOP}/gear3/prog_index.m3u8`,
-            '360': `${BIPBOP}/gear2/prog_index.m3u8`,
+            '720p': `${BIPBOP}/gear4/prog_index.m3u8`,
+            '540p': `${BIPBOP}/gear3/prog_index.m3u8`,
+            '360p': `${BIPBOP}/gear2/prog_index.m3u8`,
           },
           sessionId: `mock-session-${channelId}-${programId}`,
           expiresAt: new Date(Date.now() + 3600_000).toISOString(),

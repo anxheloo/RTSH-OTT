@@ -16,7 +16,6 @@ import { SPACING } from '@/theme/spacing';
 import { useAppStore } from '@/store/useAppStore';
 import ReusableText from '@/components/Inputs/ReusableText';
 import { SheetOptionRow } from '@/components/Layout';
-import { QUALITY_OPTIONS } from '@/constants/player';
 
 const PlayerOptionsSheet: React.FC = () => {
   const { t } = useTranslation();
@@ -25,10 +24,8 @@ const PlayerOptionsSheet: React.FC = () => {
   const showToast = useAppStore((s) => s.showToast);
   const insets = useSafeAreaInsets();
 
-  const qualityLabel =
-    videoQuality === 'auto'
-      ? `${t('player.quality_value_auto')}`
-      : (QUALITY_OPTIONS.find((q) => q.id === videoQuality)?.label ?? videoQuality);
+  // Auto shows the localized ABR hint; a pinned rendition shows its backend key verbatim.
+  const qualityLabel = videoQuality === 'auto' ? t('player.quality_value_auto') : videoQuality;
 
   return (
     <View

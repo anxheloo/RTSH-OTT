@@ -19,8 +19,11 @@ export const useAdQuery = (params: AdQueryParams, opts?: { enabled?: boolean }):
         ? getAd('CHANNEL_CHANGE', channelId as number)
         : getAd('APP_OPEN'),
     enabled: opts?.enabled ?? true,
+    // No caching: each placement may serve a different creative, so the
+    // decision must be fetched fresh every time and dropped the moment the
+    // overlay unmounts (no observers) — never replayed from cache.
     staleTime: 0,
-    gcTime: 5 * 60 * 1000,
+    gcTime: 0,
     refetchOnMount: true,
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,

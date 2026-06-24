@@ -3,8 +3,8 @@
  * play glyph, a bold title, a muted meta line, and an optional right-aligned
  * time. Three states drive the look:
  *  - `now`       — airing/selectable: red play glyph, bright title (default).
- *  - `recorded`  — past/catch-up: muted play glyph, dimmed title.
- *  - `scheduled` — upcoming today: no play glyph, dimmed title (info only).
+ *  - `recorded`  — past/catch-up: neutral play glyph, bright title (playable).
+ *  - `scheduled` — upcoming/future: no play glyph, dimmed title (info only).
  *
  * Used by Search results (`now`) and the player's EPG/catch-up list.
  * Presentational — the parent composes `meta`/`time` and supplies `onPress`.
@@ -47,9 +47,10 @@ const ProgramRow: React.FC<ProgramRowProps> = ({
 }) => {
   const colors = useAppStore((s) => s.colors);
 
-  const isDim = state !== 'now';
-  const titleColor = isDim ? 'textMuted' : 'text';
-  const playColor = state === 'recorded' ? colors.mutedDim : colors.primary;
+  // Only future/scheduled rows read as pale + passive; past (recorded) is a
+  // playable catch-up item, so it gets a bright title + neutral play glyph.
+  const titleColor = state === 'scheduled' ? 'textMuted' : 'text';
+  const playColor = state === 'recorded' ? colors.text : colors.primary;
 
   return (
     <TouchableOpacity

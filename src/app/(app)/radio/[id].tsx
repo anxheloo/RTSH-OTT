@@ -5,13 +5,14 @@
  *
  * Playback is store-driven: mounting selects the station in `PlayerSlice`
  * (which `RadioAudioHost` turns into actual audio); the transport just flips
- * store flags. Prev / next replace the route with the adjacent station so the
- * mini-player and deep links stay in sync.
+ * store flags. Prev / next swap the station in place (local `activeId` state,
+ * no navigation) so there's no screen-slide. Closing from the mini-player
+ * (anywhere) clears the store, which this screen watches to `router.back()`.
  *
  * Radio EPG gap: there is no radio schedule source yet, so the programme
  * section shows only the live-now row. Wire when a radio-EPG endpoint lands.
  */
-import React, { useEffect, useMemo } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
@@ -47,33 +48,47 @@ const RadioPlayerScreen: React.FC = () => {
   const setRadioPlaying = useAppStore((s) => s.setRadioPlaying);
   const showToast = useAppStore((s) => s.showToast);
 
-  const { station, isLoading } = useRadioStationQuery(id);
-  const { playback } = useChannelPlaybackQuery(id);
+  // The URL param only seeds the screen; prev/next swap the station in place
+  // (no navigation), so the displayed station lives in local state.
+  const [activeId, setActiveId] = useState(id);
+
+  const { station, isLoading } = useRadioStationQuery(activeId);
+  const { playback } = useChannelPlaybackQuery(activeId);
   const { channels: stations } = useChannelsQuery('RADIO');
 
-  const isActive = radioChannelId === id;
+  const isActive = radioChannelId === activeId;
   const isPlaying = isActive && radioIsPlaying;
 
-  // Select this station in the store on entry (idempotent — skip if already live).
-  // Both station metadata and playback decision must be ready before wiring the audio host.
+  // Select the active station in the store once per `activeId` (entry + prev/next).
+  // A ref guard keeps a store clear (mini-player close) from re-selecting it.
+  const selectedRef = useRef<string | null>(null);
   useEffect(() => {
-    if (!station || !playback || radioChannelId === station.id) return;
+    if (!station || !playback || selectedRef.current === activeId) return;
+    selectedRef.current = activeId;
     setRadioChannel({
       channelId: station.id,
       streamUrl: resolveStreamSource(playback.streams, 'auto'),
       title: station.name,
       artworkUrl: station.imageUrl,
     });
-  }, [station, playback, radioChannelId, setRadioChannel]);
+  }, [station, playback, activeId, setRadioChannel]);
+
+  // Closing the player (X on the mini-player, on-screen or off) clears the store;
+  // when that happens while this screen is open, leave it too.
+  const wasActiveRef = useRef(false);
+  useEffect(() => {
+    if (radioChannelId) wasActiveRef.current = true;
+    else if (wasActiveRef.current) router.back();
+  }, [radioChannelId]);
 
   const { prevId, nextId } = useMemo(() => {
-    const i = stations.findIndex((s: { id: string }) => s.id === id);
+    const i = stations.findIndex((s: { id: string }) => s.id === activeId);
     if (i === -1) return { prevId: undefined, nextId: undefined };
     return {
       prevId: i > 0 ? stations[i - 1].id : undefined,
       nextId: i < stations.length - 1 ? stations[i + 1].id : undefined,
     };
-  }, [stations, id]);
+  }, [stations, activeId]);
 
   const togglePlay = () => {
     if (isActive) {
@@ -150,8 +165,8 @@ const RadioPlayerScreen: React.FC = () => {
           station={station}
           isPlaying={isPlaying}
           onTogglePlay={togglePlay}
-          onPrev={prevId ? () => router.replace(`/(app)/radio/${prevId}`) : undefined}
-          onNext={nextId ? () => router.replace(`/(app)/radio/${nextId}`) : undefined}
+          onPrev={prevId ? () => setActiveId(prevId) : undefined}
+          onNext={nextId ? () => setActiveId(nextId) : undefined}
           hasPrev={Boolean(prevId)}
           hasNext={Boolean(nextId)}
         />

@@ -18,7 +18,6 @@ import { useAppStore } from '@/store/useAppStore';
 import ReusableText from '@/components/Inputs/ReusableText';
 import { SheetOptionRow } from '@/components/Layout';
 import type { QualityId } from '@/types/domain';
-import { QUALITY_OPTIONS } from '@/constants/player';
 
 const QualitySheet: React.FC = () => {
   const { t } = useTranslation();
@@ -29,15 +28,14 @@ const QualitySheet: React.FC = () => {
   const showToast = useAppStore((s) => s.showToast);
   const insets = useSafeAreaInsets();
 
-  // Auto + only the qualities this stream can actually be pinned to.
-  const options = QUALITY_OPTIONS.filter(
-    (q) => q.id === 'auto' || availableQualities.includes(q.id),
-  );
+  // Auto + the rendition keys this stream actually offers (verbatim from backend).
+  const options: QualityId[] = ['auto', ...availableQualities];
+  const labelFor = (id: QualityId) => (id === 'auto' ? t('player.quality_value_auto') : id);
 
-  const select = (id: QualityId, label: string) => {
+  const select = (id: QualityId) => {
     setVideoQuality(id);
     router.back();
-    showToast(t('player.quality_changed', { quality: label }));
+    showToast(t('player.quality_changed', { quality: labelFor(id) }));
   };
 
   return (
@@ -51,15 +49,14 @@ const QualitySheet: React.FC = () => {
         {t('player.quality_title')}
       </ReusableText>
 
-      {options.map((q) => (
+      {options.map((id) => (
         <SheetOptionRow
-          key={q.id}
-          label={q.label}
-          description={t(q.descriptionKey)}
+          key={id}
+          label={labelFor(id)}
           trailing="radio"
-          selected={q.id === videoQuality}
-          onPress={() => select(q.id, q.label)}
-          testID={`quality-${q.id}`}
+          selected={id === videoQuality}
+          onPress={() => select(id)}
+          testID={`quality-${id}`}
         />
       ))}
     </View>
