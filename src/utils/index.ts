@@ -8,5 +8,6 @@
 export * from './device';
 export * from './epg';
 export * from './formatters';
+export * from './image';
 export * from './pin';
 export * from './resolveStreamSource';

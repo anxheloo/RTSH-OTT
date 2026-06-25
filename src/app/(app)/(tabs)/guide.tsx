@@ -53,6 +53,7 @@ type GuideRowVM = {
   id: string;
   logoLabel: string;
   thumbnailUrl?: string;
+  thumbnailRefreshKey?: number;
   nowTitle: string;
   nextLabel: string;
   progress?: number;
@@ -81,6 +82,7 @@ const GuideScreen: React.FC = () => {
     isLoading: rowsLoading,
     error: rowsError,
     refetch: refetchGuide,
+    dataUpdatedAt,
   } = useGuideQuery(isTv ? 'TV' : 'RADIO');
 
   // Tab re-focus refetch — Expo Router keeps tabs mounted, so window-focus alone
@@ -112,6 +114,7 @@ const GuideScreen: React.FC = () => {
       id: channel.channelId,
       logoLabel: channel.channelName,
       thumbnailUrl: channel.imageUrl,
+      thumbnailRefreshKey: dataUpdatedAt,
       nowTitle: channel.now?.title ?? channel.channelName,
       // No "next" line — `/guide` returns `now` only (backend gap).
       nextLabel: '',
@@ -123,7 +126,7 @@ const GuideScreen: React.FC = () => {
       onPress: () =>
         router.push(isTv ? `/(app)/channel/${channel.channelId}` : `/(app)/radio/${channel.channelId}`),
     }));
-  }, [guide, nowMs, isTv, formatTime, t]);
+  }, [guide, nowMs, isTv, formatTime, t, dataUpdatedAt]);
 
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -186,6 +189,7 @@ const GuideScreen: React.FC = () => {
             <GuideRow
               logoLabel={item.logoLabel}
               thumbnailUrl={item.thumbnailUrl}
+              thumbnailRefreshKey={item.thumbnailRefreshKey}
               nowTitle={item.nowTitle}
               nextLabel={item.nextLabel}
               progress={item.progress}

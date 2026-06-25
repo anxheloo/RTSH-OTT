@@ -194,6 +194,28 @@ export const handlers: Handler[] = [
     },
   },
 
+  // Playback session re-sign — `POST /channels/playback/refresh { sessionId }`.
+  // Returns a fresh signed URL + new `expiresAt` for the same session (no geo re-check).
+  {
+    method: 'post',
+    test: (u) => u === '/channels/playback/refresh',
+    delay: 200,
+    respond: (cfg) => {
+      const body = typeof cfg.data === 'string' ? JSON.parse(cfg.data) : cfg.data;
+      const sessionId = (body as { sessionId?: string } | undefined)?.sessionId ?? 'mock-session';
+      return {
+        data: {
+          decision: 'ALLOWED',
+          channelId: 0,
+          programId: 0,
+          streams: MOCK_STREAMS,
+          sessionId,
+          expiresAt: new Date(Date.now() + 3600_000).toISOString(),
+        },
+      };
+    },
+  },
+
   // Catch-up playback decision — `GET /channels/{channelId}/epg/{programId}`.
   // Must appear before the channel EPG list handler (more specific path).
   {

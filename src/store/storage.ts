@@ -2,7 +2,10 @@ import { createMMKV } from 'react-native-mmkv';
 
 import type { StateStorage } from 'zustand/middleware';
 
+// TODO(anx 2026-06-25): TEMP boot diagnostics — remove after first-launch splash hang is found.
+console.log('[BOOT] storage.ts: creating MMKV…');
 const mmkv = createMMKV();
+console.log('[BOOT] storage.ts: MMKV created OK');
 
 export const storage = {
   set: (key: string, value: string) => mmkv.set(key, value),

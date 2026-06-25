@@ -9,11 +9,12 @@
  * Two additive overlays sit on top of `state`, both driven by the channel
  * screen so the list reflects the player:
  *  - `isPlaying`  — this programme is the one loaded in the player right now.
- *    Its play glyph is replaced by the animated `Equalizer` (the same bars the
- *    radio now-playing uses) so the user sees *what* is playing.
+ *    Its play glyph turns red (`primary`); every other playable row (live or
+ *    past) keeps a neutral (mutedDim) play glyph, so the red glyph marks *what*
+ *    is playing.
  *  - `isLiveNow`  — this programme is airing live now. A red LIVE pill replaces
  *    the `time` so the user can spot it and tap to jump back to live.
- * When watching live the airing row is both (equalizer + LIVE pill).
+ * When watching live the airing row is both (red play glyph + LIVE pill).
  *
  * Used by Search results (`now`) and the player's EPG/catch-up list.
  * Presentational — the parent composes `meta`/`time` and supplies `onPress`.
@@ -29,7 +30,6 @@ import { SCREEN_PADDING, SPACING } from '@/theme/spacing';
 import { useAppStore } from '@/store/useAppStore';
 import { Icon } from '@/components/Icons';
 import ReusableText from '@/components/Inputs/ReusableText';
-import { Equalizer } from '@/components/radio';
 import { PlayIcon } from '@/assets/icons';
 
 export type ProgramRowState = 'now' | 'recorded' | 'scheduled';
@@ -67,7 +67,8 @@ const ProgramRow: React.FC<ProgramRowProps> = ({
   // Only future/scheduled rows read as pale + passive; past (recorded) is a
   // playable catch-up item, so it gets a bright title + neutral play glyph.
   const titleColor = state === 'scheduled' ? 'textMuted' : 'text';
-  const playColor = state === 'recorded' ? colors.mutedDim : colors.primary;
+  // Red marks only the row playing now; every other playable row gets a neutral glyph.
+  const playColor = isPlaying ? colors.primary : colors.mutedDim;
 
   return (
     <TouchableOpacity
@@ -78,10 +79,13 @@ const ProgramRow: React.FC<ProgramRowProps> = ({
       testID={testID}
     >
       <View style={styles.playSlot}>
-        {isPlaying ? (
-          <Equalizer barCount={4} height={20} barWidth={3} testID="prog-now-playing" />
-        ) : state === 'scheduled' ? null : (
-          <Icon as={PlayIcon} size={PLAY_SLOT} color={playColor} />
+        {state === 'scheduled' ? null : (
+          <Icon
+            as={PlayIcon}
+            size={PLAY_SLOT}
+            color={playColor}
+            testID={isPlaying ? 'prog-now-playing' : undefined}
+          />
         )}
       </View>
 

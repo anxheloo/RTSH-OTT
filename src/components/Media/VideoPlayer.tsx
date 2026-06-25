@@ -9,13 +9,15 @@
  * key requests on iOS/Android. Validate on a real RTSH stream before
  * shipping. Fallback: react-native-video if headers don't propagate.
  */
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { AppState, StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
 
+import { useEvent, useEventListener } from 'expo';
 import { useKeepAwake } from 'expo-keep-awake';
 import { useVideoPlayer, VideoPlayer as ExpoVideoPlayer, VideoSource, VideoView } from 'expo-video';
 
 import { PLAYER_COLORS } from '@/theme/playerColors';
+import { inferContentType } from '@/utils/resolveStreamSource';
 
 export type VideoStatus = 'idle' | 'loading' | 'readyToPlay' | 'error';
 
@@ -55,12 +57,11 @@ function VideoPlayer({
   // Keep the screen awake while a video player is mounted (deactivates on unmount).
   useKeepAwake();
 
-  const [status, setStatus] = useState<VideoStatus>('idle');
-  const [currentTime, setCurrentTime] = useState(0);
-  const [duration, setDuration] = useState(0);
-
+  // `contentType` is inferred from the URL extension (extensionless → HLS) so the
+  // native player parses streaming manifests correctly instead of falling back to
+  // progressive container sniffing. See inferContentType.
   const videoSource: VideoSource = source
-    ? { uri: source, headers: headers ?? {} }
+    ? { uri: source, headers: headers ?? {}, contentType: inferContentType(source) }
     : null;
 
   const player = useVideoPlayer(videoSource, (p) => {
@@ -91,41 +92,46 @@ function VideoPlayer({
   useEffect(() => {
     if (source === lastUriRef.current) return;
     lastUriRef.current = source;
-    void player.replaceAsync(source ? { uri: source, headers: headers ?? {} } : null).then(() => {
-      if (autoPlay && source) player.play();
-    });
+    void player
+      .replaceAsync(
+        source ? { uri: source, headers: headers ?? {}, contentType: inferContentType(source) } : null,
+      )
+      .then(() => {
+        if (autoPlay && source) player.play();
+      });
   }, [player, source, headers, autoPlay]);
 
-  useEffect(() => {
-    const statusSub = player.addListener('statusChange', ({ status: s, error }) => {
-      const mapped = s as VideoStatus;
-      // Surface playback failures (e.g. CDN geo-block on our IP) so we can see
-      // the underlying error message/source while testing.
-      if (mapped === 'error') {
-        // eslint-disable-next-line no-console
-        console.log('[VideoPlayer] playback error', { source, error });
-      }
-      setStatus(mapped);
-      onStatusChange?.(mapped);
-    });
+  // Reactive render state straight off the player's events (replaces the manual
+  // addListener + useState + setState). `useEvent` subscribes internally and
+  // re-renders with the latest payload. `duration` isn't an event field — it's a
+  // player property, read fresh each render (every `timeUpdate` re-renders us).
+  const { status } = useEvent(player, 'statusChange', { status: player.status });
+  // `timeUpdate` has no convenient partial initializer (all payload fields are
+  // required), so subscribe without one and fall back to the live property until
+  // the first tick lands.
+  const timeEvent = useEvent(player, 'timeUpdate');
+  const currentTime = timeEvent?.currentTime ?? player.currentTime;
+  const duration = player.duration ?? 0;
 
-    const timeSub = player.addListener('timeUpdate', ({ currentTime: ct }) => {
-      const dur = player.duration ?? 0;
-      setCurrentTime(ct);
-      setDuration(dur);
-      onTimeUpdate?.(ct, dur);
-    });
+  // Side effects (parent callbacks + error logging) — `useEventListener` is
+  // addListener-as-a-hook with automatic cleanup, so no manual sub/remove.
+  useEventListener(player, 'statusChange', ({ status: s, error }) => {
+    // Surface playback failures (e.g. CDN geo-block on our IP) so we can see the
+    // underlying error message/source while testing.
+    if (s === 'error') {
+      // eslint-disable-next-line no-console
+      console.error('[VideoPlayer] playback error', { message: error?.message, source, error });
+    }
+    onStatusChange?.(s);
+  });
 
-    const endSub = player.addListener('playToEnd', () => {
-      onPlayEnd?.();
-    });
+  useEventListener(player, 'timeUpdate', ({ currentTime: ct }) => {
+    onTimeUpdate?.(ct, player.duration ?? 0);
+  });
 
-    return () => {
-      statusSub.remove();
-      timeSub.remove();
-      endSub.remove();
-    };
-  }, [player, source, onStatusChange, onTimeUpdate, onPlayEnd]);
+  useEventListener(player, 'playToEnd', () => {
+    onPlayEnd?.();
+  });
 
   return (
     <View style={[styles.container, style]} testID="video-player-container">

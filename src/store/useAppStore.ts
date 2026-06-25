@@ -52,9 +52,14 @@ export const useAppStore = create<AppStore>()(
         failedAttempts: state.failedAttempts,
         lockedUntil: state.lockedUntil,
       }),
-      onRehydrateStorage: () => (state) => {
-        if (!state) return;
-        state.colors = resolveColors(state.mode);
+      onRehydrateStorage: () => {
+        console.log('[BOOT] store: rehydrate starting…');
+        return (state, error) => {
+          if (error) console.log('[BOOT] store: rehydrate ERROR', error);
+          if (!state) return;
+          state.colors = resolveColors(state.mode);
+          console.log('[BOOT] store: rehydrate done OK');
+        };
       },
     },
   ),

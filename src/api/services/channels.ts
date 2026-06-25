@@ -65,3 +65,18 @@ export async function getChannelById(id: string): Promise<PlaybackDecision> {
   });
   return toPlaybackDecision(data);
 }
+
+/**
+ * Re-signs an active playback session — `POST /channels/playback/refresh { sessionId }`.
+ * Returns a fresh signed `streams` URL + new `expiresAt` for the SAME session, so the
+ * player swaps the source behind a still-valid token (no full re-decision, no geo
+ * re-check — that only happens on the initial `getChannelById`). Used by the
+ * `refetchInterval` re-fetch in `useChannelPlaybackQuery`.
+ */
+export async function refreshPlayback(sessionId: string): Promise<PlaybackDecision> {
+  const { data } = await apiClient.post<PlaybackDecisionDto>(
+    CHANNELS_ROUTES.PLAYBACK_REFRESH,
+    { sessionId },
+  );
+  return toPlaybackDecision(data);
+}

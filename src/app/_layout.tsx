@@ -37,20 +37,31 @@ if (process.env.EXPO_PUBLIC_API_MODE === 'mock') {
 
 SplashScreen.preventAutoHideAsync();
 
+// TODO(anx 2026-06-25): TEMP boot diagnostics — remove after first-launch splash hang is found.
+console.log('[BOOT] _layout: module scope start');
+
 // One-time, app-session-wide wiring. At module scope (not in render) so it runs
 // exactly once: 401 → refresh on the api client, AppState → TanStack focus
 // bridge, and i18n init before the first screen renders. All three are
 // internally idempotent, but keeping them here avoids re-running on every render.
-setupAuthRefresh();
-setupFocusManager();
-initI18n();
+try {
+  console.log('[BOOT] _layout: setupAuthRefresh…');
+  setupAuthRefresh();
+  console.log('[BOOT] _layout: setupFocusManager…');
+  setupFocusManager();
+  console.log('[BOOT] _layout: initI18n…');
+  initI18n();
+  console.log('[BOOT] _layout: module wiring done OK');
+} catch (e) {
+  console.log('[BOOT] _layout: module wiring THREW', e);
+}
 
 const RootLayoutNav = () => {
   const colors = useAppStore((s) => s.colors);
   const mode = useAppStore((s) => s.mode);
   const isAuthenticated = useAppStore((s) => s.isAuthenticated);
 
-  const [fontsLoaded] = useFonts({
+  const [fontsLoaded, fontError] = useFonts({
     Inter_400Regular,
     Inter_500Medium,
     Inter_600SemiBold,
@@ -58,6 +69,8 @@ const RootLayoutNav = () => {
     Inter_800ExtraBold,
     Inter_900Black,
   });
+  // TODO(anx 2026-06-25): TEMP boot diagnostics — remove after first-launch splash hang is found.
+  if (fontError) console.log('[BOOT] _layout: useFonts ERROR', fontError);
   const { tokenChecked } = useCheckToken();
   useNetworkMonitor();
   useSystemTheme();
@@ -66,8 +79,12 @@ const RootLayoutNav = () => {
     StatusBar.setBarStyle(mode === 'dark' ? 'light-content' : 'dark-content');
   }, [mode]);
 
+  // TODO(anx 2026-06-25): TEMP boot diagnostics — remove after first-launch splash hang is found.
+  console.log('[BOOT] RootLayoutNav render — fontsLoaded:', fontsLoaded, 'tokenChecked:', tokenChecked);
+
   useEffect(() => {
     if (fontsLoaded && tokenChecked) {
+      console.log('[BOOT] _layout: both gates true → SplashScreen.hideAsync()');
       SplashScreen.hideAsync();
     }
   }, [fontsLoaded, tokenChecked]);

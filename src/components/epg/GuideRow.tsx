@@ -13,11 +13,19 @@ import { SCREEN_PADDING, SPACING } from '@/theme/spacing';
 import { useAppStore } from '@/store/useAppStore';
 import ReusableText from '@/components/Inputs/ReusableText';
 import SceneBackground from '@/components/Media/SceneBackground';
+import { cacheBustUrl } from '@/utils';
 
 export interface GuideRowProps {
   /** Used for the row testID (e.g. "RTSH"); no longer rendered on the tile. */
   logoLabel: string;
   thumbnailUrl?: string;
+  /**
+   * Cache-bust token for the live snapshot (the guide query's `dataUpdatedAt`).
+   * The snapshot lives at a stable URL with mutable content, so it's appended as
+   * a query param — a fresh frame on each refetch, the disk-cached frame between.
+   * Same logic as Home's ChannelCard (replaces the broken `cachePolicy="none"`).
+   */
+  thumbnailRefreshKey?: number;
   /** Currently-airing programme title. */
   nowTitle: string;
   /** Composed next line, e.g. "Vijon 20:00: Magazina". */
@@ -34,6 +42,7 @@ export interface GuideRowProps {
 const GuideRow: React.FC<GuideRowProps> = ({
   logoLabel,
   thumbnailUrl,
+  thumbnailRefreshKey,
   nowTitle,
   nextLabel,
   progress,
@@ -55,9 +64,10 @@ const GuideRow: React.FC<GuideRowProps> = ({
       testID={`guide-row-${logoLabel}`}
     >
       <View style={styles.tile}>
-        {/* Live snapshot at a stable URL with mutable content — bypass the disk
-            cache so a fresh frame shows on every mount / pull-to-refresh. */}
-        <SceneBackground source={thumbnailUrl} cachePolicy="none" />
+        {/* Live snapshot at a stable URL with mutable content — cache-busted via
+            the guide query's `dataUpdatedAt` so a fresh frame shows on each
+            refresh, while disk caching keeps it painted (same logic as Home). */}
+        <SceneBackground source={cacheBustUrl(thumbnailUrl, thumbnailRefreshKey)} />
         {leading}
       </View>
 

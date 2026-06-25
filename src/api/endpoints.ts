@@ -42,6 +42,8 @@ export const CHANNELS_ROUTES = {
   EPG: (id: string) => `/channels/${id}/epg`,
   /** Catch-up playback decision for a recorded programme — returns `PlaybackDecisionDTO`. */
   CATCHUP_PLAYBACK: (channelId: string, programId: string) => `/channels/${channelId}/epg/${programId}`,
+  /** Re-sign an active playback session — `POST { sessionId }`, returns a fresh `PlaybackDecisionDTO`. */
+  PLAYBACK_REFRESH: '/channels/playback/refresh',
 } as const;
 
 export const HOME_ROUTES = {

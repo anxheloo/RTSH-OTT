@@ -32,6 +32,14 @@ export interface ChannelCardProps {
   logoUrl?: string;
   /** Scene / last-frame thumbnail. Undefined shows the placeholder bg. */
   thumbnailUri?: string;
+  /**
+   * Cache-bust token for the live snapshot (the channels query's `dataUpdatedAt`).
+   * The snapshot lives at a stable URL with mutable content, so we append it as a
+   * query param — a new value on each refetch forces a fresh frame to download,
+   * while a stable value between refetches serves the disk-cached frame. This
+   * replaces `cachePolicy="none"`, which on expo-image 56 left the image unpainted.
+   */
+  thumbnailRefreshKey?: number;
   isLive?: boolean;
   onPress: () => void;
 }
@@ -41,10 +49,16 @@ const ChannelCard: React.FC<ChannelCardProps> = ({
   name,
   logoUrl,
   thumbnailUri,
+  thumbnailRefreshKey,
   isLive = true,
   onPress,
 }) => {
   const colors = useAppStore((s) => s.colors);
+
+  const sceneSource =
+    thumbnailUri && thumbnailRefreshKey
+      ? `${thumbnailUri}${thumbnailUri.includes('?') ? '&' : '?'}cb=${thumbnailRefreshKey}`
+      : thumbnailUri;
 
   return (
     <TouchableOpacity
@@ -54,14 +68,11 @@ const ChannelCard: React.FC<ChannelCardProps> = ({
       testID={`channel-card-${channelId}`}
     >
       <SceneBackground
-        source={thumbnailUri}
+        source={sceneSource}
         blurhash={DEFAULT_BLURHASH}
         scrim
         scrimFrom="60%"
         scrimOpacity={0.28}
-        // Live snapshot at a stable URL with mutable content — bypass the disk
-        // cache so a fresh frame shows on every mount / pull-to-refresh.
-        cachePolicy="none"
       />
 
       {/* clogo — frosted badge with channel logo (3:1), top-left */}

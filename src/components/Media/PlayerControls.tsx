@@ -136,8 +136,10 @@ const PlayerControls: React.FC<PlayerControlsProps> = ({
 
   const overlayStyle = useAnimatedStyle(() => ({ opacity: opacity.value }));
 
-  // Live with no measured duration sits at the live edge (full bar, no scrub).
-  const isSeekable = duration > 0;
+  // Live always sits at the live edge (full bar, no scrub) — even though the DVR
+  // window now reports a finite duration, live is deliberately non-seekable.
+  // Only recorded/catch-up (`!isLive` with a measured duration) is scrubbable.
+  const isSeekable = !isLive && duration > 0;
   const progress = isSeekable ? Math.min(Math.max(currentTime / duration, 0), 1) : isLive ? 1 : 0;
 
   // Mirror the JS playback progress onto the UI thread for the idle bar.

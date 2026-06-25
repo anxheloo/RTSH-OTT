@@ -2,7 +2,8 @@ import { useQuery } from '@tanstack/react-query';
 
 import type { ChannelType, PlaybackDecision } from '@/types/domain';
 
-import { getChannelById, getChannels } from '../services/channels';
+import { queryClient } from '../client';
+import { getChannelById, getChannels, refreshPlayback } from '../services/channels';
 import { getCatchupPlayback } from '../services/epg';
 
 type ChannelTypeInput = ChannelType | 'tv' | 'radio';
@@ -21,12 +22,14 @@ export const useChannelsQuery = (
   options?: { enabled?: boolean },
 ) => {
   const type = input.toUpperCase() as ChannelType;
-  const { data, isLoading, error, refetch } = useQuery({
+  const { data, isLoading, error, refetch, dataUpdatedAt } = useQuery({
     queryKey: ['channels', type],
     queryFn: () => getChannels(type),
     enabled: options?.enabled ?? true,
   });
-  return { channels: data ?? [], isLoading, error, refetch };
+  // `dataUpdatedAt` advances on every (re)fetch — Home uses it to cache-bust the
+  // live scene snapshots so a fresh frame loads on each refresh (see ChannelCard).
+  return { channels: data ?? [], isLoading, error, refetch, dataUpdatedAt };
 };
 
 /**
@@ -59,10 +62,17 @@ export const useChannelPlaybackQuery = (
   programId?: string | null,
 ) => {
   const pid = programId ?? null;
+  const queryKey = ['channel-playback', channelId, pid] as const;
   const { data, isLoading, error } = useQuery<PlaybackDecision>({
-    queryKey: ['channel-playback', channelId, pid],
-    queryFn: () =>
-      pid ? getCatchupPlayback(channelId!, pid) : getChannelById(channelId!),
+    queryKey,
+    // Interval-driven re-fetches re-sign the existing session via the refresh
+    // endpoint (cheap, no geo re-check); the first fetch (no cached `sessionId`)
+    // establishes the session through the decision endpoint.
+    queryFn: () => {
+      const sessionId = queryClient.getQueryData<PlaybackDecision>(queryKey)?.sessionId;
+      if (sessionId) return refreshPlayback(sessionId);
+      return pid ? getCatchupPlayback(channelId!, pid) : getChannelById(channelId!);
+    },
     enabled: !!channelId,
     refetchIntervalInBackground: false,
     refetchInterval: (query) => {

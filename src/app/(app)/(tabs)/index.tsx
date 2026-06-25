@@ -89,7 +89,7 @@ const HomeScreen: React.FC = () => {
 
   const [mode, setMode] = useState<HomeMode>('tv');
 
-  const { channels: data, isLoading, error, refetch } = useChannelsQuery(mode);
+  const { channels: data, isLoading, error, refetch, dataUpdatedAt } = useChannelsQuery(mode);
   const [refreshing, setRefreshing] = useState(false);
 
   // Refetch on tab re-focus (same pattern as Guide) — Expo Router keeps tabs
@@ -195,6 +195,7 @@ const HomeScreen: React.FC = () => {
             name={item.name}
             logoUrl={item.logoUrl}
             thumbnailUri={item.imageUrl}
+            thumbnailRefreshKey={dataUpdatedAt}
             onPress={() => openChannel(item.id)}
           />
         </View>

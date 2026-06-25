@@ -25,11 +25,14 @@ import { getGuide } from '../services/guide';
  * a poll would add needless server load (decision 2026-06-22).
  */
 export const useGuideQuery = (type: ChannelType) => {
-  const { data, isLoading, error, refetch } = useQuery({
+  const { data, isLoading, error, refetch, dataUpdatedAt } = useQuery({
     queryKey: ['guide', type],
     queryFn: () => getGuide(type),
     staleTime: 5 * 60_000,
     gcTime: 15 * 60_000,
   });
-  return { guide: data ?? [], isLoading, error, refetch };
+  // `dataUpdatedAt` advances on every (re)fetch — the Guide uses it to cache-bust
+  // the live snapshot thumbnails so a fresh frame loads on each refresh (same
+  // logic as Home's ChannelCard; see GuideRow / utils/image cacheBustUrl).
+  return { guide: data ?? [], isLoading, error, refetch, dataUpdatedAt };
 };
