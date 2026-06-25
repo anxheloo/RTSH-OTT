@@ -14,21 +14,25 @@ import { BORDERRADIUS } from '@/theme/borders';
 import { FONTSIZE } from '@/theme/fonts';
 import { SCREEN_PADDING, SPACING } from '@/theme/spacing';
 import { useAppStore } from '@/store/useAppStore';
-import { useLogoutMutation } from '@/api/mutations';
+import { useDeleteAccountMutation, useLogoutMutation } from '@/api/mutations';
 import { useTabBarHeight } from '@/hooks/useTabBarHeight';
 import { BrandHeader } from '@/components/Brand';
 import { Icon } from '@/components/Icons';
 import ReusableText from '@/components/Inputs/ReusableText';
 import { ListRow, ScreenLayout } from '@/components/Layout';
-import { OutIcon, SettingsIcon, UserIcon } from '@/assets/icons';
+import { OutIcon, SettingsIcon, UserIcon, WarningIcon } from '@/assets/icons';
+import { useContentWidth } from '@/responsive';
 
 const ProfileScreen: React.FC = () => {
   const { t } = useTranslation();
   const colors = useAppStore((s) => s.colors);
   const tabBarHeight = useTabBarHeight();
   const user = useAppStore((s) => s.user);
+  // Center the profile column on tablet/TV; no-op on phone.
+  const contentWidth = useContentWidth('content');
   const updateModalSlice = useAppStore((s) => s.updateModalSlice);
   const { mutate: logout } = useLogoutMutation();
+  const { mutate: deleteAccount } = useDeleteAccountMutation();
 
   const initials = user?.displayName
     ? user.displayName
@@ -60,6 +64,20 @@ const ProfileScreen: React.FC = () => {
     });
   };
 
+  const handleDeleteAccount = () => {
+    updateModalSlice({
+      currentModal: 'confirmation',
+      modalData: {
+        title: t('profile.delete_confirm_title'),
+        description: t('profile.delete_confirm_message'),
+        button: t('profile.delete_account'),
+        action: () => deleteAccount(),
+        button2: t('common.cancel'),
+        action2: () => {},
+      },
+    });
+  };
+
   return (
     <ScreenLayout>
       <BrandHeader
@@ -68,7 +86,11 @@ const ProfileScreen: React.FC = () => {
       />
 
       <ScrollView
-        contentContainerStyle={[styles.scroll, { paddingBottom: tabBarHeight + SPACING.space_24 }]}
+        contentContainerStyle={[
+          styles.scroll,
+          contentWidth,
+          { paddingBottom: tabBarHeight + SPACING.space_24 },
+        ]}
         showsVerticalScrollIndicator={false}
       >
         {/* Avatar + user info */}
@@ -120,15 +142,22 @@ const ProfileScreen: React.FC = () => {
           />
         </View>
 
-        {/* Logout */}
+        {/* Logout + delete account */}
         <View style={[styles.card, styles.cardLast, { backgroundColor: colors.surface }]}>
           <ListRow
             title={t('profile.logout')}
             leading={<Icon as={OutIcon} size={20} color={colors.error} />}
             titleColor="error"
             onPress={handleLogout}
-            showDivider={false}
             testID="profile-logout-row"
+          />
+          <ListRow
+            title={t('profile.delete_account')}
+            leading={<Icon as={WarningIcon} size={20} color={colors.error} />}
+            titleColor="error"
+            onPress={handleDeleteAccount}
+            showDivider={false}
+            testID="profile-delete-account-row"
           />
         </View>
       </ScrollView>

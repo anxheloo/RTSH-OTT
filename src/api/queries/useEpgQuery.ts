@@ -7,10 +7,6 @@ export const useEpgQuery = (date?: string) => {
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['epg', date ?? 'today'],
     queryFn: () => getEpgByDate(date),
-    // Override the global `staleTime: Infinity` so foreground / reconnect / mount
-    // refetch the schedule — the operator may have changed it while we were away.
-    staleTime: 5 * 60_000,
-    gcTime: 15 * 60_000,
   });
   return { items: data ?? [], isLoading, error, refetch };
 };
@@ -25,10 +21,6 @@ export const useChannelEpgQuery = (channelId: string | undefined, date?: string)
     queryKey: ['channel-epg', channelId, date ?? 'today'],
     queryFn: () => getChannelEpg(channelId!, date),
     enabled: !!channelId,
-    // Override the global `staleTime: Infinity` so foreground / reconnect / mount
-    // refetch the schedule — the operator may have changed it while we were away.
-    staleTime: 5 * 60_000,
-    gcTime: 15 * 60_000,
   });
   return { items: data ?? [], isLoading, error, refetch };
 };

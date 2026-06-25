@@ -6,9 +6,11 @@
  * - Classify: getDeviceClass (pure), useResponsive (reactive)
  * - Grid:     useResponsiveGrid → numColumns
  * - Scale:    scaled() → device-class step multiplier for design tokens
+ * - Width:    useContentWidth() → centered, capped single-column on tablet/TV
  */
-export { GRID_COLUMNS, TABLET_MIN_SHORTEST_SIDE, UI_SCALE } from './breakpoints';
+export { CONTENT_MAX_WIDTH, GRID_COLUMNS, TABLET_MIN_SHORTEST_SIDE, UI_SCALE } from './breakpoints';
 export { type DeviceClass,getDeviceClass } from './deviceClass';
 export { scaled, UI_SCALE_FACTOR } from './scale';
+export { useContentWidth } from './useContentWidth';
 export { type ResponsiveInfo,useResponsive } from './useResponsive';
 export { useResponsiveGrid } from './useResponsiveGrid';

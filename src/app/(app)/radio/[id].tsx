@@ -31,6 +31,7 @@ import { ScreenLayout, SectionHeader, Skeleton, TabHeader } from '@/components/L
 import RadioPlayer from '@/components/Media/RadioPlayer';
 import { resolveStreamSource } from '@/utils';
 import { ChevronLeftIcon, StarIcon } from '@/assets/icons';
+import { useContentWidth } from '@/responsive';
 
 /** Mirrors RadioPlayer's artwork sizing (62% width capped at 230). */
 const ART_MAX = 230;
@@ -42,6 +43,8 @@ const RadioPlayerScreen: React.FC = () => {
   const { formatTime } = useDateTime();
 
   const colors = useAppStore((s) => s.colors);
+  // Center the now-playing column on tablet/TV; no-op on phone.
+  const contentWidth = useContentWidth('content');
   const radioChannelId = useAppStore((s) => s.radioChannelId);
   const radioIsPlaying = useAppStore((s) => s.radioIsPlaying);
   const setRadioChannel = useAppStore((s) => s.setRadioChannel);
@@ -160,7 +163,10 @@ const RadioPlayerScreen: React.FC = () => {
         }
       />
 
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={[styles.content, contentWidth]}
+        showsVerticalScrollIndicator={false}
+      >
         <RadioPlayer
           station={station}
           isPlaying={isPlaying}

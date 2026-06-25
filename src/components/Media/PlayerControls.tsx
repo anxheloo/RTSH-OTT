@@ -15,7 +15,14 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { StyleSheet, TouchableOpacity, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
-import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import Animated, {
+  useAnimatedStyle,
+  useDerivedValue,
+  useSharedValue,
+  withTiming,
+} from 'react-native-reanimated';
+import { scheduleOnRN } from 'react-native-worklets';
 
 import type { VideoPlayer } from 'expo-video';
 
@@ -63,9 +70,27 @@ const PlayerControls: React.FC<PlayerControlsProps> = ({
   const { t } = useTranslation();
   const [visible, setVisible] = useState(true);
   const [isPlaying, setIsPlaying] = useState(player.playing);
-  const [seekBarWidth, setSeekBarWidth] = useState(1);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const opacity = useSharedValue(1);
+
+  // Seek-bar scrub state, all on the UI thread so the drag tracks the finger at
+  // 60fps with no JS round-trip per frame. `trackWidth` is measured via onLayout;
+  // `scrubX` is the finger x while dragging; `isScrubbing` gates the visual onto
+  // the finger; `progressSv` mirrors the JS playback progress for the idle bar.
+  // Each SharedValue has a single mutation owner: the react-hooks/immutability
+  // rule freezes any SV the effect touches, so an effect-written SV can never be
+  // written from a worklet (or vice-versa). `progressSv` is effect-owned (read
+  // only in the derived value); `heldRatioSv` is worklet-owned.
+  const trackWidth = useSharedValue(1);
+  const scrubRatioSv = useSharedValue(0); // finger position as a 0..1 ratio
+  const isScrubbing = useSharedValue(false);
+  const progressSv = useSharedValue(0); // effect-owned mirror of JS progress
+  // After releasing a scrub, hold the bar at the released position until the
+  // player catches up — otherwise the fill snaps back for the frame between
+  // release and the next `timeUpdate`. `heldRatioSv` is the held ratio while
+  // >= 0, and -1 once released; worklet-owned (set in onFinalize, cleared in
+  // displayProgress when the mirror catches up — a one-shot so it never re-freezes).
+  const heldRatioSv = useSharedValue(-1); // -1 = no active hold
 
   // SharedValue is stable — no useCallback needed; plain functions avoid the
   // react-hooks/immutability rule that fires when a SharedValue is in deps.
@@ -114,6 +139,67 @@ const PlayerControls: React.FC<PlayerControlsProps> = ({
   // Live with no measured duration sits at the live edge (full bar, no scrub).
   const isSeekable = duration > 0;
   const progress = isSeekable ? Math.min(Math.max(currentTime / duration, 0), 1) : isLive ? 1 : 0;
+
+  // Mirror the JS playback progress onto the UI thread for the idle bar.
+  useEffect(() => {
+    progressSv.value = progress;
+    // `progressSv` is a stable ref and intentionally omitted from deps — listing
+    // it would mark it immutable (react-hooks/immutability).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [progress]);
+
+  // Move the player to the seeked time (JS thread). Kept free of SharedValue
+  // writes and refs so it's safe to schedule from the gesture worklet — both
+  // would otherwise trip the react-hooks immutability/refs rules. Reads the
+  // player's live `currentTime` (not the prop) so the relative `seekBy` is exact
+  // regardless of how stale the last `timeUpdate` prop is; `seekBy` rather than
+  // the `currentTime` setter, since assigning a player prop trips immutability.
+  const commitSeek = (target: number) => {
+    player.seekBy(target - player.currentTime);
+  };
+
+  // Tap-to-jump + drag-to-scrub in one Pan gesture: onBegin seeds the position
+  // (so a tap without movement still seeks), onUpdate follows the finger, and
+  // onFinalize commits — firing whether or not the pan crossed its activation
+  // threshold. The SharedValue writes happen here on the UI thread; only the
+  // player move is scheduled to JS. Disabled when not seekable (live edge).
+  const seekGesture = Gesture.Pan()
+    .enabled(isSeekable)
+    .onBegin((e) => {
+      isScrubbing.value = true;
+      scrubRatioSv.value =
+        trackWidth.value > 0 ? Math.min(Math.max(e.x / trackWidth.value, 0), 1) : 0;
+    })
+    .onUpdate((e) => {
+      scrubRatioSv.value =
+        trackWidth.value > 0 ? Math.min(Math.max(e.x / trackWidth.value, 0), 1) : 0;
+    })
+    .onFinalize(() => {
+      const clamped = scrubRatioSv.value;
+      heldRatioSv.value = clamped; // hold here until the mirror catches up (see displayProgress)
+      isScrubbing.value = false;
+      scheduleOnRN(commitSeek, clamped * duration);
+    });
+
+  // Bar position (0..1): the finger while scrubbing; the held release point until
+  // the mirror reaches it after a seek; otherwise the live playback progress.
+  // `trackWidth` is read only in the gesture worklets and the animated styles
+  // below (never here) — reading a JS-written SV in useDerivedValue freezes it.
+  const displayProgress = useDerivedValue(() => {
+    if (isScrubbing.value) return scrubRatioSv.value;
+    if (heldRatioSv.value >= 0) {
+      // Hold the released position until playback reaches it, then release for
+      // good (one-shot — clearing avoids re-freezing as progress moves past).
+      if (Math.abs(progressSv.value - heldRatioSv.value) < 0.01) heldRatioSv.value = -1;
+      else return heldRatioSv.value;
+    }
+    return progressSv.value;
+  });
+  const fillStyle = useAnimatedStyle(() => ({ width: trackWidth.value * displayProgress.value }));
+  const knobStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: trackWidth.value * displayProgress.value }],
+  }));
+
   const title = channelName ?? programTitle;
 
   return (
@@ -194,19 +280,20 @@ const PlayerControls: React.FC<PlayerControlsProps> = ({
             <Icon as={isPlaying ? PauseIcon : PlayIcon} size={22} color={PLAYER_COLORS.onSurface} />
           </TouchableOpacity>
 
-          <View
-            style={styles.track}
-            testID="controls-seek-bar"
-            onLayout={(e) => setSeekBarWidth(e.nativeEvent.layout.width || 1)}
-            onTouchStart={(e) => {
-              if (!isSeekable) return;
-              const ratio = e.nativeEvent.locationX / seekBarWidth;
-              if (isFinite(ratio)) player.seekBy(ratio * duration - currentTime);
-            }}
-          >
-            <View style={[styles.fill, { width: `${progress * 100}%` }]} />
-            <View style={[styles.knob, { left: `${progress * 100}%` }]} />
-          </View>
+          <GestureDetector gesture={seekGesture}>
+            <View
+              style={styles.trackHitArea}
+              testID="controls-seek-bar"
+              onLayout={(e) => {
+                trackWidth.value = e.nativeEvent.layout.width || 1;
+              }}
+            >
+              <View style={styles.track}>
+                <Animated.View style={[styles.fill, fillStyle]} />
+                <Animated.View style={[styles.knob, knobStyle]} />
+              </View>
+            </View>
+          </GestureDetector>
 
           {onToggleFullscreen ? (
             <TouchableOpacity
@@ -290,8 +377,16 @@ const styles = StyleSheet.create({
     gap: SPACING.space_12,
     paddingHorizontal: SPACING.space_15,
   },
-  track: {
+  // Enlarged touch target around the thin visual bar so the scrubber is easy to
+  // grab; only vertical padding so its width equals the track width (gesture x
+  // and the fill/knob percentages share one coordinate space).
+  trackHitArea: {
     flex: 1,
+    justifyContent: 'center',
+    paddingVertical: SPACING.space_12,
+  },
+  track: {
+    width: '100%',
     height: 4,
     borderRadius: 3,
     backgroundColor: PLAYER_COLORS.track,
@@ -307,6 +402,7 @@ const styles = StyleSheet.create({
   },
   knob: {
     position: 'absolute',
+    left: 0,
     width: KNOB,
     height: KNOB,
     borderRadius: KNOB / 2,

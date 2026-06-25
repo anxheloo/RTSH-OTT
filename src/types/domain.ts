@@ -121,6 +121,7 @@ export interface GuideProgramDto {
   end: string;     // ISO 8601
   ageRating?: string;
   isAdult: boolean;
+  hasCatchup?: boolean;
 }
 
 export interface EpgItem {
@@ -134,6 +135,12 @@ export interface EpgItem {
   isAdult: boolean;
   /** Currently airing — design `prog` now-state (highlighted row + play glyph). */
   isLive?: boolean;
+  /**
+   * Whether a catch-up recording exists for this (finished) programme. `false`
+   * → no recording, so the past row is non-playable (pale, non-pressable).
+   * Absent/`true` → playable as recorded. Only meaningful for past programmes.
+   */
+  hasCatchup?: boolean;
   thumbnail?: string;
   // Playback data — embedded by the mock; fetched separately from /epg/{programId}
   // in production once the backend implements the catch-up endpoint.

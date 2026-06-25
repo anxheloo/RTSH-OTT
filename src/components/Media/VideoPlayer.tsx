@@ -64,6 +64,10 @@ function VideoPlayer({
     : null;
 
   const player = useVideoPlayer(videoSource, (p) => {
+    // expo-video emits `timeUpdate` ONLY when this interval is > 0 (defaults to
+    // 0 = never). Without it `currentTime`/`duration` stay 0 forever, so the
+    // recorded seek bar never becomes seekable and the progress fill never moves.
+    p.timeUpdateEventInterval = 0.5;
     if (autoPlay) {
       p.play();
     }

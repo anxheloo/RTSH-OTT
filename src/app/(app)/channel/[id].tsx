@@ -44,6 +44,7 @@ import { useDateTime } from '@/hooks/useDateTime';
 import { useNowProgram } from '@/hooks/useNowProgram';
 import { useFullscreenOrientation } from '@/hooks/useOrientation';
 import { useParentalGuard } from '@/hooks/useParentalGuard';
+import { useToday } from '@/hooks/useToday';
 import { CatchupBanner, DayStrip } from '@/components/catchup';
 import { EmptyEpgState } from '@/components/empty';
 import { ProgramRow, ProgramRowSkeleton } from '@/components/epg';
@@ -55,9 +56,11 @@ import AdOverlay from '@/components/Media/AdOverlay';
 import LivePlayer from '@/components/Media/LivePlayer';
 import { ParentalPinModal } from '@/components/ParentalPin';
 import { availableQualityIds, resolveStreamSource } from '@/utils';
+import { toDateKey } from '@/utils/datetime';
 import type { CatchupDay, EpgItem } from '@/types/domain';
 import { ChevronLeftIcon, InfoIcon, LockIcon } from '@/assets/icons';
 import { DEFAULT_QUALITY } from '@/constants/player';
+import { useContentWidth } from '@/responsive';
 
 const CATCHUP_DAYS_BACK = 7;
 const CATCHUP_DAYS_FORWARD = 7;
@@ -69,13 +72,6 @@ const CATCHUP_DAYS_FORWARD = 7;
  * so the whole strip follows the app language, never a partial Intl fallback.
  */
 const WEEKDAY_KEYS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'] as const;
-
-/** Local `YYYY-MM-DD` (matches the EPG mock's date keys). */
-function toDateKey(d: Date): string {
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${d.getFullYear()}-${m}-${day}`;
-}
 
 const ChannelScreen: React.FC = () => {
   useCellularGate();
@@ -116,6 +112,13 @@ const ChannelScreen: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [channelId]);
 
+  // Entering a channel takes over audio — stop any playing radio so the two
+  // streams can't overlap. Also removes the docked mini-player (no station active).
+  const clearRadio = useAppStore((s) => s.clearRadio);
+  useEffect(() => {
+    clearRadio();
+  }, [clearRadio]);
+
   // Publish the selectable renditions from the current playback's streams map.
   useEffect(() => {
     setAvailableQualities(availableQualityIds(currentPlayback?.streams));
@@ -130,6 +133,12 @@ const ChannelScreen: React.FC = () => {
   // rotating back to portrait exits. The fullscreen button forces the
   // orientation for users who don't want to physically rotate.
   const { isFullscreen, toggleFullscreen, exitFullscreen } = useFullscreenOrientation();
+
+  // Tablet/TV: cap the inline player + EPG to a centered column so they don't
+  // stretch edge-to-edge. No-op on phone, and not applied in fullscreen (the
+  // video goes full-bleed). Applied as a conditional STYLE on the same View
+  // nodes — never a new tree branch — so rotation doesn't remount the player.
+  const contentWidth = useContentWidth('player');
 
   // Channel-change ad — fetch once per channel entry; show before playback.
   const [adDone, setAdDone] = useState(false);
@@ -167,12 +176,18 @@ const ChannelScreen: React.FC = () => {
       ? t('player.geo_blocked')
       : t('player.unavailable_body');
 
+  // Current local calendar day, kept correct across midnight (foreground +
+  // next-midnight timer). Anchoring the strip on this — not a mount-time
+  // `new Date()` — is what stops the lineup/highlight/chip pinning to yesterday
+  // after the app sits backgrounded past midnight.
+  const todayKey = useToday();
+
   // Day strip — past (7) · today · future (7), oldest left.
   const days = useMemo<CatchupDay[]>(() => {
+    const [ty, tm, td] = todayKey.split('-').map(Number);
     const out: CatchupDay[] = [];
-    const today = new Date();
     for (let offset = -CATCHUP_DAYS_BACK; offset <= CATCHUP_DAYS_FORWARD; offset++) {
-      const d = new Date(today.getFullYear(), today.getMonth(), today.getDate() + offset, 12);
+      const d = new Date(ty, tm - 1, td + offset, 12);
       const isToday = offset === 0;
       const isFuture = offset > 0;
       out.push({
@@ -186,9 +201,21 @@ const ChannelScreen: React.FC = () => {
       });
     }
     return out;
-  }, [formatDate, t]);
+  }, [todayKey, formatDate, t]);
 
-  const [selectedKey, setSelectedKey] = useState(() => days[CATCHUP_DAYS_BACK].key);
+  const [selectedKey, setSelectedKey] = useState(todayKey);
+
+  // Roll the selection forward with the calendar day — but only when the user is
+  // parked on "today"; a deliberately-chosen past/future day stays put (the chip
+  // just relabels as the strip shifts). React's adjust-state-during-render
+  // pattern (no effect, no extra commit): `dayAnchor` holds the day we last
+  // reconciled against.
+  const [dayAnchor, setDayAnchor] = useState(todayKey);
+  if (todayKey !== dayAnchor) {
+    if (selectedKey === dayAnchor) setSelectedKey(todayKey);
+    setDayAnchor(todayKey);
+  }
+
   const selectedDay = days.find((d) => d.key === selectedKey) ?? days[CATCHUP_DAYS_BACK];
 
   const { items: epg, isLoading: epgLoading } = useChannelEpgQuery(channelId, selectedKey);
@@ -201,12 +228,17 @@ const ChannelScreen: React.FC = () => {
   // play-icon row and rolls it to the next programme at the boundary (client
   // timer, no network: the EPG is already in memory). Only TODAY's list has a
   // meaningful "now"; pass [] on other days so nothing is marked.
-  const { playing } = useNowProgram(selectedDay.isToday ? programs : []);
+  const { playing, nowMs } = useNowProgram(selectedDay.isToday ? programs : []);
 
+  // Row state keys off the programme's own clock, not just the selected day, so a
+  // programme that has *finished today* reads the same as one from a past day —
+  // a playable catch-up row (play glyph, pressable). A finished programme with no
+  // recording (`hasCatchup === false`) and any not-yet-started programme both
+  // read as `scheduled` (pale, non-pressable).
   const programState = (p: EpgItem): ProgramRowState => {
-    if (selectedDay.isFuture) return 'scheduled';
-    if (!selectedDay.isToday) return 'recorded';
-    return playing?.id === p.id ? 'now' : 'scheduled';
+    if (selectedDay.isToday && playing?.id === p.id) return 'now';
+    if (Date.parse(p.startTime) > nowMs) return 'scheduled'; // not started yet
+    return p.hasCatchup === false ? 'scheduled' : 'recorded'; // finished
   };
 
   const handleSelectProgram = (p: EpgItem, state: ProgramRowState) => {
@@ -224,13 +256,20 @@ const ChannelScreen: React.FC = () => {
 
   // Auto-center the active programme — the list animates so whatever is on the
   // player (the recorded selection, or live's now-airing programme) sits in the
-  // middle of the EPG. Offsets come from each row's onLayout; the row's own
-  // measure covers the first paint, the effect covers later changes (boundary
-  // roll-over, recorded selection).
+  // middle of the EPG. Offsets come from each row's onLayout.
+  //
+  // First entry is a deferred one-shot: instead of scrolling mid-mount (which
+  // competes with the player + day-strip + rows all laying out and reads as an
+  // abrupt jump), we wait until the active row is measured, then defer one frame
+  // (`requestAnimationFrame`) so the layout pass has committed and glide once —
+  // the user watches a deliberate settle-then-scroll. Later changes (boundary
+  // roll-over, recorded selection) re-center immediately via the effect / row
+  // relayout.
   const activeProgramId = selectedProgramId ?? playing?.id ?? null;
   const scrollRef = useRef<ScrollView>(null);
   const rowOffsetsRef = useRef<Record<string, { y: number; height: number }>>({});
   const viewportHeightRef = useRef(0);
+  const didInitialCenterRef = useRef(false);
 
   const centerOnProgram = useCallback((pid: string) => {
     const row = rowOffsetsRef.current[pid];
@@ -243,7 +282,17 @@ const ChannelScreen: React.FC = () => {
   const handleRowLayout = (pid: string, e: LayoutChangeEvent) => {
     const { y, height } = e.nativeEvent.layout;
     rowOffsetsRef.current[pid] = { y, height };
-    if (pid === activeProgramId) centerOnProgram(pid);
+    if (pid !== activeProgramId) return;
+    if (didInitialCenterRef.current) {
+      // Post-intro: keep the active row centred if it re-lays out.
+      centerOnProgram(pid);
+    } else {
+      // First entry: don't scroll mid-mount. Now that the active row is
+      // measured, defer one frame so the layout pass has committed, then glide
+      // once — a deliberate settle-then-scroll instead of an abrupt jump.
+      didInitialCenterRef.current = true;
+      requestAnimationFrame(() => centerOnProgram(pid));
+    }
   };
 
   const handleScrollLayout = (e: LayoutChangeEvent) => {
@@ -351,24 +400,26 @@ const ChannelScreen: React.FC = () => {
       edges={isFullscreen ? ['bottom', 'left', 'right'] : ['top']}
       backgroundColor={isFullscreen ? 'videoPlaceholderBg' : 'background'}
     >
-      <View style={isFullscreen ? styles.videoFull : styles.video}>
+      <View style={isFullscreen ? styles.videoFull : [styles.video, contentWidth]}>
         {player}
         {backButton}
       </View>
 
       {!isFullscreen && (
         <>
-          <DayStrip
-            days={days}
-            selectedKey={selectedKey}
-            onSelect={setSelectedKey}
-            testID="player-daystrip"
-          />
+          <View style={contentWidth}>
+            <DayStrip
+              days={days}
+              selectedKey={selectedKey}
+              onSelect={setSelectedKey}
+              testID="player-daystrip"
+            />
+          </View>
 
           <ScrollView
             ref={scrollRef}
             onLayout={handleScrollLayout}
-            contentContainerStyle={styles.scroll}
+            contentContainerStyle={[styles.scroll, contentWidth]}
             showsVerticalScrollIndicator={false}
             refreshControl={
               <RefreshControl
@@ -404,6 +455,8 @@ const ChannelScreen: React.FC = () => {
                       meta={p.description}
                       time={formatTime(p.startTime)}
                       state={state}
+                      isPlaying={p.id === activeProgramId}
+                      isLiveNow={selectedDay.isToday && playing?.id === p.id}
                       onPress={() => handleSelectProgram(p, state)}
                       testID={`epg-row-${p.id}`}
                     />

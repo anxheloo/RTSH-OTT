@@ -27,6 +27,7 @@ import { ListRow, ScreenLayout, TabHeader } from '@/components/Layout';
 import { ChevronLeftIcon, KeyIcon } from '@/assets/icons';
 import { authErrorMessage } from '@/features/auth/errors';
 import { type ChangePasswordFormData, changePasswordSchema } from '@/features/auth/schemas';
+import { useContentWidth } from '@/responsive';
 
 const ChangePasswordScreen: React.FC = () => {
   const { t } = useTranslation();
@@ -34,6 +35,8 @@ const ChangePasswordScreen: React.FC = () => {
   const updateModalSlice = useAppStore((s) => s.updateModalSlice);
 
   const { mutate: changePassword, isPending, error } = useChangePasswordMutation();
+  // Cap the form column on tablet/TV; no-op on phone.
+  const contentWidth = useContentWidth('form');
 
   const { control, handleSubmit } = useForm<ChangePasswordFormData>({
     resolver: zodResolver(changePasswordSchema),
@@ -88,7 +91,7 @@ const ChangePasswordScreen: React.FC = () => {
       />
 
       <ScrollView
-        contentContainerStyle={styles.scroll}
+        contentContainerStyle={[styles.scroll, contentWidth]}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >

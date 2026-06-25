@@ -70,7 +70,7 @@ Expo Router file-based. Root `_layout.tsx` uses `Stack.Protected` guards:
 
 Single `useAppStore` composed from slices (see `src/store/`):
 - `UserSlice` — auth state, user, access token (access in store, refresh in keychain)
-- `SettingsSlice` — locale, theme mode, haptics, autoplay, data-saver, cellular/background-video flags, notifications flag
+- `SettingsSlice` — locale, theme mode, haptics, autoplay, data-saver, cellular/background-video flags
 - `ThemeSlice` — mode + colors (light/dark objects, swapped on toggle)
 - `ModalSlice` — single active modal (`currentModal` + `modalData`, RTSH/SOLITAR style; apiError, noInternet, notify, confirmation, forceUpdate). One modal at a time; `updateModalSlice({ currentModal: null })` to close (`forceUpdate` is blocking and never closes).
 - `NetworkSlice` — runtime connectivity (`isOnline`, `connectionType`), written by `useNetworkMonitor`; not persisted
@@ -105,7 +105,7 @@ Persist via MMKV (`zustandStorage`). `partialize` controls what persists. `onReh
 - `components/Media/LivePlayer.tsx` — HLS player for **both** live and recorded (catch-up). The channel screen swaps `streamUrl` to the recorded URL and flips `isLive={false}`; that drops the LIVE badge and makes the seek bar draggable from 0 (the recorded VOD reports a finite duration, so `PlayerControls` flips `isSeekable` automatically — no separate player). Live stays `isLive` → bar pinned to the edge, non-seekable. AES-128 + DVR (extends VideoPlayer).
 - `components/Media/RadioAudioHost.tsx` — the single `expo-audio` engine, mounted above the router in `(app)/_layout`. Rationale + flow: `rules/ARCHITECTURE.md` → Radio audio.
 - `components/Media/RadioPlayer.tsx` — presentational now-playing core (art + `Equalizer` + transport); no playback logic. `RadioMiniPlayer` (Layout/) is the docked strip.
-- `components/Media/PlayerControls.tsx` — overlay (auto-hide, fullscreen, PIP, audio tracks).
+- `components/Media/PlayerControls.tsx` — overlay (auto-hide, fullscreen, PIP, audio tracks). Seek bar is a **draggable scrubber** (tap-to-jump + drag) built on `react-native-gesture-handler` `Gesture.Pan()` + Reanimated shared values (UI-thread, 60fps); active only when seekable (`duration > 0` → recorded/catch-up), inert at the live edge. Requires `GestureHandlerRootView` at the app root (`app/_layout.tsx`).
 
 **Open risk:** `expo-video` `VideoSource.headers` may not forward to AES-128 key requests. Validate on a real stream early; fallback = `react-native-video`.
 
@@ -190,6 +190,7 @@ Beyond the architecture scaffold, these features are spec-mandated for v1 — do
 - **Quality picker** — manual ABR selection in the player options sheet (per-session, player-only; no persisted default in Settings). Resets to Auto on each channel open.
 - **Parental control** — 4–6 digit PIN, **device-level, client-only** (2026-06-16): the PIN lives in `ParentalSlice` (MMKV-persisted), is never sent to or read from the backend, and is not on the user object — content gating, not a credential, so verify is a local compare (no keychain/KDF). Gates adult-flagged content (channel/program `isAdult`) **only when `parentalEnabled`**. First enable creates + stores the PIN; enable/disable toggle in Settings (local PIN verify before disable) is wired; change-PIN / forgot-PIN are deferred. No backend endpoints, no cross-device sync (it's per-device by design). Rationale + flow: `rules/ARCHITECTURE.md → Parental control`.
 - **Change password** — `POST /users/me/change-password` (Settings → Account screen). Rotates the refresh token → `useChangePasswordMutation` rewrites the keychain; `logoutOtherDevices` flag folds in "sign out everywhere else" (no separate endpoint).
+- **Delete account** — `DELETE /users/me` (no body; auth token only). Profile screen, next to Logout, behind a `confirmation` modal. `useDeleteAccountMutation` wipes the local session **only on 200** (`store.logout()` + `clearParentalConfig()` + `queryClient.clear()`); a failed delete keeps the user signed in (surfaces via global `apiError` modal). Unlike logout it ALSO clears the device-level parental gate. See `rules/ARCHITECTURE.md → Auth flow 5a`.
 - **Background audio for radio** — `expo-audio` lock-screen controls + Android foreground service.
 
 ## Out of scope for v1

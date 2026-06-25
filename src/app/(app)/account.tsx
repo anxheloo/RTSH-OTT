@@ -16,11 +16,14 @@ import { useAppStore } from '@/store/useAppStore';
 import { Icon, IconButton } from '@/components/Icons';
 import { ListRow, ScreenLayout, TabHeader } from '@/components/Layout';
 import { ChevronLeftIcon } from '@/assets/icons';
+import { useContentWidth } from '@/responsive';
 
 const AccountScreen: React.FC = () => {
   const { t } = useTranslation();
   const colors = useAppStore((s) => s.colors);
   const user = useAppStore((s) => s.user);
+  // Center the account column on tablet/TV; no-op on phone.
+  const contentWidth = useContentWidth('content');
 
   const empty = t('profile.account.empty');
   const rows: { key: string; value?: string }[] = [
@@ -49,7 +52,10 @@ const AccountScreen: React.FC = () => {
         }
       />
 
-      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={[styles.scroll, contentWidth]}
+        showsVerticalScrollIndicator={false}
+      >
         <View style={[styles.card, { backgroundColor: colors.surface }]}>
           {rows.map(({ key, value }, i) => (
             <ListRow

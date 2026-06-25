@@ -47,7 +47,6 @@ export const useAppStore = create<AppStore>()(
         autoplayEnabled: state.autoplayEnabled,
         dataSaverEnabled: state.dataSaverEnabled,
         hapticsEnabled: state.hapticsEnabled,
-        notificationsEnabled: state.notificationsEnabled,
         parentalEnabled: state.parentalEnabled,
         parentalPin: state.parentalPin,
         failedAttempts: state.failedAttempts,

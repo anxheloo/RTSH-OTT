@@ -28,6 +28,7 @@ import { BrowseControls, ScreenLayout } from '@/components/Layout';
 import StationRow from '@/components/radio/StationRow';
 import StationRowSkeleton from '@/components/radio/StationRowSkeleton';
 import type { Channel } from '@/types/domain';
+import { useContentWidth } from '@/responsive';
 
 type SearchMode = 'tv' | 'radio';
 
@@ -37,6 +38,8 @@ const SearchScreen: React.FC = () => {
   const { t } = useTranslation();
   const activeStationId = useAppStore((s) => s.radioChannelId);
   const tabBarHeight = useTabBarHeight();
+  // Center each row on tablet/TV so single-column rows don't stretch; no-op on phone.
+  const contentWidth = useContentWidth('content');
   const { search, updateSearch, debouncedSearch } = useSearch();
 
   const [mode, setMode] = useState<SearchMode>('tv');
@@ -118,24 +121,28 @@ const SearchScreen: React.FC = () => {
     ({ item }: { item: Channel }) => {
       if (isTv) {
         return (
-          <SearchResultRow
-            name={item.name}
-            meta="TV"
-            thumbnailUri={item.imageUrl}
-            onPress={() => openChannel(item.id)}
-            testID={`search-channel-${item.id}`}
-          />
+          <View style={contentWidth}>
+            <SearchResultRow
+              name={item.name}
+              meta="TV"
+              thumbnailUri={item.imageUrl}
+              onPress={() => openChannel(item.id)}
+              testID={`search-channel-${item.id}`}
+            />
+          </View>
         );
       }
       return (
-        <StationRow
-          station={item}
-          isActive={item.id === activeStationId}
-          onPress={() => openStation(item.id)}
-        />
+        <View style={contentWidth}>
+          <StationRow
+            station={item}
+            isActive={item.id === activeStationId}
+            onPress={() => openStation(item.id)}
+          />
+        </View>
       );
     },
-    [isTv, activeStationId, openChannel, openStation],
+    [isTv, activeStationId, openChannel, openStation, contentWidth],
   );
 
   const listHeader = (

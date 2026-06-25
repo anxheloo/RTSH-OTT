@@ -12,6 +12,7 @@ import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 're
 import { SPACING } from '@/theme/spacing';
 import { useAppStore } from '@/store/useAppStore';
 import { BrandHeader } from '@/components/Brand';
+import { useContentWidth } from '@/responsive';
 
 export interface AuthScreenProps {
   children: React.ReactNode;
@@ -42,6 +43,8 @@ const AuthScreen: React.FC<AuthScreenProps> = ({
   testID,
 }) => {
   const colors = useAppStore((s) => s.colors);
+  // Cap the form column on tablet/TV so inputs don't stretch edge-to-edge; no-op on phone.
+  const contentWidth = useContentWidth('form');
 
   return (
     <KeyboardAvoidingView
@@ -57,8 +60,10 @@ const AuthScreen: React.FC<AuthScreenProps> = ({
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        {topSlot}
-        <View style={{ gap: contentGap }}>{children}</View>
+        <View style={contentWidth}>
+          {topSlot}
+          <View style={{ gap: contentGap }}>{children}</View>
+        </View>
       </ScrollView>
     </KeyboardAvoidingView>
   );

@@ -4,10 +4,10 @@ import { mockChannels } from './channels';
 
 const PROGRAMS_PER_CHANNEL = [
   { title: 'Lajmet', duration: 30, isAdult: false },
-  { title: 'Mëngjes me RTSH', duration: 90, isAdult: false },
+  { title: 'Mëngjes me RTSH', duration: 90, isAdult: false, hasCatchup: false },
   { title: 'Dokumentar', duration: 60, isAdult: false },
   { title: 'Studio e Hapur', duration: 60, isAdult: false },
-  { title: 'Lajmet e Mesditës', duration: 30, isAdult: false },
+  { title: 'Lajmet e Mesditës', duration: 30, isAdult: false, hasCatchup: false },
   { title: 'Seria shqiptare', duration: 45, isAdult: false },
   { title: 'Film Shqiptar', duration: 90, isAdult: false },
   { title: 'Lajmet e Mbrëmjes', duration: 30, isAdult: false },
@@ -50,6 +50,7 @@ function generateDayEpg(channelId: string, channelName: string, dateStr: string)
       endTime: end.toISOString(),
       isAdult: prog.isAdult,
       isLive: now >= start.getTime() && now < end.getTime(),
+      hasCatchup: 'hasCatchup' in prog ? prog.hasCatchup : true,
       thumbnail: `https://placehold.co/320x180/212121/fff?text=${encodeURIComponent(prog.title)}`,
       // Playback data — same shape as PlaybackDecisionDTO
       decision: 'ALLOWED',

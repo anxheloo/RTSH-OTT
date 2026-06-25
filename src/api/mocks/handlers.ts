@@ -138,6 +138,13 @@ export const handlers: Handler[] = [
     test: (u) => u.endsWith('/users/me'),
     respond: (cfg) => ({ data: { ...mockUserDto, ...parseBody<object>(cfg.data) } }),
   },
+  // Permanently delete the account — no body, 200 on success.
+  {
+    method: 'delete',
+    test: (u) => u.endsWith('/users/me'),
+    delay: 300,
+    respond: () => ({ data: null }),
+  },
 
   // Parental control is device-level (client-only, 2026-06-16) — no endpoints.
 

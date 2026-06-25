@@ -55,7 +55,9 @@ const GuideRow: React.FC<GuideRowProps> = ({
       testID={`guide-row-${logoLabel}`}
     >
       <View style={styles.tile}>
-        <SceneBackground source={thumbnailUrl} />
+        {/* Live snapshot at a stable URL with mutable content — bypass the disk
+            cache so a fresh frame shows on every mount / pull-to-refresh. */}
+        <SceneBackground source={thumbnailUrl} cachePolicy="none" />
         {leading}
       </View>
 

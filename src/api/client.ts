@@ -177,8 +177,8 @@ export const queryClient = new QueryClient({
   }),
   defaultOptions: {
     queries: {
-      staleTime: Infinity,
-      gcTime: 60 * 60 * 1000,
+      staleTime: 5 * 60_000,
+      gcTime: 15 * 60_000,
       retry: (failureCount, error) => {
         if (error instanceof AxiosError && error.response?.status === 401) return false;
         return failureCount < 1;

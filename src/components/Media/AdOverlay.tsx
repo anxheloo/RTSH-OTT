@@ -12,6 +12,7 @@ import { Modal, Pressable, StyleSheet, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
 import { BlurView } from 'expo-blur';
+import { ZoomIn, ZoomOut } from 'react-native-reanimated';
 
 import { BORDERRADIUS } from '@/theme/borders';
 import { FONTSIZE } from '@/theme/fonts';
@@ -29,6 +30,10 @@ const SCRIM = 'rgba(0,0,0,0.85)';
 const CREATIVE_FALLBACK = '#2A0C14';
 // Blur applied to the cover copy that fills the letterbox gaps behind a contained image.
 const CREATIVE_BLUR_RADIUS = 24;
+// Zoom enter/exit for the whole ad card. Enter springs in with a bounce;
+// exit zooms straight out (faster, no overshoot on the way off-screen).
+const ZOOM_IN = ZoomIn.springify().damping(11).mass(0.7).stiffness(140);
+const ZOOM_OUT = ZoomOut.duration(220);
 
 // Creative-surface colours — fixed, theme-independent (card is always over dark art).
 const AD = {
@@ -62,7 +67,11 @@ const AdOverlay: React.FC<AdOverlayProps> = ({ creative, onComplete, testID }) =
       testID={testID}
     >
       <View style={styles.scrim}>
-        <AnimatedView style={styles.card}>
+        <AnimatedView
+          style={styles.card}
+          entering={ZOOM_IN}
+          exiting={ZOOM_OUT}
+        >
           <View style={styles.creative}>
             {creative.type === 'VIDEO' ? (
               // expo-video's VideoView defaults to contentFit="contain", so the clip

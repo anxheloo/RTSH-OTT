@@ -43,6 +43,17 @@ function startOfLocalDay(date: Date): number {
   return new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
 }
 
+/**
+ * Local `YYYY-MM-DD` date key (the device's calendar day, no timezone shift —
+ * unlike `toISOString`, which is UTC and can land on the wrong day near
+ * midnight). Used as the EPG-by-date query key and the catch-up day-strip keys.
+ */
+export function toDateKey(d: Date): string {
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${d.getFullYear()}-${m}-${day}`;
+}
+
 const MS_PER_DAY = 86_400_000;
 
 /**

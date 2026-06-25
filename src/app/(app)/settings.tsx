@@ -1,7 +1,7 @@
 /**
  * Settings — design screen 10 (`sSettings`). Grouped sections of `ListRow`s:
  * "Luajtja" (playback — cellular toggle, parental toggle), "Aplikacioni"
- * (language sheet, notifications toggle, terms link, theme sheet, version), and
+ * (language sheet, haptics toggle, terms link, theme sheet, version), and
  * "Llogaria" (change password). Toggles write `SettingsSlice`; the parental
  * toggle drives the device-level `ParentalSlice` (client-only — no network;
  * verify-then-disable). Opened from Profile. (Quality is player-only — picked
@@ -25,7 +25,6 @@ import ReusableText from '@/components/Inputs/ReusableText';
 import { ListRow, ScreenLayout, TabHeader } from '@/components/Layout';
 import { ParentalPinModal } from '@/components/ParentalPin';
 import {
-  BellIcon,
   ChevronLeftIcon,
   DocIcon,
   InfoIcon,
@@ -37,15 +36,16 @@ import {
   WifiIcon,
 } from '@/assets/icons';
 import { LINKS } from '@/config/links';
+import { useContentWidth } from '@/responsive';
 
 const SettingsScreen: React.FC = () => {
   const { t } = useTranslation();
   const colors = useAppStore((s) => s.colors);
+  // Center the settings column on tablet/TV; no-op on phone.
+  const contentWidth = useContentWidth('content');
 
   const cellularPlaybackAllowed = useAppStore((s) => s.cellularPlaybackAllowed);
   const setCellularPlaybackAllowed = useAppStore((s) => s.setCellularPlaybackAllowed);
-  const notificationsEnabled = useAppStore((s) => s.notificationsEnabled);
-  const setNotificationsEnabled = useAppStore((s) => s.setNotificationsEnabled);
   const hapticsEnabled = useAppStore((s) => s.hapticsEnabled);
   const setHapticsEnabled = useAppStore((s) => s.setHapticsEnabled);
   const locale = useAppStore((s) => s.locale);
@@ -99,7 +99,10 @@ const SettingsScreen: React.FC = () => {
         }
       />
 
-      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={[styles.scroll, contentWidth]}
+        showsVerticalScrollIndicator={false}
+      >
         {/* Playback */}
         <ReusableText
           fontSize={FONTSIZE.sm}
@@ -189,19 +192,6 @@ const SettingsScreen: React.FC = () => {
             leading={<Icon as={LanguageIcon} size={20} color={colors.text} />}
             onPress={() => router.push('/(app)/language')}
             testID="settings-language-row"
-          />
-          <ListRow
-            title={t('settings.notifications.title')}
-            subtitle={t('settings.notifications.subtitle')}
-            leading={<Icon as={BellIcon} size={20} color={colors.text} />}
-            right={
-              <Switch
-                value={notificationsEnabled}
-                onValueChange={setNotificationsEnabled}
-                testID="settings-notifications-switch"
-              />
-            }
-            testID="settings-notifications-row"
           />
           <ListRow
             title={t('settings.haptics.title')}

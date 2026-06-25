@@ -4,12 +4,19 @@
  * station title, a live Equalizer while playing, then play/pause + close. Tap
  * the strip to reopen the full player route. Audio is owned by `RadioAudioHost`,
  * so the strip only flips store flags — playback continues across navigation.
+ *
+ * Mounted globally, so it self-hides on the full radio player route (the `radio`
+ * segment), where the strip would otherwise overlap that screen's own header — it
+ * reappears the moment you navigate away while playback continues. (The channel
+ * route stops radio outright, so no station is active there and the early return
+ * below covers it — no route check needed for the channel.) `useSegments` is used
+ * over `usePathname` because the segment array is unaffected by group-prefix quirks.
  */
 import React from 'react';
 import { StyleSheet, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { router } from 'expo-router';
+import { router, useSegments } from 'expo-router';
 
 import { BORDERRADIUS } from '@/theme/borders';
 import { FONTSIZE } from '@/theme/fonts';
@@ -27,6 +34,7 @@ const TILE = 40;
 
 const RadioMiniPlayer: React.FC = () => {
   const insets = useSafeAreaInsets();
+  const segments = useSegments();
   const colors = useAppStore((s) => s.colors);
   const radioChannelId = useAppStore((s) => s.radioChannelId);
   const radioIsPlaying = useAppStore((s) => s.radioIsPlaying);
@@ -35,7 +43,7 @@ const RadioMiniPlayer: React.FC = () => {
   const setRadioPlaying = useAppStore((s) => s.setRadioPlaying);
   const clearRadio = useAppStore((s) => s.clearRadio);
 
-  if (!radioChannelId) return null;
+  if (!radioChannelId || (segments as string[]).includes('radio')) return null;
 
   return (
     <TouchableOpacity

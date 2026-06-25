@@ -189,12 +189,15 @@
     },
     "settings_row": {
       "title": "Cilësimet",
-      "subtitle": "Të dhëna celulare, gjuha, njoftimet"
+      "subtitle": "Të dhëna celulare, gjuha, tema"
     },
     "logout": "Dil nga llogaria",
     "logout_confirm_title": "Dil nga llogaria",
     "logout_confirm_message": "Jeni i sigurt që dëshironi të dilni?",
-    "logging_out": "Duke dalë..."
+    "logging_out": "Duke dalë...",
+    "delete_account": "Fshi llogarinë",
+    "delete_confirm_title": "Fshi llogarinë",
+    "delete_confirm_message": "Kjo fshin përgjithmonë llogarinë tuaj dhe nuk mund të zhbëhet. Jeni i sigurt?"
   },
   "settings": {
     "title": "Cilësimet",
@@ -231,10 +234,6 @@
       "title": "Gjuha",
       "sq": "Shqip",
       "en": "English"
-    },
-    "notifications": {
-      "title": "Njoftimet",
-      "subtitle": "Premiera & lajme"
     },
     "terms": {
       "title": "Kushtet e përdorimit"

@@ -44,6 +44,7 @@ import ReusableText from '@/components/Inputs/ReusableText';
 import { ScreenLayout } from '@/components/Layout';
 import { programProgress } from '@/utils';
 import { RadioIcon } from '@/assets/icons';
+import { useContentWidth } from '@/responsive';
 
 type GuideMode = 'tv' | 'radio';
 
@@ -65,6 +66,8 @@ const GuideScreen: React.FC = () => {
   const { formatTime } = useDateTime();
   const colors = useAppStore((s) => s.colors);
   const tabBarHeight = useTabBarHeight();
+  // Center each row on tablet/TV so single-column rows don't stretch; no-op on phone.
+  const contentWidth = useContentWidth('content');
   const [mode, setMode] = useState<GuideMode>('tv');
   const [refreshing, setRefreshing] = useState(false);
 
@@ -179,18 +182,22 @@ const GuideScreen: React.FC = () => {
         data={rows}
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => (
-          <GuideRow
-            logoLabel={item.logoLabel}
-            thumbnailUrl={item.thumbnailUrl}
-            nowTitle={item.nowTitle}
-            nextLabel={item.nextLabel}
-            progress={item.progress}
-            badge={item.badge}
-            leading={
-              item.isRadio ? <Icon as={RadioIcon} size={18} color={colors.onPrimary} /> : undefined
-            }
-            onPress={item.onPress}
-          />
+          <View style={contentWidth}>
+            <GuideRow
+              logoLabel={item.logoLabel}
+              thumbnailUrl={item.thumbnailUrl}
+              nowTitle={item.nowTitle}
+              nextLabel={item.nextLabel}
+              progress={item.progress}
+              badge={item.badge}
+              leading={
+                item.isRadio ? (
+                  <Icon as={RadioIcon} size={18} color={colors.onPrimary} />
+                ) : undefined
+              }
+              onPress={item.onPress}
+            />
+          </View>
         )}
         ListHeaderComponent={listHeader}
         ListEmptyComponent={listEmpty}

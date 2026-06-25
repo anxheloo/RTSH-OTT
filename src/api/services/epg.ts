@@ -18,6 +18,7 @@ function mapGuideProgram(dto: GuideProgramDto, channelId: string): EpgItem {
     endTime: dto.end,
     isAdult: dto.isAdult,
     isLive: now >= new Date(dto.start).getTime() && now < new Date(dto.end).getTime(),
+    hasCatchup: dto.hasCatchup,
   };
 }
 

@@ -39,3 +39,19 @@ export const UI_SCALE = {
   tablet: 1.15,
   tv: 1.3,
 } as const;
+
+/**
+ * Max width (dp) of the centered content COLUMN on tablet / TV, by content kind.
+ * On a wide screen a single column (a form, a settings list, a player) shouldn't
+ * stretch edge-to-edge — it's capped here and centered. Phones ignore this
+ * entirely (full-bleed, byte-for-byte unchanged) via `useContentWidth`.
+ *
+ *   - form:    narrow single-input column (auth, change-password)
+ *   - content: reading / list column (settings, account, profile, list rows)
+ *   - player:  the inline 16:9 player + its EPG list
+ */
+export const CONTENT_MAX_WIDTH = {
+  form: 480,
+  content: 640,
+  player: 820,
+} as const;

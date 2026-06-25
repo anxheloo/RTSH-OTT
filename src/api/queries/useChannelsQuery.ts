@@ -25,12 +25,6 @@ export const useChannelsQuery = (
     queryKey: ['channels', type],
     queryFn: () => getChannels(type),
     enabled: options?.enabled ?? true,
-    // Override the global `staleTime: Infinity` so the foreground / reconnect /
-    // mount refetch triggers fire (Home + Guide reuse `useRefreshOnFocus` for
-    // tab focus, which forces a refetch regardless). 5min gates re-hits; 15min
-    // keeps the cache after the screen unmounts.
-    staleTime: 5 * 60_000,
-    gcTime: 15 * 60_000,
   });
   return { channels: data ?? [], isLoading, error, refetch };
 };
@@ -46,14 +40,19 @@ export const useChannelsQuery = (
  * The caller invalidates the live key (`[channelId, null]`) when returning to live
  * because stream URLs may be short-lived signed tokens.
  *
- * The `streams` URLs are signed and expire at `expiresAt`; `refetchInterval`
- * re-fetches a fresh decision ~30s before that instant (self-correcting — each
- * refetch returns a new `expiresAt` the next interval recomputes from). `staleTime:
- * Infinity` is kept deliberately: the timed refetch is the *only* refresh path, so
- * incidental focus/reconnect refetches can't swap the source (and rebuffer) while a
- * token is still valid. `refetchIntervalInBackground: false` pauses the timer while
- * backgrounded (playback is suspended anyway); on foreground the interval resumes
- * and the floor re-fetches promptly if the token expired meanwhile.
+ * The `streams` URLs are signed and expire at `expiresAt` (a fixed ~6min TTL);
+ * `refetchInterval` re-fetches a fresh decision ~30s before that instant during
+ * steady-state playback (self-correcting — each refetch returns a new `expiresAt`
+ * the next interval recomputes from).
+ *
+ * Freshness on mount / focus / reconnect rides the **global `staleTime: 5min`**:
+ * since 5min < the 6min token TTL, a cache entry that's still "fresh" (age < 5min)
+ * always has ≥1min of token life left, so a non-stale cached URL is never expired —
+ * re-entering the screen or reconnecting on a short blip serves the valid cache with
+ * no needless rebuffer, while a stale entry (>5min, e.g. after a long outage) is
+ * auto-refetched for a fresh URL. `refetchIntervalInBackground: false` pauses the
+ * timer while backgrounded (playback is suspended anyway); on foreground the interval
+ * resumes and the floor re-fetches promptly if the token expired meanwhile.
  */
 export const useChannelPlaybackQuery = (
   channelId: string | undefined,
@@ -65,7 +64,6 @@ export const useChannelPlaybackQuery = (
     queryFn: () =>
       pid ? getCatchupPlayback(channelId!, pid) : getChannelById(channelId!),
     enabled: !!channelId,
-    staleTime: Infinity,
     refetchIntervalInBackground: false,
     refetchInterval: (query) => {
       const expiresAt = query.state.data?.expiresAt;

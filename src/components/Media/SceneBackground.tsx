@@ -9,7 +9,7 @@ import React from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { useAppStore } from '@/store/useAppStore';
-import ReusableImage, { type ImagePriority } from '@/components/Media/ReusableImage';
+import ReusableImage, { type ImageCachePolicy, type ImagePriority } from '@/components/Media/ReusableImage';
 
 export interface SceneBackgroundProps {
   /** Scene image URL. Undefined → renders blurhash placeholder (+ optional scrim). */
@@ -23,6 +23,13 @@ export interface SceneBackgroundProps {
   /** Scrim darkness 0–1. Default 0.32. */
   scrimOpacity?: number;
   priority?: ImagePriority;
+  /**
+   * Cache strategy for the scene image. Defaults to `'disk'`. Pass `'none'` for
+   * live channel snapshots served at a stable URL with mutable content (Home /
+   * Guide), so a regenerated frame shows on every mount / pull-to-refresh
+   * instead of the disk-cached stale one.
+   */
+  cachePolicy?: ImageCachePolicy;
 }
 
 const SceneBackground: React.FC<SceneBackgroundProps> = ({
@@ -32,6 +39,7 @@ const SceneBackground: React.FC<SceneBackgroundProps> = ({
   scrimFrom = '40%',
   scrimOpacity = 0.32,
   priority = 'low',
+  cachePolicy,
 }) => {
   const colors = useAppStore((s) => s.colors);
 
@@ -45,6 +53,7 @@ const SceneBackground: React.FC<SceneBackgroundProps> = ({
           height="100%"
           contentFit="cover"
           priority={priority}
+          cachePolicy={cachePolicy}
           containerStyle={styles.fill}
         />
       ) : null}

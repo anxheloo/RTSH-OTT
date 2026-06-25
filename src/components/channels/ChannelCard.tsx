@@ -59,6 +59,9 @@ const ChannelCard: React.FC<ChannelCardProps> = ({
         scrim
         scrimFrom="60%"
         scrimOpacity={0.28}
+        // Live snapshot at a stable URL with mutable content — bypass the disk
+        // cache so a fresh frame shows on every mount / pull-to-refresh.
+        cachePolicy="none"
       />
 
       {/* clogo — frosted badge with channel logo (3:1), top-left */}

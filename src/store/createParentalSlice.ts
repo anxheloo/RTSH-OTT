@@ -28,6 +28,12 @@ export interface ParentalSlice {
    * needs no re-entry.
    */
   setParentalConfig: (partial: { enabled?: boolean; pin?: string }) => void;
+  /**
+   * Wipe the device parental gate (config + lockout state) back to defaults.
+   * Device-level by design, so logout/login do NOT call this — only account
+   * deletion does (the device's account data is being erased).
+   */
+  clearParentalConfig: () => void;
   recordFailedAttempt: () => void;
   resetAttempts: () => void;
   isLocked: () => boolean;
@@ -48,6 +54,9 @@ export const createParentalSlice: StateCreator<ParentalSlice, [], [], ParentalSl
       parentalEnabled: partial.enabled ?? s.parentalEnabled,
       parentalPin: partial.pin ?? s.parentalPin,
     })),
+
+  clearParentalConfig: () =>
+    set({ parentalEnabled: false, parentalPin: null, failedAttempts: 0, lockedUntil: null }),
 
   recordFailedAttempt: () =>
     set((s) => {

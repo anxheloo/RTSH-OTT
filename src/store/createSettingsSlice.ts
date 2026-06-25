@@ -14,10 +14,6 @@ export interface SettingsSlice {
   dataSaverEnabled: boolean;
   hapticsEnabled: boolean;
 
-  // App preferences
-  /** Whether push / in-app notifications are enabled (stub — no native wiring in v1). */
-  notificationsEnabled: boolean;
-
   // Universal batch setter (for composed multi-field updates)
   updateSettingsSlice: (state: Partial<SettingsSlice>) => void;
 
@@ -27,7 +23,6 @@ export interface SettingsSlice {
   setAutoplayEnabled: (v: boolean) => void;
   setDataSaverEnabled: (v: boolean) => void;
   setHapticsEnabled: (v: boolean) => void;
-  setNotificationsEnabled: (v: boolean) => void;
 }
 
 export const createSettingsSlice: StateCreator<AppStore, [], [], SettingsSlice> = (set) => ({
@@ -38,7 +33,6 @@ export const createSettingsSlice: StateCreator<AppStore, [], [], SettingsSlice> 
   autoplayEnabled: true,
   dataSaverEnabled: false,
   hapticsEnabled: true,
-  notificationsEnabled: true,
 
   updateSettingsSlice: (state) => set(state),
   setLocale: (locale) => set({ locale }),
@@ -47,5 +41,4 @@ export const createSettingsSlice: StateCreator<AppStore, [], [], SettingsSlice> 
   setAutoplayEnabled: (autoplayEnabled) => set({ autoplayEnabled }),
   setDataSaverEnabled: (dataSaverEnabled) => set({ dataSaverEnabled }),
   setHapticsEnabled: (hapticsEnabled) => set({ hapticsEnabled }),
-  setNotificationsEnabled: (notificationsEnabled) => set({ notificationsEnabled }),
 });

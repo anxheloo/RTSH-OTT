@@ -48,6 +48,15 @@ export async function changePassword(payload: ChangePasswordPayload): Promise<To
   return tokenPairSchema.parse(data);
 }
 
+/**
+ * Permanently delete the authenticated account. `DELETE /users/me` — the access
+ * token (injected by the interceptor) identifies the account; no body. Resolves
+ * on 200; the caller then wipes the local session (see `useDeleteAccountMutation`).
+ */
+export async function deleteAccount(): Promise<void> {
+  await apiClient.delete(USERS_ROUTES.ME);
+}
+
 /*
  * No parental endpoints: the gate is device-level (client-only) as of
  * 2026-06-16 — the PIN never touches the backend. See `ParentalSlice`.

@@ -189,12 +189,15 @@
     },
     "settings_row": {
       "title": "Settings",
-      "subtitle": "Cellular data, language, notifications"
+      "subtitle": "Cellular data, language, theme"
     },
     "logout": "Log out",
     "logout_confirm_title": "Log out",
     "logout_confirm_message": "Are you sure you want to log out?",
-    "logging_out": "Logging out..."
+    "logging_out": "Logging out...",
+    "delete_account": "Delete account",
+    "delete_confirm_title": "Delete account",
+    "delete_confirm_message": "This permanently deletes your account and cannot be undone. Are you sure?"
   },
   "settings": {
     "title": "Settings",
@@ -231,10 +234,6 @@
       "title": "Language",
       "sq": "Albanian",
       "en": "English"
-    },
-    "notifications": {
-      "title": "Notifications",
-      "subtitle": "Premieres & news"
     },
     "terms": {
       "title": "Terms of use"

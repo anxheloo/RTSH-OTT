@@ -25,14 +25,11 @@ import { getGuide } from '../services/guide';
  * a poll would add needless server load (decision 2026-06-22).
  */
 export const useGuideQuery = (type: ChannelType) => {
-  const { data, isLoading, error, refetch, dataUpdatedAt } = useQuery({
+  const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['guide', type],
     queryFn: () => getGuide(type),
     staleTime: 5 * 60_000,
     gcTime: 15 * 60_000,
   });
-  // `dataUpdatedAt` is the fetch timestamp — a pure "now" for progress that
-  // advances on every refetch (focus/reconnect/pull), avoiding an impure
-  // `Date.now()` in render.
-  return { guide: data ?? [], isLoading, error, refetch, dataUpdatedAt };
+  return { guide: data ?? [], isLoading, error, refetch };
 };

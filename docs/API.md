@@ -32,6 +32,10 @@ Both return a **bare `UserDTO`** (no `{ user }` envelope). `PATCH` accepts `Upda
 
 Request `ChangePasswordRequestDTO`: `{ oldPassword, newPassword, logoutOtherDevices? }` (default `false`). Returns **fresh `{ accessToken, refreshToken }`** — this endpoint **ROTATES the refresh token** (unlike `/auth/refresh`), so the client rewrites the keychain copy + in-memory access token (`useChangePasswordMutation`). `logoutOtherDevices: true` also revokes the account's other sessions in the same call — so there is **no separate `logout-others` endpoint**. Errors carry stable `code`s (`auth.invalid_old_password`, `auth.password_unchanged`) mapped to copy via `authErrorMessage(err, _, codeMap)`.
 
+### `DELETE /users/me` — permanent account deletion
+
+No body — the access token (Authorization header) identifies the account. Returns **200** on success. The client (`deleteAccount` in `services/users.ts` → `useDeleteAccountMutation`) wipes the local session **only on 200** (`onSuccess`, not `onSettled`): `store.logout()` (remove keychain refresh token + clear auth) + `clearParentalConfig()` (deletion ALSO wipes the device parental gate, unlike logout) + `queryClient.clear()`. A failed delete keeps the user signed in and surfaces via the global `apiError` modal (no error-suppressing `meta`). No separate session/device cleanup call — the backend tears down the account's sessions on delete.
+
 ### Parental control — no API (device-level, client-only)
 
 **Changed 2026-06-16.** Parental control has **no backend endpoints**. The PIN is content gating, not a credential, and is handled entirely on the client at the **device level**: it lives in `ParentalSlice` (`parentalEnabled` + `parentalPin`, MMKV-persisted), is set/verified by a local compare, and is never sent to or read from the server. There is no setup/toggle/verify endpoint and no cross-device sync (each device has its own PIN). The previously-specified `POST`/`PATCH`/`GET /parental` + `POST /parental/verify-pin` are removed. See `rules/ARCHITECTURE.md → Parental control`.

@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { StatusBar, StyleSheet, View } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
 
 import {
@@ -99,11 +100,13 @@ const RootLayoutNav = () => {
 
 /** Root layout — all wrappers / providers live here. No hooks. */
 const RootLayout = () => (
-  <QueryClientProvider client={queryClient}>
-    <KeyboardProvider>
-      <RootLayoutNav />
-    </KeyboardProvider>
-  </QueryClientProvider>
+  <GestureHandlerRootView style={styles.root}>
+    <QueryClientProvider client={queryClient}>
+      <KeyboardProvider>
+        <RootLayoutNav />
+      </KeyboardProvider>
+    </QueryClientProvider>
+  </GestureHandlerRootView>
 );
 
 const styles = StyleSheet.create({
