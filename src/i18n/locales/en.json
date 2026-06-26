@@ -258,6 +258,10 @@
     "haptics": {
       "title": "Haptic feedback",
       "subtitle": "Vibrations on toggles and inputs"
+    },
+    "analytics": {
+      "title": "Usage analytics",
+      "subtitle": "Share anonymous usage data to improve the app"
     }
   },
   "player": {

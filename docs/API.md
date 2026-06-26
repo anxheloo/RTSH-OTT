@@ -232,6 +232,49 @@ Catch-up playback decision for a single recorded programme (`getCatchupPlayback`
 
 The channel identity is `id` / `name` (not `channelId` / `channelName`). Mapped at the service boundary (`services/guide.ts`) to the domain `GuideChannel` (`id` int64 → `channelId` string, `name` → `channelName`, `now.name` → `now.title`). `now` may be `null` if nothing is airing.
 
+## Analytics
+
+### `POST /analytics/events` — telemetry ingestion (fire-and-forget)
+
+> **Client proposal — confirm with the middleware team (they own ingestion).** Spec MW.14 / Mon.6.
+
+Batched body (the client posts one event per call, but the shape is a batch so batching can be added without a contract change):
+
+```jsonc
+{
+  "events": [
+    {
+      "event": "channel_watch_start",   // see event list below
+      "ts": 1719400000000,               // client epoch ms
+      "sessionId": "uuid-or-null",        // per foreground session; null for pre-auth app_open
+      "props": { "channelId": "12", "kind": "live" },
+      "device": {                          // == DeviceRegistration; NO PII
+        "deviceKey": "uuid",
+        "type": "PHONE_IOS",
+        "model": "iPhone15,2",
+        "operatingSystem": "iOS 18.0",
+        "appVersion": "1.0.0"
+      }
+    }
+  ]
+}
+```
+
+**No PII in the body** (no email / token / displayName — enforced by the typed client payload). The backend stamps `userId` from the `Authorization` token (absent → anonymous, e.g. pre-auth `app_open`) and **country from the request IP** (no client geolocation permission). Response body is ignored; any 2xx is success. Fire-and-forget: the client swallows all failures and never retries (lossy-tolerant).
+
+**Events** (`event` + `props`):
+| `event` | `props` |
+|---|---|
+| `app_open` | `{}` |
+| `session_start` | `{ sessionId }` |
+| `session_end` | `{ sessionId, durationMs }` |
+| `channel_watch_start` | `{ channelId, kind: 'live'\|'radio'\|'recorded' }` |
+| `channel_watch_end` | `{ channelId, kind, watchDurationMs }` |
+| `stream_error` | `{ channelId, errorType }` |
+| `heartbeat` | `{ state: 'foreground'\|'watching', channelId? }` — every 5 min while foregrounded |
+
+Opt-out: the client suppresses **all** events (incl. heartbeat) when the device's `analyticsEnabled` setting is off.
+
 ## Out of band
 
 - CDN segment / AES-key requests carry **no** app headers. Per-device or geo enforcement at the edge rides backend-issued **signed playback URLs** (see plan 15.2), not headers.

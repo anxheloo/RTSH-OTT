@@ -30,7 +30,7 @@ import { router } from 'expo-router';
 import { SCREEN_PADDING, SPACING } from '@/theme/spacing';
 import { useAppStore } from '@/store/useAppStore';
 import { useChannelsQuery } from '@/api/queries';
-import { useDeviceIdentity, useRefreshOnFocus, useTabBarHeight } from '@/hooks';
+import { useRefreshOnFocus, useTabBarHeight } from '@/hooks';
 import { BrandHeader } from '@/components/Brand';
 import ChannelCard from '@/components/channels/ChannelCard';
 import ChannelCardSkeleton from '@/components/channels/ChannelCardSkeleton';
@@ -83,9 +83,6 @@ const HomeScreen: React.FC = () => {
   const colors = useAppStore((s) => s.colors);
   const activeStationId = useAppStore((s) => s.radioChannelId);
   const tabBarHeight = useTabBarHeight();
-
-  // Register this device once on first Home mount (tabs stay mounted).
-  useDeviceIdentity();
 
   const [mode, setMode] = useState<HomeMode>('tv');
 

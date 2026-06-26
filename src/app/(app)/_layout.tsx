@@ -8,13 +8,21 @@ import { StyleSheet, View } from 'react-native';
 import { Stack } from 'expo-router';
 
 import { useAdQuery, useChannelsQuery, useMeQuery } from '@/api/queries';
+import { useDeviceIdentity } from '@/hooks';
 import RadioMiniPlayer from '@/components/Layout/RadioMiniPlayer';
 import AdOverlay from '@/components/Media/AdOverlay';
 import RadioAudioHost from '@/components/Media/RadioAudioHost';
 import { getModalScreenOptions } from '@/utils/navigation';
+// Analytics disabled for now — re-enable when telemetry is wanted.
+// import { useAnalytics } from '@/analytics';
 
 const AppLayout: React.FC = () => {
   useMeQuery();
+  // Register this device once per authenticated entry (fires regardless of which
+  // route the user lands on — covers deep links into a non-Home tab).
+  useDeviceIdentity();
+  // Telemetry lifecycle: app_open + session + heartbeat (single entry point).
+  // useAnalytics();
 
   const [launchAdDismissed, setLaunchAdDismissed] = useState(false);
   // Defer the launch-ad fetch until Home's TV channels have settled, so the ad

@@ -258,6 +258,10 @@
     "haptics": {
       "title": "Reagime haptike",
       "subtitle": "Dridhje në prekjet dhe ndryshimet"
+    },
+    "analytics": {
+      "title": "Analitika e përdorimit",
+      "subtitle": "Ndaj të dhëna anonime përdorimi për ta përmirësuar aplikacionin"
     }
   },
   "player": {

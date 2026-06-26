@@ -13,7 +13,7 @@
  * stream. expo-video VideoSource.headers may not forward to key requests —
  * fallback: react-native-video.
  */
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { StyleProp, StyleSheet, Text, TouchableOpacity, View, ViewStyle } from 'react-native';
 
 import { StatusBar } from 'expo-status-bar';
@@ -37,6 +37,9 @@ export type LivePlayerProps = {
   currentProgramEnd?: Date;
   /** `false` for recorded/catch-up playback — drops the LIVE badge, seekable bar. */
   isLive?: boolean;
+  /** Fired once when playback enters an error state (analytics `stream_error`). */
+  // Analytics disabled for now — re-enable when telemetry is wanted.
+  // onError?: (errorType: string) => void;
   onClose?: () => void;
   /** Controlled fullscreen state (orientation owned by the parent screen). */
   isFullscreen?: boolean;
@@ -50,8 +53,10 @@ const LivePlayer: React.FC<LivePlayerProps> = ({
   streamUrl,
   streamHeaders,
   channelName,
+  channelLogoUrl,
   currentProgramTitle,
   isLive = true,
+  // onError, // Analytics disabled for now — re-enable when telemetry is wanted.
   onClose,
   isFullscreen = false,
   onToggleFullscreen,
@@ -61,8 +66,19 @@ const LivePlayer: React.FC<LivePlayerProps> = ({
   const [hasError, setHasError] = useState(false);
   const [retryKey, setRetryKey] = useState(0);
 
+  // Lock-screen / now-playing metadata. Memoized so its identity is stable —
+  // the inner player only re-applies it when the values actually change.
+  const metadata = useMemo(
+    () => ({ title: channelName, artist: currentProgramTitle, artwork: channelLogoUrl }),
+    [channelName, currentProgramTitle, channelLogoUrl],
+  );
+
   const handleStatusChange = (s: VideoStatus) => {
-    if (s === 'error') setHasError(true);
+    if (s === 'error') {
+      setHasError(true);
+      // Analytics disabled for now — re-enable when telemetry is wanted.
+      // onError?.('playback'); // expo-video exposes no stable error code here
+    }
     if (s === 'readyToPlay') setHasError(false);
   };
 
@@ -82,6 +98,8 @@ const LivePlayer: React.FC<LivePlayerProps> = ({
         autoPlay
         allowsPictureInPicture
         startsPictureInPictureAutomatically
+        backgroundPlayback
+        metadata={metadata}
         onStatusChange={handleStatusChange}
         style={StyleSheet.absoluteFill}
         renderOverlay={({ player, status, currentTime, duration }) => (

@@ -335,4 +335,11 @@ export const handlers: Handler[] = [
       return { data: null };
     },
   },
+
+  // ── Analytics (`POST /analytics/events` — fire-and-forget ingestion) ───────
+  {
+    method: 'post',
+    test: (u) => u === '/analytics/events',
+    respond: () => ({ status: 202, data: {} }),
+  },
 ];

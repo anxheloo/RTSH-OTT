@@ -74,3 +74,8 @@ export const ADS_ROUTES = {
   /** `GET /ads?placement=APP_OPEN` or `?placement=CHANNEL_CHANGE&channelId=N`. */
   AD: '/ads',
 } as const;
+
+export const ANALYTICS_ROUTES = {
+  /** Fire-and-forget telemetry ingestion — `POST { events: AnalyticsEventPayload[] }`. */
+  EVENTS: '/analytics/events',
+} as const;

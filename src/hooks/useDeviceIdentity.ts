@@ -1,7 +1,8 @@
 /**
- * Device registration wiring, mounted on the Home screen — so by the time it
- * runs the user is authenticated and has reached the app. Removing that mount
- * disables the feature.
+ * Device registration wiring, mounted in the authenticated `(app)/_layout` — so
+ * it runs once per authenticated entry regardless of which route the user lands
+ * on (covers deep links into a non-Home tab). Removing that mount disables the
+ * feature.
  *
  * Fires the device registration upsert (`PUT /users/me/device`) once on mount
  * via `useRegisterDeviceMutation`. Fire-and-forget; the backend upserts on

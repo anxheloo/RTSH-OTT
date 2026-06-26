@@ -58,6 +58,8 @@ import { ParentalPinModal } from '@/components/ParentalPin';
 import { availableQualityIds, resolveStreamSource } from '@/utils';
 import { toDateKey } from '@/utils/datetime';
 import type { CatchupDay, EpgItem } from '@/types/domain';
+// Analytics disabled for now — re-enable when telemetry is wanted.
+// import { AnalyticsEvent, track, useWatchTracking } from '@/analytics';
 import { ChevronLeftIcon, InfoIcon, LockIcon } from '@/assets/icons';
 import { DEFAULT_QUALITY } from '@/constants/player';
 import { useContentWidth } from '@/responsive';
@@ -90,6 +92,9 @@ const ChannelScreen: React.FC = () => {
   // null = watching live; non-null = watching a recorded programme.
   const [selectedProgramId, setSelectedProgramId] = useState<string | null>(null);
   const isLive = selectedProgramId === null;
+
+  // Analytics: emit channel_watch_start/end (re-pairs when live↔recorded flips).
+  // useWatchTracking(channelId, isLive ? 'live' : 'recorded');
 
   // Single query — branches on programId: live → GET /channels/{id},
   // recorded → GET /channels/{id}/epg/{programId}. Each pair cached independently.
@@ -363,6 +368,8 @@ const ChannelScreen: React.FC = () => {
               channelId)
         }
         isLive={isLive}
+        // Analytics disabled for now — re-enable when telemetry is wanted.
+        // onError={(errorType) => track(AnalyticsEvent.STREAM_ERROR, { channelId, errorType })}
         isFullscreen={isFullscreen}
         onToggleFullscreen={toggleFullscreen}
         onOpenOptions={() => router.push('/(app)/player-options')}

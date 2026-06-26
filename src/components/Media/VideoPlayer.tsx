@@ -37,6 +37,14 @@ export type VideoPlayerProps = {
   onPlayEnd?: () => void;
   allowsPictureInPicture?: boolean;
   startsPictureInPictureAutomatically?: boolean;
+  /**
+   * Keep audio playing while backgrounded AND show lock-screen / control-center
+   * now-playing controls. Opt-in (default off) so ads never keep playing
+   * invisibly or hijack the lock screen — only LivePlayer enables it.
+   */
+  backgroundPlayback?: boolean;
+  /** Lock-screen / now-playing metadata (title, artist, artwork uri). */
+  metadata?: { title?: string; artist?: string; artwork?: string };
   style?: StyleProp<ViewStyle>;
   /** Render prop — receives live player instance for custom controls overlay. */
   renderOverlay?: (props: VideoPlayerOverlayProps) => React.ReactNode;
@@ -51,6 +59,8 @@ function VideoPlayer({
   onPlayEnd,
   allowsPictureInPicture = false,
   startsPictureInPictureAutomatically = false,
+  backgroundPlayback = false,
+  metadata,
   style,
   renderOverlay,
 }: VideoPlayerProps): React.ReactElement {
@@ -61,7 +71,7 @@ function VideoPlayer({
   // native player parses streaming manifests correctly instead of falling back to
   // progressive container sniffing. See inferContentType.
   const videoSource: VideoSource = source
-    ? { uri: source, headers: headers ?? {}, contentType: inferContentType(source) }
+    ? { uri: source, headers: headers ?? {}, contentType: inferContentType(source), metadata }
     : null;
 
   const player = useVideoPlayer(videoSource, (p) => {
@@ -69,6 +79,9 @@ function VideoPlayer({
     // 0 = never). Without it `currentTime`/`duration` stay 0 forever, so the
     // recorded seek bar never becomes seekable and the progress fill never moves.
     p.timeUpdateEventInterval = 0.5;
+    // Background audio + lock-screen now-playing controls (opt-in via prop).
+    p.staysActiveInBackground = backgroundPlayback;
+    p.showNowPlayingNotification = backgroundPlayback;
     if (autoPlay) {
       p.play();
     }
@@ -94,12 +107,14 @@ function VideoPlayer({
     lastUriRef.current = source;
     void player
       .replaceAsync(
-        source ? { uri: source, headers: headers ?? {}, contentType: inferContentType(source) } : null,
+        source
+          ? { uri: source, headers: headers ?? {}, contentType: inferContentType(source), metadata }
+          : null,
       )
       .then(() => {
         if (autoPlay && source) player.play();
       });
-  }, [player, source, headers, autoPlay]);
+  }, [player, source, headers, autoPlay, metadata]);
 
   // Reactive render state straight off the player's events (replaces the manual
   // addListener + useState + setState). `useEvent` subscribes internally and

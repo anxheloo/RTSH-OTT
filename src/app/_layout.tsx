@@ -80,7 +80,12 @@ const RootLayoutNav = () => {
   }, [mode]);
 
   // TODO(anx 2026-06-25): TEMP boot diagnostics — remove after first-launch splash hang is found.
-  console.log('[BOOT] RootLayoutNav render — fontsLoaded:', fontsLoaded, 'tokenChecked:', tokenChecked);
+  console.log(
+    '[BOOT] RootLayoutNav render — fontsLoaded:',
+    fontsLoaded,
+    'tokenChecked:',
+    tokenChecked,
+  );
 
   useEffect(() => {
     if (fontsLoaded && tokenChecked) {

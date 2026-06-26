@@ -48,6 +48,9 @@ const SettingsScreen: React.FC = () => {
   const setCellularPlaybackAllowed = useAppStore((s) => s.setCellularPlaybackAllowed);
   const hapticsEnabled = useAppStore((s) => s.hapticsEnabled);
   const setHapticsEnabled = useAppStore((s) => s.setHapticsEnabled);
+  // Analytics disabled for now — re-enable when telemetry is wanted.
+  // const analyticsEnabled = useAppStore((s) => s.analyticsEnabled);
+  // const setAnalyticsEnabled = useAppStore((s) => s.setAnalyticsEnabled);
   const locale = useAppStore((s) => s.locale);
   const mode = useAppStore((s) => s.mode);
   const parentalEnabled = useAppStore((s) => s.parentalEnabled);
@@ -206,6 +209,20 @@ const SettingsScreen: React.FC = () => {
             }
             testID="settings-haptics-row"
           />
+          {/* Analytics disabled for now — re-enable when telemetry is wanted.
+          <ListRow
+            title={t('settings.analytics.title')}
+            subtitle={t('settings.analytics.subtitle')}
+            leading={<Icon as={InfoIcon} size={20} color={colors.text} />}
+            right={
+              <Switch
+                value={analyticsEnabled}
+                onValueChange={setAnalyticsEnabled}
+                testID="settings-analytics-switch"
+              />
+            }
+            testID="settings-analytics-row"
+          /> */}
           <ListRow
             title={t('settings.theme.title')}
             subtitle={t(`settings.theme.${mode}`)}
