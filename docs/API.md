@@ -148,9 +148,11 @@ Returns the playback decision for a single channel. No channel metadata — name
 }
 ```
 
-The client maps `streams` keys to `QualityId` **dynamically** via `resolveStreamSource` / `availableQualityIds` (`utils/resolveStreamSource.ts`): `master` → `auto`, and **every other key is used verbatim as its own `QualityId`** (the quality sheet lists them in backend order, labelled by the key itself). There is no fixed rendition table — keys the backend renames or adds flow through unchanged, so `QualityId` is `'auto' | (string & {})`. `expiresAt` drives the pre-expiry re-sign (`refetchInterval` at `expiresAt − 30s`); `sessionId` is replayed to `POST /channels/playback/refresh` to re-sign the session (see below).
+The client maps `streams` keys to `QualityId` **dynamically** via `resolveStreamSource` / `availableQualityIds` (`utils/resolveStreamSource.ts`): `master` → `auto`, and **every other key is used verbatim as its own `QualityId`** (the quality sheet lists them in backend order, labelled by the key itself). There is no fixed rendition table — keys the backend renames or adds flow through unchanged, so `QualityId` is `'auto' | (string & {})`. `expiresAt` / `sessionId` are **not currently consumed by the client** — the pre-expiry re-sign is disabled for the moment (2026-06-28); see the `POST /channels/playback/refresh` note below.
 
 ### `POST /channels/playback/refresh` — re-sign an active session
+
+> **Client call DISABLED (2026-06-28).** The endpoint, service (`refreshPlayback`), and mock handler remain, but `useChannelPlaybackQuery` no longer calls it — the pre-expiry interval re-sign was removed and the query now uses the global config (`staleTime: 5min` + refetch-on-focus/reconnect). Re-enable by reinstating a `refetchInterval` in `queries/useChannelsQuery.ts`. The contract below stands for when it's wired back.
 
 Re-signs an **existing** playback session: returns a fresh `streams` URL + new `expiresAt` for the same `sessionId`, **without** re-running the full decision (no geo re-check, no new session). The geo / `decision` gate is evaluated **only** on the initial `GET /channels/{id}`.
 
@@ -168,7 +170,7 @@ Re-signs an **existing** playback session: returns a fresh `streams` URL + new `
 }
 ```
 
-`useChannelPlaybackQuery` (`queries/useChannelsQuery.ts`) calls `getChannelById` / `getCatchupPlayback` on the **first** fetch (no cached `sessionId`), then routes every interval-driven re-fetch (armed at `expiresAt − 30s`, 5s floor, paused while backgrounded) through `refreshPlayback(sessionId)`. Returning to live invalidates the live key, clearing the cached session so the next play re-establishes one via the decision endpoint.
+`useChannelPlaybackQuery` (`queries/useChannelsQuery.ts`) calls `getChannelById` / `getCatchupPlayback` once per cache entry (no interval re-fetch); freshness rides the global config. When the re-sign is re-enabled, the intended flow is: first fetch via the decision endpoint, then every interval-driven re-fetch (armed at `expiresAt − 30s`, 5s floor, paused while backgrounded) through `refreshPlayback(sessionId)`.
 
 ### `GET /channels/{id}/epg?date=YYYY-MM-DD`
 

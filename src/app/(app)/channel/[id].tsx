@@ -55,7 +55,7 @@ import { CenteredMessage, ScreenLayout, Skeleton } from '@/components/Layout';
 import AdOverlay from '@/components/Media/AdOverlay';
 import LivePlayer from '@/components/Media/LivePlayer';
 import { ParentalPinModal } from '@/components/ParentalPin';
-import { availableQualityIds, resolveStreamSource } from '@/utils';
+import { availableQualityIds, getStreamHeaders, resolveStreamSource } from '@/utils';
 import { toDateKey } from '@/utils/datetime';
 import type { CatchupDay, EpgItem } from '@/types/domain';
 // Analytics disabled for now — re-enable when telemetry is wanted.
@@ -360,6 +360,7 @@ const ChannelScreen: React.FC = () => {
       <LivePlayer
         channelId={channelId}
         streamUrl={streamSource}
+        streamHeaders={getStreamHeaders()}
         channelName={
           isLive
             ? (channelMeta?.name ?? channelId)

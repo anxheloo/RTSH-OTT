@@ -19,6 +19,7 @@ import { useEffect } from 'react';
 import { setAudioModeAsync, useAudioPlayer } from 'expo-audio';
 
 import { useAppStore } from '@/store/useAppStore';
+import { getStreamHeaders } from '@/utils';
 // Analytics disabled for now — re-enable when telemetry is wanted.
 // import { useWatchTracking } from '@/analytics';
 
@@ -48,7 +49,7 @@ const RadioAudioHost: React.FC = () => {
   // Swap the live stream whenever the selected station changes.
   useEffect(() => {
     if (radioStreamUrl) {
-      player.replace({ uri: radioStreamUrl });
+      player.replace({ uri: radioStreamUrl, headers: getStreamHeaders() });
     }
   }, [radioStreamUrl, player]);
 

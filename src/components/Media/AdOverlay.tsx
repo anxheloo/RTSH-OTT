@@ -10,9 +10,9 @@
 import React from 'react';
 import { Modal, Pressable, StyleSheet, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
+import { ZoomIn, ZoomOut } from 'react-native-reanimated';
 
 import { BlurView } from 'expo-blur';
-import { ZoomIn, ZoomOut } from 'react-native-reanimated';
 
 import { BORDERRADIUS } from '@/theme/borders';
 import { FONTSIZE } from '@/theme/fonts';

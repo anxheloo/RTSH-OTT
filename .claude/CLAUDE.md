@@ -107,7 +107,9 @@ Persist via MMKV (`zustandStorage`). `partialize` controls what persists. `onReh
 - `components/Media/RadioPlayer.tsx` — presentational now-playing core (art + `Equalizer` + transport); no playback logic. `RadioMiniPlayer` (Layout/) is the docked strip.
 - `components/Media/PlayerControls.tsx` — overlay (auto-hide, fullscreen, PIP, audio tracks). Seek bar is a **draggable scrubber** (tap-to-jump + drag) built on `react-native-gesture-handler` `Gesture.Pan()` + Reanimated shared values (UI-thread, 60fps); active only when seekable (`!isLive && duration > 0` → recorded/catch-up). **Live is deliberately non-seekable** — pinned full at the live edge — even though the DVR window now reports a finite duration (`isLive` is excluded from `isSeekable`, not the duration). Requires `GestureHandlerRootView` at the app root (`app/_layout.tsx`).
 
-**Open risk:** `expo-video` `VideoSource.headers` may not forward to AES-128 key requests. Validate on a real stream early; fallback = `react-native-video`.
+- **Stream `User-Agent` (2026-06-27):** a custom per-platform UA (`RTSHTani-<Platform>`, e.g. `RTSHTani-AndroidTV`) is stamped on the media requests via `getStreamHeaders()` (`utils/device.ts`) → expo-video `streamHeaders` (live + recorded) + expo-audio `player.replace({ headers })` (radio). Lets the origin recognize app traffic / reject browser-pasted manifest URLs. Spoofable speed-bump, not a lock (real lock = signed/expiring/IP-bound URLs). Full rationale + iOS caveat: `rules/ARCHITECTURE.md → Device identity`.
+
+**Open risk:** `expo-video` `VideoSource.headers` may not forward to AES-128 key requests (and on iOS the UA override rides a private asset key). Validate on a real stream early; fallback = `react-native-video` or a custom `X-Client-Platform` header.
 
 ### Theme
 

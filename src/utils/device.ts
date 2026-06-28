@@ -112,6 +112,77 @@ export function getDeviceClass(): DeviceClass {
 }
 
 /**
+ * Per-platform stream `User-Agent` label, keyed off `getDeviceType()` so it never
+ * diverges from the device registry (the `Record` is exhaustive over `DeviceType`).
+ * Sent as the `User-Agent` header on every media request (expo-video + expo-audio)
+ * so the origin/CDN can recognize "this came from our app" and reject foreign
+ * requests (e.g. a manifest URL pasted into a browser, which carries the browser's
+ * own UA). It's a spoofable speed-bump, NOT real access control — pair it with
+ * signed/expiring/IP-bound URLs.
+ *
+ * `TIZEN_TV` / `WEBOS_TV` never resolve from this RN app (those are separate native
+ * apps), but are mapped here as the canonical labels their teams should mirror via
+ * their own platform UA APIs (`tizen.websetting.setUserAgentString` / webOS
+ * `appinfo.json` `vendorExtension.userAgent`).
+ */
+const STREAM_UA_LABEL: Record<DeviceType, string> = {
+  PHONE_IOS: 'iOS',
+  PHONE_ANDROID: 'Android',
+  TABLET_IPADOS: 'iPadOS',
+  TABLET_ANDROID: 'AndroidTablet',
+  ANDROID_TV: 'AndroidTV',
+  TIZEN_TV: 'Tizen',
+  WEBOS_TV: 'webOS',
+  STB_ANDROID: 'AndroidSTB',
+};
+
+/** Product token shared by every platform UA so the backend can gate on a substring. */
+const STREAM_UA_PRODUCT = 'RTSHTani';
+
+/**
+ * Which request header carries the app/platform identifier — the **single switch**
+ * for the whole feature. Every call site (`getStreamHeaders()`) is unchanged when
+ * you flip this; only the header *name* changes.
+ *
+ * - `'User-Agent'` (default) — overrides the OS UA. The origin logs it for free
+ *   (nginx access log), but the iOS override is flaky (rides the private asset key).
+ * - `'X-Client-Platform'` — a custom header. More reliable on iOS (a pure add, no
+ *   reserved-header fight), works the same on every native target, but the backend
+ *   must add its own log/gate rule (it isn't logged by default).
+ *
+ * Both are equally spoofable — a speed-bump, not access control.
+ */
+const STREAM_ID_HEADER: 'User-Agent' | 'X-Client-Platform' = 'User-Agent';
+
+/**
+ * The per-device identifier value, e.g. `RTSHTani-AndroidTV`. The backend matches the
+ * `RTSHTani` substring to allow and reads the platform from the rest. No version —
+ * gating doesn't need it, and the app version already reaches the backend in the
+ * device-registration body (`PUT /users/me/device`). (Same value whichever header
+ * name `STREAM_ID_HEADER` selects.)
+ */
+export function getStreamUserAgent(): string {
+  return `${STREAM_UA_PRODUCT}-${STREAM_UA_LABEL[getDeviceType()]}`;
+}
+
+let cachedStreamHeaders: Record<string, string> | null = null;
+
+/**
+ * Custom headers for the media engines (expo-video live/recorded + expo-audio
+ * radio). The header *name* comes from `STREAM_ID_HEADER` (one-line switch between
+ * `User-Agent` and `X-Client-Platform`); the value is `getStreamUserAgent()`.
+ * Cached for a stable reference so passing it as a player prop / source field
+ * doesn't trigger needless re-renders or source re-replaces. Device identity is
+ * static at runtime, so one resolve at first use is correct.
+ */
+export function getStreamHeaders(): Record<string, string> {
+  if (!cachedStreamHeaders) {
+    cachedStreamHeaders = { [STREAM_ID_HEADER]: getStreamUserAgent() };
+  }
+  return cachedStreamHeaders;
+}
+
+/**
  * `PUT /users/me/device` body. `deviceKey` is the stable keychain UUID — one
  * identity everywhere, or the backend's device registry drifts from the device.
  */

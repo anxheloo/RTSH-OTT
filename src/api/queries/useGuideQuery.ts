@@ -10,10 +10,9 @@ import { getGuide } from '../services/guide';
  * programme boundaries here. `type` mirrors the channels endpoint (each value
  * is its own cache entry). Freshness comes from refetch triggers only:
  *
- *  - `staleTime: 5min` **overrides** the global `staleTime: Infinity` so the
- *    foreground/reconnect/mount triggers below actually fire (with Infinity
- *    nothing ever goes stale and they'd be no-ops); `gcTime: 15min` keeps the
- *    cache after the tab unmounts;
+ *  - inherits the global `staleTime: 5min` / `gcTime: 15min` (`client.ts`), so the
+ *    foreground/reconnect/mount triggers below actually fire (data goes stale at
+ *    5min) and the cache survives 15min after the tab unmounts;
  *  - `refetchOnWindowFocus` (inherited true) → refetch on app foreground via the
  *    AppState↔focusManager bridge;
  *  - `refetchOnReconnect` (inherited true) → refetch when connectivity returns;
@@ -28,8 +27,6 @@ export const useGuideQuery = (type: ChannelType) => {
   const { data, isLoading, error, refetch, dataUpdatedAt } = useQuery({
     queryKey: ['guide', type],
     queryFn: () => getGuide(type),
-    staleTime: 5 * 60_000,
-    gcTime: 15 * 60_000,
   });
   // `dataUpdatedAt` advances on every (re)fetch — the Guide uses it to cache-bust
   // the live snapshot thumbnails so a fresh frame loads on each refresh (same
