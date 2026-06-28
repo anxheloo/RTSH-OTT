@@ -40,6 +40,7 @@
     "expo-updates": "~56.0.17",
     "expo-video": "~56.1.2",
     "expo-web-browser": "~56.0.5",
+    "fastestsmallesttextencoderdecoder": "^1.0.22",
     "i18next": "^26.3.0",
     "react": "19.2.3",
     "react-dom": "19.2.3",

@@ -347,7 +347,7 @@ Real-time layer in `src/realtime/` (`@/realtime`) over **STOMP-on-WebSocket** (`
 
 - **Backend contract pending Henri's validation** (`docs/REALTIME_SOCKET.md` §10): merged `GET /ads`, **absolute ISO `startTime`** on mid-rolls (his current field is a `LocalTime` band — the gating dependency), `POST /ads/{id}/impression` → 204, geo via `convertAndSendToUser → /user/queue/geo`, placement casing.
 - **`wss://` required in production** — iOS ATS blocks cleartext `ws://`; the current host is `http://`. Dev works over `ws://` on Android.
-- **`TextEncoder`/`TextDecoder`** — `@stomp/stompjs` needs them; Hermes (RN 0.85) ships them, but verify on first device run (polyfill `text-encoding` if absent).
+- **`TextEncoder`/`TextDecoder`** — `@stomp/stompjs` needs both at runtime (frame parse). Hermes (RN 0.85) ships them, but a **guarded pure-JS fallback** (`src/polyfills.ts` → `fastestsmallesttextencoderdecoder`, imported at the top of the root `app/_layout.tsx`) installs them only if a global is missing — a no-op on Hermes, insurance against a crash. Pure JS, no native, EAS-safe.
 - **No live socket round-trip tested yet** — the backend STOMP server doesn't exist; verified by tsc + lint + structure. Mock mode has no STOMP server, so realtime events are inert under `EXPO_PUBLIC_API_MODE=mock` (the REST `GET /ads` seed still drives the mock mid-roll).
 - **`fired-ids` persist for the hook's lifetime** — keyed by ad `id` (globally unique), so they don't leak across channels within a single mount; reset naturally on unmount.
 

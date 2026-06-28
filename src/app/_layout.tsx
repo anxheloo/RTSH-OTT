@@ -28,6 +28,8 @@ import { ToastHost } from '@/components/Layout';
 import ModalWrapper from '@/components/ModalWrapper';
 import { initI18n } from '@/i18n';
 
+import '@/polyfills'; // installs TextEncoder/TextDecoder fallback (STOMP) at boot, before any runtime use
+
 // Start mock server before any React rendering so the first API call is intercepted.
 // Tree-shaken in production — the conditional is evaluated at module load time.
 if (process.env.EXPO_PUBLIC_API_MODE === 'mock') {
