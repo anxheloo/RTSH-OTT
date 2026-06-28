@@ -1,27 +1,30 @@
-import type { AdCreative, AdPlacement } from '@/types/domain';
+import type { Ad, AdPlacement } from '@/types/domain';
 
 import { apiClient } from '../client';
 import { ADS_ROUTES } from '../endpoints';
 
 /**
- * Fetch the ad creative for a placement. Returns `null` when the server decides
- * no ad should run (frequency cap, slot disabled, etc.) — the client just
- * renders whatever it gets; slot policy is server-authoritative.
- *
- * APP_OPEN:      no channelId — called once on app entry.
- * CHANNEL_CHANGE: channelId required — called each time a channel is opened.
+ * Merged ads call per context (Ads = Option A — see docs/REALTIME_SOCKET.md §7).
+ * With `channelId` → the channel's CHANNEL_CHANGE preroll + all MID_ROLLs (each
+ * carrying an absolute `startTime`); without → the APP_OPEN ad. Always an array
+ * (`[]` = none). Replaces the per-placement `getAd` calls.
  */
-export async function getAd(placement: 'APP_OPEN'): Promise<AdCreative | null>;
-export async function getAd(
-  placement: 'CHANNEL_CHANGE',
-  channelId: number,
-): Promise<AdCreative | null>;
-export async function getAd(
-  placement: AdPlacement,
-  channelId?: number,
-): Promise<AdCreative | null> {
-  const params: Record<string, unknown> = { placement };
-  if (channelId !== undefined) params.channelId = channelId;
-  const { data } = await apiClient.get<AdCreative | null>(ADS_ROUTES.AD, { params });
-  return data ?? null;
-}
+export const getAds = async (channelId?: number): Promise<Ad[]> => {
+  const { data } = await apiClient.get<Ad[]>(ADS_ROUTES.AD, {
+    params: channelId != null ? { channelId } : undefined,
+  });
+  return Array.isArray(data) ? data : [];
+};
+
+/**
+ * Ad impression beacon (Ads = Option A — FE reports). Fire-and-forget: a raw
+ * `apiClient.post` bypasses the TanStack QueryCache/MutationCache, so it never
+ * triggers the global error modal — the `.catch` is the only silencing needed
+ * (same pattern as the analytics `track` emitter). Returns void.
+ */
+export const reportAdImpression = (
+  adId: number,
+  body?: { channelId?: number; placement?: AdPlacement },
+): void => {
+  apiClient.post(ADS_ROUTES.IMPRESSION(adId), body ?? {}).catch(() => {});
+};

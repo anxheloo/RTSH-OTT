@@ -16,5 +16,5 @@ export { useChannelEpgQuery, useEpgQuery } from './useEpgQuery';
 // Guide ("now on TV" per-channel)
 export { useGuideQuery } from './useGuideQuery';
 
-// Ads
-export { useAdQuery } from './useAdQuery';
+// Ads (merged array — preroll + midrolls per context)
+export { useAdsQuery } from './useAdsQuery';

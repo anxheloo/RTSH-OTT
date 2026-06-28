@@ -234,6 +234,51 @@ Catch-up playback decision for a single recorded programme (`getCatchupPlayback`
 
 The channel identity is `id` / `name` (not `channelId` / `channelName`). Mapped at the service boundary (`services/guide.ts`) to the domain `GuideChannel` (`id` int64 → `channelId` string, `name` → `channelName`, `now.name` → `now.title`). `now` may be `null` if nothing is airing.
 
+## Ads (merged array)
+
+> **Pending backend (Henri) validation — see `docs/REALTIME_SOCKET.md §7/§10`.** Replaces the prior per-placement `GET /ads?placement=…` calls.
+
+### `GET /ads?channelId={id}` — channel context · `GET /ads` — app-open
+
+One merged array per context, each element tagged with its `placement`:
+- `GET /ads?channelId={id}` → the channel's one `CHANNEL_CHANGE` preroll **+ all** `MID_ROLL`s (`[]` when none).
+- `GET /ads` (no channelId) → the one `APP_OPEN` ad.
+
+```jsonc
+[
+  {
+    "id": 9007199254740991,
+    "placement": "CHANNEL_CHANGE",        // APP_OPEN | CHANNEL_CHANGE | MID_ROLL (frozen casing)
+    "type": "IMAGE",                       // IMAGE | VIDEO
+    "mediaUrl": "https://…",
+    "durationSeconds": 10,
+    "skippable": true,
+    "skipAfterSeconds": 3
+  },
+  {
+    "id": 9007199254740992,
+    "placement": "MID_ROLL",
+    "type": "IMAGE",
+    "mediaUrl": "https://…",
+    "durationSeconds": 10,
+    "skippable": true,
+    "skipAfterSeconds": 3,
+    "startTime": "2026-06-29T18:30:00Z",   // MID_ROLL only — ABSOLUTE ISO instant to fire
+    "validUntil": "2026-06-29T18:45:00Z"   // MID_ROLL only — optional; drop if missed
+  }
+]
+```
+
+Maps to the domain `Ad` (`types/domain.ts`) verbatim. Preroll/app-open fire immediately (no `startTime`); mid-rolls fire at the absolute `startTime`. Live add/update/remove of a mid-roll arrives over the socket (`MidrollEvent`, `docs/REALTIME_SOCKET.md §6`), keyed by `id`.
+
+### `POST /ads/{id}/impression` — FE-reported impression → `204`
+
+Body (optional): `{ "channelId": number, "placement": string }`. Fire-and-forget; the client reports once when an ad is shown (preroll, app-open, mid-roll). Backend increments an aggregated counter.
+
+## Real-time (STOMP over WebSocket)
+
+The presence / in-channel-count / per-program watch-time / mid-roll-push / geo-push contract (destinations, payloads, CONNECT auth, Redis) lives in **`docs/REALTIME_SOCKET.md`** — the source of truth the client (`src/realtime/`) is built against. Endpoint `ws(s)://HOST/ws`; not under `/api/v1`.
+
 ## Analytics
 
 ### `POST /analytics/events` — telemetry ingestion (fire-and-forget)

@@ -7,7 +7,7 @@
  * `durationSeconds`. `onComplete` fires on every path (skip, timer, or — for
  * video — natural end) and is the single dismissal callback.
  */
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Modal, Pressable, StyleSheet, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { ZoomIn, ZoomOut } from 'react-native-reanimated';
@@ -44,11 +44,19 @@ const AD = {
 export interface AdOverlayProps {
   creative: AdCreative;
   onComplete: () => void;
+  /** Fired ONCE when the overlay mounts — used to report the ad impression. */
+  onShown?: () => void;
   testID?: string;
 }
 
-const AdOverlay: React.FC<AdOverlayProps> = ({ creative, onComplete, testID }) => {
+const AdOverlay: React.FC<AdOverlayProps> = ({ creative, onComplete, onShown, testID }) => {
   const { t } = useTranslation();
+
+  // One mount = one impression. Report it once when the overlay appears.
+  useEffect(() => {
+    onShown?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Countdown runs for skipAfterSeconds (skippable) or durationSeconds (non-skippable).
   // Either way, when the timer finishes the user can always dismiss the ad.

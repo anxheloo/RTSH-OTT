@@ -6,7 +6,7 @@ import { InternalAxiosRequestConfig } from 'axios';
 
 import type { DevicePlatform } from '@/types/domain';
 
-import { mockAdAppOpen, mockAdChannelChange } from './fixtures/ads';
+import { mockAdsAppOpen, mockAdsChannel } from './fixtures/ads';
 import { mockTokens, mockUserDto } from './fixtures/auth';
 import {
   mockRegister,
@@ -322,18 +322,26 @@ export const handlers: Handler[] = [
     },
   },
 
-  // ── Ads (`GET /ads?placement=APP_OPEN|CHANNEL_CHANGE`) ────────────────────
+  // ── Ads — merged array (`GET /ads` → APP_OPEN, `GET /ads?channelId=N` → ──────
+  //    CHANNEL_CHANGE preroll + MID_ROLLs). Ads = Option A.
   {
     method: 'get',
     test: (u) => u === '/ads',
     delay: 200,
     respond: (cfg) => {
-      const params = cfg.params as { placement?: string; channelId?: string } | undefined;
-      const placement = params?.placement;
-      if (placement === 'APP_OPEN') return { data: mockAdAppOpen };
-      if (placement === 'CHANNEL_CHANGE') return { data: mockAdChannelChange };
-      return { data: null };
+      const params = cfg.params as { channelId?: string } | undefined;
+      if (params?.channelId == null) return { data: mockAdsAppOpen };
+      // Sample MID_ROLL fires ~30s after channel open.
+      const startTime = new Date(Date.now() + 30_000).toISOString();
+      return { data: mockAdsChannel(startTime) };
     },
+  },
+
+  // ── Ad impression beacon (`POST /ads/{id}/impression`) ────────────────────
+  {
+    method: 'post',
+    test: (u) => /^\/ads\/\d+\/impression$/.test(u),
+    respond: () => ({ status: 204, data: {} }),
   },
 
   // ── Analytics (`POST /analytics/events` — fire-and-forget ingestion) ───────

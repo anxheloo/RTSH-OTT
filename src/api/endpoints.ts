@@ -71,8 +71,14 @@ export const CONFIG_ROUTES = {
 } as const;
 
 export const ADS_ROUTES = {
-  /** `GET /ads?placement=APP_OPEN` or `?placement=CHANNEL_CHANGE&channelId=N`. */
+  /**
+   * Merged ads array. `GET /ads?channelId=N` → the channel's CHANNEL_CHANGE
+   * preroll + all MID_ROLLs; `GET /ads` → the APP_OPEN ad. Each element tagged
+   * with its `placement` (see `Ad`).
+   */
   AD: '/ads',
+  /** `POST /ads/{id}/impression` — FE-reported impression beacon (Ads = Option A). */
+  IMPRESSION: (id: number) => `/ads/${id}/impression`,
 } as const;
 
 export const ANALYTICS_ROUTES = {

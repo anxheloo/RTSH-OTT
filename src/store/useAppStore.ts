@@ -7,6 +7,7 @@ import { createModalSlice, ModalSlice } from './createModalSlice';
 import { createNetworkSlice, NetworkSlice } from './createNetworkSlice';
 import { createParentalSlice, ParentalSlice } from './createParentalSlice';
 import { createPlayerSlice, PlayerSlice } from './createPlayerSlice';
+import { createRealtimeSlice, RealtimeSlice } from './createRealtimeSlice';
 import { createSettingsSlice, SettingsSlice } from './createSettingsSlice';
 import { createThemeSlice, resolveColors, ThemeSlice } from './createThemeSlice';
 import { createToastSlice, ToastSlice } from './createToastSlice';
@@ -20,7 +21,8 @@ export type AppStore = UserSlice &
   NetworkSlice &
   PlayerSlice &
   ParentalSlice &
-  ToastSlice;
+  ToastSlice &
+  RealtimeSlice;
 
 export const useAppStore = create<AppStore>()(
   persist(
@@ -32,6 +34,7 @@ export const useAppStore = create<AppStore>()(
       ...createNetworkSlice(...a),
       ...createParentalSlice(...a),
       ...createToastSlice(...a),
+      ...createRealtimeSlice(...a),
 
       ...(createPlayerSlice as any)(...a),
     }),

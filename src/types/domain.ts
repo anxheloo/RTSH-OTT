@@ -218,6 +218,23 @@ export interface AdCreative {
   skipAfterSeconds: number;
 }
 
+/**
+ * Merged ad element from `GET /ads` / `GET /ads?channelId={id}`. The backend
+ * returns one array per context, each object tagged with its `placement`:
+ *  - channel open  → one `CHANNEL_CHANGE` (preroll) + N `MID_ROLL`
+ *  - app open      → one `APP_OPEN`
+ * `startTime` / `validUntil` are populated for `MID_ROLL` only (when to fire /
+ * when to drop); preroll + app-open fire immediately and omit them. Live mid-roll
+ * add/update/remove arrives over the socket (`MidrollEvent`, see `@/realtime`).
+ */
+export interface Ad extends AdCreative {
+  placement: AdPlacement;
+  /** MID_ROLL only — absolute ISO-8601 instant to fire (admin's chosen time). */
+  startTime?: string;
+  /** MID_ROLL only — ISO-8601; drop if missed after a long background. */
+  validUntil?: string;
+}
+
 /* ===========================================================================
  * Runtime validation (Zod) — auth boundary guards (plan 5.X.2 / 11.X.9).
  * The backend speaks `UserDTO` (int64 id, `username`, UPPERCASE enums); the app

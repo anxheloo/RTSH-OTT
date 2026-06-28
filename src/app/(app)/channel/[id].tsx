@@ -34,12 +34,14 @@ import { PLAYER_COLORS } from '@/theme/playerColors';
 import { SCREEN_PADDING, SPACING } from '@/theme/spacing';
 import { useAppStore } from '@/store/useAppStore';
 import {
-  useAdQuery,
+  useAdsQuery,
   useChannelEpgQuery,
   useChannelPlaybackQuery,
   useChannelsQuery,
 } from '@/api/queries';
+import { reportAdImpression } from '@/api/services/ads';
 import { useCellularGate } from '@/hooks/useCellularGate';
+import { useChannelRealtime } from '@/hooks/useChannelRealtime';
 import { useDateTime } from '@/hooks/useDateTime';
 import { useNowProgram } from '@/hooks/useNowProgram';
 import { useFullscreenOrientation } from '@/hooks/useOrientation';
@@ -145,12 +147,22 @@ const ChannelScreen: React.FC = () => {
   // nodes — never a new tree branch — so rotation doesn't remount the player.
   const contentWidth = useContentWidth('player');
 
-  // Channel-change ad — fetch once per channel entry; show before playback.
+  // Merged ads — ONE call returns the CHANNEL_CHANGE preroll + all MID_ROLLs for
+  // this channel (Ads = Option A). Preroll shows before playback; midrolls seed
+  // the realtime scheduler.
   const [adDone, setAdDone] = useState(false);
   const numericChannelId = Number(channelId);
-  const { creative: channelAd } = useAdQuery(
-    { placement: 'CHANNEL_CHANGE', channelId: numericChannelId },
-    { enabled: !Number.isNaN(numericChannelId) },
+  const { ads } = useAdsQuery(numericChannelId, { enabled: !Number.isNaN(numericChannelId) });
+  const channelAd = ads.find((a) => a.placement === 'CHANNEL_CHANGE') ?? null;
+  const seedMidrolls = useMemo(() => ads.filter((a) => a.placement === 'MID_ROLL'), [ads]);
+
+  // Realtime: subscribe (mid-roll events + in-channel presence + geo queue), emit
+  // watch segments, run the mid-roll scheduler. Geo (Option B) surfaces as a notice.
+  const { dueAd: midrollAd, onAdComplete: onMidrollComplete, geoNotice } = useChannelRealtime(
+    numericChannelId,
+    selectedProgramId ? Number(selectedProgramId) : null,
+    isLive ? 'LIVE' : 'RECORDED',
+    seedMidrolls,
   );
 
   // Hold the player unmounted while a channel-change ad is showing — the live
@@ -180,6 +192,18 @@ const ChannelScreen: React.FC = () => {
     currentPlayback?.decision === 'GEO_BLOCKED'
       ? t('player.geo_blocked')
       : t('player.unavailable_body');
+
+  // Unified block: a live GEO_BLOCK push (Geo = Option B) is treated exactly like
+  // a decision-block — stop playback + show the notice. `geoNotice` ('' when the
+  // backend sent no copy → fall back to the geo string) takes precedence; GEO_LIFT
+  // clears it. `showBlocked` replaces `decisionBlocked` at the render sites below.
+  const blockedNotice =
+    geoNotice != null
+      ? geoNotice || t('player.geo_blocked')
+      : decisionBlocked
+        ? notice || decisionFallback
+        : null;
+  const showBlocked = blockedNotice !== null;
 
   // Current local calendar day, kept correct across midnight (foreground +
   // next-midnight timer). Anchoring the strip on this — not a mount-time
@@ -325,7 +349,7 @@ const ChannelScreen: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ['channel-epg', channelId] }),
       queryClient.invalidateQueries({ queryKey: ['channel-playback', channelId] }),
       queryClient.invalidateQueries({ queryKey: ['channels', 'TV'] }),
-      queryClient.invalidateQueries({ queryKey: ['ad', 'CHANNEL_CHANGE', numericChannelId] }),
+      queryClient.invalidateQueries({ queryKey: ['ads', numericChannelId] }),
     ]);
     setRefreshing(false);
   }, [queryClient, channelId, numericChannelId]);
@@ -337,10 +361,10 @@ const ChannelScreen: React.FC = () => {
         style={styles.playerSkeleton}
         testID="player-skeleton"
       />
-    ) : decisionBlocked ? (
+    ) : showBlocked ? (
       <CenteredMessage
         icon={<Icon as={InfoIcon} size={34} color={colors.textMuted} />}
-        title={notice || decisionFallback}
+        title={blockedNotice ?? decisionFallback}
         testID="playback-blocked"
       />
     ) : blockPlayer ? (
@@ -487,7 +511,33 @@ const ChannelScreen: React.FC = () => {
           loading list. The ad fetches up-front, so `adPending` keeps the player
           unmounted the whole time (no autoplay leak behind the overlay). */}
       {channelAd && !adDone && !epgLoading ? (
-        <AdOverlay creative={channelAd} onComplete={() => setAdDone(true)} testID="channel-ad" />
+        <AdOverlay
+          creative={channelAd}
+          onComplete={() => setAdDone(true)}
+          onShown={() =>
+            reportAdImpression(channelAd.id, {
+              channelId: numericChannelId,
+              placement: 'CHANNEL_CHANGE',
+            })
+          }
+          testID="channel-ad"
+        />
+      ) : null}
+
+      {/* Mid-roll — fires during playback at its scheduled time. Never over a
+          skeleton, the preroll, or a blocked player. */}
+      {midrollAd && !adPending && !mediaPending && !blockPlayer && !showBlocked ? (
+        <AdOverlay
+          creative={midrollAd}
+          onComplete={onMidrollComplete}
+          onShown={() =>
+            reportAdImpression(midrollAd.id, {
+              channelId: numericChannelId,
+              placement: 'MID_ROLL',
+            })
+          }
+          testID="channel-midroll"
+        />
       ) : null}
     </ScreenLayout>
   );

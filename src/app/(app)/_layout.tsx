@@ -7,8 +7,9 @@ import { StyleSheet, View } from 'react-native';
 
 import { Stack } from 'expo-router';
 
-import { useAdQuery, useChannelsQuery, useMeQuery } from '@/api/queries';
-import { useDeviceIdentity } from '@/hooks';
+import { useAdsQuery, useChannelsQuery, useMeQuery } from '@/api/queries';
+import { reportAdImpression } from '@/api/services/ads';
+import { useDeviceIdentity, useRealtimeConnection } from '@/hooks';
 import RadioMiniPlayer from '@/components/Layout/RadioMiniPlayer';
 import AdOverlay from '@/components/Media/AdOverlay';
 import RadioAudioHost from '@/components/Media/RadioAudioHost';
@@ -21,6 +22,8 @@ const AppLayout: React.FC = () => {
   // Register this device once per authenticated entry (fires regardless of which
   // route the user lands on — covers deep links into a non-Home tab).
   useDeviceIdentity();
+  // Open the app-level STOMP connection (= presence) while authenticated.
+  useRealtimeConnection();
   // Telemetry lifecycle: app_open + session + heartbeat (single entry point).
   // useAnalytics();
 
@@ -29,10 +32,8 @@ const AppLayout: React.FC = () => {
   // never pops over a skeleton/empty first screen. Shared query key — no extra
   // fetch (TanStack dedupes with Home's `useChannelsQuery('tv')`).
   const { isLoading: homeLoading } = useChannelsQuery('tv');
-  const { creative: launchAd } = useAdQuery(
-    { placement: 'APP_OPEN' },
-    { enabled: !homeLoading },
-  );
+  const { ads: appOpenAds } = useAdsQuery(undefined, { enabled: !homeLoading });
+  const launchAd = appOpenAds.find((a) => a.placement === 'APP_OPEN') ?? null;
 
   return (
     <View style={styles.root}>
@@ -59,7 +60,11 @@ const AppLayout: React.FC = () => {
       <RadioAudioHost />
       <RadioMiniPlayer />
       {launchAd && !launchAdDismissed && (
-        <AdOverlay creative={launchAd} onComplete={() => setLaunchAdDismissed(true)} />
+        <AdOverlay
+          creative={launchAd}
+          onComplete={() => setLaunchAdDismissed(true)}
+          onShown={() => reportAdImpression(launchAd.id, { placement: 'APP_OPEN' })}
+        />
       )}
     </View>
   );
