@@ -3,7 +3,11 @@
 **Audience:** the Java/Spring backend engineer building the real-time server for RTSH-OTT.
 **Status:** proposed contract, aligned 1:1 with the mobile client (`src/realtime/`).
 **Transport:** **STOMP over native WebSocket** (Spring `spring-websocket` + `spring-messaging`).
-**Date:** 2026-06-28. **Supersedes** the earlier Socket.IO draft of this file.
+**Date:** 2026-06-29. **Supersedes** the earlier Socket.IO draft of this file.
+
+**FE decision (2026-06-29), re: `REALTIME_GEO_ADS_OPTIONS.md`:**
+- **Ads → Option A** (client-scheduled; client arms timers off `startTime`, **FE reports impressions**).
+- **Geo → Option B** (backend-fired; server pushes `GEO_BLOCK`/`GEO_LIFT` at the boundary, FE just displays).
 
 This document is the **source of truth** the mobile client is built against. Implement exactly these
 destinations, payloads, and the connect/presence behavior. If you must change anything, change it
@@ -22,17 +26,17 @@ WebSocket. This contract reuses your existing CONNECT-frame JWT auth.
 
 ---
 
-## 1. Scope — four concerns only
+## 1. Scope — five concerns
 
-This pass deliberately covers **only** these. Geo-blocking and the playback-session `/refresh`
-(signed-URL re-sign) are **out of scope** here and handled separately.
+The playback-session `/refresh` (signed-URL re-sign) remains **out of scope** here (handled separately).
 
 | # | Concern | Mechanism (summary) |
 |---|---|---|
 | 1 | **Active users** (platform-wide presence) | connection lifecycle → Redis (no client message) |
 | 2 | **Active users in `channel/{id}`** | STOMP subscription to `/topic/channel.{id}` → subscriber count |
 | 3 | **Per-program watch time** | client `SEND /app/watch` (open/switch) + `/app/watch.end` (leave); backend timestamps + closes segments |
-| 4 | **Mid-roll add / update / remove** | admin → `convertAndSend("/topic/channel.{id}", MidrollEvent)` |
+| 4 | **Mid-roll add / update / remove** (Ads = Option A) | merged `GET /ads` seed + `convertAndSend("/topic/channel.{id}", MidrollEvent)`; **FE reports impressions** (§6.1) |
+| 5 | **Geo-block while watching** (Geo = Option B) | backend pushes `GEO_BLOCK`/`GEO_LIFT` to the **affected user's** session at the boundary (§6A) |
 
 **Key principle — the socket carries live changes + watch events only.** Initial channel state still
 comes from REST on channel open: the playback decision (`GET /channels/{id}`) and a **single merged ads
@@ -195,6 +199,62 @@ so a long background doesn't fire a stale ad.
 | `UPDATE` | `adId, channelId, creative` (new `startTime`/`mediaUrl`/…) | replace same `id` + reschedule |
 | `REMOVE` | `adId, channelId` | drop from the array; clear that ad's pending timer |
 
+### 6.1 Ad impressions — **FE reports** (Ads = Option A)
+
+Because the client owns the timeline (it decides the moment an ad is actually shown), the **client reports
+the impression** when the ad becomes visible — preroll, app-open, and mid-roll alike:
+
+```
+POST /api/v1/ads/{id}/impression
+  body (optional): { "channelId": 7, "placement": "MID_ROLL" }
+  → 204 No Content
+```
+
+- **Fire-and-forget** — the client never blocks on it and never shows an error if it fails (lossy-tolerant).
+- Backend increments an aggregated Redis counter (flushed to a daily table); **no per-impression row**.
+- Fired **once per ad shown** (the client de-dupes by ad `id`).
+
+---
+
+## 6A. Geo-block while watching — backend-fired (Geo = Option B)
+
+Real-time geo for a viewer **already inside** a channel. (Join-time geo is unchanged: `GET /channels/{id}`
+still returns `decision = GEO_BLOCKED` + `noticeMessage` if a block is already active when they open it —
+both this section and that gate coexist.)
+
+The backend owns the clock: at the block's start/end boundary it pushes a "now" event to the **affected
+viewer's session** and the client just displays it. **No client geo timers, no look-ahead endpoint.**
+
+### Targeting — user-scoped, NOT the channel topic
+
+Geo affects only sessions whose resolved country is in the rule — a subset of the channel's viewers — so a
+shared `/topic/channel.{id}` **cannot** target them. Send geo per-session with **`convertAndSendToUser`**:
+
+```java
+// affected sessions only (country resolved server-side from the connection IP)
+simpMessagingTemplate.convertAndSendToUser(userId, "/queue/geo",
+    new GeoEvent("GEO_BLOCK", channelId, noticeMessage));
+```
+
+The client subscribes once to its user queue: **`/user/queue/geo`**.
+
+### Events (server → client, on `/user/queue/geo`)
+
+```json
+{ "type": "GEO_BLOCK", "channelId": 7, "noticeMessage": "Ky kanal nuk është i disponueshëm në rajonin tuaj." }
+{ "type": "GEO_LIFT",  "channelId": 7 }
+```
+
+| Event | When | Client action |
+|---|---|---|
+| `GEO_BLOCK` | block becomes active for this viewer's country | if `channelId` == the channel being watched → **stop playback**, show `noticeMessage` (reuses the existing `decision`-blocked UI) |
+| `GEO_LIFT` | block ends for this viewer's country | clear the block → resume/allow |
+
+- `noticeMessage` is **already localized server-side** (the client displays it verbatim).
+- The client ignores a `GEO_BLOCK`/`GEO_LIFT` whose `channelId` ≠ the channel it's currently on.
+- Pair the `GEO_BLOCK` push with an origin/CDN session action if you want hard enforcement (server-side; the
+  client prompt is just the UX half).
+
 ---
 
 ## 7. Merged ads endpoint (REST — CHANGE REQUIRED)
@@ -289,6 +349,13 @@ adds/updates/removes mid-rolls live, keyed by `id` (matching `Ad.id`).
 - **Merged ads endpoint** (§7) — confirm you can return the merged `Ad[]` (preroll + mid-rolls) on
   `GET /ads?channelId={id}` and the `APP_OPEN` `Ad[]` on `GET /ads`, with the new `placement` field and an
   absolute ISO `startTime` on every `MID_ROLL`. This replaces the two per-placement calls.
+- **🔴 Absolute mid-roll `startTime`** — your `REALTIME_GEO_ADS_OPTIONS.md` notes `Ad.startTime` is today a
+  `LocalTime` daily band, not an absolute instant. We need an **absolute ISO instant** per mid-roll fire
+  (add a field or derive from band+date). This **gates** precise mid-rolls.
+- **Ad impressions** (§6.1) — confirm `POST /ads/{id}/impression` → 204 (FE-reported, Option A).
+- **Geo = Option B** (§6A) — confirm geo is **backend-fired** via `convertAndSendToUser → /user/queue/geo`
+  (`GEO_BLOCK`/`GEO_LIFT`), country resolved server-side. We do **NOT** need the `GET /channels/{id}/geoblocks`
+  look-ahead endpoint (that was Option A).
 - **Placement naming** — confirm you'll emit `APP_OPEN` / `CHANNEL_CHANGE` / `MID_ROLL` (or tell us once if
   you want `CHANNEL_OPEN` / `MIDROLL` so we rename on the client).
 - **Token-expiry enforcement** on the live socket (close-on-expiry) vs valid-until-disconnect.

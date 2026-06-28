@@ -4,17 +4,20 @@
 > test runner** in this repo — the verification gate for every task is `npm run lint && npx tsc --noEmit`
 > (clean), plus the manual smoke check noted in the task.
 
-**Goal:** Add a STOMP-over-WebSocket real-time layer covering four concerns — presence (active users),
-in-channel presence, per-program watch time, and mid-roll ad add/update/remove — **and** collapse the
-ad fetch into one merged array call per context (`placement` tagged), so channel open is a single request.
-Playback `/refresh` and geo are untouched.
+**Goal:** Add a STOMP-over-WebSocket real-time layer covering five concerns — presence (active users),
+in-channel presence, per-program watch time, mid-roll ad add/update/remove (**Ads = Option A**, client-
+scheduled + **FE-reported impressions**), and **geo-block while watching (Geo = Option B**, backend-fired
+`GEO_BLOCK`/`GEO_LIFT`) — **and** collapse the ad fetch into one merged array call per context (`placement`
+tagged), so channel open is a single request. Playback `/refresh` is untouched.
 
 **Architecture:** One app-level STOMP connection (= presence), opened on authenticated entry. A per-
-channel hook subscribes to the channel's topic (receives mid-roll events + signals in-channel presence),
-emits watch-segment events (open on enter/switch, end on leave), and runs a background-safe single-timer
-mid-roll scheduler. **Ad data is single-sourced in the TanStack cache (`['ads', channelId]`)** — the
-initial array and socket add/update/remove both live there (socket handler calls `setQueryData`, keyed by
-ad id); the hook holds only ephemeral scheduling mechanics (armed timer, fired-ids, the due ad).
+channel hook subscribes to the channel's topic (mid-roll events + in-channel presence) **and to the user's
+geo queue** (`/user/queue/geo`), emits watch-segment events (open on enter/switch, end on leave), and runs
+a background-safe single-timer mid-roll scheduler. **Ad data is single-sourced in the TanStack cache
+(`['ads', channelId]`)** — the initial array and socket add/update/remove both live there (socket handler
+calls `setQueryData`, keyed by ad id); the hook holds only ephemeral scheduling mechanics (armed timer,
+fired-ids, the due ad, the live geo notice). The client **reports an impression** when each ad is shown,
+and on `GEO_BLOCK` reuses the existing `decision`-blocked UI (stop playback + show notice), cleared on `GEO_LIFT`.
 
 **Tech Stack:** `@stomp/stompjs` over RN's native WebSocket · Zustand runtime slice · existing `useAppState`
 foreground hook · existing `AdOverlay`.
@@ -80,6 +83,8 @@ export const STOMP_DEST = {
   watchEnd: '/app/watch.end',
   /** SUBSCRIBE — mid-roll events + in-channel presence for one channel. */
   channelTopic: (channelId: number) => `/topic/channel.${channelId}`,
+  /** SUBSCRIBE — user-scoped geo events (GEO_BLOCK/GEO_LIFT), Geo = Option B. */
+  userGeoQueue: '/user/queue/geo',
 } as const;
 
 export type WatchKind = 'LIVE' | 'RECORDED';
@@ -106,6 +111,17 @@ export interface MidrollEvent {
   adId: number;
   channelId: number;
   creative?: Ad; // present for ADD/UPDATE; carries startTime + validUntil
+}
+
+/**
+ * Server → client geo event (Option B — backend-fired) on `/user/queue/geo`.
+ * Delivered only to affected-country sessions; the client acts only when
+ * `channelId` matches the channel it's currently watching.
+ */
+export interface GeoEvent {
+  type: 'GEO_BLOCK' | 'GEO_LIFT';
+  channelId: number;
+  noticeMessage?: string; // localized server-side; shown verbatim on GEO_BLOCK
 }
 ```
 
@@ -224,7 +240,7 @@ export function subscribe(
 /** Real-time (STOMP) layer barrel. Import from '@/realtime'. */
 export { connectRealtime, disconnectRealtime, publish, subscribe } from './client';
 export { STOMP_DEST, WS_URL } from './events';
-export type { MidrollEvent, MidrollOp, WatchEndMsg, WatchKind, WatchStartMsg } from './events';
+export type { GeoEvent, MidrollEvent, MidrollOp, WatchEndMsg, WatchKind, WatchStartMsg } from './events';
 ```
 
 - [ ] **Step 3: Verify** — `npm run lint && npx tsc --noEmit` clean.
@@ -323,9 +339,23 @@ export const getAds = async (channelId?: number): Promise<Ad[]> => {
   });
   return Array.isArray(res.data) ? res.data : [];
 };
+
+/**
+ * Ad impression beacon (Ads = Option A — FE reports). Fire-and-forget: a raw
+ * `apiClient.post` bypasses the TanStack QueryCache/MutationCache, so it never
+ * triggers the global error modal — the `.catch` is the only silencing needed
+ * (same pattern as the analytics `track` emitter). Returns void.
+ */
+export const reportAdImpression = (
+  adId: number,
+  body?: { channelId?: number; placement?: AdPlacement },
+): void => {
+  apiClient.post(`${ADS_ROUTES}/${adId}/impression`, body ?? {}).catch(() => {});
+};
 ```
 
-(If `endpoints.ts` lacks `ADS_ROUTES`, add `export const ADS_ROUTES = 'ads';`.)
+(If `endpoints.ts` lacks `ADS_ROUTES`, add `export const ADS_ROUTES = 'ads';`. Import `AdPlacement` from
+`@/types/domain` at the top of the service.)
 
 - [ ] **Step 3: Query hook** — `src/api/queries/useAdsQuery.ts`:
 
@@ -359,17 +389,17 @@ export const useAdsQuery = (
 
 ---
 
-### Task 7: Per-channel hook — subscribe + watch + seeded mid-roll scheduler (`src/hooks/useChannelRealtime.ts`)
+### Task 7: Per-channel hook — subscribe + watch + mid-roll scheduler + geo (`src/hooks/useChannelRealtime.ts`)
 
 **Files:**
 - Create: `src/hooks/useChannelRealtime.ts`
 - Modify: `src/hooks/index.ts` (export)
 
 **Interfaces:**
-- Consumes: `subscribe`, `publish`, `STOMP_DEST`, `MidrollEvent`, `WatchKind` (Tasks 2/4); `useAppState`;
-  `useQueryClient` (writes `['ads', channelId]`); `Ad`, `AdCreative` (`types/domain`).
+- Consumes: `subscribe`, `publish`, `STOMP_DEST`, `MidrollEvent`, `GeoEvent`, `WatchKind` (Tasks 2/4);
+  `useAppState`; `useQueryClient` (writes `['ads', channelId]`); `Ad`, `AdCreative` (`types/domain`).
 - Produces: `useChannelRealtime(channelId, programId, kind, midrolls: Ad[]) →
-  { dueAd: AdCreative | null; onAdComplete: () => void }`.
+  { dueAd: AdCreative | null; onAdComplete: () => void; geoNotice: string | null }`.
 
 - [ ] **Step 1: Write the hook**
 
@@ -396,6 +426,10 @@ export const useAdsQuery = (
  * Mid-roll fires at the ad's ABSOLUTE `startTime` (one setTimeout to the soonest
  * unfired); re-evaluated on foreground. Each ad fires once; an ad past its
  * `validUntil` after a background is skipped, not fired late.
+ *
+ * GEO (Option B — backend-fired): also subscribes to the user geo queue. On a
+ * GEO_BLOCK for THIS channel → `geoNotice` is set (screen stops playback + shows
+ * the notice, reusing the decision-blocked UI); GEO_LIFT clears it.
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 
@@ -403,7 +437,7 @@ import { useQueryClient } from '@tanstack/react-query';
 
 import { useAppState } from '@/hooks/useAppState';
 import { publish, STOMP_DEST, subscribe } from '@/realtime';
-import type { MidrollEvent, WatchKind } from '@/realtime';
+import type { GeoEvent, MidrollEvent, WatchKind } from '@/realtime';
 import type { Ad, AdCreative } from '@/types/domain';
 
 export function useChannelRealtime(
@@ -411,9 +445,10 @@ export function useChannelRealtime(
   programId: number | null,
   kind: WatchKind,
   midrolls: Ad[],
-): { dueAd: AdCreative | null; onAdComplete: () => void } {
+): { dueAd: AdCreative | null; onAdComplete: () => void; geoNotice: string | null } {
   const queryClient = useQueryClient();
   const [dueAd, setDueAd] = useState<AdCreative | null>(null);
+  const [geoNotice, setGeoNotice] = useState<string | null>(null);
   const firedRef = useRef<Set<number>>(new Set());
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const midrollsRef = useRef<Ad[]>(midrolls);
@@ -484,6 +519,22 @@ export function useChannelRealtime(
     };
   }, [channelId, applyMidroll]);
 
+  // Subscribe to the user geo queue (Option B). Act only on events for THIS
+  // channel; reset the notice on channel change.
+  useEffect(() => {
+    setGeoNotice(null);
+    const sub = subscribe(STOMP_DEST.userGeoQueue, (msg) => {
+      try {
+        const ev = JSON.parse(msg.body) as GeoEvent;
+        if (ev.channelId !== channelId) return;
+        setGeoNotice(ev.type === 'GEO_BLOCK' ? (ev.noticeMessage ?? '') : null);
+      } catch {
+        // Ignore malformed frames.
+      }
+    });
+    return () => sub?.unsubscribe();
+  }, [channelId]);
+
   // Watch segment — open on enter + every program switch (backend closes prev).
   useEffect(() => {
     publish(STOMP_DEST.watch, { channelId, programId, kind });
@@ -501,7 +552,7 @@ export function useChannelRealtime(
 
   const onAdComplete = useCallback(() => setDueAd(null), []);
 
-  return { dueAd, onAdComplete };
+  return { dueAd, onAdComplete, geoNotice };
 }
 ```
 
@@ -517,21 +568,35 @@ export function useChannelRealtime(
 - Modify: `src/app/(app)/channel/[id].tsx`
 
 **Interfaces:**
-- Consumes: `useAdsQuery` (Task 6), `useChannelRealtime` (Task 7). Existing: `numericChannelId`,
-  `selectedProgramId`, `isLive`, `adPending`, `mediaPending`, `blockPlayer`, `decisionBlocked`, `AdOverlay`.
+- Consumes: `useAdsQuery`, `reportAdImpression` (Task 6), `useChannelRealtime` (Task 7), `AdOverlay`
+  (extended in Step 0). Existing: `numericChannelId`, `selectedProgramId`, `isLive`, `adPending`,
+  `mediaPending`, `blockPlayer`, `decisionBlocked`, `notice`, `decisionFallback`, `CenteredMessage`.
+
+- [ ] **Step 0: Add an `onShown` prop to `AdOverlay`** (`src/components/Media/AdOverlay.tsx`) — fired ONCE
+  when the overlay mounts, so every placement can report its impression centrally. Add to the props type
+  `onShown?: () => void;` and, in the component:
+
+```tsx
+useEffect(() => {
+  onShown?.();
+  // once per mount — an ad shown is one impression
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, []);
+```
 
 - [ ] **Step 1: Replace the channel-change `useAdQuery` with the merged query** (~lines 148-154):
 
 ```ts
 import { useMemo } from 'react';
 import { useAdsQuery } from '@/api/queries';
+import { reportAdImpression } from '@/api/services/ads';
 import { useChannelRealtime } from '@/hooks';
 // ...
 const { ads } = useAdsQuery(numericChannelId, { enabled: !Number.isNaN(numericChannelId) });
 const channelAd = ads.find((a) => a.placement === 'CHANNEL_CHANGE') ?? null; // preroll (Ad ⊂ AdCreative)
 const seedMidrolls = useMemo(() => ads.filter((a) => a.placement === 'MID_ROLL'), [ads]);
 
-const { dueAd: midrollAd, onAdComplete: onMidrollComplete } = useChannelRealtime(
+const { dueAd: midrollAd, onAdComplete: onMidrollComplete, geoNotice } = useChannelRealtime(
   numericChannelId,
   selectedProgramId ? Number(selectedProgramId) : null,
   isLive ? 'LIVE' : 'RECORDED',
@@ -539,24 +604,41 @@ const { dueAd: midrollAd, onAdComplete: onMidrollComplete } = useChannelRealtime
 );
 ```
 
-`adPending` is unchanged: `const adPending = !!channelAd && !adDone;` (preroll gates the player exactly as
-before — `channelAd` is now sourced from the merged array). The existing preroll `<AdOverlay creative={channelAd} … >`
-JSX stays — `Ad` is assignable to `AdCreative`.
+`adPending` is unchanged: `const adPending = !!channelAd && !adDone;`. Add the impression to the existing
+preroll JSX: `<AdOverlay creative={channelAd} onShown={() => reportAdImpression(channelAd.id, { channelId: numericChannelId, placement: 'CHANNEL_CHANGE' })} … >`.
 
-- [ ] **Step 2: Render the mid-roll overlay** next to the preroll overlay (~line 489). Gate so it never
-  shows over a skeleton, the preroll, or a blocked player:
+- [ ] **Step 2: Fold the live geo-block into the blocked UI.** Geo = Option B: a `GEO_BLOCK` arrives via the
+  hook's `geoNotice`. Treat it exactly like a `decision`-block (stop playback + show the notice). Extend the
+  existing block computation:
+
+```ts
+const blockedNotice = geoNotice ?? (decisionBlocked ? (notice || decisionFallback) : null);
+const showBlocked = blockedNotice !== null;
+```
+
+Use `showBlocked` where `decisionBlocked` gated the player, and render `blockedNotice` as the message text
+(`CenteredMessage`). `GEO_LIFT` sets `geoNotice` back to `null` → the player resumes on the next render.
+
+- [ ] **Step 3: Render the mid-roll overlay** next to the preroll overlay (~line 489). Gate so it never
+  shows over a skeleton, the preroll, or a blocked player, and report its impression:
 
 ```tsx
-{midrollAd && !adPending && !mediaPending && !blockPlayer && !decisionBlocked ? (
-  <AdOverlay creative={midrollAd} onComplete={onMidrollComplete} testID="channel-midroll" />
+{midrollAd && !adPending && !mediaPending && !blockPlayer && !showBlocked ? (
+  <AdOverlay
+    creative={midrollAd}
+    onComplete={onMidrollComplete}
+    onShown={() => reportAdImpression(midrollAd.id, { channelId: numericChannelId, placement: 'MID_ROLL' })}
+    testID="channel-midroll"
+  />
 ) : null}
 ```
 
-- [ ] **Step 3: Update the pull-to-refresh invalidation** — the old key was
+- [ ] **Step 4: Update the pull-to-refresh invalidation** — the old key was
   `['ad', 'CHANNEL_CHANGE', numericChannelId]`; change to `['ads', numericChannelId]`.
-- [ ] **Step 4: Verify** — lint+tsc clean. Smoke:
-  - enter channel → ONE `GET /ads?channelId=` → preroll shows, midrolls seeded; `/app/watch` + topic subscribe;
-  - midroll due (seed `startTime` reached) → overlay fires; socket `UPDATE` (same id) re-times; `REMOVE` cancels;
+- [ ] **Step 5: Verify** — lint+tsc clean. Smoke:
+  - enter channel → ONE `GET /ads?channelId=` → preroll shows (+impression); midrolls seeded; `/app/watch` + topic + geo-queue subscribe;
+  - midroll due (`startTime` reached) → overlay fires (+impression); socket `UPDATE` re-times; `REMOVE` cancels;
+  - `GEO_BLOCK` push for this channel → player stops + notice; `GEO_LIFT` → resumes;
   - switch programme → another `/app/watch`; leave → `/app/watch.end`.
 
 ---
@@ -570,15 +652,25 @@ JSX stays — `Ad` is assignable to `AdCreative`.
 
 ```ts
 import { useAdsQuery, useChannelsQuery, useMeQuery } from '@/api/queries';
+import { reportAdImpression } from '@/api/services/ads';
 // ...
 const { isLoading: homeLoading } = useChannelsQuery('tv');
 const { ads: appOpenAds } = useAdsQuery(undefined, { enabled: !homeLoading });
 const launchAd = appOpenAds.find((a) => a.placement === 'APP_OPEN') ?? null;
 ```
 
-Keep the existing `{launchAd && !launchAdDismissed && <AdOverlay creative={launchAd} … />}` JSX.
+Update the JSX to report the impression on show:
+```tsx
+{launchAd && !launchAdDismissed && (
+  <AdOverlay
+    creative={launchAd}
+    onComplete={() => setLaunchAdDismissed(true)}
+    onShown={() => reportAdImpression(launchAd.id, { placement: 'APP_OPEN' })}
+  />
+)}
+```
 
-- [ ] **Step 2: Verify** — lint+tsc clean. Smoke: launch → ONE `GET /ads` → APP_OPEN ad shows.
+- [ ] **Step 2: Verify** — lint+tsc clean. Smoke: launch → ONE `GET /ads` → APP_OPEN ad shows (+impression).
 
 ---
 
@@ -592,22 +684,28 @@ Keep the existing `{launchAd && !launchAdDismissed && <AdOverlay creative={launc
 - [ ] **Step 1: Confirm `useAdQuery` has no remaining callers** (`grep -r useAdQuery src`). If clean and the
   user approves, delete it; otherwise leave it.
 - [ ] **Step 2: Doc sync** — add a "Real-time (STOMP)" section to `ARCHITECTURE.md` (presence / watch /
-  mid-roll + four-concern scope + `/refresh`-decoupled note), update the ads description (merged array +
-  `placement`), update `docs/API.md → Ads` to the merged `GET /ads` contract, and a one-line stack mention
-  in `CLAUDE.md`. Point all at `docs/REALTIME_SOCKET.md`.
+  mid-roll + **geo Option B** + **ad impressions** + five-concern scope + `/refresh`-decoupled note), update
+  the ads description (merged array + `placement` + `startTime`), update `docs/API.md → Ads` to the merged
+  `GET /ads` contract + `POST /ads/{id}/impression`, and a one-line stack mention in `CLAUDE.md`. Point all
+  at `docs/REALTIME_SOCKET.md`.
 - [ ] **Step 3: Verify** — lint+tsc clean.
 
 ---
 
 ## Self-review notes
 
-- **Spec coverage:** presence (Task 5) · in-channel (Task 7 subscribe) · watch time (Task 7 watch events) ·
-  mid-roll add/update/remove (Task 7 seed + socket + Task 8 overlay) · merged ads array (Tasks 6/8/9).
-- **`/refresh` + geo:** untouched (out of scope).
-- **Type consistency:** `realtimeConnected` (slice↔client), `MidrollEvent`/`WatchKind` (events↔hook),
-  `Ad`/`placement`/`startTime` (domain↔service↔hook↔screen), `dueAd`/`onAdComplete` (hook↔screen) match.
+- **Spec coverage:** presence (Task 5) · in-channel (Task 7 channel subscribe) · watch time (Task 7 watch
+  events) · mid-roll add/update/remove (Task 7 seed + socket + Task 8 overlay) · merged ads array (Tasks
+  6/8/9) · **ad impressions** (Task 6 service + Task 8/9 `onShown`) · **geo Option B** (Task 7 geo queue +
+  Task 8 blocked UI).
+- **`/refresh`:** untouched (out of scope). **Geo:** now in scope (Option B, backend-fired).
+- **Type consistency:** `realtimeConnected` (slice↔client), `MidrollEvent`/`GeoEvent`/`WatchKind`
+  (events↔hook), `Ad`/`placement`/`startTime` (domain↔service↔hook↔screen),
+  `dueAd`/`onAdComplete`/`geoNotice` (hook↔screen) match.
 - **Fewer calls:** channel open = ONE `GET /ads?channelId=` (preroll + midroll seed) instead of two;
   app open = ONE `GET /ads`.
 - **Preroll vs mid-roll:** preroll fires immediately and gates the player (`adPending`); mid-rolls arm
-  timers and overlay during playback. Both render through the same `AdOverlay`.
+  timers and overlay during playback. Both render through the same `AdOverlay`, both report an impression.
+- **Geo (Option B):** user-queue subscription (`/user/queue/geo`), acts only on the current `channelId`,
+  reuses the existing `decision`-blocked UI; `GEO_LIFT` clears it. No client geo timers, no look-ahead endpoint.
 - **iOS/TLS risk:** prod needs `wss://` (ATS). Dev on Android works over `ws://`.
