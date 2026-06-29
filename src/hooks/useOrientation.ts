@@ -1,69 +1,43 @@
-import { useEffect, useRef, useSyncExternalStore } from 'react';
+import { useEffect, useState } from 'react';
+import { Platform } from 'react-native';
 
 import * as ScreenOrientation from 'expo-screen-orientation';
 
-export type Orientation = 'portrait' | 'landscape' | 'unknown';
+/**
+ * Orientation policy: the app is portrait-only. Only the video player rotates to
+ * landscape, and only when the user taps the fullscreen (expand) control — there
+ * is NO sensor-driven auto-rotation anywhere in the app (product decision).
+ *
+ * TV is exempt: it runs landscape natively and has no portrait concept, so every
+ * lock here is a no-op on `Platform.isTV` (tablet/TV layout untouched).
+ *
+ * `app.config.ts` deliberately keeps `orientation: 'default'` so iOS still
+ * declares the landscape interface orientations the player needs to rotate into;
+ * the portrait default is enforced at runtime by `useLockPortrait` (mounted at
+ * the app root), not by the manifest. Locks are last-writer-wins, so the player's
+ * landscape lock overrides the root portrait lock, and `exitFullscreen` restores it.
+ */
 
-const toOrientation = (o: ScreenOrientation.Orientation): Orientation => {
-  switch (o) {
-    case ScreenOrientation.Orientation.PORTRAIT_UP:
-    case ScreenOrientation.Orientation.PORTRAIT_DOWN:
-      return 'portrait';
-    case ScreenOrientation.Orientation.LANDSCAPE_LEFT:
-    case ScreenOrientation.Orientation.LANDSCAPE_RIGHT:
-      return 'landscape';
-    default:
-      return 'unknown';
-  }
+const lockLandscape = (): void => {
+  if (Platform.isTV) return;
+  ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.LANDSCAPE).catch(() => {});
 };
 
-let cached: Orientation = 'unknown';
-const subscribers = new Set<() => void>();
-
-const set = (o: Orientation): void => {
-  // Ignore a late `unknown` (device laid flat) once a real orientation is known
-  // — keeps the last portrait/landscape so consumers (e.g. fullscreen players)
-  // don't flip when the phone goes flat. The only `unknown` ever surfaced is the
-  // initial value before `getOrientationAsync` resolves.
-  if (o === 'unknown' && cached !== 'unknown') return;
-  if (o === cached) return;
-  cached = o;
-  subscribers.forEach((fn) => fn());
+const lockPortrait = (): void => {
+  if (Platform.isTV) return;
+  ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP).catch(() => {});
 };
-
-let initialized = false;
-const initialize = (): void => {
-  if (initialized) return;
-  initialized = true;
-
-  ScreenOrientation.getOrientationAsync().then((o) => set(toOrientation(o)));
-  ScreenOrientation.addOrientationChangeListener(({ orientationInfo }) =>
-    set(toOrientation(orientationInfo.orientation)),
-  );
-};
-
-const subscribe = (cb: () => void): (() => void) => {
-  initialize();
-  subscribers.add(cb);
-  return () => {
-    subscribers.delete(cb);
-  };
-};
-
-const getSnapshot = (): Orientation => cached;
 
 /**
- * Subscribe to device orientation. Returns coarse `portrait | landscape | unknown`.
- * Single shared subscription across mounts.
+ * Locks the app to portrait at runtime (non-TV). Mount once at the app root —
+ * this is what disables whole-app auto-rotation while leaving the player free to
+ * lock landscape on demand.
  */
-export function useOrientation(): Orientation {
-  return useSyncExternalStore(subscribe, getSnapshot);
+export function useLockPortrait(): void {
+  useEffect(() => {
+    lockPortrait();
+  }, []);
 }
-
-/** After a manual exit, how long to hold forced-portrait before re-arming the
- * sensor — long enough for the user to lower the phone so auto-rotate doesn't
- * instantly re-enter fullscreen. */
-const REARM_DELAY_MS = 1500;
 
 export interface FullscreenOrientation {
   isFullscreen: boolean;
@@ -73,55 +47,27 @@ export interface FullscreenOrientation {
 }
 
 /**
- * Drives a player's fullscreen state from the device orientation: rotating to
- * landscape enters fullscreen, rotating back to portrait exits (YouTube/Netflix
- * pattern). Built on `useOrientation`, so it shares the single orientation
- * subscription rather than adding its own listener.
- *
- * - `'unknown'` (phone lying flat) is ignored, so laying the device down
- *   mid-watch never drops fullscreen.
- * - `toggleFullscreen` / `enterFullscreen` FORCE an orientation via a lock —
- *   for users who want fullscreen without physically rotating. The orientation
- *   then flows back through `useOrientation`, so the manual and sensor paths
- *   converge on one source of truth (`isFullscreen`).
- * - `exitFullscreen` forces portrait, then re-arms the sensor after a short
- *   delay so a later physical rotation can re-enter fullscreen.
- * - The lock is released on unmount so sibling screens aren't stranded landscape.
+ * Button-driven fullscreen for the player. Tapping expand locks the device to
+ * landscape; collapsing (or unmounting while still fullscreen) restores portrait.
+ * State-driven, NOT sensor-driven — physically rotating the phone does nothing,
+ * because the rest of the app stays portrait. On TV the orientation locks are
+ * no-ops, so the toggle only flips the fullscreen UI.
  */
 export function useFullscreenOrientation(): FullscreenOrientation {
-  const orientation = useOrientation();
-  const reArmRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
-  // Pure derive — `useOrientation` is sticky (it never reports `unknown` once a
-  // real orientation is known, see `set`), so landscape ⇔ fullscreen with no
-  // state or effect, and laying the phone flat won't drop fullscreen.
-  const isFullscreen = orientation === 'landscape';
-
-  useEffect(
-    () => () => {
-      if (reArmRef.current) clearTimeout(reArmRef.current);
-      ScreenOrientation.unlockAsync().catch(() => {});
-    },
-    [],
-  );
+  // Restore portrait if the player unmounts while still fullscreen (e.g. the user
+  // navigates back via a route change rather than the collapse button).
+  useEffect(() => () => lockPortrait(), []);
 
   const enterFullscreen = (): void => {
-    if (reArmRef.current) {
-      clearTimeout(reArmRef.current);
-      reArmRef.current = null;
-    }
-    ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.LANDSCAPE).catch(() => {});
+    lockLandscape();
+    setIsFullscreen(true);
   };
 
   const exitFullscreen = (): void => {
-    ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP)
-      .then(() => {
-        if (reArmRef.current) clearTimeout(reArmRef.current);
-        reArmRef.current = setTimeout(() => {
-          ScreenOrientation.unlockAsync().catch(() => {});
-        }, REARM_DELAY_MS);
-      })
-      .catch(() => {});
+    lockPortrait();
+    setIsFullscreen(false);
   };
 
   const toggleFullscreen = (): void => {

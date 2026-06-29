@@ -136,9 +136,9 @@ const ChannelScreen: React.FC = () => {
     ? resolveStreamSource(currentPlayback.streams, videoQuality)
     : '';
 
-  // Fullscreen tracks the device orientation: rotating to landscape enters it,
-  // rotating back to portrait exits. The fullscreen button forces the
-  // orientation for users who don't want to physically rotate.
+  // Fullscreen is button-driven only: the expand control locks the device to
+  // landscape, collapse restores portrait. The app is otherwise portrait-only —
+  // physically rotating the phone does nothing (no sensor auto-rotation).
   const { isFullscreen, toggleFullscreen, exitFullscreen } = useFullscreenOrientation();
 
   // Tablet/TV: cap the inline player + EPG to a centered column so they don't

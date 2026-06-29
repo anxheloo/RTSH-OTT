@@ -29,6 +29,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { useQueryClient } from '@tanstack/react-query';
 
+import { useAppStore } from '@/store/useAppStore';
 import type { Ad, AdCreative } from '@/types/domain';
 import type { GeoEvent, MidrollEvent, WatchKind } from '@/realtime';
 import { publish, STOMP_DEST, subscribe } from '@/realtime';
@@ -42,6 +43,10 @@ export function useChannelRealtime(
   midrolls: Ad[],
 ): { dueAd: AdCreative | null; onAdComplete: () => void; geoNotice: string | null } {
   const queryClient = useQueryClient();
+  // Drives (re)subscription: subscribe()/publish() are no-ops until connected, so
+  // every subscribe/watch effect below re-runs when this flips true (cold start
+  // AND reconnect — RN drops the connection on background, losing subscriptions).
+  const realtimeConnected = useAppStore((s) => s.realtimeConnected);
   const [nowMs, setNowMs] = useState(() => Date.now());
   const [firedIds, setFiredIds] = useState<Set<number>>(() => new Set());
   // Geo state is keyed by channel so it self-clears on channel change (the derived
@@ -115,7 +120,7 @@ export function useChannelRealtime(
       }
     });
     return () => sub?.unsubscribe();
-  }, [channelId, applyMidroll]);
+  }, [channelId, applyMidroll, realtimeConnected]);
 
   // Subscribe to the user geo queue (Option B). Act only on events for THIS
   // channel; setState lives in the callback, and the notice self-clears on a
@@ -135,12 +140,13 @@ export function useChannelRealtime(
       }
     });
     return () => sub?.unsubscribe();
-  }, [channelId]);
+  }, [channelId, realtimeConnected]);
 
   // Watch segment — open on enter + every program switch (backend closes prev).
+  // Also re-fires on reconnect so the segment is re-opened after a drop.
   useEffect(() => {
     publish(STOMP_DEST.watch, { channelId, programId, kind });
-  }, [channelId, programId, kind]);
+  }, [channelId, programId, kind, realtimeConnected]);
 
   // Watch end — only on leaving the channel (unmount). Disconnect ends it too.
   useEffect(() => {

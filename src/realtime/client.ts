@@ -17,7 +17,18 @@ export function connectRealtime(): void {
 
   client = new Client({
     brokerURL: WS_URL,
+    // --- React Native frame-integrity workarounds (stomp-js RN notes) ---
+    // RN's WebSocket strips the trailing NULL byte that terminates every STOMP
+    // frame, silently corrupting the protocol (works in dev, flakes in release).
+    //  • forceBinaryWSFrames: send OUTGOING frames as binary so the NULL survives.
+    //  • appendMissingNULLonIncoming: re-append the NULL the RN socket chops off
+    //    INCOMING text frames (Spring's STOMP broker sends text by default).
+    // Safe for small, unfragmented messages — ours are tiny JSON. We intentionally
+    // do NOT force the broker to binary (that can trigger an Android "blob" error).
+    forceBinaryWSFrames: true,
+    appendMissingNULLonIncoming: true,
     reconnectDelay: 2000,
+    connectionTimeout: 10000, // fail a stalled CONNECT (flaky mobile) → retry after reconnectDelay
     heartbeatIncoming: 10000,
     heartbeatOutgoing: 10000,
     // Re-read the freshest access token before each (re)connect.

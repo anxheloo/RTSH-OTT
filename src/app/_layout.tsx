@@ -1,3 +1,6 @@
+// eslint-disable-next-line simple-import-sort/imports -- MUST stay first: installs TextEncoder/TextDecoder (STOMP) before any other module loads
+import '@/polyfills';
+
 import { useEffect } from 'react';
 import { StatusBar, StyleSheet, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -23,12 +26,11 @@ import { queryClient } from '@/api/client';
 import { setupFocusManager } from '@/api/focusManager';
 import { useNetworkMonitor, useOTA } from '@/hooks';
 import { useCheckToken } from '@/hooks/useCheckToken';
+import { useLockPortrait } from '@/hooks/useOrientation';
 import { useSystemTheme } from '@/hooks/useSystemTheme';
 import { ToastHost } from '@/components/Layout';
 import ModalWrapper from '@/components/ModalWrapper';
 import { initI18n } from '@/i18n';
-
-import '@/polyfills'; // installs TextEncoder/TextDecoder fallback (STOMP) at boot, before any runtime use
 
 // Start mock server before any React rendering so the first API call is intercepted.
 // Tree-shaken in production — the conditional is evaluated at module load time.
@@ -76,6 +78,7 @@ const RootLayoutNav = () => {
   const { tokenChecked } = useCheckToken();
   useNetworkMonitor();
   useSystemTheme();
+  useLockPortrait(); // Portrait-only app; only the player rotates to landscape (non-TV).
 
   useEffect(() => {
     StatusBar.setBarStyle(mode === 'dark' ? 'light-content' : 'dark-content');

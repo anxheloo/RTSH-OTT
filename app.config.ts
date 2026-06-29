@@ -52,6 +52,11 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     // also bundles web, which fails resolving react-native-country-picker-modal's
     // `react-async-hook` dep (its `module` field points at an unshipped .esm.js).
     platforms: ['ios', 'android'],
+    // Kept 'default' (not 'portrait') ON PURPOSE: iOS must still declare the
+    // landscape interface orientations so the video player can rotate into
+    // landscape on fullscreen. The app is otherwise portrait-only — enforced at
+    // runtime by `useLockPortrait` (non-TV), not by this manifest. See
+    // `useOrientation.ts`.
     orientation: 'default',
     icon: './assets/images/icon.png',
     scheme: 'rtshtani',
