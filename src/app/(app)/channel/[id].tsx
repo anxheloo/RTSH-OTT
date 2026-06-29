@@ -261,13 +261,15 @@ const ChannelScreen: React.FC = () => {
 
   // Row state keys off the programme's own clock, not just the selected day, so a
   // programme that has *finished today* reads the same as one from a past day —
-  // a playable catch-up row (play glyph, pressable). A finished programme with no
-  // recording (`hasCatchup === false`) and any not-yet-started programme both
-  // read as `scheduled` (pale, non-pressable).
+  // a playable catch-up row (play glyph, pressable). Only a not-yet-started
+  // programme reads as `scheduled` (pale, non-pressable): a finished programme
+  // must never look like a future one, so every past row is `recorded`
+  // regardless of `hasCatchup` (a finished slot the user could have watched is
+  // offered as catch-up, not greyed out like an upcoming one).
   const programState = (p: EpgItem): ProgramRowState => {
     if (selectedDay.isToday && playing?.id === p.id) return 'now';
     if (Date.parse(p.startTime) > nowMs) return 'scheduled'; // not started yet
-    return p.hasCatchup === false ? 'scheduled' : 'recorded'; // finished
+    return 'recorded'; // finished → catch-up playable
   };
 
   const handleSelectProgram = (p: EpgItem, state: ProgramRowState) => {
