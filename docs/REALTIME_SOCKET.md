@@ -202,17 +202,23 @@ so a long background doesn't fire a stale ad.
 ### 6.1 Ad impressions — **FE reports** (Ads = Option A)
 
 Because the client owns the timeline (it decides the moment an ad is actually shown), the **client reports
-the impression** when the ad becomes visible — preroll, app-open, and mid-roll alike:
+the impression** — preroll, app-open, and mid-roll alike. It fires **at completion** (skip / timer / video
+end), not at mount, so it can carry the seconds actually watched:
 
 ```
 POST /api/v1/ads/{id}/impression
-  body (optional): { "channelId": 7, "placement": "MID_ROLL" }
+  body (optional): { "watchedSeconds": 18, "durationSeconds": 20, "channelId": 7, "placement": "MID_ROLL" }
   → 204 No Content
 ```
 
 - **Fire-and-forget** — the client never blocks on it and never shows an error if it fails (lossy-tolerant).
 - Backend increments an aggregated Redis counter (flushed to a daily table); **no per-impression row**.
-- Fired **once per ad shown** (the client de-dupes by ad `id`).
+- Fired **once per ad shown** (the client de-dupes by ad `id` via an internal once-guard).
+- **`watchedSeconds`** (wall-clock since the ad first painted, clamped to `durationSeconds`) + **`durationSeconds`**
+  power the admin avg-view-rate tile (Σwatched / Σduration). Without them the impression still counts but
+  avg-view-rate reads 0. `clientEventId` is **not** sent — the once-guard already de-dupes per ad.
+- **Trade-off:** firing at completion (not mount) means an app force-killed mid-ad won't report. Rare, and
+  acceptable; the alternative (fire at mount) loses watched-time entirely.
 
 ---
 

@@ -514,8 +514,10 @@ const ChannelScreen: React.FC = () => {
         <AdOverlay
           creative={channelAd}
           onComplete={() => setAdDone(true)}
-          onShown={() =>
+          onImpression={(watchedSeconds) =>
             reportAdImpression(channelAd.id, {
+              watchedSeconds,
+              durationSeconds: channelAd.durationSeconds,
               channelId: numericChannelId,
               placement: 'CHANNEL_CHANGE',
             })
@@ -530,8 +532,10 @@ const ChannelScreen: React.FC = () => {
         <AdOverlay
           creative={midrollAd}
           onComplete={onMidrollComplete}
-          onShown={() =>
+          onImpression={(watchedSeconds) =>
             reportAdImpression(midrollAd.id, {
+              watchedSeconds,
+              durationSeconds: midrollAd.durationSeconds,
               channelId: numericChannelId,
               placement: 'MID_ROLL',
             })

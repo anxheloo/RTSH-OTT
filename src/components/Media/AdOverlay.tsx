@@ -5,9 +5,13 @@
  * skip control are overlaid on either, driven by the creative's `skippable` +
  * `skipAfterSeconds` fields. When not skippable the overlay auto-dismisses after
  * `durationSeconds`. `onComplete` fires on every path (skip, timer, or — for
- * video — natural end) and is the single dismissal callback.
+ * video — natural end) and is the single dismissal callback. `onImpression`
+ * fires ONCE on that same completion with the seconds actually watched (clamped
+ * to the ad duration), which the caller reports as the ad impression — firing at
+ * completion (not mount) is what lets us send a real watched-time for the
+ * backend's avg-view-rate tile.
  */
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { Modal, Pressable, StyleSheet, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { ZoomIn, ZoomOut } from 'react-native-reanimated';
@@ -44,19 +48,39 @@ const AD = {
 export interface AdOverlayProps {
   creative: AdCreative;
   onComplete: () => void;
-  /** Fired ONCE when the overlay mounts — used to report the ad impression. */
-  onShown?: () => void;
+  /**
+   * Fired ONCE when the ad finishes (skip, timer, or video end), with the
+   * seconds actually watched (clamped to the ad duration) — the caller reports
+   * the impression here so a real watched-time reaches the backend.
+   */
+  onImpression?: (watchedSeconds: number) => void;
   testID?: string;
 }
 
-const AdOverlay: React.FC<AdOverlayProps> = ({ creative, onComplete, onShown, testID }) => {
+const AdOverlay: React.FC<AdOverlayProps> = ({ creative, onComplete, onImpression, testID }) => {
   const { t } = useTranslation();
 
-  // One mount = one impression. Report it once when the overlay appears.
+  // Wall-clock at first paint + a once-guard, so the impression carries the real
+  // watched-time and fires exactly once across every completion path.
+  const startedAtRef = useRef(0);
+  const reportedRef = useRef(false);
+
   useEffect(() => {
-    onShown?.();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    startedAtRef.current = Date.now();
   }, []);
+
+  // Single completion path (skip / timer / video end). Computes watched-time and
+  // reports the impression once, then dismisses. Date.now() in a handler is fine
+  // (the impurity ban is render-only); the ref guard makes it idempotent.
+  const handleComplete = () => {
+    if (!reportedRef.current) {
+      reportedRef.current = true;
+      const elapsed = Math.round((Date.now() - startedAtRef.current) / 1000);
+      const watched = Math.min(Math.max(elapsed, 0), creative.durationSeconds);
+      onImpression?.(watched);
+    }
+    onComplete();
+  };
 
   // Countdown runs for skipAfterSeconds (skippable) or durationSeconds (non-skippable).
   // Either way, when the timer finishes the user can always dismiss the ad.
@@ -71,7 +95,7 @@ const AdOverlay: React.FC<AdOverlayProps> = ({ creative, onComplete, onShown, te
       transparent
       animationType="fade"
       statusBarTranslucent
-      onRequestClose={canSkip ? onComplete : undefined}
+      onRequestClose={canSkip ? handleComplete : undefined}
       testID={testID}
     >
       <View style={styles.scrim}>
@@ -90,7 +114,7 @@ const AdOverlay: React.FC<AdOverlayProps> = ({ creative, onComplete, onShown, te
                 <VideoPlayer
                   source={creative.mediaUrl}
                   autoPlay
-                  onPlayEnd={onComplete}
+                  onPlayEnd={handleComplete}
                   style={[StyleSheet.absoluteFill, styles.transparentFill]}
                 />
               </>
@@ -130,7 +154,7 @@ const AdOverlay: React.FC<AdOverlayProps> = ({ creative, onComplete, onShown, te
             {/* Skip / countdown — always shown; tappable only when timer has elapsed */}
             <Pressable
               style={[styles.skip, canSkip && styles.skipReady]}
-              onPress={canSkip ? onComplete : undefined}
+              onPress={canSkip ? handleComplete : undefined}
               disabled={!canSkip}
               testID="ad-skip"
             >

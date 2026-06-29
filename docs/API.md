@@ -273,7 +273,7 @@ Maps to the domain `Ad` (`types/domain.ts`) verbatim. Preroll/app-open fire imme
 
 ### `POST /ads/{id}/impression` — FE-reported impression → `204`
 
-Body (optional): `{ "channelId": number, "placement": string }`. Fire-and-forget; the client reports once when an ad is shown (preroll, app-open, mid-roll). Backend increments an aggregated counter.
+Body (optional): `{ "watchedSeconds": number, "durationSeconds": number, "channelId": number, "placement": string }`. Fire-and-forget; the client reports **once at completion** of each ad (preroll, app-open, mid-roll). `watchedSeconds` (clamped to the ad duration) + `durationSeconds` let the backend compute avg-view-rate (Σwatched / Σduration); without them the impression still counts but avg-view-rate reads 0. Backend increments an aggregated counter.
 
 ## Real-time (STOMP over WebSocket)
 

@@ -63,7 +63,13 @@ const AppLayout: React.FC = () => {
         <AdOverlay
           creative={launchAd}
           onComplete={() => setLaunchAdDismissed(true)}
-          onShown={() => reportAdImpression(launchAd.id, { placement: 'APP_OPEN' })}
+          onImpression={(watchedSeconds) =>
+            reportAdImpression(launchAd.id, {
+              watchedSeconds,
+              durationSeconds: launchAd.durationSeconds,
+              placement: 'APP_OPEN',
+            })
+          }
         />
       )}
     </View>
