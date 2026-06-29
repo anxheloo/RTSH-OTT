@@ -13,8 +13,12 @@
  * Mechanism (per `useNowProgram`):
  *   - hold `nowMs` in state; advance it at the next mid-roll's `startTime` via ONE
  *     `setTimeout`, and on app foreground (RN throttles backgrounded timers);
- *   - derive `dueAd` = the earliest MID_ROLL whose absolute `startTime` has passed,
- *     not yet shown, not past `validUntil`;
+ *   - derive `dueAd` = the earliest MID_ROLL whose fire time has passed, not yet
+ *     shown, not lapsed. Fire time = parsed `startTime`, or NOW if it's null/
+ *     unparseable (so a backend quirk shows the ad instead of dropping it); a
+ *     `validUntil` only lapses the ad if it's valid AND strictly after the start
+ *     (so `validUntil == startTime` can't expire it on the same tick) — see
+ *     `midrollDueMs` / `midrollLapsed`;
  *   - `onAdComplete` marks it shown → the derived `dueAd` advances to the next/none.
  *
  * Watch model (docs/REALTIME_SOCKET.md): emit `/app/watch` on enter and on every
@@ -35,6 +39,30 @@ import type { GeoEvent, MidrollEvent, WatchKind } from '@/realtime';
 import { publish, STOMP_DEST, subscribe } from '@/realtime';
 
 import { useAppState } from './useAppState';
+
+/**
+ * Absolute fire time (ms) of a mid-roll. We always try to parse `startTime`, but a
+ * missing or unparseable value (null, a bare `LocalTime` like "14:30:00", etc.)
+ * falls back to 0 — i.e. "already due, show now" — so a backend quirk surfaces the
+ * ad instead of silently dropping it. A valid future instant schedules normally.
+ */
+function midrollDueMs(ad: Ad): number {
+  if (!ad.startTime) return 0;
+  const t = Date.parse(ad.startTime);
+  return Number.isNaN(t) ? 0 : t;
+}
+
+/**
+ * Has the mid-roll lapsed past `validUntil`? Only a VALID `validUntil` strictly
+ * AFTER its start counts — `validUntil == startTime` (a zero-width window) or an
+ * unparseable value is ignored, so it can't make an ad expire the instant it's due.
+ */
+function midrollLapsed(ad: Ad, nowMs: number): boolean {
+  if (!ad.validUntil) return false;
+  const until = Date.parse(ad.validUntil);
+  if (Number.isNaN(until) || until <= midrollDueMs(ad)) return false;
+  return nowMs > until;
+}
 
 export function useChannelRealtime(
   channelId: number,
@@ -61,11 +89,11 @@ export function useChannelRealtime(
     let best: Ad | null = null;
     let bestDue = Infinity;
     for (const ad of midrolls) {
-      if (ad.placement !== 'MID_ROLL' || !ad.startTime) continue;
+      if (ad.placement !== 'MID_ROLL') continue;
       if (firedIds.has(ad.id)) continue;
-      const due = Date.parse(ad.startTime);
-      if (due > nowMs) continue; // not yet
-      if (ad.validUntil && nowMs > Date.parse(ad.validUntil)) continue; // lapsed → skip
+      const due = midrollDueMs(ad); // null/unparseable startTime → 0 (due now)
+      if (due > nowMs) continue; // future → not yet
+      if (midrollLapsed(ad, nowMs)) continue; // lapsed past a valid validUntil → skip
       if (due < bestDue) {
         best = ad;
         bestDue = due;
@@ -79,9 +107,9 @@ export function useChannelRealtime(
   // so each boundary chains to the next. No poll, no network.
   useEffect(() => {
     const upcoming = midrolls
-      .filter((a) => a.placement === 'MID_ROLL' && a.startTime && !firedIds.has(a.id))
-      .map((a) => Date.parse(a.startTime as string))
-      .filter((t) => t > nowMs);
+      .filter((a) => a.placement === 'MID_ROLL' && !firedIds.has(a.id))
+      .map(midrollDueMs)
+      .filter((t) => t > nowMs); // only future ads need a timer; due-now ones derive immediately
     if (upcoming.length === 0) return;
     const id = setTimeout(refresh, Math.min(...upcoming) - nowMs + 250);
     return () => clearTimeout(id);
