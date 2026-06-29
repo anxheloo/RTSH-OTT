@@ -1,17 +1,20 @@
 /**
  * AdOverlay — full-screen ad creative. Renders the backend-served `mediaUrl`
  * by `creative.type`: an IMAGE goes through `ReusableImage`, a VIDEO through the
- * base `VideoPlayer` (autoplay, no native controls). A "REKLAMË" label and a
- * skip control are overlaid on either, driven by the creative's `skippable` +
- * `skipAfterSeconds` fields. When not skippable the overlay auto-dismisses after
- * `durationSeconds`. `onComplete` fires on every path (skip, timer, or — for
+ * base `VideoPlayer` (autoplay, no native controls). A "REKLAMË" label is always
+ * overlaid. The ad is shown for `durationSeconds` and then **auto-dismisses by
+ * itself** (a video's natural end fires the same path). The skip control is
+ * shown **only when `creative.skippable`** — a labelled countdown until
+ * `skipAfterSeconds` elapses, then a tappable skip that ends the ad early; a
+ * non-skippable creative shows no skip control and simply runs its full
+ * duration. `onComplete` fires on every path (skip, duration timer, or — for
  * video — natural end) and is the single dismissal callback. `onImpression`
  * fires ONCE on that same completion with the seconds actually watched (clamped
  * to the ad duration), which the caller reports as the ad impression — firing at
  * completion (not mount) is what lets us send a real watched-time for the
  * backend's avg-view-rate tile.
  */
-import React, { useEffect, useRef } from 'react';
+import React, { useCallback, useEffect, useRef } from 'react';
 import { Modal, Pressable, StyleSheet, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { ZoomIn, ZoomOut } from 'react-native-reanimated';
@@ -69,23 +72,35 @@ const AdOverlay: React.FC<AdOverlayProps> = ({ creative, onComplete, onImpressio
     startedAtRef.current = Date.now();
   }, []);
 
-  // Single completion path (skip / timer / video end). Computes watched-time and
-  // reports the impression once, then dismisses. Date.now() in a handler is fine
-  // (the impurity ban is render-only); the ref guard makes it idempotent.
-  const handleComplete = () => {
-    if (!reportedRef.current) {
-      reportedRef.current = true;
-      const elapsed = Math.round((Date.now() - startedAtRef.current) / 1000);
-      const watched = Math.min(Math.max(elapsed, 0), creative.durationSeconds);
-      onImpression?.(watched);
-    }
+  // Single completion path (skip / duration timer / video end). Computes
+  // watched-time, reports the impression once, then dismisses — fully idempotent
+  // so every path is safe to call. Date.now() in a handler is fine (the impurity
+  // ban is render-only); the ref guard collapses repeat calls.
+  const handleComplete = useCallback(() => {
+    if (reportedRef.current) return;
+    reportedRef.current = true;
+    const elapsed = Math.round((Date.now() - startedAtRef.current) / 1000);
+    const watched = Math.min(Math.max(elapsed, 0), creative.durationSeconds);
+    onImpression?.(watched);
     onComplete();
-  };
+  }, [creative.durationSeconds, onImpression, onComplete]);
 
-  // Countdown runs for skipAfterSeconds (skippable) or durationSeconds (non-skippable).
-  // Either way, when the timer finishes the user can always dismiss the ad.
-  const skipAfter = creative.skippable ? creative.skipAfterSeconds : creative.durationSeconds;
-  const { remaining, isDone: canSkip } = useCountdown(skipAfter, {
+  // Duration timer — the ad is shown for durationSeconds, then auto-dismisses by
+  // itself (a skip, when offered, can end it sooner). For VIDEO the natural end
+  // fires the same handler; both paths are idempotent.
+  const { isDone: durationDone } = useCountdown(creative.durationSeconds, {
+    proceedInBackground: false,
+    tickMs: 500,
+  });
+
+  useEffect(() => {
+    if (durationDone) handleComplete();
+  }, [durationDone, handleComplete]);
+
+  // Skip control (skippable creatives only) — a labelled countdown until
+  // skipAfterSeconds elapses, then a tappable skip. The hook runs unconditionally
+  // (rules of hooks); the button below is what's gated on `creative.skippable`.
+  const { remaining, isDone: canSkip } = useCountdown(creative.skipAfterSeconds, {
     proceedInBackground: false,
     tickMs: 500,
   });
@@ -95,7 +110,7 @@ const AdOverlay: React.FC<AdOverlayProps> = ({ creative, onComplete, onImpressio
       transparent
       animationType="fade"
       statusBarTranslucent
-      onRequestClose={canSkip ? handleComplete : undefined}
+      onRequestClose={creative.skippable && canSkip ? handleComplete : undefined}
       testID={testID}
     >
       <View style={styles.scrim}>
@@ -151,23 +166,25 @@ const AdOverlay: React.FC<AdOverlayProps> = ({ creative, onComplete, onImpressio
               </ReusableText>
             </View>
 
-            {/* Skip / countdown — always shown; tappable only when timer has elapsed */}
-            <Pressable
-              style={[styles.skip, canSkip && styles.skipReady]}
-              onPress={canSkip ? handleComplete : undefined}
-              disabled={!canSkip}
-              testID="ad-skip"
-            >
-              <ReusableText
-                fontSize={FONTSIZE.sm}
-                lineHeight={FONTSIZE.sm}
-                fontWeight="bold"
-                style={{ color: AD.white }}
+            {/* Skip / countdown — skippable creatives only; tappable once the timer elapses */}
+            {creative.skippable ? (
+              <Pressable
+                style={[styles.skip, canSkip && styles.skipReady]}
+                onPress={canSkip ? handleComplete : undefined}
+                disabled={!canSkip}
+                testID="ad-skip"
               >
-                {canSkip ? t('ads.skip') : t('ads.skip_in', { seconds: remaining })}
-              </ReusableText>
-              {canSkip ? <Icon as={ChevronRightIcon} size={14} color={AD.white} /> : null}
-            </Pressable>
+                <ReusableText
+                  fontSize={FONTSIZE.sm}
+                  lineHeight={FONTSIZE.sm}
+                  fontWeight="bold"
+                  style={{ color: AD.white }}
+                >
+                  {canSkip ? t('ads.skip') : t('ads.skip_in', { seconds: remaining })}
+                </ReusableText>
+                {canSkip ? <Icon as={ChevronRightIcon} size={14} color={AD.white} /> : null}
+              </Pressable>
+            ) : null}
           </View>
         </AnimatedView>
       </View>
