@@ -35,11 +35,11 @@ import { BrandHeader } from '@/components/Brand';
 import ChannelCard from '@/components/channels/ChannelCard';
 import ChannelCardSkeleton from '@/components/channels/ChannelCardSkeleton';
 import { EmptyChannelsState, EmptyStationsState, ErrorState } from '@/components/empty';
-import { HeroCarousel } from '@/components/home';
+// import { HeroCarousel } from '@/components/home'; // Hero "PREMIERË SONTE" disabled until the real /home feed endpoint lands.
 import { BrowseControls, ScreenLayout, SectionHeader } from '@/components/Layout';
 import StationRow from '@/components/radio/StationRow';
 import StationRowSkeleton from '@/components/radio/StationRowSkeleton';
-import type { Channel, HeroItem } from '@/types/domain';
+import type { Channel } from '@/types/domain';
 import { useResponsive, useResponsiveGrid } from '@/responsive';
 
 type HomeMode = 'tv' | 'radio';
@@ -47,36 +47,39 @@ type HomeMode = 'tv' | 'radio';
 /** Gutter between grid columns; cells pad out to SCREEN_PADDING on the edges. */
 const GRID_GAP = SPACING.space_10;
 
+// Hero carousel (the "PREMIERË SONTE" section) is disabled until the real
+// /home feed endpoint lands. Re-enable the mock data, the import, and the
+// <HeroCarousel> block in `listHeader` together when wiring useHomeFeedQuery.
 // TODO: replace with useHomeFeedQuery once the /home endpoint is live (backend pending).
-const MOCK_HERO_ITEMS: HeroItem[] = [
-  {
-    id: '1',
-    kicker: 'PREMIERË SONTE',
-    title: 'Fiks Fare',
-    meta: 'E Hënë · 21:00 · RTSH 1',
-    imageUrl: '',
-    channelId: '1',
-    isLive: false,
-  },
-  {
-    id: '2',
-    kicker: 'LIVE',
-    title: 'Lajmet e Mbrëmjes',
-    meta: 'E Hënë · 20:00 · RTSH 1',
-    imageUrl: '',
-    channelId: '1',
-    isLive: true,
-  },
-  {
-    id: '3',
-    kicker: 'NË VAZHDIM',
-    title: 'Shqipëria Direkt',
-    meta: 'E Hënë · 18:30 · RTSH 2',
-    imageUrl: '',
-    channelId: '2',
-    isLive: true,
-  },
-];
+// const MOCK_HERO_ITEMS: HeroItem[] = [
+//   {
+//     id: '1',
+//     kicker: 'PREMIERË SONTE',
+//     title: 'Fiks Fare',
+//     meta: 'E Hënë · 21:00 · RTSH 1',
+//     imageUrl: '',
+//     channelId: '1',
+//     isLive: false,
+//   },
+//   {
+//     id: '2',
+//     kicker: 'LIVE',
+//     title: 'Lajmet e Mbrëmjes',
+//     meta: 'E Hënë · 20:00 · RTSH 1',
+//     imageUrl: '',
+//     channelId: '1',
+//     isLive: true,
+//   },
+//   {
+//     id: '3',
+//     kicker: 'NË VAZHDIM',
+//     title: 'Shqipëria Direkt',
+//     meta: 'E Hënë · 18:30 · RTSH 2',
+//     imageUrl: '',
+//     channelId: '2',
+//     isLive: true,
+//   },
+// ];
 
 const HomeScreen: React.FC = () => {
   const { t } = useTranslation();
@@ -127,13 +130,14 @@ const HomeScreen: React.FC = () => {
         onToggleChange={setMode}
         testID="home-browse-controls"
       />
+      {/* Hero "PREMIERË SONTE" carousel disabled until the real /home feed endpoint lands.
       {isTv && (
         <HeroCarousel
           items={MOCK_HERO_ITEMS}
           onPressItem={openChannel}
           testID="home-hero"
         />
-      )}
+      )} */}
       {isTv ? (
         <SectionHeader title={t('home.tv_channels')} />
       ) : (
