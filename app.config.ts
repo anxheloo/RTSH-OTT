@@ -69,6 +69,13 @@ export default ({ config }: ConfigContext): ExpoConfig => {
       bundleIdentifier,
       infoPlist: {
         ITSAppUsesNonExemptEncryption: false,
+        // Allow plain-HTTP/WS (cleartext) traffic for the dev backend
+        // (http://<ip>:port + ws://). iOS ATS blocks cleartext by default;
+        // this is the iOS parallel of Android's usesCleartextTraffic. Remove
+        // for production — prod uses https:// + wss://.
+        NSAppTransportSecurity: {
+          NSAllowsArbitraryLoads: true,
+        },
       },
     },
     android: {
