@@ -3,6 +3,11 @@ import { ConfigContext, ExpoConfig } from 'expo/config';
 const IS_DEV = process.env.APP_VARIANT === 'development';
 const IS_PREVIEW = process.env.APP_VARIANT === 'preview';
 
+// Cleartext (plain HTTP/WS) is allowed ONLY in dev/preview, for the dev backend
+// (http://<ip>:port + ws://). Production builds get NO cleartext exception —
+// prod must use https:// + wss://. Gated here so it can never ship to the store.
+const ALLOW_CLEARTEXT = IS_DEV || IS_PREVIEW;
+
 type VariantValues = {
   name: string;
   bundleIdentifier: string;
@@ -69,13 +74,11 @@ export default ({ config }: ConfigContext): ExpoConfig => {
       bundleIdentifier,
       infoPlist: {
         ITSAppUsesNonExemptEncryption: false,
-        // Allow plain-HTTP/WS (cleartext) traffic for the dev backend
-        // (http://<ip>:port + ws://). iOS ATS blocks cleartext by default;
-        // this is the iOS parallel of Android's usesCleartextTraffic. Remove
-        // for production — prod uses https:// + wss://.
-        NSAppTransportSecurity: {
-          NSAllowsArbitraryLoads: true,
-        },
+        // iOS parallel of Android's usesCleartextTraffic — ATS exception for the
+        // dev backend, dev/preview ONLY (never production; see ALLOW_CLEARTEXT).
+        ...(ALLOW_CLEARTEXT
+          ? { NSAppTransportSecurity: { NSAllowsArbitraryLoads: true } }
+          : {}),
       },
     },
     android: {
@@ -96,9 +99,10 @@ export default ({ config }: ConfigContext): ExpoConfig => {
       'expo-router',
       'expo-secure-store',
       'expo-localization',
-      // Allow plain-HTTP (cleartext) traffic for the LAN dev backend (http://<ip>:port).
-      // Android blocks cleartext by default in release builds; this enables it app-wide.
-      ['expo-build-properties', { android: { usesCleartextTraffic: true } }],
+      // Allow plain-HTTP (cleartext) traffic for the dev backend (http://<ip>:port).
+      // Android blocks cleartext by default in release builds; dev/preview ONLY
+      // (false in production — see ALLOW_CLEARTEXT).
+      ['expo-build-properties', { android: { usesCleartextTraffic: ALLOW_CLEARTEXT } }],
       [
         'expo-splash-screen',
         {
