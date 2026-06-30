@@ -59,14 +59,13 @@ const ModalWrapper: React.FC = () => {
     if (!blocking) close();
   };
 
-  // Primary first, then optional secondaries. Single button → full width;
-  // two → side-by-side; three → stacked.
+  // Buttons stack vertically, full-width — a label (Albanian copy runs ~30%
+  // longer) always gets the room it needs and never wraps inside a narrow capsule.
   type Btn = { label: string; action?: () => void | Promise<void> };
   const secondaries: Btn[] = [];
   if (modalData.button2) secondaries.push({ label: modalData.button2, action: modalData.action2 });
   if (modalData.button3) secondaries.push({ label: modalData.button3, action: modalData.action3 });
 
-  const sideBySide = secondaries.length === 1;
   const primaryLabel = modalData.button ?? (blocking ? t('update.cta') : t('common.ok'));
   const primaryAction = modalData.action ?? (blocking ? openStoreListing : undefined);
   const showIconStrip = currentModal === 'apiError' || currentModal === 'noInternet';
@@ -100,26 +99,24 @@ const ModalWrapper: React.FC = () => {
               </ReusableText>
             )}
 
-            <View style={[styles.actions, sideBySide && styles.actionRow]}>
+            <View style={styles.actions}>
+              <ReusableBtn
+                label={primaryLabel}
+                variant={currentModal === 'confirmation' ? 'destructive' : 'primary'}
+                size="medium"
+                isFullWidth
+                onPress={run(primaryAction)}
+              />
               {secondaries.map((b) => (
                 <ReusableBtn
                   key={b.label}
                   label={b.label}
                   variant="ghost"
                   size="medium"
-                  isFullWidth={!sideBySide}
-                  style={sideBySide ? styles.actionBtn : undefined}
+                  isFullWidth
                   onPress={run(b.action)}
                 />
               ))}
-              <ReusableBtn
-                label={primaryLabel}
-                variant={currentModal === 'confirmation' ? 'destructive' : 'primary'}
-                size="medium"
-                isFullWidth={!sideBySide}
-                style={sideBySide ? styles.actionBtn : undefined}
-                onPress={run(primaryAction)}
-              />
             </View>
           </View>
         </TouchableOpacity>
@@ -157,12 +154,6 @@ const styles = StyleSheet.create({
   actions: {
     marginTop: SPACING.space_8,
     gap: SPACING.space_12,
-  },
-  actionRow: {
-    flexDirection: 'row',
-  },
-  actionBtn: {
-    flex: 1,
   },
 });
 

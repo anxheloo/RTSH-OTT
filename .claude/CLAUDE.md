@@ -71,7 +71,7 @@ Expo Router file-based. Root `_layout.tsx` uses `Stack.Protected` guards:
 
 Single `useAppStore` composed from slices (see `src/store/`):
 - `UserSlice` — auth state, user, access token (access in store, refresh in keychain)
-- `SettingsSlice` — locale, theme mode, haptics, autoplay, data-saver, cellular flag, `analyticsEnabled` (telemetry opt-out)
+- `SettingsSlice` — locale, theme mode, haptics, autoplay, data-saver, cellular flag, `analyticsEnabled` (telemetry opt-out), `rememberMe` (last "remember me" choice — pre-fills the login/register checkbox)
 - `ThemeSlice` — mode + colors (light/dark objects, swapped on toggle)
 - `ModalSlice` — single active modal (`currentModal` + `modalData`, RTSH/SOLITAR style; apiError, noInternet, notify, confirmation, forceUpdate). One modal at a time; `updateModalSlice({ currentModal: null })` to close (`forceUpdate` is blocking and never closes).
 - `NetworkSlice` — runtime connectivity (`isOnline`, `connectionType`), written by `useNetworkMonitor`; not persisted
@@ -87,7 +87,7 @@ Persist via MMKV (`zustandStorage`). `partialize` controls what persists. `onReh
 
 | Data | Where |
 |------|-------|
-| Refresh token | Keychain (`expo-secure-store`) |
+| Refresh token | **Token vault** (`services/tokenVault.ts`) — keychain (`expo-secure-store`) when **"remember me"** is on, else in-memory only (fresh start next launch). Single owner of all refresh-token reads/writes; see `rules/ARCHITECTURE.md → Auth flow → Remember me` |
 | User, settings, theme, favorites, reminders, **parental config (`parentalEnabled` + `parentalPin`)** | MMKV (Zustand persist). Parental PIN is **device-level, client-only** (never sent to/read from backend, not on the user object); it's content gating, not a credential — see `rules/ARCHITECTURE.md → Parental control` |
 | Server data (channels, EPG, catch-up, programs) | TanStack Query cache (selective MMKV persist for slow-changing) |
 | Resume positions (per-program) | MMKV (separate key) |
@@ -139,7 +139,7 @@ Portable, self-contained module (`react`+`react-native` only) for all device-siz
 
 ### Auth flow
 
-Access token in memory, refresh token in keychain. Boot is offline-first (keychain-first check; network only on manual-wipe recovery). 401s single-flight refresh through a bare axios instance to prevent loop deadlocks. Logout is async + atomic. No app-lock — the root `(auth)` vs `(app)` guard keys on `isAuthenticated` ONLY (never the in-memory access token, which is null on cold boot until the first request's 401-refresh lands). Parental PIN is content-level, not app-entry.
+Access token in memory; refresh token in the **token vault** (`services/tokenVault.ts`) — keychain when **"remember me"** is on, in-memory only when off (login + register, default on). Boot is offline-first (vault check, memory-first then keychain; network only on manual-wipe recovery). 401s single-flight refresh through a bare axios instance to prevent loop deadlocks. Logout is async + atomic. No app-lock — the root `(auth)` vs `(app)` guard keys on `isAuthenticated` ONLY (never the in-memory access token, which is null on cold boot until the first request's 401-refresh lands). Parental PIN is content-level, not app-entry.
 
 Full rationale, behavior, and known gaps: `rules/ARCHITECTURE.md` → Auth flow.
 

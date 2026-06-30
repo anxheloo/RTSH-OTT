@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 
 import { useAppStore } from '@/store/useAppStore';
-import { REFRESH_TOKEN_KEY } from '@/config/auth';
-import { getFromKeychain } from '@/services/keychain';
+import { getRefreshToken } from '@/services/tokenVault';
 
 export function useCheckToken() {
   const [checked, setChecked] = useState(false);
@@ -11,7 +10,7 @@ export function useCheckToken() {
     // TODO(anx 2026-06-25): TEMP boot diagnostics — remove after first-launch splash hang is found.
     console.log('[BOOT] useCheckToken: reading keychain…');
     try {
-      const refreshToken = await getFromKeychain(REFRESH_TOKEN_KEY);
+      const refreshToken = await getRefreshToken();
       console.log('[BOOT] useCheckToken: keychain returned', refreshToken ? 'a token' : 'null');
       if (refreshToken) {
         useAppStore.setState({ isAuthenticated: true });

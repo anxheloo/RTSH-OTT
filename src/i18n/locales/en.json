@@ -61,7 +61,8 @@
         "high": "High",
         "medium": "Medium",
         "low": "Low"
-      }
+      },
+      "remember_me": "Remember me"
     },
     "errors": {
       "email": "Invalid email address",

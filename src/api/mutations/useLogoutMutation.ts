@@ -2,8 +2,7 @@ import { useMutation } from '@tanstack/react-query';
 import { AxiosError } from 'axios';
 
 import { useAppStore } from '@/store/useAppStore';
-import { REFRESH_TOKEN_KEY } from '@/config/auth';
-import { getFromKeychain } from '@/services/keychain';
+import { getRefreshToken } from '@/services/tokenVault';
 
 import { queryClient } from '../client';
 import * as authService from '../services/auth';
@@ -14,7 +13,7 @@ export function useLogoutMutation() {
       try {
         // The backend revokes the specific session by its refresh token; the
         // access token only identifies the user, not which device to kill.
-        const refreshToken = await getFromKeychain(REFRESH_TOKEN_KEY);
+        const refreshToken = await getRefreshToken();
         if (refreshToken) await authService.logout(refreshToken);
       } catch (e) {
         // Best-effort server logout. Swallow auth errors (session already

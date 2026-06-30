@@ -60,6 +60,7 @@ function SegmentedToggle<T extends string>({
             <ReusableText
               variant="label"
               themeColor={isActive ? 'text' : 'textMuted'}
+              numberOfLines={1}
             >
               {opt.label}
             </ReusableText>

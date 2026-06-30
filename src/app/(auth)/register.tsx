@@ -30,30 +30,37 @@ import {
   RegisterForm,
   StepHeader,
 } from '@/components/auth';
-import { REFRESH_TOKEN_KEY } from '@/config/auth';
 import { authErrorMessage } from '@/features/auth/errors';
 import type { RegisterFormData } from '@/features/auth/schemas';
-import { storeOnKeychain } from '@/services/keychain';
+import { setRefreshToken } from '@/services/tokenVault';
 
 const RegisterScreen: React.FC = () => {
   const { t } = useTranslation();
 
+  const rememberMeDefault = useAppStore((s) => s.rememberMe);
+  const persistRememberMe = useAppStore((s) => s.setRememberMe);
+
   const [step, setStep] = useState(1);
   const [email, setEmail] = useState('');
+  // Carried from the form (step 1) to the verify step (step 2), where tokens land.
+  const [rememberMe, setRememberMe] = useState(rememberMeDefault);
 
   const start = useRegister();
   const verify = useRegisterVerifyOtp();
   const resend = useRegisterResendOtp();
 
-  /** Verified OTP → activated account + tokens: persist + log straight in. */
+  /** Verified OTP → activated account + tokens: persist per "remember me" + log straight in. */
   const completeLogin = async ({ user, accessToken, refreshToken }: AuthResponse) => {
-    await storeOnKeychain(REFRESH_TOKEN_KEY, refreshToken);
+    await setRefreshToken(refreshToken, { remember: rememberMe });
     useAppStore.getState().login(user, accessToken);
   };
 
   const handleRegister = (data: RegisterFormData) => {
-    const { confirmPassword: _confirmPassword, ...payload } = data; // client-side check only
+    // confirmPassword + rememberMe are client-only — neither is part of the register payload.
+    const { confirmPassword: _confirmPassword, rememberMe: remember, ...payload } = data;
     setEmail(data.email);
+    setRememberMe(remember);
+    persistRememberMe(remember); // pre-fill the box with this choice next time
     start.mutate(payload, { onSuccess: () => setStep(2) });
   };
 
@@ -75,6 +82,7 @@ const RegisterScreen: React.FC = () => {
           onSubmit={handleRegister}
           isSubmitting={start.isPending}
           errorText={start.error ? authErrorMessage(start.error) : undefined}
+          rememberMeDefault={rememberMeDefault}
         />
       ) : (
         <OtpVerify

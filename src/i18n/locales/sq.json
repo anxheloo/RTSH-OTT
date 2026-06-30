@@ -61,7 +61,8 @@
         "high": "I lartë",
         "medium": "I mesëm",
         "low": "I ulët"
-      }
+      },
+      "remember_me": "Më mbaj mend"
     },
     "errors": {
       "email": "Email i pavlefshëm",

@@ -150,7 +150,13 @@ const ReusableBtn: React.FC<ReusableBtnProps> = ({
         <ReusableText
           fontSize={sizeSpec.labelFontSize}
           fontWeight={sizeSpec.labelFontWeight}
-          style={{ color: textColor }}
+          textAlign="center"
+          // Buttons are fixed-height capsules — a label must never wrap to two
+          // lines and overflow. Keep it to one line; an auto-width button grows to
+          // fit, and width-constrained callers (e.g. side-by-side rows) should give
+          // the label room or stack instead. flexShrink lets it yield to icons.
+          numberOfLines={1}
+          style={{ color: textColor, flexShrink: 1 }}
         >
           {label}
         </ReusableText>

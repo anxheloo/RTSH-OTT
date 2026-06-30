@@ -20,7 +20,7 @@ import { useLoginMutation } from '@/api/mutations/useLoginMutation';
 import { AuthFooterLink, AuthScreen } from '@/components/auth';
 import ReusableBtn from '@/components/Buttons/ReusableBtn';
 import { Icon } from '@/components/Icons';
-import { ReusableInput, ReusableText } from '@/components/Inputs';
+import { Checkbox, ReusableInput, ReusableText } from '@/components/Inputs';
 import { KeyIcon, MailIcon } from '@/assets/icons';
 import { authErrorMessage } from '@/features/auth/errors';
 import { type LoginFormData, loginSchema } from '@/features/auth/schemas';
@@ -28,17 +28,24 @@ import { type LoginFormData, loginSchema } from '@/features/auth/schemas';
 const LoginScreen: React.FC = () => {
   const { t } = useTranslation();
   const colors = useAppStore((s) => s.colors);
+  const rememberMeDefault = useAppStore((s) => s.rememberMe);
+  const setRememberMe = useAppStore((s) => s.setRememberMe);
   const { mutate: login, isPending, error } = useLoginMutation();
 
   const { control, handleSubmit } = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
-    defaultValues: { email: '', password: '' },
+    // Pre-filled with the last choice (persisted); defaults ON on first launch —
+    // keeps the user signed in across restarts (the app's pre-option behavior).
+    defaultValues: { email: '', password: '', rememberMe: rememberMeDefault },
   });
 
   // Zod error messages are i18n keys (RTSH pattern) — resolve at render time.
   const tr = (key?: string) => (key ? t(key) : undefined);
 
-  const onSubmit = handleSubmit(({ email, password }) => login({ email, password }));
+  const onSubmit = handleSubmit(({ email, password, rememberMe }) => {
+    setRememberMe(rememberMe); // remember the choice so the box reflects it next time
+    login({ email, password, rememberMe });
+  });
 
   // Inline only for client (4xx) errors; 5xx/network resolves to undefined and
   // the global apiError modal owns it (authErrorMessage gates the boundary).
@@ -90,6 +97,31 @@ const LoginScreen: React.FC = () => {
         )}
       />
 
+      <View style={styles.optionsRow}>
+        <Controller
+          control={control}
+          name="rememberMe"
+          render={({ field: { value, onChange } }) => (
+            <Checkbox
+              value={value}
+              onValueChange={onChange}
+              label={t('auth.login.remember_me')}
+              testID="login-remember-me"
+            />
+          )}
+        />
+
+        <TouchableOpacity
+          onPress={() => router.push('/(auth)/forgot')}
+          activeOpacity={0.7}
+          testID="login-forgot-password"
+        >
+          <ReusableText variant="label" themeColor="primary">
+            {t('auth.login.forgot_password')}
+          </ReusableText>
+        </TouchableOpacity>
+      </View>
+
       {errorMessage ? (
         <ReusableText variant="caption" themeColor="error" textAlign="center">
           {errorMessage}
@@ -112,17 +144,6 @@ const LoginScreen: React.FC = () => {
         onPress={() => router.push('/(auth)/register')}
         testID="login-register-link"
       />
-
-      <TouchableOpacity
-        onPress={() => router.push('/(auth)/forgot')}
-        activeOpacity={0.7}
-        style={styles.forgotRow}
-        testID="login-forgot-password"
-      >
-        <ReusableText variant="label" themeColor="primary">
-          {t('auth.login.forgot_password')}
-        </ReusableText>
-      </TouchableOpacity>
     </AuthScreen>
   );
 };
@@ -131,8 +152,10 @@ const styles = StyleSheet.create({
   welcome: {
     gap: 4,
   },
-  forgotRow: {
-    alignSelf: 'center',
+  optionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
 });
 

@@ -1,9 +1,8 @@
 import axios from 'axios';
 
 import { useAppStore } from '@/store/useAppStore';
-import { REFRESH_TOKEN_KEY } from '@/config/auth';
 import i18n from '@/i18n';
-import { getFromKeychain } from '@/services/keychain';
+import { getRefreshToken } from '@/services/tokenVault';
 
 import { registerRefreshHandler } from '../client';
 import * as authService from '../services/auth';
@@ -41,7 +40,7 @@ export function refreshAccessToken(): Promise<string | null> {
 }
 
 async function doRefresh(): Promise<string | null> {
-  const refreshToken = await getFromKeychain(REFRESH_TOKEN_KEY);
+  const refreshToken = await getRefreshToken();
   if (!refreshToken) return null;
 
   try {

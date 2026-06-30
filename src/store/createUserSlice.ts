@@ -1,8 +1,7 @@
 import { StateCreator } from 'zustand';
 
 import type { User } from '@/types';
-import { REFRESH_TOKEN_KEY } from '@/config/auth';
-import { removeFromKeychain } from '@/services/keychain';
+import { clearRefreshToken } from '@/services/tokenVault';
 
 import type { AppStore } from './useAppStore';
 
@@ -29,7 +28,7 @@ export const createUserSlice: StateCreator<AppStore, [], [], UserSlice> = (set) 
   login: (user, token) => set({ user, token, isAuthenticated: true }),
 
   logout: async () => {
-    await removeFromKeychain(REFRESH_TOKEN_KEY);
+    await clearRefreshToken();
     set({
       user: null,
       token: null,

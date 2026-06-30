@@ -63,7 +63,12 @@ function SegmentedChoice<T extends string>({
               },
             ]}
           >
-            <ReusableText variant="label" themeColor={isActive ? 'text' : 'textMuted'}>
+            <ReusableText
+              variant="label"
+              themeColor={isActive ? 'text' : 'textMuted'}
+              textAlign="center"
+              numberOfLines={1}
+            >
               {opt.label}
             </ReusableText>
           </TouchableOpacity>

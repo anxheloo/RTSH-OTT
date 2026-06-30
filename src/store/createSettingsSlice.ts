@@ -14,6 +14,8 @@ export interface SettingsSlice {
   hapticsEnabled: boolean;
   /** Telemetry opt-out (spec MW.14 / Mon.6). When false, `track()` is a no-op. */
   analyticsEnabled: boolean;
+  /** Last "remember me" choice — pre-fills the login/register checkbox (UI only; token persistence lives in the vault). */
+  rememberMe: boolean;
 
   // Universal batch setter (for composed multi-field updates)
   updateSettingsSlice: (state: Partial<SettingsSlice>) => void;
@@ -24,6 +26,7 @@ export interface SettingsSlice {
   setDataSaverEnabled: (v: boolean) => void;
   setHapticsEnabled: (v: boolean) => void;
   setAnalyticsEnabled: (v: boolean) => void;
+  setRememberMe: (v: boolean) => void;
 }
 
 export const createSettingsSlice: StateCreator<AppStore, [], [], SettingsSlice> = (set) => ({
@@ -34,6 +37,7 @@ export const createSettingsSlice: StateCreator<AppStore, [], [], SettingsSlice> 
   dataSaverEnabled: false,
   hapticsEnabled: true,
   analyticsEnabled: true,
+  rememberMe: true,
 
   updateSettingsSlice: (state) => set(state),
   setLocale: (locale) => set({ locale }),
@@ -42,4 +46,5 @@ export const createSettingsSlice: StateCreator<AppStore, [], [], SettingsSlice> 
   setDataSaverEnabled: (dataSaverEnabled) => set({ dataSaverEnabled }),
   setHapticsEnabled: (hapticsEnabled) => set({ hapticsEnabled }),
   setAnalyticsEnabled: (analyticsEnabled) => set({ analyticsEnabled }),
+  setRememberMe: (rememberMe) => set({ rememberMe }),
 });

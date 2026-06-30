@@ -65,7 +65,7 @@ function FilterChipRow<T extends string>({
               },
             ]}
           >
-            <ReusableText variant="label" themeColor={isActive ? 'onPrimary' : 'textMuted'}>
+            <ReusableText variant="label" themeColor={isActive ? 'onPrimary' : 'textMuted'} numberOfLines={1}>
               {chip.label}
             </ReusableText>
           </TouchableOpacity>

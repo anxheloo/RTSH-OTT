@@ -50,6 +50,7 @@ export const useAppStore = create<AppStore>()(
         dataSaverEnabled: state.dataSaverEnabled,
         hapticsEnabled: state.hapticsEnabled,
         analyticsEnabled: state.analyticsEnabled,
+        rememberMe: state.rememberMe,
         parentalEnabled: state.parentalEnabled,
         parentalPin: state.parentalPin,
         failedAttempts: state.failedAttempts,
