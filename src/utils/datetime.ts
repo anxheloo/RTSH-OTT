@@ -25,6 +25,16 @@
  */
 import type { TFunction } from 'i18next';
 
+/**
+ * Fixed 24-hour clock (00–23) for ALL time rendering, regardless of locale or
+ * the device's 12/24-hour setting. RTSH is an Albanian broadcaster — Albania and
+ * EPG/TV schedules are universally 24-hour. Without pinning this, `Intl` lets the
+ * platform decide: iOS bridges the device "24-Hour Time" toggle into ICU (off →
+ * "4:30 e pasdites"), while Android's Hermes ICU uses the locale default (sq →
+ * "16:30"). Pinning `h23` makes both platforms deterministic and broadcast-correct.
+ */
+const HOUR_CYCLE: Intl.DateTimeFormatOptions['hourCycle'] = 'h23';
+
 /** Cache of constructed formatters, keyed by locale + serialized options. */
 const formatterCache = new Map<string, Intl.DateTimeFormat>();
 
@@ -54,16 +64,30 @@ export function toDateKey(d: Date): string {
   return `${d.getFullYear()}-${m}-${day}`;
 }
 
+/**
+ * Compact day/month with a fixed slash separator ("30/06"), locale-independent.
+ * Intl's `{ day, month }` skeleton picks the separator from locale ICU data, and
+ * that data differs between iOS (system ICU) and Android (Hermes ICU) — Albanian
+ * renders as "30.6" on iOS but "30/06" on Android. Day-strip chips want one
+ * consistent compact format, so we build it from the local calendar parts.
+ */
+export function formatDayMonth(d: Date): string {
+  const day = String(d.getDate()).padStart(2, '0');
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  return `${day}/${month}`;
+}
+
 const MS_PER_DAY = 86_400_000;
 
 /**
- * Clock time, e.g. "20:00" (sq/de) or "8:00 PM" (en-US). Hour cycle follows the
- * locale — never force 12/24h, that's the whole point of going locale-aware.
+ * Clock time, e.g. "20:00". Always 24-hour (see `HOUR_CYCLE`) so iOS and Android
+ * agree regardless of the device's 12/24h setting — broadcast-correct for RTSH.
  */
 export function formatTime(iso: string, locale: string, timeZone?: string): string {
   return getFormatter(locale, {
     hour: '2-digit',
     minute: '2-digit',
+    hourCycle: HOUR_CYCLE,
     timeZone,
   }).format(new Date(iso));
 }
@@ -78,7 +102,7 @@ export function formatDate(
   return getFormatter(locale, { ...options, timeZone }).format(new Date(iso));
 }
 
-/** Date + time on one line, localized ordering and clock. */
+/** Date + time on one line, localized date ordering with a fixed 24-hour clock. */
 export function formatDateTime(iso: string, locale: string, timeZone?: string): string {
   return getFormatter(locale, {
     year: 'numeric',
@@ -86,6 +110,7 @@ export function formatDateTime(iso: string, locale: string, timeZone?: string): 
     day: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
+    hourCycle: HOUR_CYCLE,
     timeZone,
   }).format(new Date(iso));
 }

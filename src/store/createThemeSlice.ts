@@ -23,8 +23,8 @@ export const resolveColors = (mode: ThemeMode): ThemeColors => {
 };
 
 export const createThemeSlice: StateCreator<AppStore, [], [], ThemeSlice> = (set, get) => ({
-  mode: 'system',
-  colors: resolveColors('system'),
+  mode: 'dark',
+  colors: resolveColors('dark'),
 
   setTheme: (mode) => {
     set({ mode, colors: resolveColors(mode) });

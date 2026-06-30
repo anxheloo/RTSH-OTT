@@ -25,6 +25,7 @@ import {
   View,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useQueryClient } from '@tanstack/react-query';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -57,7 +58,7 @@ import AdOverlay from '@/components/Media/AdOverlay';
 import LivePlayer from '@/components/Media/LivePlayer';
 import { ParentalPinModal } from '@/components/ParentalPin';
 import { availableQualityIds, getStreamHeaders, resolveStreamSource } from '@/utils';
-import { toDateKey } from '@/utils/datetime';
+import { formatDayMonth, toDateKey } from '@/utils/datetime';
 import type { CatchupDay, EpgItem } from '@/types/domain';
 // Analytics disabled for now — re-enable when telemetry is wanted.
 // import { AnalyticsEvent, track, useWatchTracking } from '@/analytics';
@@ -82,7 +83,8 @@ const ChannelScreen: React.FC = () => {
   const channelId = id ?? '';
   const { t } = useTranslation();
   const colors = useAppStore((s) => s.colors);
-  const { formatDate, formatTime } = useDateTime();
+  const { formatTime } = useDateTime();
+  const insets = useSafeAreaInsets();
 
   // Channel metadata from the cached TV list (name, geoBlocked).
   const { channels } = useChannelsQuery('TV');
@@ -230,13 +232,13 @@ const ChannelScreen: React.FC = () => {
         weekday: isToday
           ? t('datetime.today')
           : t(`datetime.day_names.${WEEKDAY_KEYS[d.getDay()]}`),
-        date: formatDate(d.toISOString(), { day: '2-digit', month: '2-digit' }),
+        date: formatDayMonth(d),
         isToday,
         isFuture,
       });
     }
     return out;
-  }, [todayKey, formatDate, t]);
+  }, [todayKey, t]);
 
   const [selectedKey, setSelectedKey] = useState(todayKey);
 
@@ -436,12 +438,24 @@ const ChannelScreen: React.FC = () => {
   // the VideoView bounds, no caption-padding API in expo-video) and the back
   // button clear the home indicator / landscape notch; `contain` re-centers the
   // video into the safe area, the inset bars use the black video token.
+  //
+  // Portrait (non-fullscreen): the screen is presented as an iOS `fullScreenModal`,
+  // where `SafeAreaView`'s `edges` prop does NOT reliably apply the top inset — so
+  // the full-bleed video sat under the notch and the overlaid back button was
+  // clipped + unclickable. We own the top inset explicitly via `useSafeAreaInsets`
+  // (`marginTop: insets.top` on the video box, outside its aspect-ratio frame),
+  // which DOES report correctly inside these modals; the absolutely-positioned
+  // back button rides down with the box and clears the notch.
   return (
     <ScreenLayout
-      edges={isFullscreen ? ['bottom', 'left', 'right'] : ['top']}
+      edges={isFullscreen ? ['bottom', 'left', 'right'] : []}
       backgroundColor={isFullscreen ? 'videoPlaceholderBg' : 'background'}
     >
-      <View style={isFullscreen ? styles.videoFull : [styles.video, contentWidth]}>
+      <View
+        style={
+          isFullscreen ? styles.videoFull : [styles.video, contentWidth, { marginTop: insets.top }]
+        }
+      >
         {player}
         {backButton}
       </View>

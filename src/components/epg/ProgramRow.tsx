@@ -5,6 +5,9 @@
  *  - `now`       — airing/selectable: red play glyph, bright title (default).
  *  - `recorded`  — past/catch-up: pale (mutedDim) play glyph, bright title (playable).
  *  - `scheduled` — upcoming/future: no play glyph, dimmed title (info only).
+ *    On Android a frosted `BlurView` reinforces the passive state; on iOS that
+ *    same overlay renders as a heavy real blur, so iOS relies on the dimmed
+ *    (textMuted) + non-clickable row alone — the user can still read what's next.
  *
  * Two additive overlays sit on top of `state`, both driven by the channel
  * screen so the list reflects the player:
@@ -20,7 +23,7 @@
  * Presentational — the parent composes `meta`/`time` and supplies `onPress`.
  */
 import React from 'react';
-import { StyleSheet, TouchableOpacity, View } from 'react-native';
+import { Platform, StyleSheet, TouchableOpacity, View } from 'react-native';
 
 import { BlurView } from 'expo-blur';
 
@@ -111,7 +114,9 @@ const ProgramRow: React.FC<ProgramRowProps> = ({
         </ReusableText>
       ) : null}
 
-      {state === 'scheduled' ? (
+      {/* Android renders the frosted overlay; iOS would render a heavy real blur,
+          so there the row stays pale (textMuted) + non-clickable instead. */}
+      {state === 'scheduled' && Platform.OS !== 'ios' ? (
         <BlurView intensity={18} tint="dark" style={StyleSheet.absoluteFill} />
       ) : null}
     </TouchableOpacity>
