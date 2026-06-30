@@ -15,6 +15,7 @@ import { useTranslation } from 'react-i18next';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { router } from 'expo-router';
 
+import { SPACING } from '@/theme/spacing';
 import { useAppStore } from '@/store/useAppStore';
 import { useLoginMutation } from '@/api/mutations/useLoginMutation';
 import { AuthFooterLink, AuthScreen } from '@/components/auth';
@@ -98,20 +99,22 @@ const LoginScreen: React.FC = () => {
       />
 
       <View style={styles.optionsRow}>
-        <Controller
-          control={control}
-          name="rememberMe"
-          render={({ field: { value, onChange } }) => (
-            <Checkbox
-              value={value}
-              onValueChange={onChange}
-              label={t('auth.login.remember_me')}
-              testID="login-remember-me"
-            />
-          )}
-        />
+        <View style={styles.rememberWrap}>
+          <Controller
+            control={control}
+            name="rememberMe"
+            render={({ field: { value, onChange } }) => (
+              <Checkbox value={value} onValueChange={onChange} testID="login-remember-me">
+                <ReusableText variant="bodySmall" themeColor="text">
+                  {t('auth.login.remember_me')}
+                </ReusableText>
+              </Checkbox>
+            )}
+          />
+        </View>
 
         <TouchableOpacity
+          style={styles.forgotLink}
           onPress={() => router.push('/(auth)/forgot')}
           activeOpacity={0.7}
           testID="login-forgot-password"
@@ -156,6 +159,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    gap: SPACING.space_12,
+  },
+  // Remember-me yields space when tight; the forgot link must never be clipped
+  // (long sq label "Harruat fjalëkalimin?" + "Më mbaj mend" overflow a phone row).
+  rememberWrap: {
+    flexShrink: 1,
+    minWidth: 0,
+  },
+  forgotLink: {
+    flexShrink: 0,
   },
 });
 
