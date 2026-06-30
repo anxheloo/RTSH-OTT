@@ -197,7 +197,8 @@
     "logging_out": "Duke dalë...",
     "delete_account": "Fshi llogarinë",
     "delete_confirm_title": "Fshi llogarinë",
-    "delete_confirm_message": "Kjo fshin përgjithmonë llogarinë tuaj dhe nuk mund të zhbëhet. Jeni i sigurt?"
+    "delete_confirm_message": "Kjo fshin përgjithmonë llogarinë tuaj dhe nuk mund të zhbëhet. Jeni i sigurt?",
+    "deleting_account": "Duke fshirë llogarinë..."
   },
   "settings": {
     "title": "Cilësimet",

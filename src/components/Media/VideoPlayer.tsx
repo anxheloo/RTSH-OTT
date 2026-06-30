@@ -32,6 +32,14 @@ export type VideoPlayerProps = {
   source: string | null;
   headers?: Record<string, string>;
   autoPlay?: boolean;
+  /**
+   * Declaratively pause/resume playback without remounting (e.g. while a
+   * mid-roll ad overlay is up). On resume of a **live** stream we best-effort
+   * re-sync to the live edge so the pause doesn't leave the viewer behind live.
+   * This prop is the ONLY thing that drives play/pause from React state — the
+   * manual play/pause control calls the player directly, so it never collides.
+   */
+  paused?: boolean;
   onStatusChange?: (status: VideoStatus) => void;
   onTimeUpdate?: (currentTime: number, duration: number) => void;
   onPlayEnd?: () => void;
@@ -54,6 +62,7 @@ function VideoPlayer({
   source,
   headers,
   autoPlay = false,
+  paused = false,
   onStatusChange,
   onTimeUpdate,
   onPlayEnd,
@@ -82,7 +91,7 @@ function VideoPlayer({
     // Background audio + lock-screen now-playing controls (opt-in via prop).
     p.staysActiveInBackground = backgroundPlayback;
     p.showNowPlayingNotification = backgroundPlayback;
-    if (autoPlay) {
+    if (autoPlay && !paused) {
       p.play();
     }
   });
@@ -112,9 +121,30 @@ function VideoPlayer({
           : null,
       )
       .then(() => {
-        if (autoPlay && source) player.play();
+        if (autoPlay && source && !paused) player.play();
       });
-  }, [player, source, headers, autoPlay, metadata]);
+  }, [player, source, headers, autoPlay, paused, metadata]);
+
+  // Reconcile the declarative `paused` prop onto the imperative player — the
+  // Expo-idiomatic bridge (no remount; the source/decoder stay warm). Resuming
+  // a LIVE stream re-syncs to the live edge first so a pause (mid-roll ad break)
+  // doesn't strand the viewer behind live: `seekBy(offset)` jumps forward by
+  // however far behind live we are. Best-effort only — `currentOffsetFromLive`
+  // is null without HLS EXT-X-PROGRAM-DATE-TIME metadata, in which case we
+  // simply resume in place (the seek is skipped). A property write
+  // (`targetOffsetFromLive`) would trip react-hooks/immutability — the method
+  // call doesn't, and works on both platforms.
+  useEffect(() => {
+    if (paused) {
+      player.pause();
+      return;
+    }
+    if (player.isLive) {
+      const behind = player.currentOffsetFromLive;
+      if (behind && behind > 0) player.seekBy(behind);
+    }
+    player.play();
+  }, [player, paused]);
 
   // Reactive render state straight off the player's events (replaces the manual
   // addListener + useState + setState). `useEvent` subscribes internally and

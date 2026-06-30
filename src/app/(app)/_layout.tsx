@@ -8,7 +8,6 @@ import { StyleSheet, View } from 'react-native';
 import { Stack } from 'expo-router';
 
 import { useAdsQuery, useChannelsQuery, useMeQuery } from '@/api/queries';
-import { reportAdImpression } from '@/api/services/ads';
 import { useDeviceIdentity, useRealtimeConnection } from '@/hooks';
 import RadioMiniPlayer from '@/components/Layout/RadioMiniPlayer';
 import AdOverlay from '@/components/Media/AdOverlay';
@@ -62,14 +61,8 @@ const AppLayout: React.FC = () => {
       {launchAd && !launchAdDismissed && (
         <AdOverlay
           creative={launchAd}
+          placement="APP_OPEN"
           onComplete={() => setLaunchAdDismissed(true)}
-          onImpression={(watchedSeconds) =>
-            reportAdImpression(launchAd.id, {
-              watchedSeconds,
-              durationSeconds: launchAd.durationSeconds,
-              placement: 'APP_OPEN',
-            })
-          }
         />
       )}
     </View>

@@ -37,6 +37,13 @@ export type LivePlayerProps = {
   currentProgramEnd?: Date;
   /** `false` for recorded/catch-up playback — drops the LIVE badge, seekable bar. */
   isLive?: boolean;
+  /**
+   * Pause the stream while a mid-roll ad overlay is up (ad-driven only — the
+   * manual play/pause control is independent). Also gates PiP *entry* off while
+   * true, so the user can't background into a PiP window that would otherwise
+   * keep the content surface visible behind the (JS-overlay) ad.
+   */
+  paused?: boolean;
   /** Fired once when playback enters an error state (analytics `stream_error`). */
   // Analytics disabled for now — re-enable when telemetry is wanted.
   // onError?: (errorType: string) => void;
@@ -56,6 +63,7 @@ const LivePlayer: React.FC<LivePlayerProps> = ({
   channelLogoUrl,
   currentProgramTitle,
   isLive = true,
+  paused = false,
   // onError, // Analytics disabled for now — re-enable when telemetry is wanted.
   onClose,
   isFullscreen = false,
@@ -96,8 +104,9 @@ const LivePlayer: React.FC<LivePlayerProps> = ({
         source={streamUrl}
         headers={streamHeaders}
         autoPlay
-        allowsPictureInPicture
-        startsPictureInPictureAutomatically
+        paused={paused}
+        allowsPictureInPicture={!paused}
+        startsPictureInPictureAutomatically={!paused}
         backgroundPlayback
         metadata={metadata}
         onStatusChange={handleStatusChange}

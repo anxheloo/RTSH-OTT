@@ -55,7 +55,7 @@ function SelectInput<T extends string>({
         </ReusableText>
       ) : null}
 
-      <View style={[styles.field, { backgroundColor: colors.inputBackground, borderColor }]}>
+      <View style={[styles.field, { borderColor }]}>
         <Host matchContents style={styles.host}>
           <Picker
             selectedValue={value}

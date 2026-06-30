@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 
-import NetInfo, { NetInfoState } from '@react-native-community/netinfo';
+import NetInfo, { NetInfoState, NetInfoStateType } from '@react-native-community/netinfo';
 import { onlineManager } from '@tanstack/react-query';
 
 import { useAppStore } from '@/store/useAppStore';
@@ -27,7 +27,13 @@ export function useNetworkMonitor(): void {
       const online = deriveOnline(s);
       const store = useAppStore.getState();
 
-      store.updateNetworkSlice({ isOnline: online, connectionType: s.type });
+      store.updateNetworkSlice({
+        isOnline: online,
+        connectionType: s.type,
+        // Leaving cellular clears the session ack, so a later WiFi → cellular
+        // transition re-prompts the data warning (see useCellularGate).
+        ...(s.type !== NetInfoStateType.cellular ? { cellularAcknowledged: false } : {}),
+      });
 
       if (!online) {
         if (store.currentModal !== 'noInternet') {

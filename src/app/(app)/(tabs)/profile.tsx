@@ -19,7 +19,7 @@ import { useTabBarHeight } from '@/hooks/useTabBarHeight';
 import { BrandHeader } from '@/components/Brand';
 import { Icon } from '@/components/Icons';
 import ReusableText from '@/components/Inputs/ReusableText';
-import { ListRow, ScreenLayout } from '@/components/Layout';
+import { FullScreenLoader, ListRow, ScreenLayout } from '@/components/Layout';
 import { OutIcon, SettingsIcon, UserIcon, WarningIcon } from '@/assets/icons';
 import { useContentWidth } from '@/responsive';
 
@@ -32,7 +32,7 @@ const ProfileScreen: React.FC = () => {
   const contentWidth = useContentWidth('content');
   const updateModalSlice = useAppStore((s) => s.updateModalSlice);
   const { mutate: logout } = useLogoutMutation();
-  const { mutate: deleteAccount } = useDeleteAccountMutation();
+  const { mutate: deleteAccount, isPending: isDeleting } = useDeleteAccountMutation();
 
   const initials = user?.displayName
     ? user.displayName
@@ -161,6 +161,19 @@ const ProfileScreen: React.FC = () => {
           />
         </View>
       </ScrollView>
+
+      {/* Blocking overlay while the DELETE request is in flight — the local
+          wipe only runs on a confirmed 200, so the user must see progress and
+          not be able to re-tap mid-request. */}
+      {isDeleting && (
+        <View style={[StyleSheet.absoluteFill, styles.deletingOverlay]}>
+          <FullScreenLoader
+            message={t('profile.deleting_account')}
+            backgroundColor="overlay"
+            testID="profile-deleting-loader"
+          />
+        </View>
+      )}
     </ScreenLayout>
   );
 };
@@ -202,6 +215,9 @@ const styles = StyleSheet.create({
   },
   cardLast: {
     marginTop: SPACING.space_4,
+  },
+  deletingOverlay: {
+    zIndex: 10,
   },
 });
 

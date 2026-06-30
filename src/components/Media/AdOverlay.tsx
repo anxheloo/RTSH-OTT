@@ -8,11 +8,13 @@
  * `skipAfterSeconds` elapses, then a tappable skip that ends the ad early; a
  * non-skippable creative shows no skip control and simply runs its full
  * duration. `onComplete` fires on every path (skip, duration timer, or — for
- * video — natural end) and is the single dismissal callback. `onImpression`
- * fires ONCE on that same completion with the seconds actually watched (clamped
- * to the ad duration), which the caller reports as the ad impression — firing at
- * completion (not mount) is what lets us send a real watched-time for the
- * backend's avg-view-rate tile.
+ * video — natural end) and is the single dismissal callback (the parent owns
+ * visibility). The overlay **reports its own impression** on that same completion
+ * (VAST/IMA convention — the ad unit beacons itself) via `reportAdImpression`,
+ * exactly once, carrying the seconds actually watched (clamped to the ad
+ * duration) — firing at completion (not mount) is what gives the backend a real
+ * watched-time for its avg-view-rate tile. Callers pass `placement` (+ `channelId`
+ * for channel ads) so the beacon is fully attributed without re-wiring per site.
  */
 import React, { useCallback, useEffect, useRef } from 'react';
 import { Modal, Pressable, StyleSheet, View } from 'react-native';
@@ -24,17 +26,31 @@ import { BlurView } from 'expo-blur';
 import { BORDERRADIUS } from '@/theme/borders';
 import { FONTSIZE } from '@/theme/fonts';
 import { SPACING } from '@/theme/spacing';
+import { reportAdImpression } from '@/api/services/ads';
 import { useCountdown } from '@/hooks';
 import { Icon } from '@/components/Icons';
 import ReusableText from '@/components/Inputs/ReusableText';
 import { AnimatedView } from '@/components/Layout';
 import ReusableImage from '@/components/Media/ReusableImage';
 import VideoPlayer from '@/components/Media/VideoPlayer';
-import type { AdCreative } from '@/types/domain';
+import type { AdCreative, AdPlacement } from '@/types/domain';
 import { ChevronRightIcon } from '@/assets/icons';
+import { useResponsive } from '@/responsive';
 
 const SCRIM = 'rgba(0,0,0,0.85)';
 const CREATIVE_FALLBACK = '#2A0C14';
+// Failsafe bounds for creative timing — the backend has shipped mid-rolls with a
+// missing / 0 / NaN `durationSeconds`, which froze the auto-dismiss countdown
+// (deadline → NaN → never done) on a NON-skippable creative = a hard app lock with
+// no way out. We clamp every duration so the ad ALWAYS dismisses itself within a
+// bounded window regardless of what the backend sends.
+const DEFAULT_AD_DURATION_S = 15; // when duration is absent/invalid
+const MAX_AD_DURATION_S = 60; // hard ceiling so a bad value can't trap the viewer
+const DEFAULT_SKIP_AFTER_S = 5; // when a skippable creative omits skipAfterSeconds
+
+/** A finite, positive seconds value clamped to `max`, else `fallback`. */
+const safeDuration = (value: number, fallback: number, max: number): number =>
+  Number.isFinite(value) && value > 0 ? Math.min(value, max) : fallback;
 // Blur applied to the cover copy that fills the letterbox gaps behind a contained image.
 const CREATIVE_BLUR_RADIUS = 24;
 // Zoom enter/exit for the whole ad card. Enter springs in with a bounce;
@@ -50,18 +66,40 @@ const AD = {
 
 export interface AdOverlayProps {
   creative: AdCreative;
+  /** Slot this creative fills — attributes the self-reported impression beacon. */
+  placement: AdPlacement;
+  /** Channel the ad played on (channel-change / mid-roll); omitted for app-open. */
+  channelId?: number;
   onComplete: () => void;
-  /**
-   * Fired ONCE when the ad finishes (skip, timer, or video end), with the
-   * seconds actually watched (clamped to the ad duration) — the caller reports
-   * the impression here so a real watched-time reaches the backend.
-   */
-  onImpression?: (watchedSeconds: number) => void;
   testID?: string;
 }
 
-const AdOverlay: React.FC<AdOverlayProps> = ({ creative, onComplete, onImpression, testID }) => {
+const AdOverlay: React.FC<AdOverlayProps> = ({
+  creative,
+  placement,
+  channelId,
+  onComplete,
+  testID,
+}) => {
   const { t } = useTranslation();
+
+  // Landscape = the player is fullscreen (the only landscape surface in the app).
+  // The card flips from a portrait 3:4 to a wider 16:9 so the creative fills the
+  // landscape screen instead of floating as a small portrait card in the middle.
+  const { isLandscape } = useResponsive();
+
+  // Clamp the creative's timing up-front so a missing/0/NaN value can never freeze
+  // the auto-dismiss (the app-lock bug). `durationSeconds` is the guaranteed dismiss
+  // deadline; `skipAfterSeconds` (skippable only) is bounded to ≤ duration.
+  const durationSeconds = safeDuration(
+    creative.durationSeconds,
+    DEFAULT_AD_DURATION_S,
+    MAX_AD_DURATION_S,
+  );
+  const skipAfterSeconds = Math.min(
+    safeDuration(creative.skipAfterSeconds, DEFAULT_SKIP_AFTER_S, MAX_AD_DURATION_S),
+    durationSeconds,
+  );
 
   // Wall-clock at first paint + a once-guard, so the impression carries the real
   // watched-time and fires exactly once across every completion path.
@@ -73,23 +111,31 @@ const AdOverlay: React.FC<AdOverlayProps> = ({ creative, onComplete, onImpressio
   }, []);
 
   // Single completion path (skip / duration timer / video end). Computes
-  // watched-time, reports the impression once, then dismisses — fully idempotent
+  // watched-time, beacons the impression once, then dismisses — fully idempotent
   // so every path is safe to call. Date.now() in a handler is fine (the impurity
   // ban is render-only); the ref guard collapses repeat calls.
   const handleComplete = useCallback(() => {
     if (reportedRef.current) return;
     reportedRef.current = true;
     const elapsed = Math.round((Date.now() - startedAtRef.current) / 1000);
-    const watched = Math.min(Math.max(elapsed, 0), creative.durationSeconds);
-    onImpression?.(watched);
+    const watched = Math.min(Math.max(elapsed, 0), durationSeconds);
+    reportAdImpression(creative.id, {
+      watchedSeconds: watched,
+      durationSeconds,
+      channelId,
+      placement,
+    });
     onComplete();
-  }, [creative.durationSeconds, onImpression, onComplete]);
+  }, [creative.id, durationSeconds, channelId, placement, onComplete]);
 
-  // Duration timer — the ad is shown for durationSeconds, then auto-dismisses by
-  // itself (a skip, when offered, can end it sooner). For VIDEO the natural end
-  // fires the same handler; both paths are idempotent.
-  const { isDone: durationDone } = useCountdown(creative.durationSeconds, {
-    proceedInBackground: false,
+  // Duration timer — the ad ALWAYS auto-dismisses durationSeconds after it appears.
+  // Wall-clock (`proceedInBackground: true`) so the dismiss is guaranteed even if
+  // the app is backgrounded: the ad's display lifetime is durationSeconds, period.
+  // (The skip gate below stays pause-on-background — that one must reflect actual
+  // viewing.) A skip, when offered, can end it sooner; for VIDEO the natural end
+  // fires the same handler; all paths are idempotent.
+  const { isDone: durationDone } = useCountdown(durationSeconds, {
+    proceedInBackground: true,
     tickMs: 500,
   });
 
@@ -100,7 +146,7 @@ const AdOverlay: React.FC<AdOverlayProps> = ({ creative, onComplete, onImpressio
   // Skip control (skippable creatives only) — a labelled countdown until
   // skipAfterSeconds elapses, then a tappable skip. The hook runs unconditionally
   // (rules of hooks); the button below is what's gated on `creative.skippable`.
-  const { remaining, isDone: canSkip } = useCountdown(creative.skipAfterSeconds, {
+  const { remaining, isDone: canSkip } = useCountdown(skipAfterSeconds, {
     proceedInBackground: false,
     tickMs: 500,
   });
@@ -110,16 +156,19 @@ const AdOverlay: React.FC<AdOverlayProps> = ({ creative, onComplete, onImpressio
       transparent
       animationType="fade"
       statusBarTranslucent
+      // iOS: a Modal only follows the device when its orientation is whitelisted —
+      // without this it stays portrait while the player is locked landscape.
+      supportedOrientations={['portrait', 'landscape']}
       onRequestClose={creative.skippable && canSkip ? handleComplete : undefined}
       testID={testID}
     >
       <View style={styles.scrim}>
         <AnimatedView
-          style={styles.card}
+          style={[styles.card, isLandscape && styles.cardLandscape]}
           entering={ZOOM_IN}
           exiting={ZOOM_OUT}
         >
-          <View style={styles.creative}>
+          <View style={[styles.creative, isLandscape && styles.creativeLandscape]}>
             {creative.type === 'VIDEO' ? (
               // expo-video's VideoView defaults to contentFit="contain", so the clip
               // is letterboxed (never cropped). A transparent player container lets the
@@ -206,9 +255,17 @@ const styles = StyleSheet.create({
     borderRadius: BORDERRADIUS.radius_20,
     overflow: 'hidden',
   },
+  // Fullscreen player (landscape): a wider card so the creative fills the screen
+  // horizontally rather than floating as a small portrait card centred in it.
+  cardLandscape: {
+    maxWidth: 560,
+  },
   creative: {
     aspectRatio: 3 / 4,
     backgroundColor: CREATIVE_FALLBACK,
+  },
+  creativeLandscape: {
+    aspectRatio: 16 / 9,
   },
   transparentFill: {
     backgroundColor: 'transparent',

@@ -39,7 +39,6 @@ import {
   useChannelPlaybackQuery,
   useChannelsQuery,
 } from '@/api/queries';
-import { reportAdImpression } from '@/api/services/ads';
 import { useCellularGate } from '@/hooks/useCellularGate';
 import { useChannelRealtime } from '@/hooks/useChannelRealtime';
 import { useDateTime } from '@/hooks/useDateTime';
@@ -169,6 +168,13 @@ const ChannelScreen: React.FC = () => {
   // stream must not start (autoplay + audio + CDN) behind the ad overlay. A
   // skeleton fills the 16:9 slot; the player mounts only once the ad completes.
   const adPending = !!channelAd && !adDone;
+
+  // A mid-roll fires DURING playback, so (unlike the preroll) the player is
+  // already mounted — pause it for the break instead of unmounting. This also
+  // gates PiP entry off, so the live surface can't keep playing in a floating
+  // window behind the (JS-overlay) ad. Live resumes at the live edge (handled
+  // in VideoPlayer); recorded resumes in place.
+  const adActive = !!midrollAd;
 
   // Geo-blocking is enforced by the CDN on channel open (no list flag); a blocked
   // request surfaces as a player error — logged in VideoPlayer's status listener.
@@ -395,6 +401,7 @@ const ChannelScreen: React.FC = () => {
               channelId)
         }
         isLive={isLive}
+        paused={adActive}
         // Analytics disabled for now — re-enable when telemetry is wanted.
         // onError={(errorType) => track(AnalyticsEvent.STREAM_ERROR, { channelId, errorType })}
         isFullscreen={isFullscreen}
@@ -515,15 +522,9 @@ const ChannelScreen: React.FC = () => {
       {channelAd && !adDone && !epgLoading ? (
         <AdOverlay
           creative={channelAd}
+          placement="CHANNEL_CHANGE"
+          channelId={numericChannelId}
           onComplete={() => setAdDone(true)}
-          onImpression={(watchedSeconds) =>
-            reportAdImpression(channelAd.id, {
-              watchedSeconds,
-              durationSeconds: channelAd.durationSeconds,
-              channelId: numericChannelId,
-              placement: 'CHANNEL_CHANGE',
-            })
-          }
           testID="channel-ad"
         />
       ) : null}
@@ -533,15 +534,9 @@ const ChannelScreen: React.FC = () => {
       {midrollAd && !adPending && !mediaPending && !blockPlayer && !showBlocked ? (
         <AdOverlay
           creative={midrollAd}
+          placement="MID_ROLL"
+          channelId={numericChannelId}
           onComplete={onMidrollComplete}
-          onImpression={(watchedSeconds) =>
-            reportAdImpression(midrollAd.id, {
-              watchedSeconds,
-              durationSeconds: midrollAd.durationSeconds,
-              channelId: numericChannelId,
-              placement: 'MID_ROLL',
-            })
-          }
           testID="channel-midroll"
         />
       ) : null}

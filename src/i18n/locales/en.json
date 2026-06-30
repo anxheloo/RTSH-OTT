@@ -197,7 +197,8 @@
     "logging_out": "Logging out...",
     "delete_account": "Delete account",
     "delete_confirm_title": "Delete account",
-    "delete_confirm_message": "This permanently deletes your account and cannot be undone. Are you sure?"
+    "delete_confirm_message": "This permanently deletes your account and cannot be undone. Are you sure?",
+    "deleting_account": "Deleting account..."
   },
   "settings": {
     "title": "Settings",
