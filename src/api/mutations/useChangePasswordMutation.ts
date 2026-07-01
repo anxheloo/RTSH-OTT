@@ -1,7 +1,7 @@
 import { useMutation } from '@tanstack/react-query';
 
 import { useAppStore } from '@/store/useAppStore';
-import { rotateRefreshToken } from '@/services/tokenVault';
+import { rotateRefreshToken } from '@/lib/tokenVault';
 
 import { INLINE_CLIENT_ERROR } from '../client';
 import { changePassword } from '../services/users';

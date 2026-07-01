@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 
 import { useAppStore } from '@/store/useAppStore';
-import { getRefreshToken } from '@/services/tokenVault';
+import { getRefreshToken } from '@/lib/tokenVault';
 
 export function useCheckToken() {
   const [checked, setChecked] = useState(false);

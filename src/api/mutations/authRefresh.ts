@@ -2,7 +2,7 @@ import axios from 'axios';
 
 import { useAppStore } from '@/store/useAppStore';
 import i18n from '@/i18n';
-import { getRefreshToken } from '@/services/tokenVault';
+import { getRefreshToken } from '@/lib/tokenVault';
 
 import { registerRefreshHandler } from '../client';
 import * as authService from '../services/auth';

@@ -2,7 +2,7 @@ import { useMutation } from '@tanstack/react-query';
 import { AxiosError } from 'axios';
 
 import { useAppStore } from '@/store/useAppStore';
-import { getRefreshToken } from '@/services/tokenVault';
+import { getRefreshToken } from '@/lib/tokenVault';
 
 import { queryClient } from '../client';
 import * as authService from '../services/auth';

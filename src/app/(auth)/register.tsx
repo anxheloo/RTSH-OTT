@@ -32,7 +32,7 @@ import {
 } from '@/components/auth';
 import { authErrorMessage } from '@/features/auth/errors';
 import type { RegisterFormData } from '@/features/auth/schemas';
-import { setRefreshToken } from '@/services/tokenVault';
+import { setRefreshToken } from '@/lib/tokenVault';
 
 const RegisterScreen: React.FC = () => {
   const { t } = useTranslation();

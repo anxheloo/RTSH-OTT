@@ -25,7 +25,7 @@ import type {
   DeviceRegistration,
   DeviceType,
 } from '@/types/domain';
-import { getFromKeychain, storeOnKeychain } from '@/services/keychain';
+import { getFromKeychain, storeOnKeychain } from '@/lib/keychain';
 
 const DEVICE_ID_KEY = 'rtsh.device_id';
 

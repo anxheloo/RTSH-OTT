@@ -1,7 +1,7 @@
 import { StateCreator } from 'zustand';
 
 import type { User } from '@/types';
-import { clearRefreshToken } from '@/services/tokenVault';
+import { clearRefreshToken } from '@/lib/tokenVault';
 
 import type { AppStore } from './useAppStore';
 
