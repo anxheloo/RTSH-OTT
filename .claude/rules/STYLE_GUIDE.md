@@ -215,6 +215,8 @@ ChannelCard.displayName = 'ChannelCard';
 ```ts
 import { StateCreator } from 'zustand';
 
+import type { AppStore } from './useAppStore';
+
 export interface ChannelsSlice {
   favorites: string[];
   recentlyWatched: string[];
@@ -223,7 +225,7 @@ export interface ChannelsSlice {
   addRecentlyWatched: (channelId: string) => void;
 }
 
-export const createChannelsSlice: StateCreator<ChannelsSlice> = (set) => ({
+export const createChannelsSlice: StateCreator<AppStore, [], [], ChannelsSlice> = (set) => ({
   favorites: [],
   recentlyWatched: [],
 
@@ -245,6 +247,7 @@ export const createChannelsSlice: StateCreator<ChannelsSlice> = (set) => ({
 
 ### Key points
 
+- **Type every slice creator as `StateCreator<AppStore, [], [], XSlice>`** — first generic is the full composed store (imported as `import type { AppStore } from './useAppStore'`), last is the slice's own shape. Do **not** self-type as `StateCreator<XSlice>`: it breaks composition under middleware (persist) and forces an `as any` cast in the store. The full-store form is the official Zustand "slices with middleware" pattern and keeps all slices uniform.
 - Every slice exposes `updateXSlice: set` as a universal partial setter for simple batched updates from outside the slice.
 - Complex domain actions get explicit named methods alongside it.
 - `set` is the only mutator — never expose raw `set` to components.
@@ -535,7 +538,10 @@ Keep `utils/` flat while small. Once a category reaches ~3+ files, bucket it int
 domain subfolder with its own barrel — mirrors SOLITAR / Bunk-Art (`utils/format/`,
 `utils/crypto/`, `utils/storage/`, …). Don't create single-file folders preemptively.
 Cross-cutting infra that isn't a pure helper stays at its own top level (`hooks/`,
-`lib/`, `store/`) rather than nesting under `utils/`.
+`lib/`, `store/`) rather than nesting under `utils/`. **`lib/`** holds
+platform/security infra (keychain wrapper, token vault, native module wrappers) —
+keep it distinct from **`api/services/`** (domain API calls). Never have two
+folders named `services/`; the collision confuses every newcomer.
 
 ---
 
