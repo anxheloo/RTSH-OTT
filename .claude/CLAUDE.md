@@ -19,7 +19,7 @@ RTSH TANI — OTT streaming app for Radio Televizioni Shqiptar. Live TV (19 chan
 - @shopify/flash-list · react-native-reanimated v4 · react-native-gesture-handler · react-native-keyboard-controller
 - react-hook-form + zod (forms + validation)
 - i18next + expo-localization (sq default, en fallback)
-- @sentry/react-native
+- @sentry/react-native — **planned, not yet installed** (crash reporting; tracked)
 - EAS Build + EAS Update
 
 ## Commands
@@ -38,16 +38,14 @@ eas build --profile production --platform all  # store-ready
 eas update --channel production --message "..."  # JS-only hotfix
 ```
 
-**Dev client mandatory** (Expo Go can't run MMKV, expo-video config, biometrics, Sentry native).
+**Dev client mandatory** (Expo Go can't run MMKV, the expo-video/expo-audio config plugins, or other native modules).
 
 ## Environment
 
 `.env` at root:
-- `EXPO_PUBLIC_API_BASE_URL` — backend base URL
-- `EXPO_PUBLIC_API_MODE` — `mock | dev | staging | prod`
-- `EXPO_PUBLIC_ENV` — environment label
+- `EXPO_PUBLIC_API_MODE` — `mock | dev | staging | prod` (the **only** env var the app reads; the backend base URL is hardcoded in `src/api/client.ts`).
 
-Private (EAS dashboard only): `SENTRY_DSN`, `MMKV_ENCRYPTION_KEY`.
+Planned private (EAS dashboard, not yet wired): `SENTRY_DSN` (Sentry not yet installed). MMKV is intentionally unencrypted, so there is no `MMKV_ENCRYPTION_KEY`.
 
 ## App variants
 
@@ -87,7 +85,7 @@ Persist via MMKV (`zustandStorage`). `partialize` controls what persists. `onReh
 
 | Data | Where |
 |------|-------|
-| Refresh token | **Token vault** (`services/tokenVault.ts`) — keychain (`expo-secure-store`) when **"remember me"** is on, else in-memory only (fresh start next launch). Single owner of all refresh-token reads/writes; see `rules/ARCHITECTURE.md → Auth flow → Remember me` |
+| Refresh token | **Token vault** (`lib/tokenVault.ts`) — keychain (`expo-secure-store`) when **"remember me"** is on, else in-memory only (fresh start next launch). Single owner of all refresh-token reads/writes; see `rules/ARCHITECTURE.md → Auth flow → Remember me` |
 | User, settings, theme, favorites, reminders, **parental config (`parentalEnabled` + `parentalPin`)** | MMKV (Zustand persist). Parental PIN is **device-level, client-only** (never sent to/read from backend, not on the user object); it's content gating, not a credential — see `rules/ARCHITECTURE.md → Parental control` |
 | Server data (channels, EPG, catch-up, programs) | TanStack Query cache (selective MMKV persist for slow-changing) |
 | Resume positions (per-program) | MMKV (separate key) |
@@ -139,7 +137,7 @@ Portable, self-contained module (`react`+`react-native` only) for all device-siz
 
 ### Auth flow
 
-Access token in memory; refresh token in the **token vault** (`services/tokenVault.ts`) — keychain when **"remember me"** is on, in-memory only when off (login + register, default on). Boot is offline-first (vault check, memory-first then keychain; network only on manual-wipe recovery). 401s single-flight refresh through a bare axios instance to prevent loop deadlocks. Logout is async + atomic. No app-lock — the root `(auth)` vs `(app)` guard keys on `isAuthenticated` ONLY (never the in-memory access token, which is null on cold boot until the first request's 401-refresh lands). Parental PIN is content-level, not app-entry.
+Access token in memory; refresh token in the **token vault** (`lib/tokenVault.ts`) — keychain when **"remember me"** is on, in-memory only when off (login + register, default on). Boot is offline-first (vault check, memory-first then keychain; network only on manual-wipe recovery). 401s single-flight refresh through a bare axios instance to prevent loop deadlocks. Logout is async + atomic. No app-lock — the root `(auth)` vs `(app)` guard keys on `isAuthenticated` ONLY (never the in-memory access token, which is null on cold boot until the first request's 401-refresh lands). Parental PIN is content-level, not app-entry.
 
 Full rationale, behavior, and known gaps: `rules/ARCHITECTURE.md` → Auth flow.
 

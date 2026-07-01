@@ -477,7 +477,7 @@ Data screens never block on a full-screen spinner. Navigation is instant: the sc
 - **Detail screens with heavy children** (channel player): mount the heavy component only when its inputs are resolved; until then a `Skeleton` holds its exact slot. Never gate the route on the query. If the child is gated content (adult/geo), wait for **all** gating inputs before mounting — a skeleton must never be replaced by a frame of gated content.
 - **`FullScreenLoader` is reserved** for full-screen player surfaces (live/VOD buffering overlays, `program/[id]`) and boot — not for data screens.
 
-A three-function wrapper in `services/keychain.ts` is the only way to interact with `expo-secure-store`. Nothing calls it directly.
+A three-function wrapper in `lib/keychain.ts` is the only way to interact with `expo-secure-store`. Nothing calls it directly.
 
 ```ts
 export const storeOnKeychain = async (key: string, value: string): Promise<void> => { ... };
@@ -535,7 +535,7 @@ Keep `utils/` flat while small. Once a category reaches ~3+ files, bucket it int
 domain subfolder with its own barrel — mirrors SOLITAR / Bunk-Art (`utils/format/`,
 `utils/crypto/`, `utils/storage/`, …). Don't create single-file folders preemptively.
 Cross-cutting infra that isn't a pure helper stays at its own top level (`hooks/`,
-`services/`, `store/`) rather than nesting under `utils/`.
+`lib/`, `store/`) rather than nesting under `utils/`.
 
 ---
 
@@ -660,7 +660,7 @@ onPress={() => handleSelect(opt.value)}
 | Navigation guard in `useEffect` | `Stack.Protected` |
 | `FullScreenLoader` gating a data screen | Skeleton strategy (see Loading States) |
 | `useEffect` reacting to query `data`/`error` | Global `QueryCache`/`MutationCache` `onError` (`client.ts`); forms render 4xx inline + modal on 5xx/network via `meta: INLINE_CLIENT_ERROR` |
-| Direct `expo-secure-store` calls | `services/keychain.ts` wrapper |
+| Direct `expo-secure-store` calls | `lib/keychain.ts` wrapper |
 | Context for theme | `useAppStore((s) => s.colors)` |
 | Inline `StyleSheet` objects in JSX | `styles.xxx` from `StyleSheet.create()` |
 | Magic numbers for spacing/font/radius | Token files (`SPACING`, `FONTSIZE`, `BORDERRADIUS`) |

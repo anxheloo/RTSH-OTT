@@ -28,16 +28,17 @@ npx expo run:ios       # local iOS build + launch (simulator)
 
 | Variable | Required | Values | Description |
 |----------|----------|--------|-------------|
-| `EXPO_PUBLIC_API_BASE_URL` | ✅ | URL | Backend base URL |
-| `EXPO_PUBLIC_API_MODE` | ✅ | `mock` · `dev` · `staging` · `prod` | API mode — `mock` uses MSW fixtures |
-| `EXPO_PUBLIC_ENV` | ✅ | `development` · `preview` · `production` | Environment label |
+| `EXPO_PUBLIC_API_MODE` | ✅ | `mock` · `dev` · `staging` · `prod` | API mode — `mock` serves the custom axios-adapter fixtures |
 
-Private vars (EAS dashboard only, never in `.env`):
+> The backend base URL is **hardcoded** in `src/api/client.ts` (bundled identically for local / EAS / OTA — no build-time `.env` dependency); change it there and ship an OTA. `EXPO_PUBLIC_API_MODE` is the only env var the app reads today.
+
+Planned private vars (EAS dashboard only, not yet wired):
 
 | Variable | Description |
 |----------|-------------|
-| `SENTRY_DSN` | Sentry project DSN |
-| `MMKV_ENCRYPTION_KEY` | MMKV storage encryption key |
+| `SENTRY_DSN` | Sentry project DSN — **Sentry is not yet installed** (tracked) |
+
+MMKV is intentionally **unencrypted** (low-sensitivity data; real secrets stay in the keychain — see `rules/ARCHITECTURE.md → Persistence boundaries`), so there is no `MMKV_ENCRYPTION_KEY`.
 
 ## Commands
 
