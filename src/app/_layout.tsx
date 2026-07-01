@@ -41,23 +41,19 @@ if (process.env.EXPO_PUBLIC_API_MODE === 'mock') {
 
 SplashScreen.preventAutoHideAsync();
 
-// TODO(anx 2026-06-25): TEMP boot diagnostics — remove after first-launch splash hang is found.
-console.log('[BOOT] _layout: module scope start');
-
 // One-time, app-session-wide wiring. At module scope (not in render) so it runs
 // exactly once: 401 → refresh on the api client, AppState → TanStack focus
 // bridge, and i18n init before the first screen renders. All three are
 // internally idempotent, but keeping them here avoids re-running on every render.
+// Guarded because a throw during first-run init on a fresh install (native
+// module not ready yet) must not abort module evaluation and wedge boot — the
+// app can still render and recover on the normal path.
 try {
-  console.log('[BOOT] _layout: setupAuthRefresh…');
   setupAuthRefresh();
-  console.log('[BOOT] _layout: setupFocusManager…');
   setupFocusManager();
-  console.log('[BOOT] _layout: initI18n…');
   initI18n();
-  console.log('[BOOT] _layout: module wiring done OK');
-} catch (e) {
-  console.log('[BOOT] _layout: module wiring THREW', e);
+} catch {
+  // Swallow — first-run init race; see above.
 }
 
 const RootLayoutNav = () => {
@@ -73,8 +69,10 @@ const RootLayoutNav = () => {
     Inter_800ExtraBold,
     Inter_900Black,
   });
-  // TODO(anx 2026-06-25): TEMP boot diagnostics — remove after first-launch splash hang is found.
-  if (fontError) console.log('[BOOT] _layout: useFonts ERROR', fontError);
+  // Treat a font-load error as "settled" (fall back to system fonts) so a failed
+  // font can never wedge the splash — the canonical Expo useFonts + SplashScreen
+  // pattern. The boot gate below is fonts-settled AND token-checked.
+  const fontsSettled = fontsLoaded || !!fontError;
   const { tokenChecked } = useCheckToken();
   useNetworkMonitor();
   useSystemTheme();
@@ -84,24 +82,15 @@ const RootLayoutNav = () => {
     StatusBar.setBarStyle(mode === 'dark' ? 'light-content' : 'dark-content');
   }, [mode]);
 
-  // TODO(anx 2026-06-25): TEMP boot diagnostics — remove after first-launch splash hang is found.
-  console.log(
-    '[BOOT] RootLayoutNav render — fontsLoaded:',
-    fontsLoaded,
-    'tokenChecked:',
-    tokenChecked,
-  );
-
   useEffect(() => {
-    if (fontsLoaded && tokenChecked) {
-      console.log('[BOOT] _layout: both gates true → SplashScreen.hideAsync()');
+    if (fontsSettled && tokenChecked) {
       SplashScreen.hideAsync();
     }
-  }, [fontsLoaded, tokenChecked]);
+  }, [fontsSettled, tokenChecked]);
 
   useOTA();
 
-  if (!fontsLoaded || !tokenChecked) return null;
+  if (!fontsSettled || !tokenChecked) return null;
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>

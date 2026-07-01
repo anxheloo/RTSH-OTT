@@ -161,9 +161,10 @@ function VideoPlayer({
   // Side effects (parent callbacks + error logging) — `useEventListener` is
   // addListener-as-a-hook with automatic cleanup, so no manual sub/remove.
   useEventListener(player, 'statusChange', ({ status: s, error }) => {
-    // Surface playback failures (e.g. CDN geo-block on our IP) so we can see the
-    // underlying error message/source while testing.
-    if (s === 'error') {
+    // Surface playback failures (e.g. CDN geo-block on our IP) in dev so we can
+    // see the underlying error message/source while testing. Dev-only — the
+    // failure still reaches callers via onStatusChange in every build.
+    if (s === 'error' && __DEV__) {
       // eslint-disable-next-line no-console
       console.error('[VideoPlayer] playback error', { message: error?.message, source, error });
     }
