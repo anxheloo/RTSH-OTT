@@ -35,8 +35,7 @@ export const useAppStore = create<AppStore>()(
       ...createParentalSlice(...a),
       ...createToastSlice(...a),
       ...createRealtimeSlice(...a),
-
-      ...(createPlayerSlice as any)(...a),
+      ...createPlayerSlice(...a),
     }),
     {
       name: STORAGE_KEYS.PERSIST,

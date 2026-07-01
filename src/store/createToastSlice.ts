@@ -7,6 +7,8 @@
  */
 import { StateCreator } from 'zustand';
 
+import type { AppStore } from './useAppStore';
+
 export interface ToastState {
   id: number;
   message: string;
@@ -18,7 +20,7 @@ export interface ToastSlice {
   hideToast: () => void;
 }
 
-export const createToastSlice: StateCreator<ToastSlice> = (set) => ({
+export const createToastSlice: StateCreator<AppStore, [], [], ToastSlice> = (set) => ({
   toast: null,
   showToast: (message) => set({ toast: { id: Date.now(), message } }),
   hideToast: () => set({ toast: null }),

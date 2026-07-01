@@ -10,6 +10,8 @@ import { StateCreator } from 'zustand';
 import type { QualityId } from '@/types/domain';
 import { DEFAULT_QUALITY } from '@/constants/player';
 
+import type { AppStore } from './useAppStore';
+
 export interface PlayerSlice {
   // Radio state (cross-screen, persisted)
   radioChannelId: string | null;
@@ -41,7 +43,7 @@ export interface PlayerSlice {
   setAvailableQualities: (qualities: QualityId[]) => void;
 }
 
-export const createPlayerSlice: StateCreator<PlayerSlice, [], [], PlayerSlice> = (set) => ({
+export const createPlayerSlice: StateCreator<AppStore, [], [], PlayerSlice> = (set) => ({
   radioChannelId: null,
   radioIsPlaying: false,
   radioStreamUrl: null,
