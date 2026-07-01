@@ -1,5 +1,7 @@
 # STYLE_GUIDE.md — RTSH-OTT
 
+> **Scope: project-specific.** This guide names concrete RTSH-OTT components, modules, and files. For the **portable, project-agnostic principles** behind these conventions — reusable on any Expo/RN project — see [`STANDARDS.md`](../../STANDARDS.md) at the repo root.
+
 Distilled from real code across RTSH and SOLITAR-FRONTEND_EMERGENT, then elevated to world-class standards. This is the recommended approach for writing clean, professional, self-explanatory React Native / Expo code in this project. Where patterns from those repos were solid, they're kept. Where something more professional exists, it's here instead.
 
 ---
