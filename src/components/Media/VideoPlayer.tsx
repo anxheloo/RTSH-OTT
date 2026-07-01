@@ -9,7 +9,7 @@
  * key requests on iOS/Android. Validate on a real RTSH stream before
  * shipping. Fallback: react-native-video if headers don't propagate.
  */
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { AppState, StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
 
 import { useEvent, useEventListener } from 'expo';
@@ -79,11 +79,28 @@ function VideoPlayer({
   // `contentType` is inferred from the URL extension (extensionless → HLS) so the
   // native player parses streaming manifests correctly instead of falling back to
   // progressive container sniffing. See inferContentType.
-  const videoSource: VideoSource = source
-    ? { uri: source, headers: headers ?? {}, contentType: inferContentType(source), metadata }
-    : null;
+  //
+  // Build the player's source ONCE, from a ref frozen at first render. expo-video's
+  // `useVideoPlayer` recreates the native player whenever the *stringified* source
+  // changes (`useReleasingSharedObject` keys on `JSON.stringify(source)`) — and that
+  // string includes `metadata`. So a now-playing label change (e.g. the programme
+  // title flipping when the user browses another day mid-playback) would tear down
+  // the decoder and restart playback from 0. Freezing the creation source keeps the
+  // player instance stable; every later change (quality-switch URI, metadata) is
+  // driven EXCLUSIVELY through `replaceAsync` below — an in-place swap that keeps the
+  // decoder warm and preserves fullscreen/PiP. (This is also why a quality switch no
+  // longer double-loads: previously the source object changed each render, so the
+  // player was both recreated here AND replaced in the effect.)
+  // Lazy `useState` initializer — computed once on mount, never recomputed, and
+  // (unlike a ref) safe to read during render. This is the stable source handed to
+  // `useVideoPlayer`.
+  const [initialSource] = useState<VideoSource>(() =>
+    source
+      ? { uri: source, headers: headers ?? {}, contentType: inferContentType(source), metadata }
+      : null,
+  );
 
-  const player = useVideoPlayer(videoSource, (p) => {
+  const player = useVideoPlayer(initialSource, (p) => {
     // expo-video emits `timeUpdate` ONLY when this interval is > 0 (defaults to
     // 0 = never). Without it `currentTime`/`duration` stay 0 forever, so the
     // recorded seek bar never becomes seekable and the progress fill never moves.
@@ -96,11 +113,14 @@ function VideoPlayer({
     }
   });
 
-  // In-place source swap on quality change. `useVideoPlayer` only consumes the
-  // source at creation, so a quality switch (new `source` URL) is applied via
-  // `replaceAsync` — this avoids a full remount, so fullscreen/PiP survive, and
-  // loads off the main thread (avoids UI freezes vs sync `replace`). A last-URI
-  // ref skips the redundant initial replace (source already loaded).
+  // Sole source driver. The player is created once (frozen ref above), so every
+  // source change — a quality switch (new URL) and any metadata that rides along
+  // with it — is applied here via `replaceAsync`: an in-place swap so fullscreen/PiP
+  // survive, loaded off the main thread (avoids UI freezes vs sync `replace`). The
+  // last-URI ref makes the URI the ONLY trigger for a reload: a metadata-only change
+  // (a now-playing label) early-returns, so the stream never restarts just to
+  // relabel — the new metadata is picked up on the next genuine URI change (expo-video
+  // 56 exposes no metadata-only setter; reloading a live decoder for a label is wrong).
   // PIP stop fires for BOTH the restore button (returns to app → AppState
   // becomes `active`) and the X/close button (app stays backgrounded). They
   // share one native event, so we disambiguate by AppState: a stop while still

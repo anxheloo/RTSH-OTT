@@ -8,11 +8,12 @@ import { StyleSheet, View } from 'react-native';
 import { Stack } from 'expo-router';
 
 import { useAdsQuery, useChannelsQuery, useMeQuery } from '@/api/queries';
-import { useDeviceIdentity, useRealtimeConnection } from '@/hooks';
+import { useDelayedReveal, useDeviceIdentity, useRealtimeConnection } from '@/hooks';
 import RadioMiniPlayer from '@/components/Layout/RadioMiniPlayer';
 import AdOverlay from '@/components/Media/AdOverlay';
 import RadioAudioHost from '@/components/Media/RadioAudioHost';
 import { getModalScreenOptions } from '@/utils/navigation';
+import { AD_REVEAL_DELAY_MS } from '@/constants/ads';
 // Analytics disabled for now — re-enable when telemetry is wanted.
 // import { useAnalytics } from '@/analytics';
 
@@ -33,6 +34,9 @@ const AppLayout: React.FC = () => {
   const { isLoading: homeLoading } = useChannelsQuery('tv');
   const { ads: appOpenAds } = useAdsQuery(undefined, { enabled: !homeLoading });
   const launchAd = appOpenAds.find((a) => a.placement === 'APP_OPEN') ?? null;
+  // Ease the ad in a couple seconds after the app has rendered, not the instant
+  // it's fetched — never a hard snap over a freshly-drawn screen.
+  const showLaunchAd = useDelayedReveal(!!launchAd && !launchAdDismissed, AD_REVEAL_DELAY_MS);
 
   return (
     <View style={styles.root}>
@@ -58,7 +62,7 @@ const AppLayout: React.FC = () => {
       </Stack>
       <RadioAudioHost />
       <RadioMiniPlayer />
-      {launchAd && !launchAdDismissed && (
+      {launchAd && showLaunchAd && !launchAdDismissed && (
         <AdOverlay
           creative={launchAd}
           placement="APP_OPEN"

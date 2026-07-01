@@ -43,6 +43,8 @@ import {
 import { useCellularGate } from '@/hooks/useCellularGate';
 import { useChannelRealtime } from '@/hooks/useChannelRealtime';
 import { useDateTime } from '@/hooks/useDateTime';
+import { useDelayedReveal } from '@/hooks/useDelayedReveal';
+import { useLiveProgramBlock } from '@/hooks/useLiveProgramBlock';
 import { useNowProgram } from '@/hooks/useNowProgram';
 import { useFullscreenOrientation } from '@/hooks/useOrientation';
 import { useParentalGuard } from '@/hooks/useParentalGuard';
@@ -63,6 +65,7 @@ import type { CatchupDay, EpgItem } from '@/types/domain';
 // Analytics disabled for now — re-enable when telemetry is wanted.
 // import { AnalyticsEvent, track, useWatchTracking } from '@/analytics';
 import { ChevronLeftIcon, InfoIcon, LockIcon } from '@/assets/icons';
+import { AD_REVEAL_DELAY_MS } from '@/constants/ads';
 import { DEFAULT_QUALITY } from '@/constants/player';
 import { useContentWidth } from '@/responsive';
 
@@ -95,6 +98,12 @@ const ChannelScreen: React.FC = () => {
   // null = watching live; non-null = watching a recorded programme.
   const [selectedProgramId, setSelectedProgramId] = useState<string | null>(null);
   const isLive = selectedProgramId === null;
+
+  // The recorded programme's title, captured at selection. Kept in state (not derived
+  // from the reactive `programs` list) so that browsing another day mid-playback —
+  // which swaps `programs` to a list that no longer contains the playing recording —
+  // can't flip the player/now-playing label back to the channel name.
+  const [selectedProgramTitle, setSelectedProgramTitle] = useState<string | null>(null);
 
   // Analytics: emit channel_watch_start/end (re-pairs when live↔recorded flips).
   // useWatchTracking(channelId, isLive ? 'live' : 'recorded');
@@ -178,8 +187,14 @@ const ChannelScreen: React.FC = () => {
   // in VideoPlayer); recorded resumes in place.
   const adActive = !!midrollAd;
 
-  // Geo-blocking is enforced by the CDN on channel open (no list flag); a blocked
-  // request surfaces as a player error — logged in VideoPlayer's status listener.
+  // Live per-programme access gate — the decision sibling of the parental live
+  // gate. Keys off the now-airing programme's `decision` flag (the same field the
+  // `/epg/{programId}` endpoint returns, country-evaluated by the backend, kept
+  // current by the EPG refetch + per-programme GEO_BLOCK/GEO_LIFT socket events).
+  // Watches today's schedule independently, so it holds even while the user
+  // browses a past day with live still playing. Whole-channel geo still arrives
+  // via the decision (`GEO_BLOCKED`) + the channel-scoped `geoNotice`.
+  const liveBlock = useLiveProgramBlock(channelId, { isLive });
 
   // Parental gate — keys off each EPG row's `isAdult` (the PlaybackDecision
   // carries no adult flag). Live: time-matched now-airing re-check (22.14c).
@@ -201,12 +216,15 @@ const ChannelScreen: React.FC = () => {
       ? t('player.geo_blocked')
       : t('player.unavailable_body');
 
-  // Unified block: a live GEO_BLOCK push (Geo = Option B) is treated exactly like
-  // a decision-block — stop playback + show the notice. `geoNotice` ('' when the
-  // backend sent no copy → fall back to the geo string) takes precedence; GEO_LIFT
-  // clears it. `showBlocked` replaces `decisionBlocked` at the render sites below.
-  const blockedNotice =
-    geoNotice != null
+  // Unified block — stop playback + show a notice, in priority order:
+  //   1. live per-programme block (now-airing programme's `decision` !== ALLOWED),
+  //   2. a whole-channel GEO_BLOCK push (`geoNotice`, '' when no copy sent),
+  //   3. a non-ALLOWED playback decision (live or recorded).
+  // All collapse to geo/decision copy; `showBlocked` replaces `decisionBlocked`
+  // at the render sites below.
+  const blockedNotice = liveBlock.blocked
+    ? liveBlock.notice || t('player.geo_blocked')
+    : geoNotice != null
       ? geoNotice || t('player.geo_blocked')
       : decisionBlocked
         ? notice || decisionFallback
@@ -261,6 +279,15 @@ const ChannelScreen: React.FC = () => {
     [epg],
   );
 
+  // Ease the preroll in a couple seconds after the channel screen has settled
+  // (EPG loaded), rather than snapping it up the instant the ad is fetched. The
+  // player stays unmounted the whole time via `adPending`, so the skeleton
+  // holds the slot during the delay — no autoplay leak behind the overlay.
+  const showChannelAd = useDelayedReveal(
+    !!channelAd && !adDone && !epgLoading,
+    AD_REVEAL_DELAY_MS,
+  );
+
   // Which programme is airing now in this channel's schedule — drives the "now"
   // play-icon row and rolls it to the next programme at the boundary (client
   // timer, no network: the EPG is already in memory). Only TODAY's list has a
@@ -283,13 +310,17 @@ const ChannelScreen: React.FC = () => {
   const handleSelectProgram = (p: EpgItem, state: ProgramRowState) => {
     if (state === 'now') {
       setSelectedProgramId(null);
+      setSelectedProgramTitle(null);
       queryClient.invalidateQueries({ queryKey: ['channel-playback', channelId, null] });
       return;
     }
     if (state === 'recorded') {
       // Gate adult recordings before the swap so the signed stream URL is never
       // fetched pre-PIN; clean items play immediately.
-      guard.guardPlay(p, () => setSelectedProgramId(p.id));
+      guard.guardPlay(p, () => {
+        setSelectedProgramId(p.id);
+        setSelectedProgramTitle(p.title);
+      });
     }
   };
 
@@ -398,9 +429,7 @@ const ChannelScreen: React.FC = () => {
         channelName={
           isLive
             ? (channelMeta?.name ?? channelId)
-            : (programs.find((p) => p.id === selectedProgramId)?.title ??
-              channelMeta?.name ??
-              channelId)
+            : (selectedProgramTitle ?? channelMeta?.name ?? channelId)
         }
         isLive={isLive}
         paused={adActive}
@@ -533,7 +562,7 @@ const ChannelScreen: React.FC = () => {
       {/* Hold the ad until today's EPG has settled so it never pops over a
           loading list. The ad fetches up-front, so `adPending` keeps the player
           unmounted the whole time (no autoplay leak behind the overlay). */}
-      {channelAd && !adDone && !epgLoading ? (
+      {channelAd && !adDone && !epgLoading && showChannelAd ? (
         <AdOverlay
           creative={channelAd}
           placement="CHANNEL_CHANGE"

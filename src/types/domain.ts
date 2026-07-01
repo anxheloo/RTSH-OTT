@@ -142,8 +142,18 @@ export interface EpgItem {
    */
   hasCatchup?: boolean;
   thumbnail?: string;
-  // Playback data — embedded by the mock; fetched separately from /epg/{programId}
-  // in production once the backend implements the catch-up endpoint.
+  /**
+   * Per-programme access decision — the SAME field/enum the `/epg/{programId}`
+   * endpoint returns (`ALLOWED` | `GEO_BLOCKED` | `NOT_ENTITLED` | …). On a LIST
+   * row it is the client's look-ahead: evaluated by the backend for the requesting
+   * user's country, so the live stream can be stopped the moment it rolls into a
+   * non-`ALLOWED` programme (`useLiveProgramBlock`) — the same "flag on the EPG row,
+   * re-checked at the programme edge" mechanism as `isAdult`. A per-programme
+   * `GEO_BLOCK`/`GEO_LIFT` socket event (carrying `programId`) flips this on the
+   * cached row in real time; a manual tap / date change / re-entry re-fetches it.
+   * Absent → treat as `ALLOWED`. Authoritative enforcement stays the CDN /
+   * `PlaybackDecision`; this is the UX look-ahead, not the security boundary.
+   */
   decision?: string;
   programId?: string;
   noticeMessage?: string;

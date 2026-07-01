@@ -39,7 +39,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 
 import { useAppStore } from '@/store/useAppStore';
-import type { Ad, AdCreative } from '@/types/domain';
+import type { Ad, AdCreative, EpgItem } from '@/types/domain';
 import type { GeoEvent, MidrollEvent, WatchKind } from '@/realtime';
 import {
   nextMidrollBoundaryMs,
@@ -156,34 +156,67 @@ export function useChannelRealtime(
     return () => sub?.unsubscribe();
   }, [channelId, applyMidroll, realtimeConnected]);
 
-  // Subscribe to the user geo queue (Option B). Act only on events for THIS
-  // channel; setState lives in the callback, and the notice self-clears on a
-  // channel change via the derived `geoNotice` below.
+  // Apply one geo event. Two granularities (see `GeoEvent`):
   //
-  // Socket geo is an INVALIDATION SIGNAL, not a parallel source of truth: besides
-  // the instant optimistic overlay (`geoBlock`), each event invalidates the
-  // authoritative playback decision so a block/lift CONVERGES with the cached
-  // `decision` flag and survives leave/return (the cached decision — not just this
-  // component-local state — is what a re-entry reads). This is the fix for
-  // "GEO_LIFT didn't unblock in real time": clearing the overlay alone fell back
-  // to a stale cached `decision`; the refetch re-evaluates geo server-side.
+  //   - `programId` present → PER-PROGRAMME geo. Set that one EPG row's `decision`
+  //     (`GEO_BLOCKED` on block, `ALLOWED` on lift) across every cached day of this
+  //     channel (prefix-matched — we don't know which day holds it, and the id is
+  //     unique). `decision` is the SAME field the `/epg/{programId}` endpoint
+  //     returns, so the live look-ahead and the recorded-tap gate key off one flag.
+  //     While the user stays in the channel the row is already updated, so the
+  //     screen blocks the moment live rolls into that programme (no refetch); a
+  //     re-entry / date change re-fetches the EPG which comes back already flagged.
+  //   - `programId` omitted → WHOLE-CHANNEL geo. Set/clear the instant optimistic
+  //     overlay (`geoBlock`) for the live stream.
+  //
+  // Either way, geo stays an INVALIDATION SIGNAL, not a parallel truth: we also
+  // re-fetch the authoritative playback decision so the currently-playing surface
+  // (live, or an open recording) converges with the server — the fix for "GEO_LIFT
+  // didn't unblock in real time" (clearing local state alone fell back to a stale
+  // cached `decision`; the refetch re-evaluates geo server-side).
+  const applyGeo = useCallback(
+    (ev: GeoEvent) => {
+      // Defensive: the backend may serialize channelId as a string on some frames
+      // — coerce so a type mismatch can't silently swallow a GEO_LIFT.
+      if (Number(ev.channelId) !== channelId) return;
+      const block = ev.type === 'GEO_BLOCK';
+
+      if (ev.programId != null) {
+        const pid = String(ev.programId);
+        queryClient.setQueriesData<EpgItem[]>(
+          { queryKey: ['channel-epg', String(channelId)] },
+          (prev) =>
+            prev?.map((p) =>
+              p.id === pid
+                ? {
+                    ...p,
+                    decision: block ? 'GEO_BLOCKED' : 'ALLOWED',
+                    noticeMessage: block ? ev.noticeMessage : undefined,
+                  }
+                : p,
+            ),
+        );
+      } else {
+        setGeoBlock(block ? { channelId, notice: ev.noticeMessage ?? '' } : null);
+      }
+
+      reconcilePlayback();
+    },
+    [channelId, queryClient, reconcilePlayback],
+  );
+
+  // Subscribe to the user geo queue (Option B). Act only on events for THIS
+  // channel; setState / cache writes live in the callback (not an effect body).
   useEffect(() => {
     const sub = subscribe(STOMP_DEST.userGeoQueue, (msg) => {
       try {
-        const ev = JSON.parse(msg.body) as GeoEvent;
-        // Defensive: the backend may serialize channelId as a string on some
-        // frames — coerce so a type mismatch can't silently swallow a GEO_LIFT.
-        if (Number(ev.channelId) !== channelId) return;
-        setGeoBlock(
-          ev.type === 'GEO_BLOCK' ? { channelId, notice: ev.noticeMessage ?? '' } : null,
-        );
-        reconcilePlayback();
+        applyGeo(JSON.parse(msg.body) as GeoEvent);
       } catch {
         // Ignore malformed frames.
       }
     });
     return () => sub?.unsubscribe();
-  }, [channelId, realtimeConnected, reconcilePlayback]);
+  }, [applyGeo, realtimeConnected]);
 
   // Reconcile after a STOMP RE-connect. /user/queue/geo and /topic/channel.* are
   // plain pub/sub with NO replay, so any GEO_BLOCK/LIFT or mid-roll mutation

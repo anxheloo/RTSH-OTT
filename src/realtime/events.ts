@@ -49,9 +49,21 @@ export interface MidrollEvent {
  * Server → client geo event (Option B — backend-fired) on `/user/queue/geo`.
  * Delivered only to affected-country sessions; the client acts only when
  * `channelId` matches the channel it's currently watching.
+ *
+ * Two granularities, distinguished by `programId`:
+ *   - **omitted / null → whole-channel geo.** Blocks the live stream now — the
+ *     client shows an instant notice overlay and re-fetches the playback decision.
+ *   - **present → per-programme geo.** Sets that one EPG row's `decision`
+ *     (`GEO_BLOCKED`/`ALLOWED`) in the cached schedule (no refetch) — the same
+ *     field `/epg/{programId}` returns. While the user stays in the channel the
+ *     look-ahead is already in place, so when live rolls into that programme the
+ *     screen stops the stream at the boundary; a re-entry re-fetches the EPG,
+ *     which comes back with `decision` already set.
  */
 export interface GeoEvent {
   type: 'GEO_BLOCK' | 'GEO_LIFT';
   channelId: number;
+  /** Present → the event targets this one programme; omitted/null → whole channel. */
+  programId?: number | null;
   noticeMessage?: string; // localized server-side; shown verbatim on GEO_BLOCK
 }
