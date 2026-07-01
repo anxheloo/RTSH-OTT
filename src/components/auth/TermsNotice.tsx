@@ -12,7 +12,7 @@ import * as WebBrowser from 'expo-web-browser';
 
 import { FONTSIZE } from '@/theme/fonts';
 import ReusableText from '@/components/Inputs/ReusableText';
-import { LINKS } from '@/config/links';
+import { LINKS } from '@/constants/links';
 
 export interface TermsNoticeProps {
   testID?: string;

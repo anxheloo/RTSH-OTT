@@ -16,7 +16,7 @@
  *   • a cold boot has empty memory, so it only finds a token if it was
  *     persisted — which is exactly "fresh start" for the non-remembered case.
  */
-import { REFRESH_TOKEN_KEY } from '@/config/auth';
+import { REFRESH_TOKEN_KEY } from '@/constants/auth';
 
 import { getFromKeychain, removeFromKeychain, storeOnKeychain } from './keychain';
 

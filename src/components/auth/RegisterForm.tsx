@@ -23,7 +23,7 @@ import ReusableInput from '@/components/Inputs/ReusableInput';
 import ReusableText from '@/components/Inputs/ReusableText';
 import SegmentedChoice from '@/components/Inputs/SegmentedChoice';
 import SelectInput from '@/components/Inputs/SelectInput';
-import { LINKS } from '@/config/links';
+import { LINKS } from '@/constants/links';
 import {
   EDUCATION_LEVELS,
   REGISTER_GENDERS,

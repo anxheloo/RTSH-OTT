@@ -35,7 +35,7 @@ import {
   ShieldIcon,
   WifiIcon,
 } from '@/assets/icons';
-import { LINKS } from '@/config/links';
+import { LINKS } from '@/constants/links';
 import { useContentWidth } from '@/responsive';
 
 const SettingsScreen: React.FC = () => {
