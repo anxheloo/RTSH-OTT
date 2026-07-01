@@ -8,7 +8,6 @@ export { default as CenteredMessage } from './CenteredMessage';
 export { default as EdgeFade } from './EdgeFade';
 export { default as FullScreenLoader } from './FullScreenLoader';
 export { default as ListRow } from './ListRow';
-export { default as OfflineBanner } from './OfflineBanner';
 export { default as RadioMiniPlayer } from './RadioMiniPlayer';
 export { default as ScreenLayout } from './ScreenLayout';
 export { default as SectionHeader } from './SectionHeader';

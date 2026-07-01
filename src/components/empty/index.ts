@@ -4,7 +4,6 @@
  * placeholder (with Retry); the `Empty*State` components cover genuine `[]`.
  * Import from '@/components/empty' instead of individual files.
  */
-export { default as EmptyCatchupState } from './EmptyCatchupState';
 export { default as EmptyChannelsState } from './EmptyChannelsState';
 export { default as EmptyEpgState } from './EmptyEpgState';
 export { default as EmptyStationsState } from './EmptyStationsState';
