@@ -6,4 +6,5 @@ export * from './opacity';
 export * from './playerColors';
 export * from './shadows';
 export * from './spacing';
+export * from './tabBar';
 export * from './zIndex';
