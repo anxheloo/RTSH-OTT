@@ -1,5 +1,6 @@
 export * from './useAppState';
 export * from './useBlurAndUnMount';
+export * from './useBrandHeaderHeight';
 export * from './useCellularGate';
 export * from './useChannelRealtime';
 export * from './useCheckToken';

@@ -120,7 +120,7 @@ const styles = StyleSheet.create({
   card: {
     flex: 1,
     aspectRatio: 16 / 10,
-    borderRadius: BORDERRADIUS.radius_14,
+    borderRadius: BORDERRADIUS.card,
     overflow: 'hidden',
   },
   clogo: {

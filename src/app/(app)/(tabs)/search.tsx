@@ -18,6 +18,7 @@ import { router } from 'expo-router';
 import { SPACING } from '@/theme/spacing';
 import { useAppStore } from '@/store/useAppStore';
 import { useChannelsQuery } from '@/api/queries';
+import { useBrandHeaderHeight } from '@/hooks/useBrandHeaderHeight';
 import { useSearch } from '@/hooks/useSearch';
 import { useTabBarHeight } from '@/hooks/useTabBarHeight';
 import { BrandHeader } from '@/components/Brand';
@@ -38,6 +39,7 @@ const SearchScreen: React.FC = () => {
   const { t } = useTranslation();
   const activeStationId = useAppStore((s) => s.radioChannelId);
   const tabBarHeight = useTabBarHeight();
+  const headerHeight = useBrandHeaderHeight();
   // Center each row on tablet/TV so single-column rows don't stretch; no-op on phone.
   const contentWidth = useContentWidth('content');
   const { search, updateSearch, debouncedSearch } = useSearch();
@@ -171,7 +173,10 @@ const SearchScreen: React.FC = () => {
         renderItem={renderItem}
         ListHeaderComponent={listHeader}
         ListEmptyComponent={listEmpty}
-        contentContainerStyle={{ paddingBottom: tabBarHeight + SPACING.space_24 }}
+        contentContainerStyle={{
+          paddingTop: headerHeight,
+          paddingBottom: tabBarHeight + SPACING.space_24,
+        }}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       />

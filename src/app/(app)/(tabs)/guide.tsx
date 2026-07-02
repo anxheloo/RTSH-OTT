@@ -31,6 +31,7 @@ import { router } from 'expo-router';
 import { SCREEN_PADDING, SPACING } from '@/theme/spacing';
 import { useAppStore } from '@/store/useAppStore';
 import { useGuideQuery } from '@/api/queries';
+import { useBrandHeaderHeight } from '@/hooks/useBrandHeaderHeight';
 import { useDateTime } from '@/hooks/useDateTime';
 import { useNow } from '@/hooks/useNow';
 import { useRefreshOnFocus } from '@/hooks/useRefreshOnFocus';
@@ -67,6 +68,7 @@ const GuideScreen: React.FC = () => {
   const { formatTime } = useDateTime();
   const colors = useAppStore((s) => s.colors);
   const tabBarHeight = useTabBarHeight();
+  const headerHeight = useBrandHeaderHeight();
   // Center each row on tablet/TV so single-column rows don't stretch; no-op on phone.
   const contentWidth = useContentWidth('content');
   const [mode, setMode] = useState<GuideMode>('tv');
@@ -205,7 +207,10 @@ const GuideScreen: React.FC = () => {
         )}
         ListHeaderComponent={listHeader}
         ListEmptyComponent={listEmpty}
-        contentContainerStyle={[styles.listContent, { paddingBottom: tabBarHeight + SPACING.space_24 }]}
+        contentContainerStyle={[
+          styles.listContent,
+          { paddingTop: headerHeight, paddingBottom: tabBarHeight + SPACING.space_24 },
+        ]}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
@@ -213,6 +218,7 @@ const GuideScreen: React.FC = () => {
             onRefresh={handleRefresh}
             tintColor={colors.primary}
             colors={[colors.primary]}
+            progressViewOffset={headerHeight}
           />
         }
         testID="guide-list"

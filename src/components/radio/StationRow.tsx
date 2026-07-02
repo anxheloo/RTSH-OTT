@@ -15,7 +15,6 @@ import { SCREEN_PADDING, SPACING } from '@/theme/spacing';
 import { useAppStore } from '@/store/useAppStore';
 import { Icon } from '@/components/Icons';
 import ReusableText from '@/components/Inputs/ReusableText';
-import SceneBackground from '@/components/Media/SceneBackground';
 import Equalizer from '@/components/radio/Equalizer';
 import type { Channel } from '@/types/domain';
 import { ChevronRightIcon, RadioIcon } from '@/assets/icons';
@@ -39,9 +38,8 @@ const StationRow: React.FC<StationRowProps> = ({ station, isActive = false, onPr
       activeOpacity={0.8}
       testID={`station-row-${station.id}`}
     >
-      <View style={styles.tile}>
-        <SceneBackground source={station.imageUrl} />
-        <Icon as={RadioIcon} size={22} color={colors.onPrimary} />
+      <View style={[styles.tile, { backgroundColor: colors.surfaceHigh }]}>
+        <Icon as={RadioIcon} size={22} color={colors.primary} />
       </View>
 
       <View style={styles.info}>

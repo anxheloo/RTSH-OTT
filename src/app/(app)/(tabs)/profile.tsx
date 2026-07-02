@@ -15,6 +15,7 @@ import { FONTSIZE } from '@/theme/fonts';
 import { SCREEN_PADDING, SPACING } from '@/theme/spacing';
 import { useAppStore } from '@/store/useAppStore';
 import { useDeleteAccountMutation, useLogoutMutation } from '@/api/mutations';
+import { useBrandHeaderHeight } from '@/hooks/useBrandHeaderHeight';
 import { useTabBarHeight } from '@/hooks/useTabBarHeight';
 import { BrandHeader } from '@/components/Brand';
 import { Icon } from '@/components/Icons';
@@ -27,6 +28,7 @@ const ProfileScreen: React.FC = () => {
   const { t } = useTranslation();
   const colors = useAppStore((s) => s.colors);
   const tabBarHeight = useTabBarHeight();
+  const headerHeight = useBrandHeaderHeight();
   const user = useAppStore((s) => s.user);
   // Center the profile column on tablet/TV; no-op on phone.
   const contentWidth = useContentWidth('content');
@@ -89,7 +91,7 @@ const ProfileScreen: React.FC = () => {
         contentContainerStyle={[
           styles.scroll,
           contentWidth,
-          { paddingBottom: tabBarHeight + SPACING.space_24 },
+          { paddingTop: headerHeight, paddingBottom: tabBarHeight + SPACING.space_24 },
         ]}
         showsVerticalScrollIndicator={false}
       >

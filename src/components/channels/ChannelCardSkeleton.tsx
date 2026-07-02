@@ -13,7 +13,7 @@ export interface ChannelCardSkeletonProps {
 }
 
 const ChannelCardSkeleton: React.FC<ChannelCardSkeletonProps> = ({ testID }) => (
-  <Skeleton borderRadius={BORDERRADIUS.radius_14} style={styles.card} testID={testID} />
+  <Skeleton borderRadius={BORDERRADIUS.card} style={styles.card} testID={testID} />
 );
 
 const styles = StyleSheet.create({

@@ -30,7 +30,7 @@ import { router } from 'expo-router';
 import { SCREEN_PADDING, SPACING } from '@/theme/spacing';
 import { useAppStore } from '@/store/useAppStore';
 import { useChannelsQuery } from '@/api/queries';
-import { useRefreshOnFocus, useTabBarHeight } from '@/hooks';
+import { useBrandHeaderHeight, useRefreshOnFocus, useTabBarHeight } from '@/hooks';
 import { BrandHeader } from '@/components/Brand';
 import ChannelCard from '@/components/channels/ChannelCard';
 import ChannelCardSkeleton from '@/components/channels/ChannelCardSkeleton';
@@ -45,7 +45,7 @@ import { useResponsive, useResponsiveGrid } from '@/responsive';
 type HomeMode = 'tv' | 'radio';
 
 /** Gutter between grid columns; cells pad out to SCREEN_PADDING on the edges. */
-const GRID_GAP = SPACING.space_10;
+const GRID_GAP = SPACING.space_8;
 
 // Hero carousel (the "PREMIERË SONTE" section) is disabled until the real
 // /home feed endpoint lands. Re-enable the mock data, the import, and the
@@ -86,6 +86,7 @@ const HomeScreen: React.FC = () => {
   const colors = useAppStore((s) => s.colors);
   const activeStationId = useAppStore((s) => s.radioChannelId);
   const tabBarHeight = useTabBarHeight();
+  const headerHeight = useBrandHeaderHeight();
 
   const [mode, setMode] = useState<HomeMode>('tv');
 
@@ -228,7 +229,10 @@ const HomeScreen: React.FC = () => {
         numColumns={numColumns}
         ListHeaderComponent={listHeader}
         ListEmptyComponent={listEmpty}
-        contentContainerStyle={{ paddingBottom: tabBarHeight + SPACING.space_24 }}
+        contentContainerStyle={{
+          paddingTop: headerHeight,
+          paddingBottom: tabBarHeight + SPACING.space_24,
+        }}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
@@ -236,6 +240,7 @@ const HomeScreen: React.FC = () => {
             onRefresh={handleRefresh}
             tintColor={colors.primary}
             colors={[colors.primary]}
+            progressViewOffset={headerHeight}
           />
         }
         testID="home-list"
