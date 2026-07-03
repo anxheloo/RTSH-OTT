@@ -10,7 +10,7 @@ RTSH TANI — OTT streaming app for Radio Televizioni Shqiptar. Live TV (19 chan
 
 ## Stack
 
-- Expo SDK 56 · React Native 0.85.3 · React 19.2 · TypeScript strict · New Architecture only
+- Expo SDK 57 · React Native 0.86.0 · React 19.2.3 · TypeScript strict · New Architecture only
 - Expo Router v7 (Native Tabs, typed routes)
 - Single Zustand store composed from slices · MMKV persist · expo-secure-store for tokens
 - TanStack Query v5 (server state) · axios (HTTP client)
