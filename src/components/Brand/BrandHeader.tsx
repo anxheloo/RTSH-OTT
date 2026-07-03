@@ -23,7 +23,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
 
 import { BRAND_HEADER_BASE_HEIGHT } from '@/theme/header';
-import { SCREEN_PADDING } from '@/theme/spacing';
+import { SCREEN_PADDING, SPACING } from '@/theme/spacing';
 import { useAppStore } from '@/store/useAppStore';
 import { RtshLogoFull } from '@/assets/icons/Brand';
 
@@ -110,9 +110,10 @@ const styles = StyleSheet.create({
     zIndex: 10,
     overflow: 'hidden',
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-end',
     justifyContent: 'space-between',
     paddingHorizontal: SCREEN_PADDING,
+    paddingBottom: SPACING.space_8,
   },
 });
 

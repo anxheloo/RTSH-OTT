@@ -2,7 +2,7 @@
 import '@/polyfills';
 
 import { useEffect } from 'react';
-import { StatusBar, StyleSheet, View } from 'react-native';
+import { StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
 
@@ -17,7 +17,7 @@ import {
 import { QueryClientProvider } from '@tanstack/react-query';
 import { useFonts } from 'expo-font';
 import { NavigationBar } from 'expo-navigation-bar';
-import { Stack } from 'expo-router';
+import { type ErrorBoundaryProps, Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 
 import { useAppStore } from '@/store/useAppStore';
@@ -114,6 +114,39 @@ const RootLayoutNav = () => {
   );
 };
 
+/**
+ * Root error boundary (expo-router convention: a named `ErrorBoundary` export
+ * from a route file catches render errors in its subtree). Before this, any
+ * render-time throw in a tab crashed the whole app with no UI.
+ *
+ * Deliberately DEPENDENCY-FREE — no theme store, no i18n, no shared primitives:
+ * any of those could be the thing that crashed, and the error screen must never
+ * throw itself. Static bilingual copy (sq-first, matching the app default) and
+ * hardcoded brand-black/white stand in for the token system here only.
+ */
+export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
+  return (
+    <View style={styles.errorRoot}>
+      <Text style={styles.errorTitle}>Diçka shkoi keq</Text>
+      <Text style={styles.errorBody}>
+        Ndodhi një gabim i papritur. Provo përsëri.{'\n'}
+        Something unexpected went wrong. Please try again.
+      </Text>
+      {__DEV__ && <Text style={styles.errorDetail}>{error.message}</Text>}
+      <TouchableOpacity
+        style={styles.errorBtn}
+        onPress={retry}
+        activeOpacity={0.8}
+        accessibilityRole="button"
+        accessibilityLabel="Provo përsëri / Try again"
+        testID="root-error-retry"
+      >
+        <Text style={styles.errorBtnLabel}>Provo përsëri · Try again</Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
 /** Root layout — all wrappers / providers live here. No hooks. */
 const RootLayout = () => (
   <GestureHandlerRootView style={styles.root}>
@@ -127,6 +160,44 @@ const RootLayout = () => (
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
+  // Error-boundary styles: static values on purpose (see ErrorBoundary JSDoc).
+  errorRoot: {
+    flex: 1,
+    backgroundColor: '#000000',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 24,
+    gap: 12,
+  },
+  errorTitle: {
+    color: '#FFFFFF',
+    fontSize: 20,
+    fontWeight: '700',
+  },
+  errorBody: {
+    color: 'rgba(255,255,255,0.7)',
+    fontSize: 14,
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  errorDetail: {
+    color: 'rgba(255,255,255,0.45)',
+    fontSize: 12,
+    textAlign: 'center',
+  },
+  errorBtn: {
+    marginTop: 12,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.4)',
+  },
+  errorBtnLabel: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
+  },
 });
 
 export default RootLayout;

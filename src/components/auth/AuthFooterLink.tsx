@@ -25,7 +25,13 @@ const AuthFooterLink: React.FC<AuthFooterLinkProps> = ({ prefix, linkLabel, onPr
   const colors = useAppStore((s) => s.colors);
 
   return (
-    <TouchableOpacity style={styles.container} onPress={onPress} activeOpacity={0.7} testID={testID}>
+    <TouchableOpacity
+      style={styles.container}
+      onPress={onPress}
+      activeOpacity={0.7}
+      accessibilityRole="link"
+      testID={testID}
+    >
       <ReusableText fontSize={FONTSIZE.regular} themeColor="textMuted" textAlign="center">
         {prefix ? `${prefix} ` : ''}
         <ReusableText

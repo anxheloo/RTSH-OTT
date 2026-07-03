@@ -5,17 +5,20 @@
 import React, { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
-import { Stack } from 'expo-router';
+import { Stack, usePathname } from 'expo-router';
 
 import { useAdsQuery, useChannelsQuery, useMeQuery } from '@/api/queries';
-import { useDelayedReveal, useDeviceIdentity, useRealtimeConnection } from '@/hooks';
+import { useAdSlot, useDelayedReveal, useDeviceIdentity, useRealtimeConnection } from '@/hooks';
 import RadioMiniPlayer from '@/components/Layout/RadioMiniPlayer';
 import AdOverlay from '@/components/Media/AdOverlay';
 import RadioAudioHost from '@/components/Media/RadioAudioHost';
 import { getModalScreenOptions } from '@/utils/navigation';
 import { AD_REVEAL_DELAY_MS } from '@/constants/ads';
-// Analytics disabled for now — re-enable when telemetry is wanted.
-// import { useAnalytics } from '@/analytics';
+
+// The app-open ad greets a cold open — it must never trail the user once they've
+// navigated past the tabs (into a channel, radio, settings, …). Group routes
+// don't appear in the pathname, so the 4 tabs resolve to these bare paths.
+const TAB_PATHS = ['/', '/guide', '/search', '/profile'];
 
 const AppLayout: React.FC = () => {
   useMeQuery();
@@ -24,8 +27,8 @@ const AppLayout: React.FC = () => {
   useDeviceIdentity();
   // Open the app-level STOMP connection (= presence) while authenticated.
   useRealtimeConnection();
-  // Telemetry lifecycle: app_open + session + heartbeat (single entry point).
-  // useAnalytics();
+  // Analytics (src/analytics) is built but DISABLED pending backend ingestion —
+  // wiring guide: ARCHITECTURE.md → Analytics & telemetry (mount useAnalytics here).
 
   const [launchAdDismissed, setLaunchAdDismissed] = useState(false);
   // Defer the launch-ad fetch until Home's TV channels have settled, so the ad
@@ -34,9 +37,24 @@ const AppLayout: React.FC = () => {
   const { isLoading: homeLoading } = useChannelsQuery('tv');
   const { ads: appOpenAds } = useAdsQuery(undefined, { enabled: !homeLoading });
   const launchAd = appOpenAds.find((a) => a.placement === 'APP_OPEN') ?? null;
+  // Scoped to the tabs — a user who has already tapped into a channel/radio/
+  // settings screen has moved past the cold-open moment this ad is for.
+  const onTabsScreen = TAB_PATHS.includes(usePathname());
   // Ease the ad in a couple seconds after the app has rendered, not the instant
-  // it's fetched — never a hard snap over a freshly-drawn screen.
-  const showLaunchAd = useDelayedReveal(!!launchAd && !launchAdDismissed, AD_REVEAL_DELAY_MS);
+  // it's fetched — never a hard snap over a freshly-drawn screen. Gating the
+  // reveal timer itself on `onTabsScreen` (not just the final render) means a
+  // navigation mid-countdown cancels the reveal outright, not just its display.
+  const showLaunchAd = useDelayedReveal(
+    !!launchAd && !launchAdDismissed && onTabsScreen,
+    AD_REVEAL_DELAY_MS,
+  );
+  // One ad on screen at a time, app-wide (mirrors `ModalSlice`) — guards the
+  // screen-transition window where this overlay and the channel screen's own
+  // preroll could both be mounted for a frame.
+  const canShowLaunchAd = useAdSlot(
+    !!launchAd && showLaunchAd && !launchAdDismissed && onTabsScreen,
+    launchAd?.id,
+  );
 
   return (
     <View style={styles.root}>
@@ -62,7 +80,7 @@ const AppLayout: React.FC = () => {
       </Stack>
       <RadioAudioHost />
       <RadioMiniPlayer />
-      {launchAd && showLaunchAd && !launchAdDismissed && (
+      {launchAd && canShowLaunchAd && (
         <AdOverlay
           creative={launchAd}
           placement="APP_OPEN"

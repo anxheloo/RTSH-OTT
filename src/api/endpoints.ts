@@ -42,8 +42,6 @@ export const CHANNELS_ROUTES = {
   EPG: (id: string) => `/channels/${id}/epg`,
   /** Catch-up playback decision for a recorded programme — returns `PlaybackDecisionDTO`. */
   CATCHUP_PLAYBACK: (channelId: string, programId: string) => `/channels/${channelId}/epg/${programId}`,
-  /** Re-sign an active playback session — `POST { sessionId }`, returns a fresh `PlaybackDecisionDTO`. */
-  PLAYBACK_REFRESH: '/channels/playback/refresh',
 } as const;
 
 export const HOME_ROUTES = {
@@ -56,13 +54,9 @@ export const GUIDE_ROUTES = {
   LIST: '/guide',
 } as const;
 
-export const EPG_ROUTES = {
-  // Pass `date` via axios `params`, not template-interpolated, so values are
-  // properly URL-encoded.
-  LIST: '/epg',
-  PROGRAM: (id: string) => `/epg/program/${id}`,
-} as const;
-
+// EPG_ROUTES ('/epg', '/epg/program/{id}') removed 2026-07-03 — the global EPG
+// endpoints had no consumers: per-channel EPG rides CHANNELS_ROUTES.EPG, the
+// Guide tab rides GUIDE_ROUTES, recorded playback rides CATCHUP_PLAYBACK.
 
 export const CONFIG_ROUTES = {
   APP_CONFIG: '/config',

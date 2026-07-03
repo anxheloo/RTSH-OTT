@@ -5,7 +5,10 @@
  * the wire `GuideChannelDto` (int64 ids) to the domain `GuideChannel` (string
  * ids) so callers never touch wire shapes.
  */
+import { z } from 'zod';
+
 import type { ChannelType, GuideChannel, GuideChannelDto } from '@/types/domain';
+import { guideChannelDtoSchema } from '@/types/domain';
 
 import { apiClient } from '../client';
 import { GUIDE_ROUTES } from '../endpoints';
@@ -30,8 +33,9 @@ function toGuideChannel(dto: GuideChannelDto): GuideChannel {
 }
 
 export async function getGuide(type: ChannelType): Promise<GuideChannel[]> {
-  const { data } = await apiClient.get<GuideChannelDto[]>(GUIDE_ROUTES.LIST, {
+  const { data } = await apiClient.get(GUIDE_ROUTES.LIST, {
     params: { type },
   });
-  return data.map(toGuideChannel);
+  // Loose boundary validation (5.X.2) — see guideChannelDtoSchema.
+  return z.array(guideChannelDtoSchema).parse(data).map(toGuideChannel);
 }

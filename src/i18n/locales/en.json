@@ -6,7 +6,10 @@
     "close": "Close",
     "loading": "Loading...",
     "error": "Error",
-    "back": "Back"
+    "back": "Back",
+    "play": "Play",
+    "pause": "Pause",
+    "delete": "Delete"
   },
   "offline": {
     "banner": "No internet connection",

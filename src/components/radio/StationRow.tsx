@@ -36,6 +36,9 @@ const StationRow: React.FC<StationRowProps> = ({ station, isActive = false, onPr
       style={[styles.row, { borderBottomColor: colors.border }]}
       onPress={onPress}
       activeOpacity={0.8}
+      accessibilityRole="button"
+      accessibilityLabel={station.name}
+      accessibilityState={{ selected: isActive }}
       testID={`station-row-${station.id}`}
     >
       <View style={[styles.tile, { backgroundColor: colors.surfaceHigh }]}>

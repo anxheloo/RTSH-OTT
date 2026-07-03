@@ -29,6 +29,7 @@ const SectionHeader: React.FC<SectionHeaderProps> = ({
       <TouchableOpacity
         onPress={onActionPress}
         activeOpacity={0.7}
+        accessibilityRole="button"
         testID={testID ? `${testID}-action` : undefined}
       >
         <ReusableText variant="label" themeColor="textMuted">

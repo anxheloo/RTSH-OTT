@@ -6,7 +6,10 @@
     "close": "Mbyll",
     "loading": "Duke ngarkuar...",
     "error": "Gabim",
-    "back": "Prapa"
+    "back": "Prapa",
+    "play": "Luaj",
+    "pause": "Pauzë",
+    "delete": "Fshi"
   },
   "offline": {
     "banner": "Nuk ka lidhje me internetin",

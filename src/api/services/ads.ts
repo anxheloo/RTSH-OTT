@@ -1,4 +1,5 @@
 import type { Ad, AdPlacement } from '@/types/domain';
+import { adDtoSchema } from '@/types/domain';
 
 import { apiClient } from '../client';
 import { ADS_ROUTES } from '../endpoints';
@@ -8,12 +9,19 @@ import { ADS_ROUTES } from '../endpoints';
  * With `channelId` → the channel's CHANNEL_CHANGE preroll + all MID_ROLLs (each
  * carrying an absolute `startTime`); without → the APP_OPEN ad. Always an array
  * (`[]` = none). Replaces the per-placement `getAd` calls.
+ *
+ * Validation is PER ELEMENT (safeParse + drop): ads are optional content, so one
+ * malformed creative must never sink the whole array — the valid ones still show.
  */
 export const getAds = async (channelId?: number): Promise<Ad[]> => {
-  const { data } = await apiClient.get<Ad[]>(ADS_ROUTES.AD, {
+  const { data } = await apiClient.get(ADS_ROUTES.AD, {
     params: channelId != null ? { channelId } : undefined,
   });
-  return Array.isArray(data) ? data : [];
+  if (!Array.isArray(data)) return [];
+  return data.flatMap((raw): Ad[] => {
+    const parsed = adDtoSchema.safeParse(raw);
+    return parsed.success ? [parsed.data] : [];
+  });
 };
 
 /**

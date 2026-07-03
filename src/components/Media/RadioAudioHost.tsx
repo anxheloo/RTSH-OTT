@@ -20,20 +20,17 @@ import { setAudioModeAsync, useAudioPlayer } from 'expo-audio';
 
 import { useAppStore } from '@/store/useAppStore';
 import { getStreamHeaders } from '@/utils';
-// Analytics disabled for now — re-enable when telemetry is wanted.
-// import { useWatchTracking } from '@/analytics';
 
 const RadioAudioHost: React.FC = () => {
-  // const radioChannelId = useAppStore((s) => s.radioChannelId);
   const radioStreamUrl = useAppStore((s) => s.radioStreamUrl);
   const radioIsPlaying = useAppStore((s) => s.radioIsPlaying);
   const radioTitle = useAppStore((s) => s.radioTitle);
   const radioArtworkUrl = useAppStore((s) => s.radioArtworkUrl);
   const player = useAudioPlayer(null);
 
-  // Radio watch_start/end tracks the engine's lifetime (store-driven), not any
-  // screen — playback survives navigation, so the screen mount is the wrong key.
-  // useWatchTracking(radioChannelId ?? '', 'radio');
+  // Analytics is DISABLED pending backend ingestion. When re-enabled, radio
+  // watch tracking mounts HERE (keyed on radioChannelId — the engine's lifetime,
+  // not a screen's): ARCHITECTURE.md → Analytics & telemetry.
 
   // Background-capable audio session, set once. `shouldPlayInBackground` keeps
   // the session alive when the screen locks; `doNotMix` is required for the OS

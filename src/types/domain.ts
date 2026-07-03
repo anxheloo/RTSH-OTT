@@ -114,7 +114,7 @@ export interface GuideChannel {
 
 /** Wire DTO from `GET /channels/{id}/epg` — plain array, minimal fields. */
 export interface GuideProgramDto {
-  id: number;
+  id: number | string;
   name: string;
   description: string;
   start: string;   // ISO 8601
@@ -122,6 +122,9 @@ export interface GuideProgramDto {
   ageRating?: string;
   isAdult: boolean;
   hasCatchup?: boolean;
+  /** Per-programme access look-ahead (backend ask henri-changes2 §5) — see `EpgItem.decision`. */
+  decision?: string;
+  noticeMessage?: string;
 }
 
 export interface EpgItem {
@@ -196,8 +199,9 @@ export interface QualityOption {
  * `decision` is a loose string for now — exact union values TBD with the backend
  * (`ALLOWED` confirmed). `streams` maps quality keys (`master`, `720p`, `540p`, …)
  * to HLS URLs; `master` is the ABR playlist, rendition keys are `QualityId`-shaped
- * fixed-rendition child playlists. `sessionId` identifies this playback session; `expiresAt` is
- * the ISO-8601 instant the signed stream URLs stop being valid.
+ * fixed-rendition child playlists. There is no media-plane session (backend
+ * confirmed 2026-07-03): the client just plays until it stops — no `sessionId`,
+ * no `expiresAt`, no re-sign endpoint.
  */
 export interface PlaybackDecision {
   decision: string;
@@ -205,8 +209,6 @@ export interface PlaybackDecision {
   programId: string;
   noticeMessage?: string;
   streams: Record<string, string>;
-  sessionId: string;
-  expiresAt: string;
 }
 
 /* ===========================================================================
@@ -353,6 +355,62 @@ export const refreshResponseSchema = z.looseObject({
 /** Reset step 2 — the one-time token that authorizes the new-password POST. */
 export const resetVerifyResponseSchema = z.object({
   resetToken: z.string().min(1),
+});
+
+/* ===========================================================================
+ * Wire schemas for the non-auth boundaries (channels/EPG/guide/ads) — closes
+ * 5.X.2 / 11.Y.5. LOOSE by design while the backend contract settles: unknown
+ * keys pass through, load-bearing fields (ids, names, times, URLs) fail loud,
+ * decorative fields tolerate absence/wrong types via `.catch()` defaults.
+ * Tighten field-by-field once the contract freezes.
+ * =========================================================================== */
+
+/** Wire programme row (`GET /channels/{id}/epg`, and `guide.now`). */
+export const guideProgramDtoSchema = z.looseObject({
+  id: z.union([z.string(), z.number()]),
+  name: z.string(),
+  description: z.string().catch(''),
+  start: z.string(),
+  end: z.string(),
+  ageRating: z.string().optional().catch(undefined),
+  isAdult: z.boolean().catch(false),
+  hasCatchup: z.boolean().optional().catch(undefined),
+  /** Per-programme access look-ahead (see `EpgItem.decision`). */
+  decision: z.string().optional().catch(undefined),
+  noticeMessage: z.string().optional().catch(undefined),
+});
+
+/** Wire guide row (`GET /guide?type=`). */
+export const guideChannelDtoSchema = z.looseObject({
+  id: z.union([z.string(), z.number()]),
+  name: z.string(),
+  logoUrl: z.string().optional().catch(undefined),
+  imageUrl: z.string().optional().catch(undefined),
+  now: guideProgramDtoSchema.nullable().catch(null),
+});
+
+/**
+ * Wire ad element (`GET /ads`). `id`/`type`/`mediaUrl`/`placement` are
+ * load-bearing (renderer + impression beacon key off them) — an element failing
+ * those is DROPPED by the service (one malformed ad must never sink the array);
+ * the timing fields tolerate junk because `AdOverlay.safeDuration` clamps them.
+ */
+export const adDtoSchema = z.looseObject({
+  id: z.number(),
+  type: z.enum(['IMAGE', 'VIDEO']),
+  mediaUrl: z.string(),
+  durationSeconds: z.number().catch(0),
+  skippable: z.boolean().catch(false),
+  skipAfterSeconds: z.number().catch(0),
+  placement: z.enum(['APP_OPEN', 'CHANNEL_CHANGE', 'MID_ROLL']),
+  startTime: z
+    .string()
+    .nullish()
+    .transform((v) => v ?? undefined),
+  validUntil: z
+    .string()
+    .nullish()
+    .transform((v) => v ?? undefined),
 });
 
 export interface AppConfig {

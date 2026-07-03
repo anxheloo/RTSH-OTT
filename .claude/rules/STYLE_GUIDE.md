@@ -189,6 +189,10 @@ export default ChannelCard;
 - Props type defined **above** the component, named `XProps`.
 - Wrap shared primitives with `Animated.View` from `react-native-reanimated` even when not animating yet — avoids a refactor later.
 - `testID` on every interactive leaf.
+- **Accessibility on every interactive leaf** (2026-07-03): `accessibilityRole`
+  (`button`/`link`), an `accessibilityLabel` when the visual content isn't plain
+  text (icon-only buttons, image rows, composed labels), and `accessibilityState`
+  for `selected`/`disabled`. Rows whose children are plain text still need the role.
 - JSDoc block at the top of every non-trivial file.
 
 ### `activeOpacity`

@@ -3,10 +3,20 @@
  * 1:1 — changing a name here without changing that doc breaks the contract.
  */
 import { API_BASE_URL } from '@/api/client';
+import { getDeviceClass } from '@/utils/device';
 import type { Ad } from '@/types/domain';
 
-/** ws(s)://HOST:PORT/ws — derived from the REST base (http→ws, drop /api/v1, add /ws). */
-export const WS_URL = `${API_BASE_URL.replace(/^http/, 'ws').replace(/\/api\/v1\/?$/, '')}/ws`;
+/**
+ * ws(s)://HOST:PORT/ws — derived from the REST base (http→ws, drop /api/v1, add /ws).
+ * `?deviceClass=MOBILE|TV|STB` is read at the handshake to attribute the viewer in
+ * the backend's live by-platform counter (device identity is static at runtime, so
+ * resolving it once at module load is correct). Counting works without it — this
+ * only populates the device bucket.
+ */
+export const WS_URL = `${API_BASE_URL.replace(/^http/, 'ws').replace(
+  /\/api\/v1\/?$/,
+  '',
+)}/ws?deviceClass=${getDeviceClass()}`;
 
 export const STOMP_DEST = {
   /** SEND — "now watching" (open/switch segment). */

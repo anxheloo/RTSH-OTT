@@ -1,3 +1,4 @@
+export * from './useAdSlot';
 export * from './useAppState';
 export * from './useBlurAndUnMount';
 export * from './useBrandHeaderHeight';
@@ -9,6 +10,7 @@ export * from './useDateTime';
 export * from './useDelayedReveal';
 export * from './useDeviceIdentity';
 export * from './useHaptic';
+export * from './useImagePrefetch';
 export * from './useKeyboard';
 export * from './useLiveProgramBlock';
 export * from './useNetworkMonitor';

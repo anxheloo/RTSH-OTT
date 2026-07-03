@@ -14,6 +14,7 @@
  */
 import React from 'react';
 import { StyleSheet, TouchableOpacity, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { router, useSegments } from 'expo-router';
@@ -33,6 +34,7 @@ const STRIP_HEIGHT = 60;
 const TILE = 40;
 
 const RadioMiniPlayer: React.FC = () => {
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const segments = useSegments();
   const colors = useAppStore((s) => s.colors);
@@ -58,6 +60,8 @@ const RadioMiniPlayer: React.FC = () => {
       ]}
       onPress={() => router.push(`/(app)/radio/${radioChannelId}`)}
       activeOpacity={0.9}
+      accessibilityRole="button"
+      accessibilityLabel={radioTitle ?? 'Radio'}
       testID="radio-mini-player"
     >
       <View style={styles.tile} testID="radio-mini-artwork">
@@ -81,6 +85,8 @@ const RadioMiniPlayer: React.FC = () => {
         style={styles.iconBtn}
         onPress={() => setRadioPlaying(!radioIsPlaying)}
         activeOpacity={0.7}
+        accessibilityRole="button"
+        accessibilityLabel={radioIsPlaying ? t('common.pause') : t('common.play')}
         testID="radio-mini-toggle"
         hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
       >
@@ -91,6 +97,8 @@ const RadioMiniPlayer: React.FC = () => {
         style={styles.iconBtn}
         onPress={clearRadio}
         activeOpacity={0.7}
+        accessibilityRole="button"
+        accessibilityLabel={t('common.close')}
         testID="radio-mini-close"
         hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
       >

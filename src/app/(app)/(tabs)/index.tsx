@@ -30,7 +30,7 @@ import { router } from 'expo-router';
 import { SCREEN_PADDING, SPACING } from '@/theme/spacing';
 import { useAppStore } from '@/store/useAppStore';
 import { useChannelsQuery } from '@/api/queries';
-import { useBrandHeaderHeight, useRefreshOnFocus, useTabBarHeight } from '@/hooks';
+import { useBrandHeaderHeight, useImagePrefetch, useRefreshOnFocus, useTabBarHeight } from '@/hooks';
 import { BrandHeader } from '@/components/Brand';
 import ChannelCard from '@/components/channels/ChannelCard';
 import ChannelCardSkeleton from '@/components/channels/ChannelCardSkeleton';
@@ -39,6 +39,7 @@ import { EmptyChannelsState, EmptyStationsState, ErrorState } from '@/components
 import { BrowseControls, ScreenLayout, SectionHeader } from '@/components/Layout';
 import StationRow from '@/components/radio/StationRow';
 import StationRowSkeleton from '@/components/radio/StationRowSkeleton';
+import { cacheBustUrl } from '@/utils';
 import type { Channel } from '@/types/domain';
 import { useResponsive, useResponsiveGrid } from '@/responsive';
 
@@ -92,6 +93,12 @@ const HomeScreen: React.FC = () => {
 
   const { channels: data, isLoading, error, refetch, dataUpdatedAt } = useChannelsQuery(mode);
   const [refreshing, setRefreshing] = useState(false);
+
+  // Warm the image cache for the current mode's logos (stable — reused on the
+  // player header + Guide) and scene snapshots, so off-screen grid rows and
+  // cross-screen navigation paint instantly. Same cache-bust token the cards
+  // request, so the prefetch and the on-screen row coalesce. Fire-and-forget.
+  useImagePrefetch(data.flatMap((c) => [c.logoUrl, cacheBustUrl(c.imageUrl, dataUpdatedAt)]));
 
   // Refetch on tab re-focus (same pattern as Guide) — Expo Router keeps tabs
   // mounted, so window-focus alone misses tab switches. Foreground / reconnect /

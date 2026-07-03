@@ -28,7 +28,7 @@ WebSocket. This contract reuses your existing CONNECT-frame JWT auth.
 
 ## 1. Scope — five concerns
 
-The playback-session `/refresh` (signed-URL re-sign) remains **out of scope** here (handled separately).
+There is no playback-session `/refresh` / signed-URL re-sign — the decision response carries no `sessionId`/`expiresAt` and there is no media-plane session (backend confirmed 2026-07-03; see `docs/API.md → Channels`).
 
 | # | Concern | Mechanism (summary) |
 |---|---|---|
@@ -52,7 +52,11 @@ scheduled mid-rolls in one array. The socket only updates a viewer who is **alre
   uses the native `WebSocket`, SockJS is browser-fallback only). Same host/port as REST, **without** the
   `/api/v1` prefix:
   - REST  = `http://46.183.121.56:8089/api/v1`
-  - STOMP = `ws://46.183.121.56:8089/ws`  (prod must be **`wss://`** — see §10).
+  - STOMP = `ws://46.183.121.56:8089/ws?deviceClass=MOBILE|TV|STB`  (prod must be **`wss://`** — see §10).
+- **`deviceClass` handshake query param (2026-07-03):** the client appends `?deviceClass=MOBILE|TV|STB`
+  (from `getDeviceClass()`) to the handshake URL so the backend can attribute the viewer in the live
+  by-platform counter. Read it at the handshake; **counting works without it** (that viewer just isn't
+  bucketed by device). Coarse class only — no `deviceKey`/model/OS (those ride `PUT /users/me/device`).
 - **Broker:** in-memory simple broker is fine for v1 (`enableSimpleBroker("/topic")`,
   `setApplicationDestinationPrefixes("/app")`). Swap to a Redis/RabbitMQ relay only when you scale past
   one node (your `WebSocketConfig` javadoc already notes this).

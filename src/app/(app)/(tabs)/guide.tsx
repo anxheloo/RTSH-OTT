@@ -33,6 +33,7 @@ import { useAppStore } from '@/store/useAppStore';
 import { useGuideQuery } from '@/api/queries';
 import { useBrandHeaderHeight } from '@/hooks/useBrandHeaderHeight';
 import { useDateTime } from '@/hooks/useDateTime';
+import { useImagePrefetch } from '@/hooks/useImagePrefetch';
 import { useNow } from '@/hooks/useNow';
 import { useRefreshOnFocus } from '@/hooks/useRefreshOnFocus';
 import { useTabBarHeight } from '@/hooks/useTabBarHeight';
@@ -43,7 +44,7 @@ import { Icon } from '@/components/Icons';
 import { SegmentedToggle } from '@/components/Inputs';
 import ReusableText from '@/components/Inputs/ReusableText';
 import { ScreenLayout } from '@/components/Layout';
-import { programProgress } from '@/utils';
+import { cacheBustUrl, programProgress } from '@/utils';
 import { RadioIcon } from '@/assets/icons';
 import { useContentWidth } from '@/responsive';
 
@@ -90,6 +91,11 @@ const GuideScreen: React.FC = () => {
   // Tab re-focus refetch — Expo Router keeps tabs mounted, so window-focus alone
   // misses tab switches (see useRefreshOnFocus).
   useRefreshOnFocus(refetchGuide);
+
+  // Warm the image cache for the scene snapshots so off-screen rows and the
+  // channel/radio screen (which reuses the same snapshot) paint instantly. Same
+  // cache-bust token the rows request, so they coalesce. Fire-and-forget.
+  useImagePrefetch(guide.map((c) => cacheBustUrl(c.imageUrl, dataUpdatedAt)));
 
   // Ticking client clock drives the progress fill in real time (the server is
   // refetch-only, so `dataUpdatedAt` would freeze the bar between fetches).

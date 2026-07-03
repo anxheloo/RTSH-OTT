@@ -61,6 +61,8 @@ const GuideRow: React.FC<GuideRowProps> = ({
       style={[styles.row, { borderBottomColor: colors.border }]}
       onPress={onPress}
       activeOpacity={0.7}
+      accessibilityRole="button"
+      accessibilityLabel={`${logoLabel}. ${nowTitle}. ${nextLabel}`}
       testID={`guide-row-${logoLabel}`}
     >
       <View style={styles.tile}>

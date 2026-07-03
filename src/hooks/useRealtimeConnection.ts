@@ -10,10 +10,17 @@ import { connectRealtime, disconnectRealtime } from '@/realtime';
 
 export function useRealtimeConnection(): void {
   const isAuthenticated = useAppStore((s) => s.isAuthenticated);
+  // The STOMP CONNECT frame needs a real Bearer. On a cold boot `isAuthenticated`
+  // is true while `token` is still null (it hydrates via the first 401-refresh),
+  // so connecting immediately would send an empty Authorization → server reject →
+  // 2s reconnect churn. Gate on token PRESENCE (a boolean, not the value) so a
+  // routine mid-session token refresh never tears the socket down — reconnects
+  // pick up the fresh token via the client's `beforeConnect`.
+  const hasToken = useAppStore((s) => s.token !== null);
 
   useEffect(() => {
-    if (!isAuthenticated) return;
+    if (!isAuthenticated || !hasToken) return;
     connectRealtime();
     return () => disconnectRealtime();
-  }, [isAuthenticated]);
+  }, [isAuthenticated, hasToken]);
 }

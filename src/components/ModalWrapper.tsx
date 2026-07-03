@@ -82,6 +82,8 @@ const ModalWrapper: React.FC = () => {
         style={[styles.backdrop, { backgroundColor: colors.overlay }]}
         activeOpacity={1}
         onPress={dismissable ? close : undefined}
+        accessibilityRole={dismissable ? 'button' : undefined}
+        accessibilityLabel={dismissable ? t('common.close') : undefined}
       >
         <TouchableOpacity activeOpacity={1} style={[styles.sheet, { backgroundColor: colors.surface }]}>
           {showIconStrip && <View style={[styles.iconStrip, { backgroundColor: colors.error }]} />}

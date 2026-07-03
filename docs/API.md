@@ -142,35 +142,13 @@ Returns the playback decision for a single channel. No channel metadata — name
     "540p":   "https://…",
     "360p":   "https://…"
     // rendition keys are used verbatim as the QualityId — no fixed list
-  },
-  "sessionId": "string",                  // playback session identifier (2026-06-23)
-  "expiresAt": "2026-06-23T08:03:14.952Z" // ISO-8601 — signed stream URLs expire at this instant
+  }
 }
 ```
 
-The client maps `streams` keys to `QualityId` **dynamically** via `resolveStreamSource` / `availableQualityIds` (`utils/resolveStreamSource.ts`): `master` → `auto`, and **every other key is used verbatim as its own `QualityId`** (the quality sheet lists them in backend order, labelled by the key itself). There is no fixed rendition table — keys the backend renames or adds flow through unchanged, so `QualityId` is `'auto' | (string & {})`. `expiresAt` / `sessionId` are **not currently consumed by the client** — the pre-expiry re-sign is disabled for the moment (2026-06-28); see the `POST /channels/playback/refresh` note below.
+The client maps `streams` keys to `QualityId` **dynamically** via `resolveStreamSource` / `availableQualityIds` (`utils/resolveStreamSource.ts`): `master` → `auto`, and **every other key is used verbatim as its own `QualityId`** (the quality sheet lists them in backend order, labelled by the key itself). There is no fixed rendition table — keys the backend renames or adds flow through unchanged, so `QualityId` is `'auto' | (string & {})`.
 
-### `POST /channels/playback/refresh` — re-sign an active session
-
-> **Client call DISABLED (2026-06-28).** The endpoint, service (`refreshPlayback`), and mock handler remain, but `useChannelPlaybackQuery` no longer calls it — the pre-expiry interval re-sign was removed and the query now uses the global config (`staleTime: 5min` + refetch-on-focus/reconnect). Re-enable by reinstating a `refetchInterval` in `queries/useChannelsQuery.ts`. The contract below stands for when it's wired back.
-
-Re-signs an **existing** playback session: returns a fresh `streams` URL + new `expiresAt` for the same `sessionId`, **without** re-running the full decision (no geo re-check, no new session). The geo / `decision` gate is evaluated **only** on the initial `GET /channels/{id}`.
-
-```jsonc
-// request
-{ "sessionId": "string" }   // sessionId from the initial PlaybackDecisionDTO
-// 200 — same PlaybackDecisionDTO shape as GET /channels/{id}
-{
-  "decision": "ALLOWED",
-  "channelId": 1,
-  "programId": 9007199254740991,
-  "streams": { "master": "https://…" },
-  "sessionId": "string",
-  "expiresAt": "2026-06-25T13:57:39.180Z"
-}
-```
-
-`useChannelPlaybackQuery` (`queries/useChannelsQuery.ts`) calls `getChannelById` / `getCatchupPlayback` once per cache entry (no interval re-fetch); freshness rides the global config. When the re-sign is re-enabled, the intended flow is: first fetch via the decision endpoint, then every interval-driven re-fetch (armed at `expiresAt − 30s`, 5s floor, paused while backgrounded) through `refreshPlayback(sessionId)`.
+> **No media-plane session (backend confirmed 2026-07-03).** The decision response is exactly `{ decision, channelId, programId, noticeMessage, streams }` — there is **no `sessionId`, no `expiresAt`, and no `POST /channels/playback/refresh` endpoint**. The client just plays until it stops; a stale cache entry re-fetches the whole decision (`staleTime: 5min` + refetch-on-focus/reconnect). The former re-sign scaffolding (`refreshPlayback` service, `PLAYBACK_REFRESH` endpoint, mock POST handler, the `sessionId`/`expiresAt` fields) was **deleted** — stream-URL longevity is a signed/expiring/IP-bound-URL concern on the origin, not a client re-sign.
 
 ### `GET /channels/{id}/epg?date=YYYY-MM-DD`
 

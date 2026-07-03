@@ -4,7 +4,7 @@ import { useAppStore } from '@/store/useAppStore';
 import i18n from '@/i18n';
 import { getRefreshToken } from '@/lib/tokenVault';
 
-import { registerRefreshHandler } from '../client';
+import { queryClient, registerRefreshHandler } from '../client';
 import * as authService from '../services/auth';
 
 let inflight: Promise<string | null> | null = null;
@@ -52,6 +52,12 @@ async function doRefresh(): Promise<string | null> {
       const status = error.response?.status;
       if (status === 401 || status === 403) {
         await useAppStore.getState().logout();
+        // Wipe cached server data too — without this, a forced logout leaves the
+        // previous session's queries in memory (`['me']` has staleTime: Infinity,
+        // playback decisions are entitlement-evaluated) and a different account
+        // logging in on the same launch would inherit them. Mirrors the clear the
+        // logout mutation + delete-account already do on their paths.
+        queryClient.clear();
         // Tell the user why they were bounced to login — this is the only path
         // that logs out from a *failed refresh* (user-initiated logout is
         // silent). No explicit button: `notify` defaults to an OK that closes.

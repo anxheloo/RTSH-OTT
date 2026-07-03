@@ -187,30 +187,6 @@ export const handlers: Handler[] = [
           channelId: channel.id,
           programId: channel.id,
           streams: MOCK_STREAMS,
-          sessionId: `mock-session-${channel.id}`,
-          expiresAt: new Date(Date.now() + 3600_000).toISOString(),
-        },
-      };
-    },
-  },
-
-  // Playback session re-sign — `POST /channels/playback/refresh { sessionId }`.
-  // Returns a fresh signed URL + new `expiresAt` for the same session (no geo re-check).
-  {
-    method: 'post',
-    test: (u) => u === '/channels/playback/refresh',
-    delay: 200,
-    respond: (cfg) => {
-      const body = typeof cfg.data === 'string' ? JSON.parse(cfg.data) : cfg.data;
-      const sessionId = (body as { sessionId?: string } | undefined)?.sessionId ?? 'mock-session';
-      return {
-        data: {
-          decision: 'ALLOWED',
-          channelId: 0,
-          programId: 0,
-          streams: MOCK_STREAMS,
-          sessionId,
-          expiresAt: new Date(Date.now() + 3600_000).toISOString(),
         },
       };
     },
@@ -238,8 +214,6 @@ export const handlers: Handler[] = [
             '540p': `${BIPBOP}/gear3/prog_index.m3u8`,
             '360p': `${BIPBOP}/gear2/prog_index.m3u8`,
           },
-          sessionId: `mock-session-${channelId}-${programId}`,
-          expiresAt: new Date(Date.now() + 3600_000).toISOString(),
         },
       };
     },
@@ -258,16 +232,6 @@ export const handlers: Handler[] = [
     },
   },
 
-  // ── EPG ────────────────────────────────────────────────────────────────────
-  {
-    method: 'get',
-    test: (u) => u === '/epg',
-    delay: 400,
-    respond: (cfg) => {
-      const params = cfg.params as { date?: string; channelId?: string } | undefined;
-      return { data: { items: getMockEpg(params?.channelId, params?.date) } };
-    },
-  },
 
   // ── Guide ("now", one entry per channel/station; type=TV|RADIO) ─────────────
   {
@@ -277,18 +241,6 @@ export const handlers: Handler[] = [
     respond: (cfg) => {
       const type = (cfg.params as { type?: 'TV' | 'RADIO' } | undefined)?.type;
       return { data: getMockGuide(type) };
-    },
-  },
-  {
-    method: 'get',
-    test: (u) => /^\/epg\/program\/[^/]+$/.test(u),
-    respond: (cfg) => {
-      const id = cfg.url?.split('/').pop();
-      const items = getMockEpg();
-      const item = items.find((i) => (i as { id: string }).id === id);
-      return item
-        ? { data: { program: item } }
-        : { status: 404, data: { error: 'Program not found' } };
     },
   },
 

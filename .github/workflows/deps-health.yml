@@ -1,0 +1,33 @@
+# Weekly dependency-health report — surfaces SDK patch drift and new
+# vulnerabilities without anyone having to remember to check. Non-blocking:
+# it fails loudly (red run + summary) but gates no PR.
+name: Dependency health
+
+on:
+  schedule:
+    - cron: '0 6 * * 1' # Mondays 06:00 UTC
+  workflow_dispatch:
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: expo-doctor
+        run: npx expo-doctor
+
+      - name: npm audit (runtime deps, high+)
+        # Build-time chain (@expo/config-plugins → xcode → uuid) is a known
+        # accepted moderate — only high+ fails this job. See
+        # .claude/docs/AUDIT-2026-07-03.md → A4.
+        run: npm audit --omit=dev --audit-level=high

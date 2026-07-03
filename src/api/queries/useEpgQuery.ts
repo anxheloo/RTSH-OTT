@@ -1,15 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 
-import { getChannelEpg, getEpgByDate } from '../services/epg';
-
-/** Global EPG — used by the Guide tab and Search for now/next across all channels. */
-export const useEpgQuery = (date?: string) => {
-  const { data, isLoading, error, refetch } = useQuery({
-    queryKey: ['epg', date ?? 'today'],
-    queryFn: () => getEpgByDate(date),
-  });
-  return { items: data ?? [], isLoading, error, refetch };
-};
+import { getChannelEpg } from '../services/epg';
 
 /**
  * Per-channel EPG — `GET /channels/{id}/epg?date=YYYY-MM-DD`.

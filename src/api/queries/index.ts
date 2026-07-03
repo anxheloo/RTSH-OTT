@@ -11,7 +11,7 @@ export { useRadioStationQuery } from './useRadioStationQuery';
 export { useHomeFeedQuery } from './useHomeFeedQuery';
 
 // EPG
-export { useChannelEpgQuery, useEpgQuery } from './useEpgQuery';
+export { useChannelEpgQuery } from './useEpgQuery';
 
 // Guide ("now on TV" per-channel)
 export { useGuideQuery } from './useGuideQuery';

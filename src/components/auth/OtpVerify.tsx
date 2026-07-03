@@ -121,6 +121,8 @@ const OtpVerify: React.FC<OtpVerifyProps> = ({
         onPress={canResend ? handleResend : undefined}
         disabled={!canResend || isResending}
         activeOpacity={0.7}
+        accessibilityRole="button"
+        accessibilityState={{ disabled: !canResend || isResending }}
         testID={testID ? `${testID}-resend` : undefined}
       >
         <ReusableText

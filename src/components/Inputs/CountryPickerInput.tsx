@@ -1,11 +1,16 @@
 /**
  * CountryPickerInput — a ReusableInput-styled pressable that opens a bottom-sheet
- * modal with the country picker. We own the Modal so safe-area insets are applied
- * correctly; the library renders inline (withModal={false}) inside our sheet.
+ * modal with a searchable country list. Fully in-house (2026-07-03): the previous
+ * react-native-country-picker-modal dependency was unmaintained (and broke web
+ * bundling via a dead transitive dep), so the sheet now renders our own FlatList
+ * over the static `COUNTRIES` dataset (same English common names — the stored
+ * `value`/backend payload is unchanged). Flags are emoji derived from the ISO
+ * code, so there are no image assets. We own the Modal, so safe-area insets and
+ * theme tokens apply exactly like every other sheet.
  */
-import React, { useState } from 'react';
-import { Dimensions, Modal, StyleSheet, TouchableOpacity, View } from 'react-native';
-import CountryPicker, { Country, CountryCode, DARK_THEME } from 'react-native-country-picker-modal';
+import React, { useMemo, useState } from 'react';
+import { Dimensions, FlatList, Modal, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { BORDERRADIUS } from '@/theme/borders';
@@ -13,8 +18,10 @@ import { SPACING } from '@/theme/spacing';
 import { useAppStore } from '@/store/useAppStore';
 import { Icon } from '@/components/Icons';
 import { ChevronRightIcon, GlobeIcon } from '@/assets/icons';
+import { COUNTRIES, type CountryEntry,countryFlag } from '@/constants/countries';
 
 import ReusableText from './ReusableText';
+import SearchBar from './SearchBar';
 
 export interface CountryPickerInputProps {
   value: string;
@@ -26,16 +33,7 @@ export interface CountryPickerInputProps {
 }
 
 const SHEET_HEIGHT = Math.round(Dimensions.get('window').height * 0.75);
-
-/** world-countries `name` can be a string or a `{ common, official }` object. */
-const extractName = (name: unknown): string => {
-  if (typeof name === 'string') return name;
-  if (name && typeof name === 'object') {
-    const obj = name as Record<string, string>;
-    return obj.common ?? obj.official ?? Object.values(obj)[0] ?? '';
-  }
-  return '';
-};
+const ROW_HEIGHT = 52;
 
 const CountryPickerInput: React.FC<CountryPickerInputProps> = ({
   value,
@@ -45,21 +43,55 @@ const CountryPickerInput: React.FC<CountryPickerInputProps> = ({
   errorText,
   testID,
 }) => {
+  const { t } = useTranslation();
   const colors = useAppStore((s) => s.colors);
   const insets = useSafeAreaInsets();
   const [open, setOpen] = useState(false);
-  const [countryCode, setCountryCode] = useState<CountryCode>('AL');
+  const [query, setQuery] = useState('');
 
-  const handleSelect = (country: Country) => {
-    setCountryCode(country.cca2);
-    onChange(extractName(country.name));
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return COUNTRIES as CountryEntry[];
+    return COUNTRIES.filter((c) => c.name.toLowerCase().includes(q));
+  }, [query]);
+
+  const handleSelect = (country: CountryEntry) => {
+    onChange(country.name);
+    setQuery('');
     setOpen(false);
   };
 
-  const handleClose = () => setOpen(false);
+  const handleClose = () => {
+    setQuery('');
+    setOpen(false);
+  };
 
   const hasError = Boolean(errorText);
   const borderColor = hasError ? colors.error : colors.border;
+
+  const renderRow = ({ item }: { item: CountryEntry }) => (
+    <TouchableOpacity
+      style={[styles.row, { borderBottomColor: colors.border }]}
+      onPress={() => handleSelect(item)}
+      activeOpacity={0.7}
+      accessibilityRole="button"
+      accessibilityLabel={item.name}
+      accessibilityState={{ selected: item.name === value }}
+      testID={`country-row-${item.code}`}
+    >
+      <ReusableText variant="body" style={styles.flag}>
+        {countryFlag(item.code)}
+      </ReusableText>
+      <ReusableText
+        variant="bodySmall"
+        themeColor={item.name === value ? 'primary' : 'text'}
+        numberOfLines={1}
+        style={styles.rowName}
+      >
+        {item.name}
+      </ReusableText>
+    </TouchableOpacity>
+  );
 
   return (
     <View>
@@ -73,6 +105,9 @@ const CountryPickerInput: React.FC<CountryPickerInputProps> = ({
         onPress={() => setOpen(true)}
         activeOpacity={0.7}
         style={[styles.field, { backgroundColor: colors.inputBackground, borderColor }]}
+        accessibilityRole="button"
+        accessibilityLabel={label ?? placeholder}
+        accessibilityValue={{ text: value || placeholder }}
         testID={testID}
       >
         <Icon as={GlobeIcon} size={19} color={colors.textMuted} />
@@ -105,7 +140,13 @@ const CountryPickerInput: React.FC<CountryPickerInputProps> = ({
       >
         <View style={styles.backdrop}>
           {/* Tapping outside the sheet closes the modal */}
-          <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={handleClose} />
+          <TouchableOpacity
+            style={StyleSheet.absoluteFill}
+            activeOpacity={1}
+            onPress={handleClose}
+            accessibilityRole="button"
+            accessibilityLabel={t('common.close')}
+          />
 
           {/* Sheet — onStartShouldSetResponder prevents touches on empty space
               from reaching the backdrop TouchableOpacity */}
@@ -119,34 +160,28 @@ const CountryPickerInput: React.FC<CountryPickerInputProps> = ({
             ]}
             onStartShouldSetResponder={() => true}
           >
-            {open && (
-              <CountryPicker
-                countryCode={countryCode}
-                withFilter
-                withFlag
-                withEmoji
-                withAlphaFilter
-                withCallingCode={false}
-                withCurrencyButton={false}
-                withCountryNameButton={false}
-                withModal={false}
-                visible
-                onClose={handleClose}
-                onSelect={handleSelect}
-                renderFlagButton={() => null}
-                theme={{
-                  ...DARK_THEME,
-                  backgroundColor: colors.surface,
-                  primaryColor: colors.primary,
-                  primaryColorVariant: colors.surfaceElevated,
-                  onBackgroundTextColor: colors.text,
-                  filterPlaceholderTextColor: colors.textMuted,
-                  fontSize: 15,
-                  flagSize: 24,
-                  itemHeight: 52,
-                }}
+            <View style={styles.search}>
+              <SearchBar
+                placeholder={placeholder}
+                value={query}
+                onChangeText={setQuery}
+                testID={testID ? `${testID}-search` : undefined}
               />
-            )}
+            </View>
+
+            <FlatList
+              data={filtered}
+              keyExtractor={(item) => item.code}
+              renderItem={renderRow}
+              keyboardShouldPersistTaps="handled"
+              // Fixed row height → cheap layout for a 250-item static list.
+              getItemLayout={(_, index) => ({
+                length: ROW_HEIGHT,
+                offset: ROW_HEIGHT * index,
+                index,
+              })}
+              testID={testID ? `${testID}-list` : undefined}
+            />
           </View>
         </View>
       </Modal>
@@ -187,6 +222,25 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: BORDERRADIUS.radius_20,
     borderTopRightRadius: BORDERRADIUS.radius_20,
     overflow: 'hidden',
+  },
+  search: {
+    paddingHorizontal: SPACING.space_16,
+    paddingTop: SPACING.space_16,
+    paddingBottom: SPACING.space_8,
+  },
+  row: {
+    height: ROW_HEIGHT,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.space_12,
+    paddingHorizontal: SPACING.space_16,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  flag: {
+    fontSize: 22,
+  },
+  rowName: {
+    flex: 1,
   },
 });
 

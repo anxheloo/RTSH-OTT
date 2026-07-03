@@ -79,6 +79,9 @@ const ProgramRow: React.FC<ProgramRowProps> = ({
       onPress={onPress}
       activeOpacity={0.7}
       disabled={state === 'scheduled'}
+      accessibilityRole="button"
+      accessibilityLabel={`${time}. ${title}`}
+      accessibilityState={{ disabled: state === 'scheduled', selected: isPlaying }}
       testID={testID}
     >
       <View style={styles.playSlot}>

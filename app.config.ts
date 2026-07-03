@@ -53,9 +53,8 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     name,
     slug: 'rtshtani',
     version: '1.0.0',
-    // Mobile/TV only — no web target. Without this, `eas update --platform=all`
-    // also bundles web, which fails resolving react-native-country-picker-modal's
-    // `react-async-hook` dep (its `module` field points at an unshipped .esm.js).
+    // Mobile/TV only — no web target (product scope; also keeps `eas update
+    // --platform=all` from bundling an unused web target).
     platforms: ['ios', 'android'],
     // Kept 'default' (not 'portrait') ON PURPOSE: iOS must still declare the
     // landscape interface orientations so the video player can rotate into

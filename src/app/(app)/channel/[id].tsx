@@ -40,6 +40,7 @@ import {
   useChannelPlaybackQuery,
   useChannelsQuery,
 } from '@/api/queries';
+import { useAdSlot } from '@/hooks/useAdSlot';
 import { useCellularGate } from '@/hooks/useCellularGate';
 import { useChannelRealtime } from '@/hooks/useChannelRealtime';
 import { useDateTime } from '@/hooks/useDateTime';
@@ -62,8 +63,6 @@ import { ParentalPinModal } from '@/components/ParentalPin';
 import { availableQualityIds, getStreamHeaders, resolveStreamSource } from '@/utils';
 import { formatDayMonth, toDateKey } from '@/utils/datetime';
 import type { CatchupDay, EpgItem } from '@/types/domain';
-// Analytics disabled for now — re-enable when telemetry is wanted.
-// import { AnalyticsEvent, track, useWatchTracking } from '@/analytics';
 import { ChevronLeftIcon, InfoIcon, LockIcon } from '@/assets/icons';
 import { AD_REVEAL_DELAY_MS } from '@/constants/ads';
 import { DEFAULT_QUALITY } from '@/constants/player';
@@ -105,8 +104,9 @@ const ChannelScreen: React.FC = () => {
   // can't flip the player/now-playing label back to the channel name.
   const [selectedProgramTitle, setSelectedProgramTitle] = useState<string | null>(null);
 
-  // Analytics: emit channel_watch_start/end (re-pairs when live↔recorded flips).
-  // useWatchTracking(channelId, isLive ? 'live' : 'recorded');
+  // Analytics is DISABLED pending backend ingestion — when re-enabled, watch
+  // tracking + the LivePlayer onError → stream_error beacon mount here (see
+  // ARCHITECTURE.md → Analytics & telemetry).
 
   // Single query — branches on programId: live → GET /channels/{id},
   // recorded → GET /channels/{id}/epg/{programId}. Each pair cached independently.
@@ -287,6 +287,18 @@ const ChannelScreen: React.FC = () => {
     !!channelAd && !adDone && !epgLoading,
     AD_REVEAL_DELAY_MS,
   );
+  // One ad on screen at a time, app-wide (mirrors `ModalSlice`) — guards the
+  // screen-transition window where this preroll and the app-open overlay
+  // (mounted above the router, outside this screen's lifetime) could both be
+  // mounted for a frame.
+  const canShowChannelAd = useAdSlot(
+    !!channelAd && !adDone && !epgLoading && showChannelAd,
+    channelAd?.id,
+  );
+  const canShowMidrollAd = useAdSlot(
+    !!midrollAd && !adPending && !mediaPending && !blockPlayer && !showBlocked,
+    midrollAd?.id,
+  );
 
   // Which programme is airing now in this channel's schedule — drives the "now"
   // play-icon row and rolls it to the next programme at the boundary (client
@@ -433,8 +445,6 @@ const ChannelScreen: React.FC = () => {
         }
         isLive={isLive}
         paused={adActive}
-        // Analytics disabled for now — re-enable when telemetry is wanted.
-        // onError={(errorType) => track(AnalyticsEvent.STREAM_ERROR, { channelId, errorType })}
         isFullscreen={isFullscreen}
         onToggleFullscreen={toggleFullscreen}
         onOpenOptions={() => router.push('/(app)/player-options')}
@@ -562,7 +572,7 @@ const ChannelScreen: React.FC = () => {
       {/* Hold the ad until today's EPG has settled so it never pops over a
           loading list. The ad fetches up-front, so `adPending` keeps the player
           unmounted the whole time (no autoplay leak behind the overlay). */}
-      {channelAd && !adDone && !epgLoading && showChannelAd ? (
+      {channelAd && canShowChannelAd ? (
         <AdOverlay
           creative={channelAd}
           placement="CHANNEL_CHANGE"
@@ -574,7 +584,7 @@ const ChannelScreen: React.FC = () => {
 
       {/* Mid-roll — fires during playback at its scheduled time. Never over a
           skeleton, the preroll, or a blocked player. */}
-      {midrollAd && !adPending && !mediaPending && !blockPlayer && !showBlocked ? (
+      {midrollAd && canShowMidrollAd ? (
         <AdOverlay
           creative={midrollAd}
           placement="MID_ROLL"

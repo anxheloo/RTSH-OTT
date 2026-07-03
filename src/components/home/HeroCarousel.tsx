@@ -71,6 +71,9 @@ const HeroCarousel: React.FC<HeroCarouselProps> = ({ items, onPressItem, isLoadi
               activeOpacity={item.isLive ? 0.9 : 1}
               onPress={item.isLive ? () => onPressItem(item.channelId) : undefined}
               disabled={!item.isLive}
+              accessibilityRole="button"
+              accessibilityLabel={`${item.kicker}. ${item.title}. ${item.meta}`}
+              accessibilityState={{ disabled: !item.isLive }}
               style={[styles.card, { width: cardWidth, backgroundColor: colors.videoPlaceholderBg }]}
               testID={testID ? `${testID}-${item.id}` : undefined}
             >

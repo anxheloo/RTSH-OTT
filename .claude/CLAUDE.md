@@ -6,7 +6,7 @@ Guidance for Claude Code when working in this repo.
 
 ## Project
 
-RTSH TANI — OTT streaming app for Radio Televizioni Shqiptar. Live TV (19 channels) + Radio (13 channels) + EPG + Catch-up. **Mobile-first** (iOS + Android), then **tablet/iPad + TV** as an end-phase large-screen pass (same design, display adjustments + TV focus/D-pad nav) once mobile is complete and approved — see plan.md **22.18**.
+RTSH TANI — OTT streaming app for Radio Televizioni Shqiptar. Live TV (19 channels) + Radio (13 channels) + EPG + Catch-up. **Mobile-first** (iOS + Android), then **tablet/iPad + TV** as an end-phase large-screen pass (same design, display adjustments + TV focus/D-pad nav) once mobile is complete and approved — see `.claude/docs/plan.md` **22.18**.
 
 ## Stack
 
@@ -19,7 +19,8 @@ RTSH TANI — OTT streaming app for Radio Televizioni Shqiptar. Live TV (19 chan
 - @shopify/flash-list · react-native-reanimated v4 · react-native-gesture-handler · react-native-keyboard-controller
 - react-hook-form + zod (forms + validation)
 - i18next + expo-localization (sq default, en fallback)
-- @sentry/react-native — **planned, not yet installed** (crash reporting; tracked)
+- @sentry/react-native — **planned, not yet installed** (crash reporting; deferred by user 2026-07-03, tracked in audit plan 1.4)
+- jest-expo + @testing-library/react-native — unit/behavior tests, co-located `__tests__/` folders (policy: `STANDARDS.md §11`)
 - EAS Build + EAS Update
 
 ## Commands
@@ -30,6 +31,9 @@ npx expo start --dev-client          # dev (custom dev client required)
 npx expo run:ios                     # local dev build iOS
 npx expo run:android                 # local dev build Android
 npm run lint                         # ESLint
+npm test                             # jest (unit/behavior tests)
+npm run deps:sync                    # patch-sync deps within the pinned SDK (expo install --fix)
+npm run expoUpgrade                  # full SDK upgrade chain (expo@latest → --fix → clean reinstall → doctor)
 
 # EAS
 eas build --profile development --platform ios
@@ -76,6 +80,7 @@ Single `useAppStore` composed from slices (see `src/store/`):
 - `PlayerSlice` — current playback state (channelId, position, isPlaying, isFullscreen)
 - `ParentalSlice` — **device-level** parental config (`parentalEnabled` + `parentalPin`, client-only, MMKV-persisted) + failed-attempt/lockout UX
 - `RealtimeSlice` — runtime `realtimeConnected` (written by the STOMP client; not persisted)
+- `AdsSlice` — runtime `activeAdId` (single-ad-slot exclusivity across `APP_OPEN`/`CHANNEL_CHANGE`/`MID_ROLL`, mirrors `ModalSlice`'s shape; not persisted)
 
 Planned (not yet implemented): `ChannelsSlice` (favorites, recently watched) and `EpgSlice` (reminders) — favorites/recently-watched/reminders are not in the store today.
 
@@ -152,16 +157,17 @@ Everything cross-cutting (auth, theme, boot/splash, network state, persistence b
 ### Specs
 
 - `docs/API.md` — backend contract (source of truth for `src/api/`)
-- `docs/PLAYER.md` — HLS + AES-128 spec + fallback decision
+- `docs/REALTIME_SOCKET.md` — STOMP/WebSocket backend contract (presence, watch-time, mid-roll, geo)
+- HLS + AES-128 player decisions have no standalone doc — see `### Player` above and `docs/API.md → Channels` (`PlaybackDecisionDTO`)
 
 ## Doc sync (mandatory)
 
 Every change that affects documented behavior must update the docs in the same turn — never leave them stale:
 
-- **Cross-cutting flow changed** (auth, theme, boot/splash, network, persistence, radio audio, parental, navigation) → update `rules/ARCHITECTURE.md` (how it works / why / known gaps).
+- **Cross-cutting flow changed** (auth, theme, boot/splash, network, persistence, radio audio, parental, navigation) → update `rules/ARCHITECTURE.md`'s current-state section (how it works / why / known gaps) **and** append a one-line dated entry to `.claude/docs/ARCHITECTURE_CHANGELOG.md` (not inline in `ARCHITECTURE.md` — keeps its auto-loaded size stable).
 - **Convention or pattern changed** → update `rules/STYLE_GUIDE.md`.
 - **Feature added/removed, scope or stack changed** → update this file (CLAUDE.md).
-- **Plan step done/superseded** → update `docs/plan.md` (and mark stale references in older entries).
+- **Plan step done/superseded** → update `.claude/docs/plan.md` (and mark stale references in older entries).
 
 ## Working preferences (Anxhelo)
 
@@ -172,12 +178,14 @@ Every change that affects documented behavior must update the docs in the same t
 
 ## On every session start
 
-1. Read this file.
-2. Read `docs/plan.md` to find the next step to execute.
+`rules/ARCHITECTURE.md` and `rules/STYLE_GUIDE.md` are auto-loaded alongside this
+file every session — they're already in context, don't re-read them. Use
+`ARCHITECTURE.md` as the detail layer before changing a cross-cutting flow
+(auth, theme, boot/splash, network, persistence, radio audio); use
+`STYLE_GUIDE.md` before writing or editing components/hooks/slices.
 
-Then load lazily, only when the task needs it (keeps non-coding turns cheap):
-- `rules/ARCHITECTURE.md` — before answering "how does X work" or changing any cross-cutting flow (auth, theme, boot/splash, network, persistence, radio audio).
-- `rules/STYLE_GUIDE.md` — before writing or editing components/hooks/slices.
+Read `.claude/docs/plan.md` to find the next step to execute (audit backlog:
+`.claude/docs/AUDIT-2026-07-03.md`).
 
 ## Output rule
 
@@ -188,17 +196,17 @@ All deliverable files go inside this repo (`RTSH-OTT/`). Source spec lives in `.
 Beyond the architecture scaffold, these features are spec-mandated for v1 — do not treat as optional:
 
 - **T&C acceptance** — enforced once at registration: the `acceptTerms` checkbox (zod-required) on the register form, with an inline link that opens the T&C URL in `expo-web-browser`. Acceptance is account-level (sent to backend as `termsAccepted`), not re-prompted on login — no client gate, no `tcAcceptedAt` flag (removed 2026-06-17).
-- **Geoblocking** — two granularities, both handled. **Channel-level:** CDN-enforced on channel open (surfaces as the `PlaybackDecision` `GEO_BLOCKED` decision / a whole-channel `GEO_BLOCK` push → notice in place of the player). **Per-programme (2026-07-01):** each EPG row carries a `decision` flag (the same field `/epg/{programId}` returns, backend-evaluated per the user's country); the live stream is stopped at the programme boundary when the now-airing programme's `decision !== 'ALLOWED'` — same "flag on the EPG row + boundary re-check" mechanism as the parental `isAdult` gate (`useLiveProgramBlock`, sibling of `useParentalGuard`'s live branch). A per-programme `GEO_BLOCK`/`GEO_LIFT` socket event carrying `programId` flips the cached row's `decision` live; a recorded programme is gated by its own `GET /channels/{id}/epg/{programId}` decision. No client geo overlay of our own — a blocked stream that slips past the flag still surfaces as a CDN player error. See `rules/ARCHITECTURE.md → Real-time → Geo`.
+- **Geoblocking** — channel-level (CDN / `PlaybackDecision`) + per-programme (EPG `decision` flag, live-boundary stop). Full mechanism: `rules/ARCHITECTURE.md → Real-time → Geo`.
 - **Cellular-data gate** — confirmation modal before playback over cellular when `settings.cellularPlaybackAllowed === false`.
 - ~~**Mosaic view**~~ — **cut from v1 by user decision (2026-06-11, plan 22.14f)**; route + components removed.
 - **PIP + iOS background video** — always-on (no user setting; `backgroundVideoAllowed` removed 2026-06-26). `LivePlayer` enables `backgroundPlayback` on the base `VideoPlayer` (`staysActiveInBackground` + `showNowPlayingNotification` + now-playing `metadata`); ads (`AdOverlay`) keep it off. Background-playback entitlements come from the `expo-video` config plugin (`supportsBackgroundPlayback: true`) — native rebuild required.
-- **Ads** — three slots: launch (`APP_OPEN`), channel-switch (`CHANNEL_CHANGE` preroll), and **mid-roll** (`MID_ROLL`, scheduled during playback). Fetched as **one merged array per context** — `GET /ads?channelId=` → preroll + all mid-rolls, `GET /ads` → app-open (`useAdsQuery`/`getAds`; each `Ad` carries `placement` + mid-roll `startTime`). Mid-roll timing is real-time (Ads = Option A, see Real-time above); **`AdOverlay` self-reports its impression** (VAST/IMA convention — the ad unit beacons itself) — `POST /ads/{id}/impression` **once at completion** via `reportAdImpression` (fire-and-forget) — the body carries `watchedSeconds` (clamped to the ad duration) + `durationSeconds` + `placement` + `channelId` so the backend can compute avg-view-rate (firing at completion, not mount, is what makes a real watched-time available). Callers pass `placement` (+ `channelId` for channel ads) instead of wiring an `onImpression` handler per site. Single `AdOverlay` component (`components/Media/AdOverlay.tsx`, design `adpop`). Renders by `AdCreative.type`, always **contain** (never crops the creative): **IMAGE** via `ReusableImage` (contained, with a blurred cover copy filling the letterbox gaps behind it), **VIDEO** via the base `VideoPlayer` (autoplay, no native controls, `onPlayEnd → onComplete`; `expo-video` defaults to contain, with a static `expo-blur` `BlurView` filling the letterbox gaps behind the transparent player container). The label + skip-countdown chrome is shared across both. Component built in 22.15; slot orchestration is Phase 16. **Preroll gating** — while a channel-change ad is active the content player stays **unmounted** (a skeleton fills the 16:9 slot); `LivePlayer` autoplays the moment it mounts, so the only way to keep the live stream from starting (audio + CDN, and — with VIDEO ads — a second playing surface) behind the overlay is to not render it until `onComplete` fires. Gated in `channel/[id].tsx` via `adPending = !!channelAd && !adDone`. **Preroll reveal delay** — both prerolls (app-open + channel-change) ease in `AD_REVEAL_DELAY_MS` (2500ms, `constants/ads.ts`) **after their host screen has settled** (Home channels loaded / the channel EPG loaded), not the instant the ad is fetched, via `useDelayedReveal(ready, delay)` (`hooks/`). The channel player stays **unmounted** during that delay too (still gated by `adPending`), so the skeleton holds the 16:9 slot — no autoplay leak behind the deferred overlay. **Mid-roll gating** — a mid-roll fires *during* playback, so (unlike the preroll) the player is already mounted; instead of unmounting, the channel screen **pauses** it for the break via `paused={adActive}` (`adActive = !!midrollAd`) → `LivePlayer` → `VideoPlayer` (reconciled onto the player, no remount; live resumes at the live edge, recorded in place). The same `paused` flag gates PiP **entry** off so the content surface can't keep playing in a floating window behind the (JS-overlay) ad — an already-active PiP session is deliberately **not** ejected (the pause leaves a frozen frame, better UX than a vanished window).
+- **Ads** — three slots (`APP_OPEN`, `CHANNEL_CHANGE` preroll, `MID_ROLL`), one merged array per context (`GET /ads?channelId=`), single `AdOverlay` component (`components/Media/AdOverlay.tsx`, design `adpop`), one-ad-at-a-time app-wide via `AdsSlice` + `useAdSlot`. Full slot orchestration (preroll gating, reveal delay, mid-roll pause + PiP gating, impression reporting, route-scoped exclusivity): `rules/ARCHITECTURE.md → Real-time`.
 - **Quality picker** — manual ABR selection in the player options sheet (per-session, player-only; no persisted default in Settings). Resets to Auto on each channel open.
-- **Parental control** — 4–6 digit PIN, **device-level, client-only** (2026-06-16): the PIN lives in `ParentalSlice` (MMKV-persisted), is never sent to or read from the backend, and is not on the user object — content gating, not a credential, so verify is a local compare (no keychain/KDF). Gates adult-flagged content (channel/program `isAdult`) **only when `parentalEnabled`**. First enable creates + stores the PIN; enable/disable toggle in Settings (local PIN verify before disable) is wired; change-PIN / forgot-PIN are deferred. No backend endpoints, no cross-device sync (it's per-device by design). Rationale + flow: `rules/ARCHITECTURE.md → Parental control`.
-- **Change password** — `POST /users/me/change-password` (Settings → Account screen). Rotates the refresh token → `useChangePasswordMutation` rewrites the keychain; `logoutOtherDevices` flag folds in "sign out everywhere else" (no separate endpoint).
-- **Delete account** — `DELETE /users/me` (no body; auth token only). Profile screen, next to Logout, behind a `confirmation` modal. `useDeleteAccountMutation` wipes the local session **only on 200** (`store.logout()` + `clearParentalConfig()` + `queryClient.clear()`); a failed delete keeps the user signed in (surfaces via global `apiError` modal). Unlike logout it ALSO clears the device-level parental gate. See `rules/ARCHITECTURE.md → Auth flow 5a`.
+- **Parental control** — 4–6 digit PIN, device-level, client-only (SHA-256 local compare, no backend, no cross-device sync). Gates adult-flagged content only when enabled. Full mechanism: `rules/ARCHITECTURE.md → Parental control`.
+- **Change password** — `POST /users/me/change-password`, rotates the refresh token, folds in "sign out other devices." See `rules/ARCHITECTURE.md → Auth flow 5b`.
+- **Delete account** — `DELETE /users/me`; wipes session + parental config only on a confirmed 200. See `rules/ARCHITECTURE.md → Auth flow 5a`.
 - **Background audio for radio** — `expo-audio` lock-screen controls + Android foreground service.
-- **Analytics** — first-party telemetry (spec MW.14 / Mon.6) in `src/analytics/` (`@/analytics`), no 3rd-party SDK. `track(event, props)` is a fire-and-forget emitter for discrete events (`app_open`, `session_*`, `channel_watch_*`, `stream_error`) → `POST /analytics/events`; a `useQuery` heartbeat (5min, background-paused) reports active/watching users. Single `useAnalytics()` hook (mount once in `(app)/_layout`) owns app_open + session + heartbeat; `useWatchTracking(id, kind)` per player screen. No PII in payloads (backend stamps userId + country-from-IP). Opt-out via `settings.analyticsEnabled` (Settings toggle). Full flow: `rules/ARCHITECTURE.md → Analytics & telemetry`.
+- **Analytics** — first-party telemetry, **currently DISABLED** (mounts commented out, pending backend ingestion — `.claude/docs/AUDIT-2026-07-03.md` B1). Full mechanism: `rules/ARCHITECTURE.md → Analytics & telemetry`.
 
 ## Out of scope for v1
 

@@ -233,15 +233,55 @@ Single store composed from slices; MMKV-persisted with an explicit `partialize`.
 
 ---
 
-## 11. Known gold-standard gaps (close these to reach the bar)
+## 11. Testing, CI & dependency policy _(adopted 2026-07-03)_
+
+**Testing.** `jest-expo` preset + `@testing-library/react-native`; config lives in
+`package.json` (`moduleNameMapper` mirrors the `@/` tsconfig paths, `clearMocks`).
+Tests are co-located in `__tests__/` folders next to the code.
+
+- **Design for the pure core, then test it first.** Extract time/scheduling/mapping
+  decisions into pure modules (no React, no I/O) — that's where regressions hide and
+  where tests are cheapest (this repo: `realtime/midroll`, `utils/epg`,
+  `utils/datetime`, `lib/tokenVault`, `utils/resolveStreamSource`, `utils/pin`).
+- **Behavior over implementation.** Test the contract (single-flight, "transient
+  failure must not log out"), not internals. Mock at module boundaries
+  (`jest.mock` the keychain/service/store), never deep into a module.
+- **Native modules are mocked with same-semantics fakes** (e.g. expo-crypto's
+  SHA-256 → Node `crypto`), so the test still proves the real invariant.
+- **Every new pure module ships with its test.** Component (RNTL) tests are
+  reserved for behavior-critical UI (ad completion paths, PIN modal), not
+  presentational snapshots.
+
+**CI (`.github/workflows/`).** `ci.yml` gates every PR + push to main:
+`npm ci` → `tsc --noEmit` → `expo lint --max-warnings 0` → `jest --ci`, hermetic via
+`EXPO_PUBLIC_API_MODE=mock`. `deps-health.yml` runs weekly (`expo-doctor` +
+`npm audit --omit=dev --audit-level=high`) so drift surfaces itself. Never use
+untrusted event data (`github.event.*`) inside `run:` steps.
+
+**Dependency policy.**
+- **Patch-level, within the pinned SDK:** `npm run deps:sync` (`expo install --fix`)
+  monthly or when expo-doctor complains. Safe, JS-only until the next build.
+- **SDK major upgrades:** `npm run expoUpgrade` (expo@latest → `--fix` → clean
+  reinstall → doctor), then read the SDK changelog, `prebuild`, and device
+  smoke-test. An SDK upgrade is a planned phase item, never a drive-by.
+- **Audit findings:** fix runtime deps immediately; build-time-only chains (config
+  plugins) may be accepted with a written note + re-check at each SDK upgrade.
+- **Library selection:** prefer maintained, Expo-ecosystem libraries; check the
+  publish date and open-issue health *before* adopting. Replace unmaintained deps
+  before they block an upgrade.
+
+---
+
+## 12. Known gold-standard gaps (close these to reach the bar)
 
 These are the deltas between "very good" and "reference-grade." Named honestly so
 they're not mistaken for done:
 
-- **Tests — the biggest gap.** A reference app should model at least unit tests
-  for pure logic (formatters, schedulers, reducers) and component tests for
-  primitives. Add `jest` + `@testing-library/react-native`.
+- ~~**Tests — the biggest gap.**~~ **Closed 2026-07-03** — jest-expo + RNTL wired,
+  64 unit/behavior tests over the pure core + auth refresh (see §11). Component
+  (RNTL) coverage for AdOverlay/ParentalPinModal still to grow.
 - **Crash reporting (Sentry).** Wire it, or don't list it in the stack.
+  *(Deliberately deferred 2026-07-03 — tracked in `.claude/docs/AUDIT-2026-07-03.md` 1.4.)*
 - **Barrels** — consider trimming to genuine public boundaries rather than one
   per folder, to avoid circular-import and cold-start costs. Measure before
   ripping out working ones.

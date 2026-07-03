@@ -48,5 +48,8 @@ export function useOTA() {
     };
 
     checkForUpdate();
-  }, []);
+    // Both deps are effectively stable (store setter identity + i18next `t`);
+    // a language switch re-running the check is harmless (checkForUpdateAsync
+    // is cheap and `isAvailable` is almost always false).
+  }, [t, updateModalSlice]);
 }

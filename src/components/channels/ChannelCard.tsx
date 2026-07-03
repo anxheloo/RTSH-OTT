@@ -16,6 +16,7 @@ import { useAppStore } from '@/store/useAppStore';
 import ReusableText from '@/components/Inputs/ReusableText';
 import ReusableImage from '@/components/Media/ReusableImage';
 import SceneBackground from '@/components/Media/SceneBackground';
+import { cacheBustUrl } from '@/utils';
 import { scaled } from '@/responsive';
 
 const DEFAULT_BLURHASH =
@@ -55,10 +56,7 @@ const ChannelCard: React.FC<ChannelCardProps> = ({
 }) => {
   const colors = useAppStore((s) => s.colors);
 
-  const sceneSource =
-    thumbnailUri && thumbnailRefreshKey
-      ? `${thumbnailUri}${thumbnailUri.includes('?') ? '&' : '?'}cb=${thumbnailRefreshKey}`
-      : thumbnailUri;
+  const sceneSource = cacheBustUrl(thumbnailUri, thumbnailRefreshKey);
 
   return (
     <TouchableOpacity
@@ -83,7 +81,7 @@ const ChannelCard: React.FC<ChannelCardProps> = ({
           width={LOGO_W}
           height={LOGO_H}
           contentFit="contain"
-          cachePolicy="disk"
+          cachePolicy="memory-disk"
           priority="high"
           transitionDurationMs={150}
           containerStyle={styles.logoContainer}
@@ -94,7 +92,7 @@ const ChannelCard: React.FC<ChannelCardProps> = ({
       {isLive ? (
         <View style={[styles.tagchip, { backgroundColor: colors.primary }]}>
           <View style={styles.liveDot} />
-          <ReusableText fontSize={FONTSIZE.xs} fontWeight="bold" themeColor="onPrimary">
+          <ReusableText fontSize={FONTSIZE.xxs} fontWeight="bold" themeColor="onPrimary">
             LIVE
           </ReusableText>
         </View>
@@ -137,16 +135,16 @@ const styles = StyleSheet.create({
     right: 10,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 3,
     backgroundColor: BADGE_BG,
     borderRadius: BORDERRADIUS.radius_8,
-    paddingHorizontal: 7,
-    paddingVertical: 3,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
   },
   liveDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
+    width: 5,
+    height: 5,
+    borderRadius: 2.5,
     backgroundColor: '#FFFFFF',
   },
   name: {

@@ -10,7 +10,7 @@
  * so the first item clears the frosted bar with a little breathing room instead
  * of sitting flush under it.
  */
-export const BRAND_HEADER_BASE_HEIGHT = 73;
+export const BRAND_HEADER_BASE_HEIGHT = 56;
 
 /** Extra space below the bar before scroll content begins. */
 export const BRAND_HEADER_CONTENT_GAP = 10;

@@ -143,6 +143,9 @@ const ParentalPinPad: React.FC<ParentalPinPadProps> = ({ onComplete, isWrong = f
                 onPress={() => handleKey(key)}
                 activeOpacity={0.7}
                 disabled={!key || locked}
+                accessibilityRole="button"
+                accessibilityLabel={key === '⌫' ? t('common.delete') : key || undefined}
+                accessibilityState={{ disabled: !key || locked }}
                 testID={key ? `pin-key-${key}` : undefined}
               >
                 <ReusableText fontSize={FONTSIZE.xl} themeColor="text" textAlign="center">
