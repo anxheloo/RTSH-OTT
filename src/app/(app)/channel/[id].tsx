@@ -180,13 +180,6 @@ const ChannelScreen: React.FC = () => {
   // skeleton fills the 16:9 slot; the player mounts only once the ad completes.
   const adPending = !!channelAd && !adDone;
 
-  // A mid-roll fires DURING playback, so (unlike the preroll) the player is
-  // already mounted — pause it for the break instead of unmounting. This also
-  // gates PiP entry off, so the live surface can't keep playing in a floating
-  // window behind the (JS-overlay) ad. Live resumes at the live edge (handled
-  // in VideoPlayer); recorded resumes in place.
-  const adActive = !!midrollAd;
-
   // Live per-programme access gate — the decision sibling of the parental live
   // gate. Keys off the now-airing programme's `decision` flag (the same field the
   // `/epg/{programId}` endpoint returns, country-evaluated by the backend, kept
@@ -299,6 +292,15 @@ const ChannelScreen: React.FC = () => {
     !!midrollAd && !adPending && !mediaPending && !blockPlayer && !showBlocked,
     midrollAd?.id,
   );
+
+  // A mid-roll fires DURING playback, so (unlike the preroll) the player is
+  // already mounted — pause it for the break instead of unmounting, and gate PiP
+  // entry off so the live surface can't keep playing behind the (JS-overlay) ad.
+  // Keyed to `canShowMidrollAd` (NOT the raw due ad): a mid-roll that is due but
+  // suppressed — ad slot held by another placement, or a block/skeleton up —
+  // must not freeze the picture with no visible ad. Live resumes at the live edge
+  // (handled in VideoPlayer); recorded resumes in place.
+  const adActive = canShowMidrollAd;
 
   // Which programme is airing now in this channel's schedule — drives the "now"
   // play-icon row and rolls it to the next programme at the boundary (client
@@ -575,7 +577,6 @@ const ChannelScreen: React.FC = () => {
       {channelAd && canShowChannelAd ? (
         <AdOverlay
           creative={channelAd}
-          placement="CHANNEL_CHANGE"
           channelId={numericChannelId}
           onComplete={() => setAdDone(true)}
           testID="channel-ad"
@@ -587,7 +588,6 @@ const ChannelScreen: React.FC = () => {
       {midrollAd && canShowMidrollAd ? (
         <AdOverlay
           creative={midrollAd}
-          placement="MID_ROLL"
           channelId={numericChannelId}
           onComplete={onMidrollComplete}
           testID="channel-midroll"

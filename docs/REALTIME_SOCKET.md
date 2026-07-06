@@ -211,7 +211,7 @@ end), not at mount, so it can carry the seconds actually watched:
 
 ```
 POST /api/v1/ads/{id}/impression
-  body (optional): { "watchedSeconds": 18, "durationSeconds": 20, "channelId": 7, "placement": "MID_ROLL" }
+  body (optional): { "watchedSeconds": 18, "durationSeconds": 20, "channelId": 7, "clientEventId": "<uuid-v4>" }
   → 204 No Content
 ```
 
@@ -220,7 +220,16 @@ POST /api/v1/ads/{id}/impression
 - Fired **once per ad shown** (the client de-dupes by ad `id` via an internal once-guard).
 - **`watchedSeconds`** (wall-clock since the ad first painted, clamped to `durationSeconds`) + **`durationSeconds`**
   power the admin avg-view-rate tile (Σwatched / Σduration). Without them the impression still counts but
-  avg-view-rate reads 0. `clientEventId` is **not** sent — the once-guard already de-dupes per ad.
+  avg-view-rate reads 0.
+- **`clientEventId`** (v4 UUID) **IS sent** (reconciled 2026-07-06): the backend de-dupes on it within a
+  broadcast day (Europe/Tirane). It is **per-impression, NOT per-POST** — minted once by `AdOverlay` at the
+  moment the impression completes (inside its `reportedRef` once-guard) and passed **in** the beacon body, so a
+  future store-and-forward retry replays the **same** id and the duplicate collapses. A fresh id per retry
+  attempt would defeat the de-dupe and double-count (backend note). The `reportAdImpression` service is pure
+  transport — it does not mint the id. `placement` is **NOT** sent — the endpoint silently drops it (no 400);
+  it lives on the `GET /ads` response. `channelId` is accepted but currently ignored by the backend (harmless;
+  wire up if per-channel attribution is needed). Today there is no retry/queue, so a force-killed-mid-ad beacon
+  is simply lost (documented trade-off); the per-impression id is the correct seam for adding store-and-forward.
 - **Trade-off:** firing at completion (not mount) means an app force-killed mid-ad won't report. Rare, and
   acceptable; the alternative (fire at mount) loses watched-time entirely.
 

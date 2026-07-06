@@ -1,4 +1,4 @@
-import type { Ad, AdPlacement } from '@/types/domain';
+import type { Ad } from '@/types/domain';
 import { adDtoSchema } from '@/types/domain';
 
 import { apiClient } from '../client';
@@ -32,8 +32,17 @@ export const getAds = async (channelId?: number): Promise<Ad[]> => {
  *
  * Fired ONCE per ad shown, at completion (see `AdOverlay.onImpression`).
  * `watchedSeconds` (clamped to the ad's duration) is what powers the admin
- * avg-view-rate tile (Σwatched / Σduration) — see docs/REALTIME_SOCKET.md §3.1;
+ * avg-view-rate tile (Σwatched / Σduration) — see docs/REALTIME_SOCKET.md §6.1;
  * without it the impression still counts but avg-view-rate reads 0.
+ *
+ * `clientEventId` is the impression's IDENTITY (v4 UUID), minted by the CALLER at
+ * the moment the impression completes and passed in — it is **per-impression, not
+ * per-POST**: the backend de-dupes on it within a broadcast day (Europe/Tirane),
+ * so a retry MUST replay the SAME id (a fresh id per attempt would defeat the
+ * de-dupe and double-count — backend note 2026-07-06). This service is pure
+ * transport: it does NOT mint the id, so a future store-and-forward retry that
+ * replays the persisted body carries the original id unchanged. `placement` is
+ * NOT sent — the endpoint silently drops it (it lives on the GET /ads response).
  */
 export const reportAdImpression = (
   adId: number,
@@ -41,7 +50,7 @@ export const reportAdImpression = (
     watchedSeconds?: number;
     durationSeconds?: number;
     channelId?: number;
-    placement?: AdPlacement;
+    clientEventId?: string;
   },
 ): void => {
   apiClient.post(ADS_ROUTES.IMPRESSION(adId), body ?? {}).catch(() => {});

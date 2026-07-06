@@ -13,8 +13,8 @@
  * (VAST/IMA convention — the ad unit beacons itself) via `reportAdImpression`,
  * exactly once, carrying the seconds actually watched (clamped to the ad
  * duration) — firing at completion (not mount) is what gives the backend a real
- * watched-time for its avg-view-rate tile. Callers pass `placement` (+ `channelId`
- * for channel ads) so the beacon is fully attributed without re-wiring per site.
+ * watched-time for its avg-view-rate tile. Callers pass `channelId` (channel ads)
+ * for attribution; `placement` is not sent — it lives on the GET /ads response.
  */
 import React, { useCallback, useEffect, useRef } from 'react';
 import { Modal, Pressable, StyleSheet, View } from 'react-native';
@@ -22,6 +22,7 @@ import { useTranslation } from 'react-i18next';
 import { ZoomIn, ZoomOut } from 'react-native-reanimated';
 
 import { BlurView } from 'expo-blur';
+import { randomUUID } from 'expo-crypto';
 
 import { BORDERRADIUS } from '@/theme/borders';
 import { FONTSIZE } from '@/theme/fonts';
@@ -33,7 +34,7 @@ import ReusableText from '@/components/Inputs/ReusableText';
 import { AnimatedView } from '@/components/Layout';
 import ReusableImage from '@/components/Media/ReusableImage';
 import VideoPlayer from '@/components/Media/VideoPlayer';
-import type { AdCreative, AdPlacement } from '@/types/domain';
+import type { AdCreative } from '@/types/domain';
 import { ChevronRightIcon } from '@/assets/icons';
 import { useResponsive } from '@/responsive';
 
@@ -66,21 +67,13 @@ const AD = {
 
 export interface AdOverlayProps {
   creative: AdCreative;
-  /** Slot this creative fills — attributes the self-reported impression beacon. */
-  placement: AdPlacement;
   /** Channel the ad played on (channel-change / mid-roll); omitted for app-open. */
   channelId?: number;
   onComplete: () => void;
   testID?: string;
 }
 
-const AdOverlay: React.FC<AdOverlayProps> = ({
-  creative,
-  placement,
-  channelId,
-  onComplete,
-  testID,
-}) => {
+const AdOverlay: React.FC<AdOverlayProps> = ({ creative, channelId, onComplete, testID }) => {
   const { t } = useTranslation();
 
   // Landscape = the player is fullscreen (the only landscape surface in the app).
@@ -123,10 +116,15 @@ const AdOverlay: React.FC<AdOverlayProps> = ({
       watchedSeconds: watched,
       durationSeconds,
       channelId,
-      placement,
+      // Impression identity — minted HERE, once per impression (the reportedRef
+      // guard above runs this body exactly once). It rides IN the beacon body so
+      // a future store-and-forward retry replays the SAME id and the backend's
+      // per-broadcast-day de-dupe collapses the duplicate. A per-POST-attempt id
+      // would defeat that (backend note 2026-07-06).
+      clientEventId: randomUUID(),
     });
     onComplete();
-  }, [creative.id, durationSeconds, channelId, placement, onComplete]);
+  }, [creative.id, durationSeconds, channelId, onComplete]);
 
   // Duration timer — the ad ALWAYS auto-dismisses durationSeconds after it appears.
   // Wall-clock (`proceedInBackground: true`) so the dismiss is guaranteed even if

@@ -27,6 +27,10 @@ jest.mock('@/api/services/ads', () => ({
   reportAdImpression: jest.fn(),
 }));
 
+jest.mock('expo-crypto', () => ({
+  randomUUID: jest.fn(() => 'test-event-id'),
+}));
+
 // Layout barrel pulls expo-router (RadioMiniPlayer) — stub just what's used.
 jest.mock('@/components/Layout', () => ({
   // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -85,7 +89,6 @@ describe('AdOverlay', () => {
     render(
       <AdOverlay
         creative={mkCreative({ durationSeconds: 10 })}
-        placement="CHANNEL_CHANGE"
         channelId={7}
         onComplete={onComplete}
       />,
@@ -102,9 +105,12 @@ describe('AdOverlay', () => {
       expect.objectContaining({
         durationSeconds: 10,
         channelId: 7,
-        placement: 'CHANNEL_CHANGE',
       }),
     );
+    // `placement` is never sent (it lives on the GET /ads response); the beacon
+    // carries a per-impression `clientEventId` for the backend's de-dupe.
+    expect(mockImpression.mock.calls[0][1]).not.toHaveProperty('placement');
+    expect(mockImpression.mock.calls[0][1].clientEventId).toBe('test-event-id');
     // Clamped: watched can never exceed the ad's duration.
     const { watchedSeconds } = mockImpression.mock.calls[0][1];
     expect(watchedSeconds).toBeLessThanOrEqual(10);
@@ -117,7 +123,7 @@ describe('AdOverlay', () => {
 
   it('hides the skip control entirely for non-skippable creatives', () => {
     const { queryByTestId } = render(
-      <AdOverlay creative={mkCreative({ skippable: false })} placement="APP_OPEN" onComplete={jest.fn()} />,
+      <AdOverlay creative={mkCreative({ skippable: false })} onComplete={jest.fn()} />,
     );
     expect(queryByTestId('ad-skip')).toBeNull();
   });
@@ -127,7 +133,6 @@ describe('AdOverlay', () => {
     const { getByTestId } = render(
       <AdOverlay
         creative={mkCreative({ skippable: true, skipAfterSeconds: 3, durationSeconds: 10 })}
-        placement="MID_ROLL"
         channelId={7}
         onComplete={onComplete}
       />,
@@ -153,7 +158,6 @@ describe('AdOverlay', () => {
     render(
       <AdOverlay
         creative={mkCreative({ durationSeconds: NaN, skippable: false })}
-        placement="CHANNEL_CHANGE"
         channelId={7}
         onComplete={onComplete}
       />,
@@ -171,7 +175,6 @@ describe('AdOverlay', () => {
     render(
       <AdOverlay
         creative={mkCreative({ type: 'VIDEO', durationSeconds: 30 })}
-        placement="APP_OPEN"
         onComplete={onComplete}
       />,
     );

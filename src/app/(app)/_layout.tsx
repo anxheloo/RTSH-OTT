@@ -81,11 +81,7 @@ const AppLayout: React.FC = () => {
       <RadioAudioHost />
       <RadioMiniPlayer />
       {launchAd && canShowLaunchAd && (
-        <AdOverlay
-          creative={launchAd}
-          placement="APP_OPEN"
-          onComplete={() => setLaunchAdDismissed(true)}
-        />
+        <AdOverlay creative={launchAd} onComplete={() => setLaunchAdDismissed(true)} />
       )}
     </View>
   );

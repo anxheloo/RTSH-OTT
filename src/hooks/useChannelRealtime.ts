@@ -90,6 +90,12 @@ export function useChannelRealtime(
   // in-render reset (the React Compiler bans calling Date.now() during render).
   const [sessionStart] = useState(() => Date.now());
 
+  // Mid-rolls are wall-clock-scheduled off an absolute `startTime`, which only
+  // makes sense against the live edge — a recorded programme plays on-demand, so
+  // an absolute-time break would fire at an arbitrary point in the recording.
+  // Gate the whole scheduler (derivation + boundary timer) on LIVE.
+  const isLiveKind = kind === 'LIVE';
+
   const refresh = useCallback(() => setNowMs(Date.now()), []);
 
   // Re-fetch the authoritative playback decision. Prefix-only: the playback key
@@ -104,19 +110,20 @@ export function useChannelRealtime(
   // Derived (pure): the mid-roll due to show now — earliest scheduled inside the
   // current watch window, not yet shown, not lapsed. Logic lives in `@/realtime`.
   const dueAd = useMemo<AdCreative | null>(
-    () => selectDueMidroll(midrolls, { nowMs, sessionStart, firedIds }),
-    [midrolls, nowMs, firedIds, sessionStart],
+    () => (isLiveKind ? selectDueMidroll(midrolls, { nowMs, sessionStart, firedIds }) : null),
+    [isLiveKind, midrolls, nowMs, firedIds, sessionStart],
   );
 
   // Arm ONE timer to the next upcoming start time, then bump the clock (+250ms so
   // it fires after the edge). Re-runs whenever the array / clock / fired-set change,
   // so each boundary chains to the next. No poll, no network.
   useEffect(() => {
+    if (!isLiveKind) return;
     const boundary = nextMidrollBoundaryMs(midrolls, nowMs, firedIds);
     if (boundary === null) return;
     const id = setTimeout(refresh, boundary - nowMs + 250);
     return () => clearTimeout(id);
-  }, [midrolls, nowMs, firedIds, refresh]);
+  }, [isLiveKind, midrolls, nowMs, firedIds, refresh]);
 
   // Re-evaluate on foreground (timers throttled while backgrounded).
   useAppState({ onForeground: refresh });
@@ -126,6 +133,9 @@ export function useChannelRealtime(
   // callback (not an effect body). The cache write re-renders with the new array.
   const applyMidroll = useCallback(
     (ev: MidrollEvent) => {
+      // The channel topic is already per-channel, but coerce-and-guard like
+      // applyGeo so a stray cross-channel frame can't mutate this channel's ads.
+      if (Number(ev.channelId) !== channelId) return;
       queryClient.setQueryData<Ad[]>(['ads', channelId], (prev = []) => {
         if (ev.op === 'REMOVE') return prev.filter((a) => a.id !== ev.adId);
         if (!ev.creative) return prev;
@@ -227,8 +237,17 @@ export function useChannelRealtime(
   useEffect(() => {
     if (!realtimeConnected) return;
     if (hasConnectedRef.current) {
+      // Drop the optimistic whole-channel geo overlay so the refetched decision
+      // is authoritative again: a GEO_LIFT missed while the socket was down would
+      // otherwise keep the block up even after REST returns ALLOWED (geoNotice
+      // shadows the decision in the screen's priority chain).
+      setGeoBlock(null);
       reconcilePlayback();
       queryClient.invalidateQueries({ queryKey: ['ads', channelId] });
+      // A per-programme GEO_BLOCK/LIFT missed during the drop leaves a stale
+      // `decision` on the cached EPG row (the live look-ahead source); refetch so
+      // it re-derives, matching the "re-entry / date change re-fetches" recovery.
+      queryClient.invalidateQueries({ queryKey: ['channel-epg', String(channelId)] });
     }
     hasConnectedRef.current = true;
   }, [realtimeConnected, channelId, queryClient, reconcilePlayback]);
