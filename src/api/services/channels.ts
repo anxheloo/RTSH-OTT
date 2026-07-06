@@ -15,7 +15,7 @@ const channelDtoSchema = z.looseObject({
   name: z.string(),
   type: z.enum(['TV', 'RADIO']),
   sortOrder: z.number().optional().catch(undefined),
-  logoUrl: z.string(),
+  logoUrl: z.string().optional().catch(undefined),
   imageUrl: z.string().nullish().catch(undefined),
 });
 
@@ -31,7 +31,7 @@ type ChannelDto = z.infer<typeof channelDtoSchema>;
 export const playbackDecisionDtoSchema = z.looseObject({
   decision: z.string(),
   channelId: z.union([z.string(), z.number()]),
-  programId: z.union([z.string(), z.number()]),
+  programId: z.union([z.string(), z.number()]).nullish().catch(undefined),
   noticeMessage: z.string().optional().catch(undefined),
   streams: z.record(z.string(), z.string()).catch({}),
 });
@@ -44,7 +44,7 @@ function toChannel(dto: ChannelDto): Channel {
     name: dto.name,
     type: dto.type,
     sortOrder: dto.sortOrder ?? 0,
-    logoUrl: dto.logoUrl,
+    logoUrl: dto.logoUrl ?? '',
     imageUrl: dto.imageUrl ?? undefined,
   };
 }
@@ -53,7 +53,7 @@ export function toPlaybackDecision(dto: PlaybackDecisionDto): PlaybackDecision {
   return {
     decision: dto.decision,
     channelId: String(dto.channelId),
-    programId: String(dto.programId),
+    programId: dto.programId == null ? '' : String(dto.programId),
     noticeMessage: dto.noticeMessage,
     streams: dto.streams,
   };
