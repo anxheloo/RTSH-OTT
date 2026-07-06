@@ -8,7 +8,7 @@
  * after the page has rendered instead of snapping it up the instant it's
  * fetched. Consumed via `useDelayedReveal` at both preroll sites.
  */
-export const AD_REVEAL_DELAY_MS = 2500;
+export const AD_REVEAL_DELAY_MS = 2000;
 
 /**
  * Fallback viewing window for a mid-roll that arrives WITHOUT a usable
