@@ -10,10 +10,14 @@
  *    past (so it can't fire late, nor replay on channel re-entry).
  *  - missing / unparseable `startTime` → "fire-now" (a backend quirk surfaces the
  *    ad instead of dropping it).
- *  - `validUntil` lapses the ad only when it's a valid instant strictly after the
- *    start (a zero-width `validUntil == startTime` is ignored).
+ *  - `validUntil` (when a valid instant strictly after the start) is the
+ *    authoritative viewing window — the ad lapses once `now` passes it.
+ *  - no usable `validUntil` (absent / unparseable / zero-width) → the ad lapses via
+ *    a fixed staleness fallback (`MIDROLL_MAX_STALENESS_MS` after `startTime`) so a
+ *    break the user was away for isn't shown arbitrarily late; fire-now ads exempt.
  */
 import type { Ad, AdCreative } from '@/types/domain';
+import { MIDROLL_MAX_STALENESS_MS } from '@/constants/ads';
 
 /**
  * Scheduled fire instant (ms), or `null` for "fire now". `null` (not `0`/epoch) is
@@ -26,14 +30,28 @@ export function midrollFireMs(ad: Ad): number | null {
   return Number.isNaN(t) ? null : t;
 }
 
-/** Has the mid-roll lapsed past a VALID `validUntil` strictly after its start? */
+/**
+ * Has the mid-roll lapsed — its viewing window closed, so it should be skipped
+ * rather than shown late (e.g. after a long background)?
+ *
+ *  - A **valid** `validUntil` (a real instant strictly after `startTime`) is the
+ *    authoritative window → lapsed once `nowMs` passes it.
+ *  - Otherwise (absent / unparseable / zero-width `validUntil == startTime`) →
+ *    fall back to `MIDROLL_MAX_STALENESS_MS` measured from `startTime`. A fire-now
+ *    ad (no `startTime`) has no reference instant and never lapses this way.
+ */
 export function midrollLapsed(ad: Ad, nowMs: number): boolean {
-  if (!ad.validUntil) return false;
-  const until = Date.parse(ad.validUntil);
-  if (Number.isNaN(until)) return false;
   const fire = midrollFireMs(ad);
-  if (fire !== null && until <= fire) return false; // zero/negative-width window → ignore
-  return nowMs > until;
+  const until = ad.validUntil ? Date.parse(ad.validUntil) : NaN;
+  // A validUntil is authoritative only when it's a real instant strictly after
+  // the start (a zero/negative-width window is a backend quirk → treat as absent).
+  const hasWindow = !Number.isNaN(until) && (fire === null || until > fire);
+
+  if (hasWindow) return nowMs > until;
+
+  // No usable window → staleness fallback off startTime (scheduled ads only).
+  if (fire === null) return false; // fire-now: no reference instant, never stale
+  return nowMs > fire + MIDROLL_MAX_STALENESS_MS;
 }
 
 export interface MidrollWindow {

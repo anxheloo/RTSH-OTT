@@ -5,6 +5,7 @@
  * fire-now sentinel for missing timing, lapse rules, and boundary selection.
  */
 import type { Ad } from '@/types/domain';
+import { MIDROLL_MAX_STALENESS_MS } from '@/constants/ads';
 
 import { midrollFireMs, midrollLapsed, nextMidrollBoundaryMs, selectDueMidroll } from '../midroll';
 
@@ -39,24 +40,43 @@ describe('midrollFireMs', () => {
 });
 
 describe('midrollLapsed', () => {
-  it('never lapses without a validUntil', () => {
-    expect(midrollLapsed(mkAd(1, { startTime: iso(T0) }), T0 + 10 * MIN)).toBe(false);
-  });
-
   it('lapses once now passes a valid validUntil after the start', () => {
     const ad = mkAd(1, { startTime: iso(T0), validUntil: iso(T0 + 5 * MIN) });
     expect(midrollLapsed(ad, T0 + 4 * MIN)).toBe(false);
     expect(midrollLapsed(ad, T0 + 6 * MIN)).toBe(true);
   });
 
-  it('ignores a zero-width window (validUntil === startTime — backend Swagger quirk)', () => {
-    const ad = mkAd(1, { startTime: iso(T0), validUntil: iso(T0) });
-    expect(midrollLapsed(ad, T0 + 10 * MIN)).toBe(false);
+  // A valid validUntil is authoritative even well past the staleness fallback:
+  // an in-window ad still shows however "late" the fallback alone would call it.
+  it('a still-valid validUntil overrides the staleness fallback', () => {
+    const ad = mkAd(1, { startTime: iso(T0), validUntil: iso(T0 + 100 * MIN) });
+    expect(midrollLapsed(ad, T0 + MIDROLL_MAX_STALENESS_MS + 10 * MIN)).toBe(false);
   });
 
-  it('ignores an unparseable validUntil', () => {
-    const ad = mkAd(1, { startTime: iso(T0), validUntil: 'garbage' });
-    expect(midrollLapsed(ad, T0 + 10 * MIN)).toBe(false);
+  describe('no usable validUntil → staleness fallback off startTime', () => {
+    it('does not lapse within the staleness window', () => {
+      expect(midrollLapsed(mkAd(1, { startTime: iso(T0) }), T0 + 2 * MIN)).toBe(false);
+    });
+
+    it('lapses once startTime is more than the staleness window in the past', () => {
+      const now = T0 + MIDROLL_MAX_STALENESS_MS + MIN;
+      expect(midrollLapsed(mkAd(1, { startTime: iso(T0) }), now)).toBe(true);
+    });
+
+    it('treats a zero-width validUntil (=== startTime) as absent → fallback governs', () => {
+      const ad = mkAd(1, { startTime: iso(T0), validUntil: iso(T0) });
+      expect(midrollLapsed(ad, T0 + 2 * MIN)).toBe(false); // still fires at its start
+      expect(midrollLapsed(ad, T0 + MIDROLL_MAX_STALENESS_MS + MIN)).toBe(true);
+    });
+
+    it('treats an unparseable validUntil as absent → fallback governs', () => {
+      const ad = mkAd(1, { startTime: iso(T0), validUntil: 'garbage' });
+      expect(midrollLapsed(ad, T0 + MIDROLL_MAX_STALENESS_MS + MIN)).toBe(true);
+    });
+
+    it('never lapses a fire-now ad (no startTime → no reference instant)', () => {
+      expect(midrollLapsed(mkAd(1), T0 + 100 * MIN)).toBe(false);
+    });
   });
 });
 
@@ -69,7 +89,8 @@ describe('selectDueMidroll', () => {
   });
 
   it('fires an ad whose startTime falls inside [sessionStart, now]', () => {
-    const ad = mkAd(1, { startTime: iso(T0 + 5 * MIN) });
+    // validUntil keeps this about window membership, not the staleness fallback.
+    const ad = mkAd(1, { startTime: iso(T0 + 5 * MIN), validUntil: iso(T0 + 100 * MIN) });
     expect(selectDueMidroll([ad], window())?.id).toBe(1);
   });
 
@@ -98,8 +119,9 @@ describe('selectDueMidroll', () => {
   });
 
   it('picks the earliest due ad when several are pending', () => {
-    const later = mkAd(1, { startTime: iso(T0 + 8 * MIN) });
-    const earlier = mkAd(2, { startTime: iso(T0 + 2 * MIN) });
+    // validUntil on both → this tests ordering, independent of the staleness fallback.
+    const later = mkAd(1, { startTime: iso(T0 + 8 * MIN), validUntil: iso(T0 + 100 * MIN) });
+    const earlier = mkAd(2, { startTime: iso(T0 + 2 * MIN), validUntil: iso(T0 + 100 * MIN) });
     expect(selectDueMidroll([later, earlier], window())?.id).toBe(2);
   });
 
