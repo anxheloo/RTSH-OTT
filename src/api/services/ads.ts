@@ -1,3 +1,4 @@
+import { getDeviceClass } from '@/utils/device';
 import type { Ad } from '@/types/domain';
 import { adDtoSchema } from '@/types/domain';
 
@@ -43,6 +44,9 @@ export const getAds = async (channelId?: number): Promise<Ad[]> => {
  * transport: it does NOT mint the id, so a future store-and-forward retry that
  * replays the persisted body carries the original id unchanged. `placement` is
  * NOT sent — the endpoint silently drops it (it lives on the GET /ads response).
+ *
+ * `deviceClass` rides as a query param (same as GET /channels/{id}) so the backend
+ * attributes the impression to the platform — required + case-sensitive.
  */
 export const reportAdImpression = (
   adId: number,
@@ -53,5 +57,9 @@ export const reportAdImpression = (
     clientEventId?: string;
   },
 ): void => {
-  apiClient.post(ADS_ROUTES.IMPRESSION(adId), body ?? {}).catch(() => {});
+  apiClient
+    .post(ADS_ROUTES.IMPRESSION(adId), body ?? {}, {
+      params: { deviceClass: getDeviceClass() },
+    })
+    .catch(() => {});
 };

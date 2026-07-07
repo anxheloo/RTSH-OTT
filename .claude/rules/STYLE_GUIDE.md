@@ -525,6 +525,17 @@ A self-contained, portable module (`src/responsive/`, depends only on `react` + 
 
 ---
 
+## TV / D-pad focus (`@/tv`)
+
+Android TV / STB run the **same codebase** (react-native-tvos alias, `EXPO_TV=1` prebuild). All TV affordances live in the portable `src/tv/` module and are **inert off-TV** — so phone/tablet stays byte-identical. Never fork a component for TV; gate on `isTV` and no-op.
+
+- **`isTV`** (`Platform.isTV`) — the runtime leanback-build flag. Distinct from `@/responsive`'s window `deviceClass` (`tv`) and `utils/device.ts`'s `getDeviceClass()` (`TV|STB`, backend). Use `isTV` for D-pad/focus behaviour.
+- **Focus ring** — an interactive primitive tracks focus with **`useTVFocus()`** (`{ focused, focusProps }`, `focusProps` = `onFocus`/`onBlur`) and applies **`tvFocusHighlight(colors.focus, focused)`** **LAST** in its `style` array (it returns `undefined` off-TV *and* when unfocused, so it never clobbers the base style). This is already wired into the shared primitives (`ReusableBtn`, `ListRow`, `ChannelCard`, `ProgramRow`, …) — reuse them; don't hand-roll a ring.
+- **Focus zones** — wrap a region in **`TVFocusZone`** (a `TVFocusGuideView` with `autoFocus`, a bare fragment off-TV) to (a) redirect the D-pad to the first focusable child on entry and (b) optionally trap focus (modals/overlays). This is the fix for **plain `ScrollView` lists**: RN's `ScrollView` doesn't implement TV focus-search/auto-scroll, so rows below the fold are otherwise unreachable — wrap the rows in `TVFocusZone` **and** scroll the focused row into view via an `onFocus` callback (see `channel/[id].tsx` → `centerOnProgram`). A component that must scroll-on-focus exposes an optional `onFocus?: () => void` prop composed with its internal `focusProps.onFocus`.
+- **Never** call `scaled()`/`isTV` branches inside deep feature components for layout — layout scale rides `@/responsive` tokens; `@/tv` is only for focus/D-pad interaction.
+
+---
+
 ## File Naming
 
 | Kind | Convention | Example |

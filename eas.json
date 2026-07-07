@@ -35,6 +35,38 @@
       },
       "channel": "production",
       "autoIncrement": true
+    },
+    "development_tv": {
+      "extends": "development",
+      "env": {
+        "EXPO_TV": "1"
+      }
+    },
+    "preview_tv": {
+      "extends": "preview",
+      "env": {
+        "EXPO_TV": "1"
+      }
+    },
+    "production_tv": {
+      "extends": "production",
+      "env": {
+        "EXPO_TV": "1"
+      }
+    },
+    "preview_stb": {
+      "extends": "preview",
+      "env": {
+        "EXPO_TV": "1",
+        "APP_PLATFORM": "androidstb"
+      }
+    },
+    "production_stb": {
+      "extends": "production",
+      "env": {
+        "EXPO_TV": "1",
+        "APP_PLATFORM": "androidstb"
+      }
     }
   },
   "submit": {

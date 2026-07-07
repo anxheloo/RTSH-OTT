@@ -67,6 +67,7 @@ import { ChevronLeftIcon, InfoIcon, LockIcon } from '@/assets/icons';
 import { AD_REVEAL_DELAY_MS } from '@/constants/ads';
 import { DEFAULT_QUALITY } from '@/constants/player';
 import { useContentWidth } from '@/responsive';
+import { TVFocusZone } from '@/tv';
 
 const CATCHUP_DAYS_BACK = 7;
 const CATCHUP_DAYS_FORWARD = 7;
@@ -542,23 +543,30 @@ const ChannelScreen: React.FC = () => {
             ) : programs.length === 0 ? (
               <EmptyEpgState testID="epg-empty" />
             ) : (
-              programs.map((p) => {
-                const state = programState(p);
-                return (
-                  <View key={p.id} onLayout={(e) => handleRowLayout(p.id, e)}>
-                    <ProgramRow
-                      title={p.title}
-                      meta={p.description}
-                      time={formatTime(p.startTime)}
-                      state={state}
-                      isPlaying={p.id === activeProgramId}
-                      isLiveNow={selectedDay.isToday && playing?.id === p.id}
-                      onPress={() => handleSelectProgram(p, state)}
-                      testID={`epg-row-${p.id}`}
-                    />
-                  </View>
-                );
-              })
+              // On TV, TVFocusZone (a TVFocusGuideView, mobile-inert) gives the
+              // D-pad a guided destination so pressing DOWN from the day strip
+              // lands on the first row — plain RN ScrollView children below the
+              // fold are otherwise unreachable by the TV focus engine.
+              <TVFocusZone>
+                {programs.map((p) => {
+                  const state = programState(p);
+                  return (
+                    <View key={p.id} onLayout={(e) => handleRowLayout(p.id, e)}>
+                      <ProgramRow
+                        title={p.title}
+                        meta={p.description}
+                        time={formatTime(p.startTime)}
+                        state={state}
+                        isPlaying={p.id === activeProgramId}
+                        isLiveNow={selectedDay.isToday && playing?.id === p.id}
+                        onPress={() => handleSelectProgram(p, state)}
+                        onFocus={() => centerOnProgram(p.id)}
+                        testID={`epg-row-${p.id}`}
+                      />
+                    </View>
+                  );
+                })}
+              </TVFocusZone>
             )}
           </ScrollView>
         </>

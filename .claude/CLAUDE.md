@@ -11,6 +11,7 @@ RTSH TANI — OTT streaming app for Radio Televizioni Shqiptar. Live TV (19 chan
 ## Stack
 
 - Expo SDK 57 · React Native 0.86.0 · React 19.2.3 · TypeScript strict · New Architecture only
+  - **Android TV / STB** share this one codebase via the `react-native-tvos` **npm alias** (`react-native` → `npm:react-native-tvos@0.86.0-2`, a strict superset; TV activates only at prebuild with `EXPO_TV=1`, so mobile/iOS/tablet builds are byte-identical). `@react-native-tvos/config-tv` plugin (self-gates on `EXPO_TV`) + `src/tv/` focus module. The alias needs `.npmrc legacy-peer-deps=true`, which forces two peers to be declared **explicitly**: `react-native-nitro-modules` (mmkv) + `@react-native/jest-preset`. See `.claude/docs/plan.md → 22.18-TV`.
 - Expo Router v7 (Native Tabs, typed routes)
 - Single Zustand store composed from slices · MMKV persist · expo-secure-store for tokens
 - TanStack Query v5 (server state) · axios (HTTP client)
@@ -29,7 +30,8 @@ RTSH TANI — OTT streaming app for Radio Televizioni Shqiptar. Live TV (19 chan
 npm install
 npx expo start --dev-client          # dev (custom dev client required)
 npx expo run:ios                     # local dev build iOS
-npx expo run:android                 # local dev build Android
+npx expo run:android                 # local dev build Android (mobile)
+npm run android:tv:dev               # local dev build Android TV (EXPO_TV=1) — see below
 npm run lint                         # ESLint
 npm test                             # jest (unit/behavior tests)
 npm run deps:sync                    # patch-sync deps within the pinned SDK (expo install --fix)
@@ -40,7 +42,15 @@ eas build --profile development --platform ios
 eas build --profile preview --platform all     # internal distribution
 eas build --profile production --platform all  # store-ready
 eas update --channel production --message "..."  # JS-only hotfix
+
+# Android TV / STB (local dev build; EAS profiles *_tv / *_stb for preview/prod)
+npm run android:tv:dev               # EXPO_TV=1 prebuild + run on a TV emulator/device
+npm run android:stb:dev              # + APP_PLATFORM=androidstb (operator STB variant)
+eas build --platform android --profile preview_tv    # TV internal build
+eas build --platform android --profile preview_stb   # STB internal build
 ```
+
+**TV ↔ mobile native-dir toggle:** the local `android/` is gitignored CNG output; `EXPO_TV` selects mobile vs TV at prebuild and you can't hold both at once. After a TV build, run `npm run prebuild:dev` to regenerate the **mobile** native dir before a mobile local build. On the emulator, `expo run:android` auto-targets the single booted device — don't pass `--device <serial>` (expo matches AVD *names*, not adb serials). A TV emulator AVD defaults `hw.keyboard=no` (text via the leanback IME); set it `yes` in the AVD `config.ini` + cold-restart to type with the host keyboard.
 
 **Dev client mandatory** (Expo Go can't run MMKV, the expo-video/expo-audio config plugins, or other native modules).
 

@@ -95,6 +95,15 @@ export default ({ config }: ConfigContext): ExpoConfig => {
       output: 'static',
     },
     plugins: [
+      // Android TV / STB support. Self-gates: it only rewrites the native
+      // project for TV (leanback launcher intent + TV banner) when EXPO_TV=1 is
+      // set at prebuild time — on mobile/tablet prebuilds (EXPO_TV unset) it is
+      // a no-op, so phone/tablet builds are unaffected.
+      '@react-native-tvos/config-tv',
+      // TV-only: patch MainApplication to disable the RN 0.80+ clipped-element focus
+      // search that breaks D-pad navigation into ScrollViews (react-native-tvos #1087).
+      // Added ONLY for TV prebuilds (mobile native code untouched); auto-applied by EAS.
+      ...(process.env.EXPO_TV ? ['./plugins/withAndroidTVFocusFix'] : []),
       'expo-router',
       'expo-secure-store',
       'expo-localization',

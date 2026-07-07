@@ -18,6 +18,7 @@ import ReusableImage from '@/components/Media/ReusableImage';
 import SceneBackground from '@/components/Media/SceneBackground';
 import { cacheBustUrl } from '@/utils';
 import { scaled } from '@/responsive';
+import { tvFocusHighlight, useTVFocus } from '@/tv';
 
 const DEFAULT_BLURHASH =
   '|rF?hV%2WCj[ayj[a|j[az_NaeWBj@ayfRayfQfQM{M|azj[azf6fQfQfQIpWXofj[ayj[j[fQayWCoeoeaya}j[ayfQa{oLj?j[WVj[ayayj[fQoff7azayj[ayj[j[ayofayayayj[fQj[ayayj[ayfjj[j[ayjuayj[';
@@ -55,12 +56,18 @@ const ChannelCard: React.FC<ChannelCardProps> = ({
   onPress,
 }) => {
   const colors = useAppStore((s) => s.colors);
+  const { focused, focusProps } = useTVFocus();
 
   const sceneSource = cacheBustUrl(thumbnailUri, thumbnailRefreshKey);
 
   return (
     <TouchableOpacity
-      style={[styles.card, { backgroundColor: colors.videoPlaceholderBg }]}
+      {...focusProps}
+      style={[
+        styles.card,
+        { backgroundColor: colors.videoPlaceholderBg },
+        tvFocusHighlight(colors.focus, focused),
+      ]}
       onPress={onPress}
       activeOpacity={0.9}
       testID={`channel-card-${channelId}`}

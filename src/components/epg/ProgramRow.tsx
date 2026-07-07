@@ -34,6 +34,7 @@ import { useAppStore } from '@/store/useAppStore';
 import { Icon } from '@/components/Icons';
 import ReusableText from '@/components/Inputs/ReusableText';
 import { PlayIcon } from '@/assets/icons';
+import { tvFocusHighlight, useTVFocus } from '@/tv';
 
 export type ProgramRowState = 'now' | 'recorded' | 'scheduled';
 
@@ -50,6 +51,8 @@ export interface ProgramRowProps {
   /** This programme is airing live now — shows a LIVE pill in place of the time. */
   isLiveNow?: boolean;
   onPress: () => void;
+  /** Fires when the row gains D-pad focus on TV (parent uses it to scroll it into view). Inert off-TV. */
+  onFocus?: () => void;
   testID?: string;
 }
 
@@ -63,9 +66,11 @@ const ProgramRow: React.FC<ProgramRowProps> = ({
   isPlaying = false,
   isLiveNow = false,
   onPress,
+  onFocus,
   testID,
 }) => {
   const colors = useAppStore((s) => s.colors);
+  const { focused, focusProps } = useTVFocus();
 
   // Only future/scheduled rows read as pale + passive; past (recorded) is a
   // playable catch-up item, so it gets a bright title + neutral play glyph.
@@ -75,7 +80,18 @@ const ProgramRow: React.FC<ProgramRowProps> = ({
 
   return (
     <TouchableOpacity
-      style={[styles.row, { borderBottomColor: colors.border }]}
+      {...focusProps}
+      onFocus={() => {
+        // Track internally for the ring, then let the parent scroll us into
+        // view (TV only — this never fires on a phone/tablet build).
+        focusProps.onFocus();
+        onFocus?.();
+      }}
+      style={[
+        styles.row,
+        { borderBottomColor: colors.border },
+        tvFocusHighlight(colors.focus, focused),
+      ]}
       onPress={onPress}
       activeOpacity={0.7}
       disabled={state === 'scheduled'}

@@ -7,6 +7,8 @@ import React from 'react';
 import { StyleProp, StyleSheet, TouchableOpacity, ViewStyle } from 'react-native';
 
 import { BORDERRADIUS } from '@/theme/borders';
+import { useAppStore } from '@/store/useAppStore';
+import { tvFocusHighlight, useTVFocus } from '@/tv';
 
 export interface IconButtonProps {
   children: React.ReactNode;
@@ -33,8 +35,12 @@ const IconButton: React.FC<IconButtonProps> = ({
   style,
   testID,
 }) => {
+  const colors = useAppStore((s) => s.colors);
+  const { focused, focusProps } = useTVFocus();
+
   return (
     <TouchableOpacity
+      {...focusProps}
       onPress={isDisabled ? undefined : onPress}
       disabled={isDisabled}
       activeOpacity={0.8}
@@ -47,6 +53,7 @@ const IconButton: React.FC<IconButtonProps> = ({
         { width: size, height: size, borderRadius: BORDERRADIUS.full, backgroundColor },
         isDisabled && styles.disabled,
         style,
+        tvFocusHighlight(colors.focus, focused),
       ]}
     >
       {children}

@@ -23,6 +23,7 @@ import type { ThemeColors } from '@/theme/colors';
 import { useAppStore } from '@/store/useAppStore';
 import { useHaptic } from '@/hooks/useHaptic';
 import { scaled } from '@/responsive';
+import { tvFocusHighlight, useTVFocus } from '@/tv';
 
 import ReusableText, { FontWeight } from '../Inputs/ReusableText';
 
@@ -99,6 +100,7 @@ const ReusableBtn: React.FC<ReusableBtnProps> = ({
 }) => {
   const colors = useAppStore((s) => s.colors);
   const haptics = useHaptic();
+  const { focused, focusProps } = useTVFocus();
   const variantSpec = VARIANTS[variant];
   const sizeSpec = SIZES[size];
 
@@ -120,6 +122,7 @@ const ReusableBtn: React.FC<ReusableBtnProps> = ({
   return (
     <TouchableOpacity
       {...rest}
+      {...focusProps}
       activeOpacity={0.8}
       disabled={isPressDisabled}
       onPress={handlePress}
@@ -141,6 +144,7 @@ const ReusableBtn: React.FC<ReusableBtnProps> = ({
           width: isFullWidth ? '100%' : undefined,
         },
         style,
+        tvFocusHighlight(colors.focus, focused),
       ]}
     >
       {/* Content stays mounted (invisible) during loading so the button keeps

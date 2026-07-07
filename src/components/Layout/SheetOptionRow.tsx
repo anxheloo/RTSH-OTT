@@ -14,6 +14,7 @@ import { useAppStore } from '@/store/useAppStore';
 import { Icon } from '@/components/Icons';
 import ReusableText from '@/components/Inputs/ReusableText';
 import { ChevronRightIcon } from '@/assets/icons';
+import { tvFocusHighlight, useTVFocus } from '@/tv';
 
 export interface SheetOptionRowProps {
   label: string;
@@ -36,10 +37,12 @@ const SheetOptionRow: React.FC<SheetOptionRowProps> = ({
   testID,
 }) => {
   const colors = useAppStore((s) => s.colors);
+  const { focused, focusProps } = useTVFocus();
 
   return (
     <TouchableOpacity
-      style={styles.row}
+      {...focusProps}
+      style={[styles.row, tvFocusHighlight(colors.focus, focused)]}
       onPress={onPress}
       activeOpacity={0.7}
       accessibilityRole="button"

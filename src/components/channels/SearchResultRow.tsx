@@ -17,6 +17,7 @@ import { Icon } from '@/components/Icons';
 import ReusableText from '@/components/Inputs/ReusableText';
 import SceneBackground from '@/components/Media/SceneBackground';
 import { ChevronRightIcon } from '@/assets/icons';
+import { tvFocusHighlight, useTVFocus } from '@/tv';
 
 export interface SearchResultRowProps {
   name: string;
@@ -41,10 +42,16 @@ const SearchResultRow: React.FC<SearchResultRowProps> = ({
   testID,
 }) => {
   const colors = useAppStore((s) => s.colors);
+  const { focused, focusProps } = useTVFocus();
 
   return (
     <TouchableOpacity
-      style={[styles.row, { borderBottomColor: colors.border }]}
+      {...focusProps}
+      style={[
+        styles.row,
+        { borderBottomColor: colors.border },
+        tvFocusHighlight(colors.focus, focused),
+      ]}
       onPress={onPress}
       activeOpacity={0.7}
       testID={testID}

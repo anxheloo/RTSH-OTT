@@ -20,17 +20,39 @@ import { setAudioModeAsync, useAudioPlayer } from 'expo-audio';
 
 import { useAppStore } from '@/store/useAppStore';
 import { getStreamHeaders } from '@/utils';
+import { publish, STOMP_DEST } from '@/realtime';
 
 const RadioAudioHost: React.FC = () => {
+  const radioChannelId = useAppStore((s) => s.radioChannelId);
   const radioStreamUrl = useAppStore((s) => s.radioStreamUrl);
   const radioIsPlaying = useAppStore((s) => s.radioIsPlaying);
   const radioTitle = useAppStore((s) => s.radioTitle);
   const radioArtworkUrl = useAppStore((s) => s.radioArtworkUrl);
+  const realtimeConnected = useAppStore((s) => s.realtimeConnected);
   const player = useAudioPlayer(null);
 
-  // Analytics is DISABLED pending backend ingestion. When re-enabled, radio
-  // watch tracking mounts HERE (keyed on radioChannelId — the engine's lifetime,
-  // not a screen's): ARCHITECTURE.md → Analytics & telemetry.
+  // Station id as the numeric channel id the watch contract expects (radio and
+  // TV share the /channels id namespace). Keyed on the engine's lifetime here —
+  // not a screen — so tracking survives navigation, unlike channel/[id].
+  const stationId = radioChannelId != null ? Number(radioChannelId) : null;
+
+  // Watch segment (socket analytics) — mirrors channel/[id] via useChannelRealtime.
+  // Radio is always live with no programme. Open on select + every station switch
+  // (backend closes the previous segment); re-fire on reconnect (publish is a
+  // no-op until connected, and RN drops the socket on background).
+  useEffect(() => {
+    if (stationId == null) return;
+    publish(STOMP_DEST.watch, { channelId: stationId, programId: null, kind: 'LIVE' });
+  }, [stationId, realtimeConnected]);
+
+  // Watch end — on station change / clear (mini-player close). Disconnect/kill
+  // closes it server-side.
+  useEffect(() => {
+    if (stationId == null) return;
+    return () => {
+      publish(STOMP_DEST.watchEnd, { channelId: stationId });
+    };
+  }, [stationId]);
 
   // Background-capable audio session, set once. `shouldPlayInBackground` keeps
   // the session alive when the screen locks; `doNotMix` is required for the OS

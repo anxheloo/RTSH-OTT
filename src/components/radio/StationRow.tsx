@@ -18,6 +18,7 @@ import ReusableText from '@/components/Inputs/ReusableText';
 import Equalizer from '@/components/radio/Equalizer';
 import type { Channel } from '@/types/domain';
 import { ChevronRightIcon, RadioIcon } from '@/assets/icons';
+import { tvFocusHighlight, useTVFocus } from '@/tv';
 
 export interface StationRowProps {
   station: Channel;
@@ -30,10 +31,16 @@ const TILE = 50;
 
 const StationRow: React.FC<StationRowProps> = ({ station, isActive = false, onPress }) => {
   const colors = useAppStore((s) => s.colors);
+  const { focused, focusProps } = useTVFocus();
 
   return (
     <TouchableOpacity
-      style={[styles.row, { borderBottomColor: colors.border }]}
+      {...focusProps}
+      style={[
+        styles.row,
+        { borderBottomColor: colors.border },
+        tvFocusHighlight(colors.focus, focused),
+      ]}
       onPress={onPress}
       activeOpacity={0.8}
       accessibilityRole="button"

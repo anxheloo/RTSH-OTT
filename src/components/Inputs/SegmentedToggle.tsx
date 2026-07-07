@@ -4,12 +4,14 @@
  * over the option value. Active segment gets the raised surface + white text;
  * inactive is transparent + muted. Theme-tokened, controlled.
  */
+import { useState } from 'react';
 import { StyleSheet, TouchableOpacity, View } from 'react-native';
 
 import { BORDERRADIUS } from '@/theme/borders';
 import { SPACING } from '@/theme/spacing';
 import { useAppStore } from '@/store/useAppStore';
 import { useHaptic } from '@/hooks/useHaptic';
+import { tvFocusHighlight } from '@/tv';
 
 import ReusableText from './ReusableText';
 
@@ -33,6 +35,9 @@ function SegmentedToggle<T extends string>({
 }: SegmentedToggleProps<T>) {
   const colors = useAppStore((s) => s.colors);
   const haptics = useHaptic();
+  // TV D-pad focus: one segment focused at a time (tracked by value here since a
+  // hook can't run per mapped segment). No-op off-TV (onFocus/onBlur never fire).
+  const [focusedValue, setFocusedValue] = useState<T | null>(null);
 
   const handleSelect = (next: T) => {
     if (next === value) return;
@@ -51,8 +56,14 @@ function SegmentedToggle<T extends string>({
           <TouchableOpacity
             key={opt.value}
             onPress={() => handleSelect(opt.value)}
+            onFocus={() => setFocusedValue(opt.value)}
+            onBlur={() => setFocusedValue((v) => (v === opt.value ? null : v))}
             activeOpacity={0.8}
-            style={[styles.segment, isActive && { backgroundColor: colors.surfaceHigh }]}
+            style={[
+              styles.segment,
+              isActive && { backgroundColor: colors.surfaceHigh },
+              tvFocusHighlight(colors.focus, focusedValue === opt.value),
+            ]}
             accessibilityRole="button"
             accessibilityState={{ selected: isActive }}
             testID={testID ? `${testID}-${opt.value}` : undefined}

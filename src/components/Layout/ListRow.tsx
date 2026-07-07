@@ -13,6 +13,7 @@ import { SPACING } from '@/theme/spacing';
 import { useAppStore } from '@/store/useAppStore';
 import { Icon } from '@/components/Icons';
 import { ChevronRightIcon } from '@/assets/icons';
+import { tvFocusHighlight, useTVFocus } from '@/tv';
 
 import ReusableText from '../Inputs/ReusableText';
 
@@ -44,12 +45,14 @@ const ListRow: React.FC<ListRowProps> = ({
   testID,
 }) => {
   const colors = useAppStore((s) => s.colors);
+  const { focused, focusProps } = useTVFocus();
 
   const trailing =
     right ?? (onPress ? <Icon as={ChevronRightIcon} size={18} color={colors.mutedDim} /> : null);
 
   return (
     <TouchableOpacity
+      {...focusProps}
       activeOpacity={onPress ? 0.7 : 1}
       onPress={onPress}
       disabled={!onPress}
@@ -59,6 +62,7 @@ const ListRow: React.FC<ListRowProps> = ({
         styles.row,
         showDivider && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border },
         style,
+        tvFocusHighlight(colors.focus, focused),
       ]}
     >
       {leading ? (

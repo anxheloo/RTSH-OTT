@@ -14,6 +14,7 @@ import { SPACING } from '@/theme/spacing';
 import { useAppStore } from '@/store/useAppStore';
 import { Icon } from '@/components/Icons';
 import { SearchIcon } from '@/assets/icons';
+import { tvFocusHighlight, useTVFocus } from '@/tv';
 
 import ReusableText from './ReusableText';
 
@@ -41,15 +42,21 @@ const SearchBar: React.FC<SearchBarProps> = ({
   testID,
 }) => {
   const colors = useAppStore((s) => s.colors);
+  const { focused, focusProps } = useTVFocus();
   const isButton = !onChangeText;
 
-  const frame = [styles.bar, { backgroundColor: colors.surface, borderColor: colors.border }];
+  const frame = [
+    styles.bar,
+    { backgroundColor: colors.surface, borderColor: colors.border },
+    tvFocusHighlight(colors.focus, focused),
+  ];
 
   const glyph = <Icon as={SearchIcon} size={19} color={colors.textMuted} />;
 
   if (isButton) {
     return (
       <TouchableOpacity
+        {...focusProps}
         style={frame}
         onPress={onPress}
         activeOpacity={0.8}
@@ -69,6 +76,7 @@ const SearchBar: React.FC<SearchBarProps> = ({
     <View style={frame} testID={testID}>
       {glyph}
       <TextInput
+        {...focusProps}
         value={value}
         onChangeText={onChangeText}
         placeholder={placeholder}

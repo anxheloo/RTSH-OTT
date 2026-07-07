@@ -8,7 +8,7 @@
  * active chip centered. `getItemLayout` with a fixed `ITEM_WIDTH` is required for
  * `scrollToIndex` to work reliably — items must not exceed that width.
  */
-import React, { useCallback, useEffect, useRef } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { FlatList, StyleSheet, TouchableOpacity, View } from 'react-native';
 
 import { FONTSIZE } from '@/theme/fonts';
@@ -16,6 +16,7 @@ import { SPACING } from '@/theme/spacing';
 import { useAppStore } from '@/store/useAppStore';
 import ReusableText from '@/components/Inputs/ReusableText';
 import type { CatchupDay } from '@/types/domain';
+import { tvFocusHighlight } from '@/tv';
 
 const ITEM_WIDTH = 84;
 
@@ -29,6 +30,8 @@ export interface DayStripProps {
 const DayStrip: React.FC<DayStripProps> = ({ days, selectedKey, onSelect, testID }) => {
   const colors = useAppStore((s) => s.colors);
   const listRef = useRef<FlatList<CatchupDay>>(null);
+  // TV D-pad focus: one chip focused at a time (parent-tracked; no-op off-TV).
+  const [focusedKey, setFocusedKey] = useState<string | null>(null);
 
   const selectedIdx = days.findIndex((d) => d.key === selectedKey);
   const hasMounted = useRef(false);
@@ -58,11 +61,14 @@ const DayStrip: React.FC<DayStripProps> = ({ days, selectedKey, onSelect, testID
       return (
         <TouchableOpacity
           onPress={() => onSelect(day.key)}
+          onFocus={() => setFocusedKey(day.key)}
+          onBlur={() => setFocusedKey((k) => (k === day.key ? null : k))}
           activeOpacity={0.7}
           style={[
             styles.day,
             { borderRightColor: colors.border },
             isActive && { backgroundColor: colors.surface },
+            tvFocusHighlight(colors.focus, focusedKey === day.key),
           ]}
           accessibilityRole="button"
           accessibilityState={{ selected: isActive }}
@@ -88,7 +94,7 @@ const DayStrip: React.FC<DayStripProps> = ({ days, selectedKey, onSelect, testID
       );
     },
      
-    [selectedKey, colors, onSelect, testID],
+    [selectedKey, focusedKey, colors, onSelect, testID],
   );
 
   return (

@@ -14,6 +14,7 @@ import { useAppStore } from '@/store/useAppStore';
 import ReusableText from '@/components/Inputs/ReusableText';
 import SceneBackground from '@/components/Media/SceneBackground';
 import { cacheBustUrl } from '@/utils';
+import { tvFocusHighlight, useTVFocus } from '@/tv';
 
 export interface GuideRowProps {
   /** Used for the row testID (e.g. "RTSH"); no longer rendered on the tile. */
@@ -51,6 +52,7 @@ const GuideRow: React.FC<GuideRowProps> = ({
   onPress,
 }) => {
   const colors = useAppStore((s) => s.colors);
+  const { focused, focusProps } = useTVFocus();
   const pct =
     progress === undefined
       ? undefined
@@ -58,7 +60,12 @@ const GuideRow: React.FC<GuideRowProps> = ({
 
   return (
     <TouchableOpacity
-      style={[styles.row, { borderBottomColor: colors.border }]}
+      {...focusProps}
+      style={[
+        styles.row,
+        { borderBottomColor: colors.border },
+        tvFocusHighlight(colors.focus, focused),
+      ]}
       onPress={onPress}
       activeOpacity={0.7}
       accessibilityRole="button"
