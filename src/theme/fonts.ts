@@ -43,12 +43,3 @@ export const FONTSIZE = {
   title: scaled(26),
   display: scaled(32), // large hero titles
 } as const;
-
-export const FONTWEIGHT = {
-  300: '300',
-  400: '400',
-  500: '500',
-  600: '600',
-  700: '700',
-  900: '900',
-} as const;

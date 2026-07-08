@@ -52,7 +52,6 @@ export function registerRefreshHandler(fn: (() => Promise<string | null>) | null
  * EAS, and OTA builds (no dependency on a build-time `.env`). Route constants
  * stay bare; the `/api/v1` version prefix lives here.
  */
-// export const API_BASE_URL = 'http://46.183.121.56:8089/api/v1';
 export const API_BASE_URL = 'https://api.mcn-mw.com/api/v1/';
 
 export const apiClient = axios.create({

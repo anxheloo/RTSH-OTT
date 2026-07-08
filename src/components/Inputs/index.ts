@@ -5,7 +5,6 @@
 export { default as Checkbox } from './Checkbox';
 export { default as CountryPickerInput } from './CountryPickerInput';
 export { default as DatePickerInput } from './DatePickerInput';
-export { default as FilterChipRow } from './FilterChipRow';
 export { default as ReusableInput } from './ReusableInput';
 export { default as ReusableText } from './ReusableText';
 export { default as SearchBar } from './SearchBar';

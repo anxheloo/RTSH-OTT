@@ -1,7 +1,5 @@
 import type { QualityId } from '@/types/domain';
 
-export const SEEK_STEP_S = 10;
-
 /** Default ABR mode — the native player adapts bitrate to the connection. */
 export const DEFAULT_QUALITY: QualityId = 'auto';
 

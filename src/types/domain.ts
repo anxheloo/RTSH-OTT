@@ -185,14 +185,6 @@ export interface CatchupDay {
  */
 export type QualityId = 'auto' | (string & {});
 
-export interface QualityOption {
-  id: QualityId;
-  /** Display label (design `Auto` / `1080p` …). */
-  label: string;
-  /** Secondary description (design `Përshtatet me lidhjen (ABR)`). */
-  description?: string;
-}
-
 /**
  * Playback decision returned by `GET /channels/{id}` and
  * `GET /channels/{channelId}/epg/{programId}`.

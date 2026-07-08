@@ -72,13 +72,6 @@ export const registerSchema = z
   });
 export type RegisterFormData = z.infer<typeof registerSchema>;
 
-/* --------------------- OTP · step 2 (register + reset) --------------------- */
-
-export const otpSchema = z.object({
-  code: z.string().length(6, { error: 'auth.errors.otp_length' }),
-});
-export type OtpFormData = z.infer<typeof otpSchema>;
-
 /* ----------------------- Reset · step 3 (new password) --------------------- */
 
 export const resetPasswordSchema = z

@@ -16,12 +16,3 @@ export const zustandStorage: StateStorage = {
   getItem: (name) => mmkv.getString(name) ?? null,
   removeItem: (name) => mmkv.remove(name),
 };
-
-/**
- * Remove specific MMKV keys. Prefer this over `mmkv.clearAll()` so unrelated
- * caches (resume positions, query-cache shards) aren't destroyed by a logout
- * or partial reset.
- */
-export function clearAppStorage(keys: readonly string[]): void {
-  keys.forEach((k) => mmkv.remove(k));
-}
