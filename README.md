@@ -1,10 +1,10 @@
 # RTSH TANI
 
-OTT streaming app for Radio Televizioni Shqiptar. Live TV (19 channels) + Radio (13 channels) + EPG + Catch-up. iOS + Android.
+OTT streaming app for Radio Televizioni Shqiptar. Live TV (19 channels) + Radio (13 channels) + EPG + Catch-up. iOS + Android, plus Android TV / STB (shared codebase, `EXPO_TV=1` at prebuild — see `.claude/CLAUDE.md` for the TV/STB build commands).
 
 ## Stack
 
-Expo SDK 56 · React Native 0.85.3 · React 19.2 · TypeScript strict · Expo Router · Zustand · TanStack Query · MMKV · expo-video · expo-audio
+Expo SDK 57 · React Native 0.86.0 · React 19.2.3 · TypeScript strict · Expo Router · Zustand · TanStack Query · MMKV · expo-video · expo-audio · @stomp/stompjs (realtime)
 
 ## Prerequisites
 
@@ -44,13 +44,22 @@ MMKV is intentionally **unencrypted** (low-sensitivity data; real secrets stay i
 
 ```bash
 npm run lint          # ESLint
+npm test              # jest (unit/behavior tests)
 npm run format        # Prettier write
 npm run format:check  # Prettier check (CI)
+npm run deps:sync      # patch-sync deps within the pinned SDK (expo install --fix)
+npm run expoUpgrade    # full SDK upgrade chain (expo@latest → --fix → clean reinstall → doctor)
 
-# EAS (deferred until feature-complete)
+# Android TV / STB (local dev build; see .claude/CLAUDE.md for the full command set)
+npm run android:tv:dev    # EXPO_TV=1 prebuild + run on a TV emulator/device
+npm run android:stb:dev   # + operator STB variant
+
+# EAS
 eas build --profile simulator-ios --platform ios
-eas build --profile preview --platform all
-eas build --profile production --platform all
+eas build --profile preview --platform all       # internal distribution
+eas build --profile production --platform all    # store-ready
+eas build --platform android --profile preview_tv     # Android TV internal build
+eas build --platform android --profile preview_stb    # STB internal build
 eas update --channel production --message "..."
 ```
 

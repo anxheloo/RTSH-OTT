@@ -28,6 +28,6 @@ jobs:
 
       - name: npm audit (runtime deps, high+)
         # Build-time chain (@expo/config-plugins → xcode → uuid) is a known
-        # accepted moderate — only high+ fails this job. See
-        # .claude/docs/AUDIT-2026-07-03.md → A4.
+        # accepted moderate — only high+ fails this job. Re-check at each SDK
+        # upgrade (see STANDARDS.md §11 dependency policy).
         run: npm audit --omit=dev --audit-level=high

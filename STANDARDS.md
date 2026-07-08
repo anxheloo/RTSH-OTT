@@ -278,15 +278,20 @@ These are the deltas between "very good" and "reference-grade." Named honestly s
 they're not mistaken for done:
 
 - ~~**Tests — the biggest gap.**~~ **Closed 2026-07-03** — jest-expo + RNTL wired,
-  64 unit/behavior tests over the pure core + auth refresh (see §11). Component
-  (RNTL) coverage for AdOverlay/ParentalPinModal still to grow.
+  now 77 unit/behavior tests over the pure core + auth refresh + component
+  behavior (see §11).
 - **Crash reporting (Sentry).** Wire it, or don't list it in the stack.
-  *(Deliberately deferred 2026-07-03 — tracked in `.claude/docs/AUDIT-2026-07-03.md` 1.4.)*
-- **Barrels** — consider trimming to genuine public boundaries rather than one
-  per folder, to avoid circular-import and cold-start costs. Measure before
-  ripping out working ones.
+  *(Deliberately deferred by project owner — a real product decision, not an
+  oversight; revisit explicitly rather than folding it into other work.)*
+- ~~**Barrels** — consider trimming to genuine public boundaries...~~
+  **Confirmed 2026-07-08:** a dead-code sweep found several barrels with zero
+  real importers (call sites used deep imports instead). Verdict: **keep them
+  anyway** if the project's own convention documents "every component/hook
+  folder gets a barrel" — that's an intentional public-API surface, not dead
+  code, even where adoption lags. Only trim a barrel if the project has no such
+  documented convention.
 
 ---
 
-_Derived from RTSH-OTT (Expo SDK 56 · RN 0.85 · React 19 · Zustand · TanStack
+_Derived from RTSH-OTT (Expo SDK 57 · RN 0.86 · React 19.2 · Zustand · TanStack
 Query v5 · MMKV · Expo Router). Adapt versions and specifics per project._

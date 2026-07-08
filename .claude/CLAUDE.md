@@ -72,109 +72,68 @@ It also reads `APP_PLATFORM` (optional; `androidstb`) → `extra.devicePlatform`
 
 ## Architecture
 
+Where things live — file-level structure only. Mechanism, rationale, and known
+gaps for every cross-cutting flow are in `rules/ARCHITECTURE.md`; read the
+matching section there before changing behavior. Coding conventions are in
+`rules/STYLE_GUIDE.md`.
+
 ### Navigation (`src/app/`)
 
 Expo Router file-based. Root `_layout.tsx` uses `Stack.Protected` guards:
 - No token → `(auth)/` (login → register → forgot)
 - Token → `(app)/(tabs)/` (live, epg, catchup, radio, profile)
-- Player route (`channel/[id]`) is a full-screen modal at root. (The old `player/[id]` and `program/[id]` routes were removed — live + catch-up both play inline in the channel screen.)
+- Player route (`channel/[id]`) is a full-screen modal at root.
 
 ### State (`src/store/`)
 
-Single `useAppStore` composed from slices (see `src/store/`):
-- `UserSlice` — auth state, user, access token (access in store, refresh in keychain)
-- `SettingsSlice` — locale, theme mode, haptics, autoplay, data-saver, cellular flag, `analyticsEnabled` (telemetry opt-out), `rememberMe` (last "remember me" choice — pre-fills the login/register checkbox)
-- `ThemeSlice` — mode + colors (light/dark objects, swapped on toggle)
-- `ModalSlice` — single active modal (`currentModal` + `modalData`, RTSH/SOLITAR style; apiError, noInternet, notify, confirmation, forceUpdate). One modal at a time; `updateModalSlice({ currentModal: null })` to close (`forceUpdate` is blocking and never closes).
-- `NetworkSlice` — runtime connectivity (`isOnline`, `connectionType`), written by `useNetworkMonitor`; not persisted
-- `PlayerSlice` — current playback state (channelId, position, isPlaying, isFullscreen)
-- `ParentalSlice` — **device-level** parental config (`parentalEnabled` + `parentalPin`, client-only, MMKV-persisted) + failed-attempt/lockout UX
-- `RealtimeSlice` — runtime `realtimeConnected` (written by the STOMP client; not persisted)
-- `AdsSlice` — runtime `activeAdId` (single-ad-slot exclusivity across `APP_OPEN`/`CHANNEL_CHANGE`/`MID_ROLL`, mirrors `ModalSlice`'s shape; not persisted)
+Single `useAppStore` composed from slices: `UserSlice`, `SettingsSlice`, `ThemeSlice`, `ModalSlice`, `NetworkSlice`, `PlayerSlice`, `ParentalSlice`, `RealtimeSlice`, `AdsSlice`. Persist via MMKV (`zustandStorage`); `partialize` controls what persists. Planned, not yet implemented: `ChannelsSlice` (favorites/recently-watched), `EpgSlice` (reminders).
 
-Planned (not yet implemented): `ChannelsSlice` (favorites, recently watched) and `EpgSlice` (reminders) — favorites/recently-watched/reminders are not in the store today.
-
-Persist via MMKV (`zustandStorage`). `partialize` controls what persists. `onRehydrateStorage` applies side effects (re-apply theme).
-
-### Storage layers
-
-| Data | Where |
-|------|-------|
-| Refresh token | **Token vault** (`lib/tokenVault.ts`) — keychain (`expo-secure-store`) when **"remember me"** is on, else in-memory only (fresh start next launch). Single owner of all refresh-token reads/writes; see `rules/ARCHITECTURE.md → Auth flow → Remember me` |
-| User, settings, theme, favorites, reminders, **parental config (`parentalEnabled` + `parentalPin`)** | MMKV (Zustand persist). Parental PIN is **device-level, client-only** (never sent to/read from backend, not on the user object); it's content gating, not a credential — see `rules/ARCHITECTURE.md → Parental control` |
-| Server data (channels, EPG, catch-up, programs) | TanStack Query cache (selective MMKV persist for slow-changing) |
-| Resume positions (per-program) | MMKV (separate key) |
+Storage-layer breakdown (keychain vs MMKV vs query cache, and why): `rules/ARCHITECTURE.md → Persistence boundaries`.
 
 ### Networking (`src/api/`)
 
-- `client.ts` — single `apiClient` (axios) + `queryClient`. Request interceptor injects token + `Accept-Language` from store (the **only** headers — device headers were removed 2026-06-23). Response interceptor refreshes on 401 (single-flight lives inside `refreshAccessToken`) — it never logs out itself; only a confirmed 401/403 inside `refreshAccessToken` wipes the session. On a cold boot the access token is null, so the first authed request 401s and is refreshed-and-retried here (no proactive boot refresh). 426 → blocking `forceUpdate` modal. Global `QueryCache`/`MutationCache` `onError` opens `apiError` for unexpected failures; `meta: INLINE_CLIENT_ERROR` mutes it for 4xx (forms render inline), `meta: SILENT_ERROR` mutes it at any status (fire-and-forget calls). **Device info is NOT in headers** — it's sent via `useDeviceIdentity` → `useRegisterDeviceMutation` (`PUT /users/me/device`, fire-and-forget once on authenticated entry — mounted in `(app)/_layout`) plus a `deviceClass=MOBILE|TV|STB` **query param** on the playback requests (`GET /channels/{id}` + `/epg/{programId}`) so the backend serves a platform-specific player URL (see `rules/ARCHITECTURE.md` → Device identity; contract in `docs/API.md`).
+- `client.ts` — single `apiClient` (axios) + `queryClient`. Auth/refresh/device-identity mechanism: `rules/ARCHITECTURE.md → Auth flow` + `→ Device identity`.
 - `endpoints.ts` — string constants for routes (`AUTH_ROUTES`, `CHANNELS_ROUTES`, etc).
-- `services/*.ts` — domain-grouped axios calls (`auth.ts`, `channels.ts`, `epg.ts`, `guide.ts`, `users.ts`, `config.ts`, `devices.ts`). `streams.ts` removed — stream URLs are now embedded in the `PlaybackDecisionDTO` returned by `GET /channels/{id}` (no separate streams service). `guide.ts` → `GET /guide?type=TV|RADIO` ("now", one airing programme per channel/station). `catchup.ts` removed — there is no `/catchup` endpoint; catch-up is the per-channel EPG-by-date list + `GET /channels/{id}/epg/{programId}` for recorded playback.
-- `queries/*.ts` — TanStack Query hooks wrapping services.
-- `mutations/*.ts` — TanStack Mutation hooks.
-- `mocks/` — **custom axios-adapter mock** (not MSW) + fixtures, active when `EXPO_PUBLIC_API_MODE=mock`. `handlers.ts` is an array of `{ method, test(url), delay?, respond(config) }`; `server.ts` swaps it into the axios adapter.
+- `services/*.ts` — domain-grouped axios calls (`auth.ts`, `channels.ts`, `epg.ts`, `guide.ts`, `users.ts`, `config.ts`, `devices.ts`).
+- `queries/*.ts` / `mutations/*.ts` — TanStack Query/Mutation hooks wrapping services.
+- `mocks/` — custom axios-adapter mock (not MSW) + fixtures, active when `EXPO_PUBLIC_API_MODE=mock`.
 
 ### Real-time (`src/realtime/`)
 
-STOMP-over-WebSocket (`@stomp/stompjs`) — Spring-native (backend already runs STOMP for admins). Backend contract: `docs/REALTIME_SOCKET.md`. Five concerns (playback `/refresh` stays separate): **presence** (the held connection itself, via `useRealtimeConnection` in `(app)/_layout` — no polling), **in-channel presence** (`/topic/channel.{id}` subscriber count), **per-program watch time** (`/app/watch` on enter/switch + `/app/watch.end` on leave; backend timestamps + closes segments, disconnect = kill-safe), **mid-roll ads** (Option A — client-scheduled), and **geo** (Option B — backend-fired `GEO_BLOCK`/`GEO_LIFT` on `/user/queue/geo`). Files: `events.ts` (`WS_URL` + `STOMP_DEST` + payload types), `midroll.ts` (**pure** mid-roll scheduling core — `selectDueMidroll` / `nextMidrollBoundaryMs` / `midrollFireMs` / `midrollLapsed`, no React, unit-testable), `client.ts` (singleton; JWT on CONNECT; writes `RealtimeSlice`), and `hooks/useChannelRealtime.ts` (the thin React shell: subscribe + watch + reactive scheduler state + geo notice; delegates timing decisions to `midroll.ts`). Ad data is single-sourced in the `['ads', channelId]` TanStack cache (socket mutates via `setQueryData`); the due ad is derived + fired by one boundary timer (same discipline as `useNowProgram`). **Pending Henri's backend** — STOMP server + merged-`/ads` endpoint + absolute mid-roll `startTime` (see `docs/REALTIME_SOCKET.md §10`).
+STOMP-over-WebSocket (`@stomp/stompjs`). `events.ts`, `midroll.ts` (pure scheduling core, no React), `client.ts` (singleton), `hooks/useChannelRealtime.ts`. Full mechanism (presence, watch-time, mid-roll, geo): `rules/ARCHITECTURE.md → Real-time`. Backend contract: `docs/REALTIME_SOCKET.md`.
 
 ### Player
 
-- `components/Media/VideoPlayer.tsx` — base `expo-video` wrapper, our controls. The source's `contentType` is **inferred from the URL** via `inferContentType()` (`utils/resolveStreamSource.ts`) at both source-build sites: recognized streaming extensions map to their protocol (`.m3u8`→`hls`, `.mpd`→`dash`, `.ism(l)`→`smoothStreaming`), other media extensions (`.mp4`…) → `auto` (progressive, keeps VIDEO ads working), and **no extension → `hls`** (our backend serves HLS from an extensionless `/playback/manifest?u=…` endpoint). Without this expo-video defaults to `auto` → progressive container sniffing and the manifest fails to load ("none of the extractors could read the stream / NoDeclaredBrand").
-- `components/Media/LivePlayer.tsx` — HLS player for **both** live and recorded (catch-up). The channel screen swaps `streamUrl` to the recorded URL and flips `isLive={false}`; that drops the LIVE badge and makes the seek bar draggable from 0 (the recorded VOD reports a finite duration, so `PlayerControls` flips `isSeekable` automatically — no separate player). Live stays `isLive` → bar pinned to the edge, non-seekable. AES-128 + DVR (extends VideoPlayer). Takes a `paused` prop (ad-driven, independent of the manual play/pause control) that `VideoPlayer` reconciles onto the player without a remount — used to pause the stream while a **mid-roll** overlay is up; on resume of a live stream `VideoPlayer` best-effort re-syncs to the live edge (`seekBy(currentOffsetFromLive)`, skipped when the manifest carries no `EXT-X-PROGRAM-DATE-TIME` metadata → resumes in place). While `paused`, PiP **entry** is gated off (`allowsPictureInPicture`/`startsPictureInPictureAutomatically` → `!paused`) so the content surface can't keep playing in a floating window behind the JS-overlay ad.
-- `components/Media/RadioAudioHost.tsx` — the single `expo-audio` engine, mounted above the router in `(app)/_layout`. Rationale + flow: `rules/ARCHITECTURE.md` → Radio audio.
-- `components/Media/RadioPlayer.tsx` — presentational now-playing core (art + `Equalizer` + transport); no playback logic. `RadioMiniPlayer` (Layout/) is the docked strip.
-- `components/Media/PlayerControls.tsx` — overlay (auto-hide, fullscreen, PIP, audio tracks). Seek bar is a **draggable scrubber** (tap-to-jump + drag) built on `react-native-gesture-handler` `Gesture.Pan()` + Reanimated shared values (UI-thread, 60fps); active only when seekable (`!isLive && duration > 0` → recorded/catch-up). **Live is deliberately non-seekable** — pinned full at the live edge — even though the DVR window now reports a finite duration (`isLive` is excluded from `isSeekable`, not the duration). Requires `GestureHandlerRootView` at the app root (`app/_layout.tsx`).
+- `components/Media/VideoPlayer.tsx` — base `expo-video` wrapper. The source's `contentType` is **inferred from the URL** via `inferContentType()` (`utils/resolveStreamSource.ts`): recognized streaming extensions map to their protocol (`.m3u8`→`hls`, `.mpd`→`dash`, `.ism(l)`→`smoothStreaming`), other media extensions → `auto`, and **no extension → `hls`** (our backend serves HLS from an extensionless `/playback/manifest?u=…` endpoint). Without this expo-video defaults to `auto` and the manifest fails to load.
+- `components/Media/LivePlayer.tsx` — HLS player for **both** live and recorded (catch-up); AES-128 + DVR. Takes an ad-driven `paused` prop that pauses the stream for a mid-roll without a remount; a live stream best-effort re-syncs to the edge on resume.
+- `components/Media/RadioAudioHost.tsx` — the single `expo-audio` engine, mounted above the router in `(app)/_layout`. Rationale + flow: `rules/ARCHITECTURE.md → Radio audio`.
+- `components/Media/RadioPlayer.tsx` — presentational now-playing core; no playback logic. `RadioMiniPlayer` (Layout/) is the docked strip.
+- `components/Media/PlayerControls.tsx` — overlay (auto-hide, fullscreen, PIP, audio tracks). Draggable scrubber, active only when seekable (recorded/catch-up — **live is deliberately non-seekable**). Requires `GestureHandlerRootView` at the app root.
 
-- **Stream `User-Agent` (2026-06-27):** a custom per-platform UA (`RTSHTani-<Platform>`, e.g. `RTSHTani-AndroidTV`) is stamped on the media requests via `getStreamHeaders()` (`utils/device.ts`) → expo-video `streamHeaders` (live + recorded) + expo-audio `player.replace({ headers })` (radio). Lets the origin recognize app traffic / reject browser-pasted manifest URLs. Spoofable speed-bump, not a lock (real lock = signed/expiring/IP-bound URLs). Full rationale + iOS caveat: `rules/ARCHITECTURE.md → Device identity`.
-
-**Open risk:** `expo-video` `VideoSource.headers` may not forward to AES-128 key requests (and on iOS the UA override rides a private asset key). Validate on a real stream early; fallback = `react-native-video` or a custom `X-Client-Platform` header.
+Stream `User-Agent` stamping + the AES-128 header-forwarding open risk: `rules/ARCHITECTURE.md → Device identity`.
 
 ### Theme
 
-`ThemeSlice` holds `mode` + `colors` (full object). Components read with `useAppStore((s) => s.colors)`. Toggle swaps `colors` reference. No separate ThemeProvider, no Unistyles.
-
-Tokens live in `src/theme/`:
-- `colors.ts` — `lightTheme` + `darkTheme` (`ThemeColors` interface)
-- `fonts.ts` — `Fonts`, `FONTSIZE`, `FONTWEIGHT`
-- `borders.ts` — `BORDERRADIUS`
-- `spacing.ts` — `SPACING` scale (4px base)
-
-`FONTSIZE` / `SPACING` (and the `ReusableText` / `ReusableBtn` size tables) pass through `scaled()` from `@/responsive`, which applies a per-device-class step (phone 1 / tablet 1.15 / TV 1.3) — phone is unchanged. See **Responsive** below.
+`ThemeSlice` holds `mode` + `colors`; no ThemeProvider. Tokens in `src/theme/`: `colors.ts` (`lightTheme`/`darkTheme`), `fonts.ts` (`Fonts`, `FONTSIZE`), `borders.ts` (`BORDERRADIUS`), `spacing.ts` (`SPACING`) — all pass through `scaled()` from `@/responsive`. Full mechanism: `rules/ARCHITECTURE.md → Theme flow`.
 
 ### Responsive (`src/responsive/`)
 
-Portable, self-contained module (`react`+`react-native` only) for all device-size decisions, split into layout (reactive) + sizing (static):
-- **Layout** — `useResponsiveGrid()` → grid `numColumns` by device class + orientation (phone 2/2, tablet 3/4, TV 4/4); `useResponsive()` → `{ deviceClass, isLandscape }`. Classifier is shortest-side (`sw600dp` standard), so phone-landscape ≠ tablet-portrait.
-- **Sizing** — `scaled(n)` applies the per-class `UI_SCALE` step at the token layer only (never per-component).
-- **Config** — tune `responsive/breakpoints.ts` (`GRID_COLUMNS`, `UI_SCALE`, `TABLET_MIN_SHORTEST_SIDE`).
-- Distinct from `utils/device.ts → getDeviceType()` (physical device for the backend registry vs this module's live window). Down-payment on 22.18; full rationale: `rules/ARCHITECTURE.md → Responsive layout & sizing`.
+Portable, self-contained module (`react`+`react-native` only). `useResponsiveGrid()` / `useResponsive()` (reactive layout), `scaled()` (static per-class sizing step). Config: `responsive/breakpoints.ts`. Full mechanism: `rules/ARCHITECTURE.md → Responsive layout & sizing`.
 
-### Auth flow
+### Android TV / STB (`src/tv/`)
 
-Access token in memory; refresh token in the **token vault** (`lib/tokenVault.ts`) — keychain when **"remember me"** is on, in-memory only when off (login + register, default on). Boot is offline-first (vault check, memory-first then keychain; network only on manual-wipe recovery). 401s single-flight refresh through a bare axios instance to prevent loop deadlocks. Logout is async + atomic. No app-lock — the root `(auth)` vs `(app)` guard keys on `isAuthenticated` ONLY (never the in-memory access token, which is null on cold boot until the first request's 401-refresh lands). Parental PIN is content-level, not app-entry.
-
-Full rationale, behavior, and known gaps: `rules/ARCHITECTURE.md` → Auth flow.
-
-### Project flows reference
-
-Everything cross-cutting (auth, theme, boot/splash, network state, persistence boundaries) lives in `rules/ARCHITECTURE.md`. Read it before proposing changes to those flows.
-
-### Coding conventions
-
-`rules/STYLE_GUIDE.md` — read before writing components.
+Focus/D-pad module, inert off-TV (`Platform.isTV`-gated) — mobile/iOS stays byte-identical. Full mechanism: `rules/ARCHITECTURE.md → Android TV / STB`.
 
 ### Specs
 
 - `docs/API.md` — backend contract (source of truth for `src/api/`)
 - `docs/REALTIME_SOCKET.md` — STOMP/WebSocket backend contract (presence, watch-time, mid-roll, geo)
-- HLS + AES-128 player decisions have no standalone doc — see `### Player` above and `docs/API.md → Channels` (`PlaybackDecisionDTO`)
 
 ## Doc sync (mandatory)
 
 Every change that affects documented behavior must update the docs in the same turn — never leave them stale:
 
-- **Cross-cutting flow changed** (auth, theme, boot/splash, network, persistence, radio audio, parental, navigation) → update `rules/ARCHITECTURE.md`'s current-state section (how it works / why / known gaps) **and** append a one-line dated entry to `.claude/docs/ARCHITECTURE_CHANGELOG.md` (not inline in `ARCHITECTURE.md` — keeps its auto-loaded size stable).
+- **Cross-cutting flow changed** (auth, theme, boot/splash, network, persistence, radio audio, parental, navigation) → update `rules/ARCHITECTURE.md`'s current-state section directly (how it works / why / known gaps). No separate changelog file — `ARCHITECTURE.md` is a living current-state doc, not a history log; git history is the changelog.
 - **Convention or pattern changed** → update `rules/STYLE_GUIDE.md`.
 - **Feature added/removed, scope or stack changed** → update this file (CLAUDE.md).
 - **Plan step done/superseded** → update `.claude/docs/plan.md` (and mark stale references in older entries).
@@ -194,8 +153,9 @@ file every session — they're already in context, don't re-read them. Use
 (auth, theme, boot/splash, network, persistence, radio audio); use
 `STYLE_GUIDE.md` before writing or editing components/hooks/slices.
 
-Read `.claude/docs/plan.md` to find the next step to execute (audit backlog:
-`.claude/docs/AUDIT-2026-07-03.md`).
+Read `.claude/docs/plan.md` to find the next step to execute — it's the single
+source of truth for what's done vs. remaining (the standalone audit doc was
+folded into it 2026-07-08 and retired).
 
 ## Output rule
 
@@ -209,14 +169,14 @@ Beyond the architecture scaffold, these features are spec-mandated for v1 — do
 - **Geoblocking** — channel-level (CDN / `PlaybackDecision`) + per-programme (EPG `decision` flag, live-boundary stop). Full mechanism: `rules/ARCHITECTURE.md → Real-time → Geo`.
 - **Cellular-data gate** — confirmation modal before playback over cellular when `settings.cellularPlaybackAllowed === false`.
 - ~~**Mosaic view**~~ — **cut from v1 by user decision (2026-06-11, plan 22.14f)**; route + components removed.
-- **PIP + iOS background video** — always-on (no user setting; `backgroundVideoAllowed` removed 2026-06-26). `LivePlayer` enables `backgroundPlayback` on the base `VideoPlayer` (`staysActiveInBackground` + `showNowPlayingNotification` + now-playing `metadata`); ads (`AdOverlay`) keep it off. Background-playback entitlements come from the `expo-video` config plugin (`supportsBackgroundPlayback: true`) — native rebuild required.
+- **PIP + iOS background video** — always-on (no user setting). See `### Player` above for `LivePlayer`'s background/PiP wiring; entitlements come from the `expo-video` config plugin (native rebuild required on change).
 - **Ads** — three slots (`APP_OPEN`, `CHANNEL_CHANGE` preroll, `MID_ROLL`), one merged array per context (`GET /ads?channelId=`), single `AdOverlay` component (`components/Media/AdOverlay.tsx`, design `adpop`), one-ad-at-a-time app-wide via `AdsSlice` + `useAdSlot`. Full slot orchestration (preroll gating, reveal delay, mid-roll pause + PiP gating, impression reporting, route-scoped exclusivity): `rules/ARCHITECTURE.md → Real-time`.
 - **Quality picker** — manual ABR selection in the player options sheet (per-session, player-only; no persisted default in Settings). Resets to Auto on each channel open.
 - **Parental control** — 4–6 digit PIN, device-level, client-only (SHA-256 local compare, no backend, no cross-device sync). Gates adult-flagged content only when enabled. Full mechanism: `rules/ARCHITECTURE.md → Parental control`.
 - **Change password** — `POST /users/me/change-password`, rotates the refresh token, folds in "sign out other devices." See `rules/ARCHITECTURE.md → Auth flow 5b`.
 - **Delete account** — `DELETE /users/me`; wipes session + parental config only on a confirmed 200. See `rules/ARCHITECTURE.md → Auth flow 5a`.
 - **Background audio for radio** — `expo-audio` lock-screen controls + Android foreground service.
-- **Analytics** — first-party telemetry, **currently DISABLED** (mounts commented out, pending backend ingestion — `.claude/docs/AUDIT-2026-07-03.md` B1). Full mechanism: `rules/ARCHITECTURE.md → Analytics & telemetry`.
+- **Analytics** — first-party telemetry, **currently DISABLED** (mounts commented out, pending backend ingestion — see `.claude/docs/plan.md → Phase 14`). Full mechanism: `rules/ARCHITECTURE.md → Analytics & telemetry`.
 
 ## Out of scope for v1
 
