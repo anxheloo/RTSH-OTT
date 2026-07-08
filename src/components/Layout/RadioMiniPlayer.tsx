@@ -29,6 +29,7 @@ import ReusableText from '@/components/Inputs/ReusableText';
 import SceneBackground from '@/components/Media/SceneBackground';
 import Equalizer from '@/components/radio/Equalizer';
 import { CloseIcon, PauseIcon, PlayIcon, RadioIcon } from '@/assets/icons';
+import { isTV, tvFocusHighlight, useTVFocus } from '@/tv';
 
 const STRIP_HEIGHT = 60;
 const TILE = 40;
@@ -44,6 +45,8 @@ const RadioMiniPlayer: React.FC = () => {
   const radioArtworkUrl = useAppStore((s) => s.radioArtworkUrl);
   const setRadioPlaying = useAppStore((s) => s.setRadioPlaying);
   const clearRadio = useAppStore((s) => s.clearRadio);
+  const toggleFocus = useTVFocus();
+  const closeFocus = useTVFocus();
 
   if (!radioChannelId || (segments as string[]).includes('radio')) return null;
 
@@ -60,6 +63,11 @@ const RadioMiniPlayer: React.FC = () => {
       ]}
       onPress={() => router.push(`/(app)/radio/${radioChannelId}`)}
       activeOpacity={0.9}
+      // TV: the strip wraps the pause/close buttons — a focusable wrapper around
+      // focusable children traps the D-pad on the wrapper, so the inner buttons
+      // become unreachable. Drop the wrapper from the focus order on TV (the
+      // pause/close buttons stay focusable); tap-to-open is a touch affordance.
+      focusable={!isTV}
       accessibilityRole="button"
       accessibilityLabel={radioTitle ?? 'Radio'}
       testID="radio-mini-player"
@@ -82,7 +90,8 @@ const RadioMiniPlayer: React.FC = () => {
       {radioIsPlaying ? <Equalizer height={14} barWidth={3} testID="radio-mini-eq" /> : null}
 
       <TouchableOpacity
-        style={styles.iconBtn}
+        {...toggleFocus.focusProps}
+        style={[styles.iconBtn, tvFocusHighlight(colors.focus, toggleFocus.focused)]}
         onPress={() => setRadioPlaying(!radioIsPlaying)}
         activeOpacity={0.7}
         accessibilityRole="button"
@@ -94,7 +103,8 @@ const RadioMiniPlayer: React.FC = () => {
       </TouchableOpacity>
 
       <TouchableOpacity
-        style={styles.iconBtn}
+        {...closeFocus.focusProps}
+        style={[styles.iconBtn, tvFocusHighlight(colors.focus, closeFocus.focused)]}
         onPress={clearRadio}
         activeOpacity={0.7}
         accessibilityRole="button"

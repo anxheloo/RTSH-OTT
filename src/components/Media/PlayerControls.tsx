@@ -39,6 +39,7 @@ import {
   PlayIcon,
   SettingsIcon,
 } from '@/assets/icons';
+import { isTV, tvFocusHighlight, useTVFocus } from '@/tv';
 
 const AUTO_HIDE_MS = 3000;
 
@@ -73,6 +74,13 @@ const PlayerControls: React.FC<PlayerControlsProps> = ({
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const opacity = useSharedValue(1);
 
+  // TV: one focus tracker per control button so each draws a D-pad focus ring.
+  // Inert off-TV (onFocus/onBlur never fire) → phone chrome is unchanged.
+  const closeFocus = useTVFocus();
+  const optionsFocus = useTVFocus();
+  const playFocus = useTVFocus();
+  const fullscreenFocus = useTVFocus();
+
   // Seek-bar scrub state, all on the UI thread so the drag tracks the finger at
   // 60fps with no JS round-trip per frame. `trackWidth` is measured via onLayout;
   // `scrubX` is the finger x while dragging; `isScrubbing` gates the visual onto
@@ -95,6 +103,10 @@ const PlayerControls: React.FC<PlayerControlsProps> = ({
   // SharedValue is stable — no useCallback needed; plain functions avoid the
   // react-hooks/immutability rule that fires when a SharedValue is in deps.
   const hide = () => {
+    // TV has no tap-to-reveal, and hidden chrome (pointerEvents none) can't be
+    // focused — so the D-pad could never bring the controls back. Keep them
+    // always visible on TV; auto-hide is a touch-only affordance.
+    if (isTV) return;
     opacity.value = withTiming(0, { duration: 300 });
     setVisible(false);
   };
@@ -103,13 +115,14 @@ const PlayerControls: React.FC<PlayerControlsProps> = ({
     opacity.value = withTiming(1, { duration: 200 });
     setVisible(true);
     if (timerRef.current) clearTimeout(timerRef.current);
-    timerRef.current = setTimeout(hide, AUTO_HIDE_MS);
+    if (!isTV) timerRef.current = setTimeout(hide, AUTO_HIDE_MS);
   };
 
   // Controls start visible; schedule the initial auto-hide without calling show()
-  // (which would trigger setState synchronously in an effect body).
+  // (which would trigger setState synchronously in an effect body). No auto-hide
+  // on TV — the controls stay up so the D-pad can always reach them.
   useEffect(() => {
-    timerRef.current = setTimeout(hide, AUTO_HIDE_MS);
+    if (!isTV) timerRef.current = setTimeout(hide, AUTO_HIDE_MS);
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
     };
@@ -209,6 +222,10 @@ const PlayerControls: React.FC<PlayerControlsProps> = ({
       style={StyleSheet.absoluteFill}
       activeOpacity={1}
       onPress={handleTapOverlay}
+      // TV: don't let the full-screen tap layer become a focus target — the D-pad
+      // must reach the actual control buttons, not this overlay (controls stay
+      // visible on TV, so there's no tap-to-reveal to preserve).
+      focusable={!isTV}
       testID="controls-tap-overlay"
     >
       <Animated.View
@@ -231,9 +248,11 @@ const PlayerControls: React.FC<PlayerControlsProps> = ({
         <View style={styles.topBar}>
           {onClose ? (
             <TouchableOpacity
-              style={styles.glassBtn}
+              {...closeFocus.focusProps}
+              style={[styles.glassBtn, tvFocusHighlight(PLAYER_COLORS.brand, closeFocus.focused)]}
               onPress={onClose}
               activeOpacity={0.8}
+              accessibilityRole="button"
               accessibilityLabel="Back"
               testID="controls-close-btn"
             >
@@ -245,9 +264,11 @@ const PlayerControls: React.FC<PlayerControlsProps> = ({
 
           {onOpenOptions ? (
             <TouchableOpacity
-              style={styles.glassBtn}
+              {...optionsFocus.focusProps}
+              style={[styles.glassBtn, tvFocusHighlight(PLAYER_COLORS.brand, optionsFocus.focused)]}
               onPress={onOpenOptions}
               activeOpacity={0.8}
+              accessibilityRole="button"
               accessibilityLabel="Player options"
               testID="controls-options-btn"
             >
@@ -273,10 +294,13 @@ const PlayerControls: React.FC<PlayerControlsProps> = ({
         {/* Bottom controls: play/pause + track + fullscreen */}
         <View style={styles.controlRow}>
           <TouchableOpacity
+            {...playFocus.focusProps}
             onPress={handleTogglePlay}
             hitSlop={styles.hitSlop}
             activeOpacity={0.8}
+            style={tvFocusHighlight(PLAYER_COLORS.brand, playFocus.focused)}
             testID="controls-play-pause-btn"
+            accessibilityRole="button"
             accessibilityLabel={isPlaying ? 'Pause' : 'Play'}
           >
             <Icon as={isPlaying ? PauseIcon : PlayIcon} size={22} color={PLAYER_COLORS.onSurface} />
@@ -299,10 +323,13 @@ const PlayerControls: React.FC<PlayerControlsProps> = ({
 
           {onToggleFullscreen ? (
             <TouchableOpacity
+              {...fullscreenFocus.focusProps}
               onPress={onToggleFullscreen}
               hitSlop={styles.hitSlop}
               activeOpacity={0.8}
+              style={tvFocusHighlight(PLAYER_COLORS.brand, fullscreenFocus.focused)}
               testID="controls-fullscreen-btn"
+              accessibilityRole="button"
               accessibilityLabel="Toggle fullscreen"
             >
               <Icon as={FullscreenIcon} size={22} color={PLAYER_COLORS.onSurface} />

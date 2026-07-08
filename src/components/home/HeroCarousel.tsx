@@ -23,6 +23,7 @@ import ReusableText from '@/components/Inputs/ReusableText';
 import Skeleton from '@/components/Layout/Skeleton';
 import SceneBackground from '@/components/Media/SceneBackground';
 import type { HeroItem } from '@/types/domain';
+import { tvFocusHighlight, useTVFocus } from '@/tv';
 
 export interface HeroCarouselProps {
   items: HeroItem[];
@@ -34,6 +35,58 @@ export interface HeroCarouselProps {
 
 const H_MARGIN = SCREEN_PADDING;
 const HERO_HEIGHT = 178;
+
+type HeroCardProps = {
+  item: HeroItem;
+  cardWidth: number;
+  onPressItem: (channelId: string) => void;
+  testID?: string;
+};
+
+/** One hero page. Its own component so each card can track D-pad focus (a hook
+ *  can't run inside the parent's `.map`). Focus ring is inert off-TV. */
+const HeroCard: React.FC<HeroCardProps> = ({ item, cardWidth, onPressItem, testID }) => {
+  const colors = useAppStore((s) => s.colors);
+  const { focused, focusProps } = useTVFocus();
+  return (
+    <TouchableOpacity
+      {...focusProps}
+      activeOpacity={item.isLive ? 0.9 : 1}
+      onPress={item.isLive ? () => onPressItem(item.channelId) : undefined}
+      disabled={!item.isLive}
+      accessibilityRole="button"
+      accessibilityLabel={`${item.kicker}. ${item.title}. ${item.meta}`}
+      accessibilityState={{ disabled: !item.isLive }}
+      style={[
+        styles.card,
+        { width: cardWidth, backgroundColor: colors.videoPlaceholderBg },
+        tvFocusHighlight(colors.focus, focused),
+      ]}
+      testID={testID}
+    >
+      <SceneBackground source={item.imageUrl} scrim scrimFrom="35%" scrimOpacity={0.45} />
+
+      <View style={styles.cap}>
+        <View style={[styles.kicker, { backgroundColor: colors.primary }]}>
+          <ReusableText fontSize={FONTSIZE.xs} fontWeight="extraBold" themeColor="onPrimary">
+            {item.kicker}
+          </ReusableText>
+        </View>
+        <ReusableText
+          fontSize={FONTSIZE.xl}
+          fontWeight="extraBold"
+          themeColor="onPrimary"
+          numberOfLines={2}
+        >
+          {item.title}
+        </ReusableText>
+        <ReusableText fontSize={FONTSIZE.sm} themeColor="onPrimary" style={styles.meta}>
+          {item.meta}
+        </ReusableText>
+      </View>
+    </TouchableOpacity>
+  );
+};
 
 const HeroCarousel: React.FC<HeroCarouselProps> = ({ items, onPressItem, isLoading = false, testID }) => {
   const colors = useAppStore((s) => s.colors);
@@ -67,37 +120,12 @@ const HeroCarousel: React.FC<HeroCarouselProps> = ({ items, onPressItem, isLoadi
       >
         {items.map((item) => (
           <View key={item.id} style={{ width: pageWidth, paddingHorizontal: H_MARGIN }}>
-            <TouchableOpacity
-              activeOpacity={item.isLive ? 0.9 : 1}
-              onPress={item.isLive ? () => onPressItem(item.channelId) : undefined}
-              disabled={!item.isLive}
-              accessibilityRole="button"
-              accessibilityLabel={`${item.kicker}. ${item.title}. ${item.meta}`}
-              accessibilityState={{ disabled: !item.isLive }}
-              style={[styles.card, { width: cardWidth, backgroundColor: colors.videoPlaceholderBg }]}
+            <HeroCard
+              item={item}
+              cardWidth={cardWidth}
+              onPressItem={onPressItem}
               testID={testID ? `${testID}-${item.id}` : undefined}
-            >
-              <SceneBackground source={item.imageUrl} scrim scrimFrom="35%" scrimOpacity={0.45} />
-
-              <View style={styles.cap}>
-                <View style={[styles.kicker, { backgroundColor: colors.primary }]}>
-                  <ReusableText fontSize={FONTSIZE.xs} fontWeight="extraBold" themeColor="onPrimary">
-                    {item.kicker}
-                  </ReusableText>
-                </View>
-                <ReusableText
-                  fontSize={FONTSIZE.xl}
-                  fontWeight="extraBold"
-                  themeColor="onPrimary"
-                  numberOfLines={2}
-                >
-                  {item.title}
-                </ReusableText>
-                <ReusableText fontSize={FONTSIZE.sm} themeColor="onPrimary" style={styles.meta}>
-                  {item.meta}
-                </ReusableText>
-              </View>
-            </TouchableOpacity>
+            />
           </View>
         ))}
       </ScrollView>

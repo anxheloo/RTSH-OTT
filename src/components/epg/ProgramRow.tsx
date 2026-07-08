@@ -34,7 +34,7 @@ import { useAppStore } from '@/store/useAppStore';
 import { Icon } from '@/components/Icons';
 import ReusableText from '@/components/Inputs/ReusableText';
 import { PlayIcon } from '@/assets/icons';
-import { tvFocusHighlight, useTVFocus } from '@/tv';
+import { useTVFocus } from '@/tv';
 
 export type ProgramRowState = 'now' | 'recorded' | 'scheduled';
 
@@ -53,6 +53,8 @@ export interface ProgramRowProps {
   onPress: () => void;
   /** Fires when the row gains D-pad focus on TV (parent uses it to scroll it into view). Inert off-TV. */
   onFocus?: () => void;
+  /** TV: request initial D-pad focus on mount (e.g. the now-airing row when the guide opens). Inert off-TV. */
+  hasTVPreferredFocus?: boolean;
   testID?: string;
 }
 
@@ -67,6 +69,7 @@ const ProgramRow: React.FC<ProgramRowProps> = ({
   isLiveNow = false,
   onPress,
   onFocus,
+  hasTVPreferredFocus,
   testID,
 }) => {
   const colors = useAppStore((s) => s.colors);
@@ -81,6 +84,7 @@ const ProgramRow: React.FC<ProgramRowProps> = ({
   return (
     <TouchableOpacity
       {...focusProps}
+      hasTVPreferredFocus={hasTVPreferredFocus}
       onFocus={() => {
         // Track internally for the ring, then let the parent scroll us into
         // view (TV only — this never fires on a phone/tablet build).
@@ -90,7 +94,14 @@ const ProgramRow: React.FC<ProgramRowProps> = ({
       style={[
         styles.row,
         { borderBottomColor: colors.border },
-        tvFocusHighlight(colors.focus, focused),
+        // TV D-pad focus: a full-width list row reads best with a solid fill +
+        // a bold left accent bar (a thin scaled ring is easy to miss on a 10-foot
+        // screen). `focused` is only ever true on TV, so mobile is unchanged.
+        focused && {
+          backgroundColor: colors.surfaceHigh,
+          borderLeftWidth: 4,
+          borderLeftColor: colors.focus,
+        },
       ]}
       onPress={onPress}
       activeOpacity={0.7}

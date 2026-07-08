@@ -21,6 +21,7 @@ import { useAppStore } from '@/store/useAppStore';
 import { useHaptic } from '@/hooks/useHaptic';
 import { Icon } from '@/components/Icons';
 import { GuideIcon, HomeIcon, ProfileIcon, SearchIcon } from '@/assets/icons';
+import { isTV } from '@/tv';
 
 const TabsLayout: React.FC = () => {
   const colors = useAppStore((s) => s.colors);
@@ -38,13 +39,18 @@ const TabsLayout: React.FC = () => {
         headerShown: false,
         tabBarActiveTintColor: colors.text,
         tabBarInactiveTintColor: colors.mutedDim,
-        tabBarStyle: {
-          ...TabBar.tabBarStyle,
-          // Lift the floating bar above the bottom inset (home indicator / gesture area).
-          height: TAB_BAR_BASE_HEIGHT + insets.bottom,
-          paddingBottom: insets.bottom,
-          borderTopColor: colors.tabBarBorder,
-        },
+        // TV/STB: hide the bottom tab bar entirely — navigation is the header
+        // route-menu drawer (TVNavButton) instead, which is the 10-foot idiom
+        // (a bottom bar is awkward with a D-pad). Mobile keeps the floating bar.
+        tabBarStyle: isTV
+          ? { display: 'none' }
+          : {
+              ...TabBar.tabBarStyle,
+              // Lift the floating bar above the bottom inset (home indicator / gesture area).
+              height: TAB_BAR_BASE_HEIGHT + insets.bottom,
+              paddingBottom: insets.bottom,
+              borderTopColor: colors.tabBarBorder,
+            },
         tabBarLabelStyle: TabBar.tabBarLabelStyle,
         tabBarItemStyle: TabBar.tabBarItemStyle,
         tabBarIconStyle: TabBar.tabBarIconStyle,

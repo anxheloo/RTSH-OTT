@@ -21,6 +21,7 @@ import { SPACING } from '@/theme/spacing';
 import { useAppStore } from '@/store/useAppStore';
 import { useHaptic } from '@/hooks/useHaptic';
 import ReusableText from '@/components/Inputs/ReusableText';
+import { tvFocusHighlight, useTVFocus } from '@/tv';
 
 const PIN_LENGTH = 4;
 const SHAKE_DISTANCE = 10;
@@ -38,6 +39,42 @@ export type ParentalPinPadProps = {
   isWrong?: boolean;
   /** Optional heading above the dots. Omit when the parent screen owns the title. */
   title?: string;
+};
+
+type PinKeyProps = {
+  keyChar: string;
+  locked: boolean;
+  onPress: (key: string) => void;
+};
+
+/** One keypad key. Its own component so each can track D-pad focus (a hook can't
+ *  run inside the parent's `.map`). Focus ring is inert off-TV. */
+const PinKey: React.FC<PinKeyProps> = ({ keyChar, locked, onPress }) => {
+  const { t } = useTranslation();
+  const colors = useAppStore((s) => s.colors);
+  const { focused, focusProps } = useTVFocus();
+  const disabled = !keyChar || locked;
+  return (
+    <TouchableOpacity
+      {...focusProps}
+      style={[
+        styles.key,
+        { backgroundColor: keyChar ? colors.surfaceElevated : 'transparent', opacity: locked ? 0.3 : 1 },
+        tvFocusHighlight(colors.focus, focused),
+      ]}
+      onPress={() => onPress(keyChar)}
+      activeOpacity={0.7}
+      disabled={disabled}
+      accessibilityRole="button"
+      accessibilityLabel={keyChar === '⌫' ? t('common.delete') : keyChar || undefined}
+      accessibilityState={{ disabled }}
+      testID={keyChar ? `pin-key-${keyChar}` : undefined}
+    >
+      <ReusableText fontSize={FONTSIZE.xl} themeColor="text" textAlign="center">
+        {keyChar}
+      </ReusableText>
+    </TouchableOpacity>
+  );
 };
 
 const ParentalPinPad: React.FC<ParentalPinPadProps> = ({ onComplete, isWrong = false, title }) => {
@@ -131,27 +168,7 @@ const ParentalPinPad: React.FC<ParentalPinPadProps> = ({ onComplete, isWrong = f
         {KEYS.map((row, ri) => (
           <View key={ri} style={styles.row}>
             {row.map((key, ki) => (
-              <TouchableOpacity
-                key={ki}
-                style={[
-                  styles.key,
-                  {
-                    backgroundColor: key ? colors.surfaceElevated : 'transparent',
-                    opacity: locked ? 0.3 : 1,
-                  },
-                ]}
-                onPress={() => handleKey(key)}
-                activeOpacity={0.7}
-                disabled={!key || locked}
-                accessibilityRole="button"
-                accessibilityLabel={key === '⌫' ? t('common.delete') : key || undefined}
-                accessibilityState={{ disabled: !key || locked }}
-                testID={key ? `pin-key-${key}` : undefined}
-              >
-                <ReusableText fontSize={FONTSIZE.xl} themeColor="text" textAlign="center">
-                  {key}
-                </ReusableText>
-              </TouchableOpacity>
+              <PinKey key={ki} keyChar={key} locked={locked} onPress={handleKey} />
             ))}
           </View>
         ))}

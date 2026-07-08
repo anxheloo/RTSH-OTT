@@ -37,6 +37,7 @@ import VideoPlayer from '@/components/Media/VideoPlayer';
 import type { AdCreative } from '@/types/domain';
 import { ChevronRightIcon } from '@/assets/icons';
 import { useResponsive } from '@/responsive';
+import { tvFocusHighlight, useTVFocus } from '@/tv';
 
 const SCRIM = 'rgba(0,0,0,0.85)';
 const CREATIVE_FALLBACK = '#2A0C14';
@@ -149,6 +150,12 @@ const AdOverlay: React.FC<AdOverlayProps> = ({ creative, channelId, onComplete, 
     tickMs: 500,
   });
 
+  // TV: the skip control is the ad's only interactive target, so it must draw a
+  // focus ring and grab the D-pad once it becomes skippable. `hasTVPreferredFocus`
+  // only applies on (re)mount, so the Pressable is keyed on `canSkip` — when the
+  // countdown elapses it remounts with the flag set and focus lands on it.
+  const skipFocus = useTVFocus();
+
   return (
     <Modal
       transparent
@@ -216,9 +223,17 @@ const AdOverlay: React.FC<AdOverlayProps> = ({ creative, channelId, onComplete, 
             {/* Skip / countdown — skippable creatives only; tappable once the timer elapses */}
             {creative.skippable ? (
               <Pressable
-                style={[styles.skip, canSkip && styles.skipReady]}
+                key={canSkip ? 'ad-skip-ready' : 'ad-skip-wait'}
+                {...skipFocus.focusProps}
+                hasTVPreferredFocus={canSkip}
+                style={[
+                  styles.skip,
+                  canSkip && styles.skipReady,
+                  tvFocusHighlight(AD.white, skipFocus.focused),
+                ]}
                 onPress={canSkip ? handleComplete : undefined}
                 disabled={!canSkip}
+                accessibilityRole="button"
                 testID="ad-skip"
               >
                 <ReusableText

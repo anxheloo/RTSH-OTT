@@ -27,6 +27,8 @@ import { SCREEN_PADDING, SPACING } from '@/theme/spacing';
 import { useAppStore } from '@/store/useAppStore';
 import { RtshLogoFull } from '@/assets/icons/Brand';
 
+import TVNavButton from './TVNavButton';
+
 export interface BrandHeaderProps {
   /** Optional right-side action. Omitted = nothing on the right. */
   rightSlot?: React.ReactNode;
@@ -96,7 +98,12 @@ const BrandHeader: React.FC<BrandHeaderProps> = ({
       ) : (
         logo
       )}
-      {rightSlot}
+      {/* Right group: the screen's own right action + the TV route-menu button
+          (null off-TV, so mobile keeps just `rightSlot`). */}
+      <View style={styles.right}>
+        {rightSlot}
+        <TVNavButton />
+      </View>
     </View>
   );
 };
@@ -114,6 +121,11 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: SCREEN_PADDING,
     paddingBottom: SPACING.space_8,
+  },
+  right: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.space_12,
   },
 });
 

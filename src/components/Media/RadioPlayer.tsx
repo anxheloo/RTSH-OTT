@@ -9,6 +9,7 @@
  */
 import React from 'react';
 import { StyleSheet, TouchableOpacity, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 
 import { BORDERRADIUS } from '@/theme/borders';
 import { SPACING } from '@/theme/spacing';
@@ -19,6 +20,7 @@ import SceneBackground from '@/components/Media/SceneBackground';
 import Equalizer from '@/components/radio/Equalizer';
 import type { Channel } from '@/types/domain';
 import { ChevronLeftIcon, ChevronRightIcon, PauseIcon, PlayIcon, RadioIcon } from '@/assets/icons';
+import { tvFocusHighlight, useTVFocus } from '@/tv';
 
 export interface RadioPlayerProps {
   station: Channel;
@@ -39,7 +41,11 @@ const RadioPlayer: React.FC<RadioPlayerProps> = ({
   hasPrev = true,
   hasNext = true,
 }) => {
+  const { t } = useTranslation();
   const colors = useAppStore((s) => s.colors);
+  const prevFocus = useTVFocus();
+  const playFocus = useTVFocus();
+  const nextFocus = useTVFocus();
 
   return (
     <View style={styles.container}>
@@ -60,29 +66,52 @@ const RadioPlayer: React.FC<RadioPlayerProps> = ({
 
       <View style={styles.transport}>
         <TouchableOpacity
-          style={[styles.sideBtn, { backgroundColor: colors.surfaceElevated }, !hasPrev && styles.disabled]}
+          {...prevFocus.focusProps}
+          style={[
+            styles.sideBtn,
+            { backgroundColor: colors.surfaceElevated },
+            !hasPrev && styles.disabled,
+            tvFocusHighlight(colors.focus, prevFocus.focused),
+          ]}
           onPress={onPrev}
           disabled={!hasPrev}
           activeOpacity={0.8}
+          accessibilityRole="button"
+          accessibilityLabel={t('radio.previous')}
           testID="radio-prev"
         >
           <Icon as={ChevronLeftIcon} size={22} color={colors.text} />
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={[styles.playBtn, { backgroundColor: colors.primary }]}
+          {...playFocus.focusProps}
+          style={[
+            styles.playBtn,
+            { backgroundColor: colors.primary },
+            tvFocusHighlight(colors.focus, playFocus.focused),
+          ]}
           onPress={onTogglePlay}
           activeOpacity={0.85}
+          accessibilityRole="button"
+          accessibilityLabel={isPlaying ? t('common.pause') : t('common.play')}
           testID="radio-player-toggle"
         >
           <Icon as={isPlaying ? PauseIcon : PlayIcon} size={30} color={colors.onPrimary} />
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={[styles.sideBtn, { backgroundColor: colors.surfaceElevated }, !hasNext && styles.disabled]}
+          {...nextFocus.focusProps}
+          style={[
+            styles.sideBtn,
+            { backgroundColor: colors.surfaceElevated },
+            !hasNext && styles.disabled,
+            tvFocusHighlight(colors.focus, nextFocus.focused),
+          ]}
           onPress={onNext}
           disabled={!hasNext}
           activeOpacity={0.8}
+          accessibilityRole="button"
+          accessibilityLabel={t('radio.next')}
           testID="radio-next"
         >
           <Icon as={ChevronRightIcon} size={22} color={colors.text} />

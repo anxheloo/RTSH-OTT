@@ -48,7 +48,9 @@ const SearchBar: React.FC<SearchBarProps> = ({
   const frame = [
     styles.bar,
     { backgroundColor: colors.surface, borderColor: colors.border },
-    tvFocusHighlight(colors.focus, focused),
+    // Full-width bar → border-only focus ring (no scale, which would overflow
+    // horizontally on TV).
+    tvFocusHighlight(colors.focus, focused, { scale: false }),
   ];
 
   const glyph = <Icon as={SearchIcon} size={19} color={colors.textMuted} />;

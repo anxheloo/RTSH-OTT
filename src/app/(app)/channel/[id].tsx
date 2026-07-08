@@ -17,6 +17,8 @@
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  BackHandler,
+  FlatList,
   type LayoutChangeEvent,
   RefreshControl,
   ScrollView,
@@ -63,11 +65,11 @@ import { ParentalPinModal } from '@/components/ParentalPin';
 import { availableQualityIds, getStreamHeaders, resolveStreamSource } from '@/utils';
 import { formatDayMonth, toDateKey } from '@/utils/datetime';
 import type { CatchupDay, EpgItem } from '@/types/domain';
-import { ChevronLeftIcon, InfoIcon, LockIcon } from '@/assets/icons';
+import { ChevronLeftIcon, CloseIcon, GuideIcon, InfoIcon, LockIcon } from '@/assets/icons';
 import { AD_REVEAL_DELAY_MS } from '@/constants/ads';
 import { DEFAULT_QUALITY } from '@/constants/player';
 import { useContentWidth } from '@/responsive';
-import { TVFocusZone } from '@/tv';
+import { isTV, tvFocusHighlight, TVFocusZone, useTVFocus } from '@/tv';
 
 const CATCHUP_DAYS_BACK = 7;
 const CATCHUP_DAYS_FORWARD = 7;
@@ -151,6 +153,26 @@ const ChannelScreen: React.FC = () => {
   // landscape, collapse restores portrait. The app is otherwise portrait-only —
   // physically rotating the phone does nothing (no sensor auto-rotation).
   const { isFullscreen, toggleFullscreen, exitFullscreen } = useFullscreenOrientation();
+
+  // TV/STB only: the player stays full-screen and the guide (day strip +
+  // programme list) lives in a slide-in drawer opened from a header button.
+  // Mobile ignores this — it keeps the inline player with the guide stacked
+  // below (the `!isTV` branch of the render). Closed by the header button, the
+  // drawer's close button, selecting a programme, or the remote Back key.
+  const [guideOpen, setGuideOpen] = useState(false);
+  const hamburgerFocus = useTVFocus();
+  const drawerCloseFocus = useTVFocus();
+
+  // Remote Back closes the drawer first (instead of leaving the screen). Only
+  // armed on TV while the drawer is open.
+  useEffect(() => {
+    if (!isTV || !guideOpen) return;
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      setGuideOpen(false);
+      return true;
+    });
+    return () => sub.remove();
+  }, [guideOpen]);
 
   // Tablet/TV: cap the inline player + EPG to a centered column so they don't
   // stretch edge-to-edge. No-op on phone, and not applied in fullscreen (the
@@ -323,6 +345,9 @@ const ChannelScreen: React.FC = () => {
   };
 
   const handleSelectProgram = (p: EpgItem, state: ProgramRowState) => {
+    // TV: picking a programme dismisses the guide drawer back to the full-screen
+    // player (no-op on mobile, where the guide isn't a drawer).
+    if (isTV) setGuideOpen(false);
     if (state === 'now') {
       setSelectedProgramId(null);
       setSelectedProgramTitle(null);
@@ -458,11 +483,14 @@ const ChannelScreen: React.FC = () => {
   // positioned over the video surface, exits fullscreen in landscape and
   // navigates back in portrait. The player draws no back of its own.
   const handleBack = () => (isFullscreen ? exitFullscreen() : router.back());
+  const backFocus = useTVFocus();
   const backButton = (
     <TouchableOpacity
-      style={styles.backBtn}
+      {...backFocus.focusProps}
+      style={[styles.backBtn, tvFocusHighlight(colors.focus, backFocus.focused)]}
       onPress={handleBack}
       activeOpacity={0.8}
+      accessibilityRole="button"
       accessibilityLabel={t('common.back')}
       testID="channel-back-btn"
     >
@@ -488,87 +516,242 @@ const ChannelScreen: React.FC = () => {
   // (`marginTop: insets.top` on the video box, outside its aspect-ratio frame),
   // which DOES report correctly inside these modals; the absolutely-positioned
   // back button rides down with the box and clears the notch.
+  // TV: a header button (hamburger) that slides the guide drawer in. Sits
+  // top-right over the full-screen video, opposite the back button. TV-only —
+  // never rendered on mobile (the guide is stacked below the inline player).
+  const guideButton = (
+    <TouchableOpacity
+      {...hamburgerFocus.focusProps}
+      style={[styles.guideBtn, tvFocusHighlight(colors.focus, hamburgerFocus.focused)]}
+      onPress={() => setGuideOpen(true)}
+      activeOpacity={0.8}
+      accessibilityRole="button"
+      accessibilityLabel={t('catchup.epg')}
+      testID="channel-guide-btn"
+    >
+      <Icon as={GuideIcon} size={22} color={PLAYER_COLORS.onSurface} />
+    </TouchableOpacity>
+  );
+
+  // Video box. On TV the player is always full-screen (the guide is a drawer, not
+  // a stacked column); on mobile it's the width-capped inline box (fullscreen
+  // wins first). Same element in every branch → mobile's single-tree rotation
+  // invariant is preserved (mobile is always the else path).
+  const videoBoxStyle =
+    isTV || isFullscreen ? styles.videoFull : [styles.video, contentWidth, { marginTop: insets.top }];
+  const videoBox = (
+    <View style={videoBoxStyle}>
+      {player}
+      {backButton}
+      {isTV ? guideButton : null}
+    </View>
+  );
+
+  const dayStripEl = (
+    <View style={isTV ? undefined : contentWidth}>
+      <DayStrip
+        days={days}
+        selectedKey={selectedKey}
+        onSelect={setSelectedKey}
+        testID="player-daystrip"
+      />
+    </View>
+  );
+
+  const programList = (
+    <ScrollView
+      ref={scrollRef}
+      onLayout={handleScrollLayout}
+      contentContainerStyle={[styles.scroll, isTV ? undefined : contentWidth]}
+      showsVerticalScrollIndicator={false}
+      // Pull-to-refresh is a touch-only affordance — omit it on TV (no touch;
+      // refresh happens via re-entry / the day strip).
+      refreshControl={
+        isTV ? undefined : (
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            tintColor={colors.primary}
+            colors={[colors.primary]}
+          />
+        )
+      }
+    >
+      {!selectedDay.isToday && !selectedDay.isFuture ? (
+        <CatchupBanner label={t('catchup.banner', { day: dayLabel })} testID="catchup-banner" />
+      ) : null}
+
+      <ReusableText variant="bodySmall" fontWeight="extraBold" style={styles.epgHeader}>
+        {selectedDay.isToday ? t('catchup.epg') : t('catchup.catchup_for', { day: dayLabel })}
+      </ReusableText>
+
+      {epgLoading ? (
+        Array.from({ length: 6 }, (_, i) => <ProgramRowSkeleton key={i} />)
+      ) : programs.length === 0 ? (
+        <EmptyEpgState testID="epg-empty" />
+      ) : (
+        // On TV, TVFocusZone (a TVFocusGuideView, mobile-inert) gives the
+        // D-pad a guided destination so focus lands on the first row — plain
+        // RN ScrollView children below the fold are otherwise unreachable by
+        // the TV focus engine. Each row scrolls itself into view on focus.
+        <TVFocusZone>
+          {programs.map((p) => {
+            const state = programState(p);
+            return (
+              <View key={p.id} onLayout={(e) => handleRowLayout(p.id, e)}>
+                <ProgramRow
+                  title={p.title}
+                  meta={p.description}
+                  time={formatTime(p.startTime)}
+                  state={state}
+                  isPlaying={p.id === activeProgramId}
+                  isLiveNow={selectedDay.isToday && playing?.id === p.id}
+                  onPress={() => handleSelectProgram(p, state)}
+                  onFocus={() => centerOnProgram(p.id)}
+                  testID={`epg-row-${p.id}`}
+                />
+              </View>
+            );
+          })}
+        </TVFocusZone>
+      )}
+    </ScrollView>
+  );
+
+  // TV drawer body — a SINGLE vertical FlatList with the date strip as its
+  // header, so the D-pad flows date-chips → programme rows within ONE list's
+  // focus management. Two separate scrollers (horizontal strip + vertical
+  // ScrollView) don't hand focus off reliably on tvOS — this is the fix for
+  // "can't move from the dates into the list". FlatList auto-scrolls the focused
+  // row into view. TV-only; mobile keeps the ScrollView above untouched.
+  const tvListRef = useRef<FlatList<EpgItem>>(null);
+  // Default the drawer to the programme currently on the player (the now-airing
+  // one when watching live), so the guide opens centered on it instead of at the
+  // top — no manual scrolling to find "what's on now".
+  const tvActiveIndex = programs.findIndex((p) => p.id === activeProgramId);
+  const tvGuideHeader = (
+    <View>
+      {dayStripEl}
+      {!selectedDay.isToday && !selectedDay.isFuture ? (
+        <CatchupBanner label={t('catchup.banner', { day: dayLabel })} testID="catchup-banner" />
+      ) : null}
+      <ReusableText variant="bodySmall" fontWeight="extraBold" style={styles.epgHeader}>
+        {selectedDay.isToday ? t('catchup.epg') : t('catchup.catchup_for', { day: dayLabel })}
+      </ReusableText>
+    </View>
+  );
+  const tvGuideList = (
+    <FlatList
+      ref={tvListRef}
+      data={epgLoading ? [] : programs}
+      keyExtractor={(p) => p.id}
+      ListHeaderComponent={tvGuideHeader}
+      // Start rendered at the airing programme so its row is mounted (and thus
+      // can grab initial focus) and roughly in view; onFocus then centers it.
+      initialScrollIndex={tvActiveIndex > 0 ? tvActiveIndex : undefined}
+      ListEmptyComponent={
+        epgLoading ? (
+          <View>
+            {Array.from({ length: 8 }, (_, i) => (
+              <ProgramRowSkeleton key={i} />
+            ))}
+          </View>
+        ) : (
+          <EmptyEpgState testID="epg-empty" />
+        )
+      }
+      renderItem={({ item: p, index }) => {
+        const state = programState(p);
+        return (
+          <ProgramRow
+            title={p.title}
+            meta={p.description}
+            time={formatTime(p.startTime)}
+            state={state}
+            isPlaying={p.id === activeProgramId}
+            isLiveNow={selectedDay.isToday && playing?.id === p.id}
+            onPress={() => handleSelectProgram(p, state)}
+            // Land initial D-pad focus on the airing/active programme when the
+            // drawer opens, so the user is on "now" without scrolling.
+            hasTVPreferredFocus={p.id === activeProgramId}
+            onFocus={() =>
+              tvListRef.current?.scrollToIndex({ index, viewPosition: 0.5, animated: true })
+            }
+            testID={`epg-row-${p.id}`}
+          />
+        );
+      }}
+      onScrollToIndexFailed={({ index }) => {
+        setTimeout(() => {
+          tvListRef.current?.scrollToIndex({ index, viewPosition: 0.5, animated: false });
+        }, 60);
+      }}
+      showsVerticalScrollIndicator={false}
+      contentContainerStyle={styles.scroll}
+    />
+  );
+
   return (
     <ScreenLayout
       edges={isFullscreen ? ['bottom', 'left', 'right'] : []}
       backgroundColor={isFullscreen ? 'videoPlaceholderBg' : 'background'}
     >
-      <View
-        style={
-          isFullscreen ? styles.videoFull : [styles.video, contentWidth, { marginTop: insets.top }]
-        }
-      >
-        {player}
-        {backButton}
-      </View>
-
-      {!isFullscreen && (
+      {isTV ? (
+        // TV (landscape, 10-foot): the player stays full-screen. The guide (date
+        // strip + programme list) opens in a slide-in drawer from the header
+        // hamburger, so the mobile portrait stack (which would push the list
+        // off-screen behind a full-width 16:9 video) is never used here.
         <>
-          <View style={contentWidth}>
-            <DayStrip
-              days={days}
-              selectedKey={selectedKey}
-              onSelect={setSelectedKey}
-              testID="player-daystrip"
-            />
-          </View>
-
-          <ScrollView
-            ref={scrollRef}
-            onLayout={handleScrollLayout}
-            contentContainerStyle={[styles.scroll, contentWidth]}
-            showsVerticalScrollIndicator={false}
-            refreshControl={
-              <RefreshControl
-                refreshing={refreshing}
-                onRefresh={handleRefresh}
-                tintColor={colors.primary}
-                colors={[colors.primary]}
-              />
-            }
-          >
-            {!selectedDay.isToday && !selectedDay.isFuture ? (
-              <CatchupBanner
-                label={t('catchup.banner', { day: dayLabel })}
-                testID="catchup-banner"
-              />
-            ) : null}
-
-            <ReusableText variant="bodySmall" fontWeight="extraBold" style={styles.epgHeader}>
-              {selectedDay.isToday ? t('catchup.epg') : t('catchup.catchup_for', { day: dayLabel })}
-            </ReusableText>
-
-            {epgLoading ? (
-              Array.from({ length: 6 }, (_, i) => <ProgramRowSkeleton key={i} />)
-            ) : programs.length === 0 ? (
-              <EmptyEpgState testID="epg-empty" />
-            ) : (
-              // On TV, TVFocusZone (a TVFocusGuideView, mobile-inert) gives the
-              // D-pad a guided destination so pressing DOWN from the day strip
-              // lands on the first row — plain RN ScrollView children below the
-              // fold are otherwise unreachable by the TV focus engine.
-              <TVFocusZone>
-                {programs.map((p) => {
-                  const state = programState(p);
-                  return (
-                    <View key={p.id} onLayout={(e) => handleRowLayout(p.id, e)}>
-                      <ProgramRow
-                        title={p.title}
-                        meta={p.description}
-                        time={formatTime(p.startTime)}
-                        state={state}
-                        isPlaying={p.id === activeProgramId}
-                        isLiveNow={selectedDay.isToday && playing?.id === p.id}
-                        onPress={() => handleSelectProgram(p, state)}
-                        onFocus={() => centerOnProgram(p.id)}
-                        testID={`epg-row-${p.id}`}
-                      />
-                    </View>
-                  );
-                })}
+          {videoBox}
+          {guideOpen ? (
+            <View style={styles.tvDrawerScrim}>
+              {/* Focus-trapped panel: the D-pad stays inside (dates + list +
+                  close) until the user closes it (close button / Back key). */}
+              <TVFocusZone
+                style={styles.tvDrawer}
+                // autoFocus off so it doesn't force focus to the first child
+                // (close) — the airing programme row claims initial focus via
+                // hasTVPreferredFocus instead (close is the fallback below).
+                autoFocus={false}
+                trapFocusUp
+                trapFocusDown
+                trapFocusLeft
+                trapFocusRight
+              >
+                <View style={styles.tvDrawerHead}>
+                  <ReusableText variant="heading3" themeColor="text">
+                    {t('catchup.epg')}
+                  </ReusableText>
+                  <TouchableOpacity
+                    {...drawerCloseFocus.focusProps}
+                    hasTVPreferredFocus={tvActiveIndex < 0}
+                    style={[
+                      styles.drawerCloseBtn,
+                      tvFocusHighlight(colors.focus, drawerCloseFocus.focused),
+                    ]}
+                    onPress={() => setGuideOpen(false)}
+                    activeOpacity={0.8}
+                    accessibilityRole="button"
+                    accessibilityLabel={t('common.close')}
+                    testID="channel-guide-close"
+                  >
+                    <Icon as={CloseIcon} size={20} color={colors.text} />
+                  </TouchableOpacity>
+                </View>
+                {tvGuideList}
               </TVFocusZone>
-            )}
-          </ScrollView>
+            </View>
+          ) : null}
+        </>
+      ) : (
+        <>
+          {videoBox}
+          {!isFullscreen && (
+            <>
+              {dayStripEl}
+              {programList}
+            </>
+          )}
         </>
       )}
 
@@ -614,6 +797,53 @@ const styles = StyleSheet.create({
   videoFull: {
     flex: 1,
     backgroundColor: PLAYER_COLORS.surface,
+  },
+  // TV: guide-drawer header button — top-left, immediately right of the back
+  // button (40px button + 8px gap), so it never collides with the player's own
+  // options button in the top-right.
+  guideBtn: {
+    position: 'absolute',
+    top: SPACING.space_10,
+    left: SPACING.space_10 + 48,
+    width: 40,
+    height: 40,
+    borderRadius: BORDERRADIUS.full,
+    backgroundColor: PLAYER_COLORS.glass,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  // TV: guide drawer — a dimmed scrim over the full-screen player with a panel
+  // slid against the right edge (dates + programme list).
+  tvDrawerScrim: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+  },
+  tvDrawer: {
+    width: '38%',
+    minWidth: 420,
+    height: '100%',
+    backgroundColor: PLAYER_COLORS.surface,
+    paddingTop: SPACING.space_16,
+  },
+  tvDrawerHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: SCREEN_PADDING,
+    paddingBottom: SPACING.space_12,
+  },
+  drawerCloseBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: BORDERRADIUS.full,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   backBtn: {
     position: 'absolute',

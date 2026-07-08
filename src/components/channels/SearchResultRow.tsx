@@ -50,7 +50,7 @@ const SearchResultRow: React.FC<SearchResultRowProps> = ({
       style={[
         styles.row,
         { borderBottomColor: colors.border },
-        tvFocusHighlight(colors.focus, focused),
+        tvFocusHighlight(colors.focus, focused, { scale: false }),
       ]}
       onPress={onPress}
       activeOpacity={0.7}

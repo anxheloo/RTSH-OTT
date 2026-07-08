@@ -62,7 +62,7 @@ const ListRow: React.FC<ListRowProps> = ({
         styles.row,
         showDivider && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border },
         style,
-        tvFocusHighlight(colors.focus, focused),
+        tvFocusHighlight(colors.focus, focused, { scale: false }),
       ]}
     >
       {leading ? (

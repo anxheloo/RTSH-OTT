@@ -128,7 +128,9 @@
     "now_playing": "Po luan tani",
     "program": "Programi i radios",
     "live_now": "Po transmetohet",
-    "favorite_soon": "Të preferuarat vijnë së shpejti"
+    "favorite_soon": "Të preferuarat vijnë së shpejti",
+    "previous": "Stacioni i mëparshëm",
+    "next": "Stacioni tjetër"
   },
   "datetime": {
     "today": "Sot",
@@ -346,7 +348,8 @@
     "home": "Kreu",
     "guide": "Guida",
     "search": "Kërko",
-    "profile": "Profili"
+    "profile": "Profili",
+    "menu": "Menu"
   },
   "onboard": {
     "title": "Konfigurimi fillestar",

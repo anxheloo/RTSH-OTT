@@ -42,7 +42,7 @@ const SheetOptionRow: React.FC<SheetOptionRowProps> = ({
   return (
     <TouchableOpacity
       {...focusProps}
-      style={[styles.row, tvFocusHighlight(colors.focus, focused)]}
+      style={[styles.row, tvFocusHighlight(colors.focus, focused, { scale: false })]}
       onPress={onPress}
       activeOpacity={0.7}
       accessibilityRole="button"

@@ -128,7 +128,9 @@
     "now_playing": "Now playing",
     "program": "Radio schedule",
     "live_now": "On air",
-    "favorite_soon": "Favourites coming soon"
+    "favorite_soon": "Favourites coming soon",
+    "previous": "Previous station",
+    "next": "Next station"
   },
   "datetime": {
     "today": "Today",
@@ -346,7 +348,8 @@
     "home": "Home",
     "guide": "Guide",
     "search": "Search",
-    "profile": "Profile"
+    "profile": "Profile",
+    "menu": "Menu"
   },
   "onboard": {
     "title": "Initial Setup",
