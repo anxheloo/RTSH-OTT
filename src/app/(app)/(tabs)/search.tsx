@@ -30,6 +30,7 @@ import StationRow from '@/components/radio/StationRow';
 import StationRowSkeleton from '@/components/radio/StationRowSkeleton';
 import type { Channel } from '@/types/domain';
 import { useContentWidth } from '@/responsive';
+import { isTV } from '@/tv';
 
 type SearchMode = 'tv' | 'radio';
 
@@ -175,7 +176,10 @@ const SearchScreen: React.FC = () => {
         ListEmptyComponent={listEmpty}
         contentContainerStyle={{
           paddingTop: headerHeight,
-          paddingBottom: tabBarHeight + SPACING.space_24,
+          // TV: no tab bar to clear (tabBarHeight is 0), but the last focused
+          // row's scale-up ring needs breathing room or it visually pops past
+          // the screen edge — pad extra on TV only.
+          paddingBottom: tabBarHeight + SPACING.space_24 + (isTV ? SPACING.space_32 : 0),
         }}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}

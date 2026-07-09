@@ -108,6 +108,11 @@ const DayStrip: React.FC<DayStripProps> = ({ days, selectedKey, onSelect, testID
         getItemLayout={getItemLayout}
         initialScrollIndex={selectedIdx >= 0 ? selectedIdx : 0}
         showsHorizontalScrollIndicator={false}
+        // Same animated-scrollToIndex-on-a-native-ScrollView shape as the TV
+        // guide list (channel/[id].tsx) that hit Android's clipping crash
+        // (IllegalStateException: Invalid clipping state) — disable the
+        // bookkeeping here too. A short day strip is cheap to keep fully mounted.
+        removeClippedSubviews={false}
         onScrollToIndexFailed={({ index }) => {
           setTimeout(() => {
             listRef.current?.scrollToIndex({ index, animated: false, viewPosition: 0.5 });

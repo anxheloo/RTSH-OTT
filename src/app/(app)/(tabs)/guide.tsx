@@ -47,6 +47,7 @@ import { ScreenLayout } from '@/components/Layout';
 import { cacheBustUrl, programProgress } from '@/utils';
 import { RadioIcon } from '@/assets/icons';
 import { useContentWidth } from '@/responsive';
+import { isTV } from '@/tv';
 
 type GuideMode = 'tv' | 'radio';
 
@@ -215,7 +216,13 @@ const GuideScreen: React.FC = () => {
         ListEmptyComponent={listEmpty}
         contentContainerStyle={[
           styles.listContent,
-          { paddingTop: headerHeight, paddingBottom: tabBarHeight + SPACING.space_24 },
+          {
+            paddingTop: headerHeight,
+            // TV: no tab bar to clear (tabBarHeight is 0), but the last focused
+            // row's scale-up ring needs breathing room or it visually pops past
+            // the screen edge — pad extra on TV only.
+            paddingBottom: tabBarHeight + SPACING.space_24 + (isTV ? SPACING.space_32 : 0),
+          },
         ]}
         showsVerticalScrollIndicator={false}
         refreshControl={

@@ -625,6 +625,22 @@ const ChannelScreen: React.FC = () => {
   // "can't move from the dates into the list". FlatList auto-scrolls the focused
   // row into view. TV-only; mobile keeps the ScrollView above untouched.
   const tvListRef = useRef<FlatList<EpgItem>>(null);
+  const tvScrollDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Mashing the D-pad fires onFocus faster than each animated scrollToIndex can
+  // settle, stacking overlapping animations on the list — this coalesces rapid
+  // focus changes so only the row the user actually lands on triggers a scroll
+  // (hardens the removeClippedSubviews fix above against the same overlap).
+  const scrollToFocusedRow = useCallback((index: number) => {
+    if (tvScrollDebounceRef.current) clearTimeout(tvScrollDebounceRef.current);
+    tvScrollDebounceRef.current = setTimeout(() => {
+      tvListRef.current?.scrollToIndex({ index, viewPosition: 0.5, animated: true });
+    }, 80);
+  }, []);
+  useEffect(() => {
+    return () => {
+      if (tvScrollDebounceRef.current) clearTimeout(tvScrollDebounceRef.current);
+    };
+  }, []);
   // Default the drawer to the programme currently on the player (the now-airing
   // one when watching live), so the guide opens centered on it instead of at the
   // top — no manual scrolling to find "what's on now".
@@ -645,6 +661,14 @@ const ChannelScreen: React.FC = () => {
       ref={tvListRef}
       data={epgLoading ? [] : programs}
       keyExtractor={(p) => p.id}
+      // Rapid D-pad presses stack overlapping animated scrollToIndex calls
+      // (fired per-row onFocus below) while the list is simultaneously mounting/
+      // unmounting rows via windowing — Android's removeClippedSubviews child-count
+      // bookkeeping desyncs under that overlap and throws IllegalStateException
+      // ("Invalid clipping state"). Disabling it for this small list is the
+      // standard workaround; the list is short enough that keeping all rows
+      // natively mounted is cheap.
+      removeClippedSubviews={false}
       ListHeaderComponent={tvGuideHeader}
       // Start rendered at the airing programme so its row is mounted (and thus
       // can grab initial focus) and roughly in view; onFocus then centers it.
@@ -674,9 +698,7 @@ const ChannelScreen: React.FC = () => {
             // Land initial D-pad focus on the airing/active programme when the
             // drawer opens, so the user is on "now" without scrolling.
             hasTVPreferredFocus={p.id === activeProgramId}
-            onFocus={() =>
-              tvListRef.current?.scrollToIndex({ index, viewPosition: 0.5, animated: true })
-            }
+            onFocus={() => scrollToFocusedRow(index)}
             testID={`epg-row-${p.id}`}
           />
         );

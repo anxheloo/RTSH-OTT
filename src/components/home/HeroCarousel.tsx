@@ -60,7 +60,10 @@ const HeroCard: React.FC<HeroCardProps> = ({ item, cardWidth, onPressItem, testI
       style={[
         styles.card,
         { width: cardWidth, backgroundColor: colors.videoPlaceholderBg },
-        tvFocusHighlight(colors.focus, focused),
+        // Near-full-bleed (width - 2*margin): the default 1.05 scale pushes it
+        // past its horizontal inset into the next page — border-only here, same
+        // as the other full-width rows (SearchBar, ListRow, GuideRow, ...).
+        tvFocusHighlight(colors.focus, focused, { scale: false }),
       ]}
       testID={testID}
     >

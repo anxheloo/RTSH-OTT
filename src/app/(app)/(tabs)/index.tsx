@@ -42,6 +42,7 @@ import StationRowSkeleton from '@/components/radio/StationRowSkeleton';
 import { cacheBustUrl } from '@/utils';
 import type { Channel } from '@/types/domain';
 import { useResponsive, useResponsiveGrid } from '@/responsive';
+import { isTV } from '@/tv';
 
 type HomeMode = 'tv' | 'radio';
 
@@ -238,7 +239,10 @@ const HomeScreen: React.FC = () => {
         ListEmptyComponent={listEmpty}
         contentContainerStyle={{
           paddingTop: headerHeight,
-          paddingBottom: tabBarHeight + SPACING.space_24,
+          // TV: no tab bar to clear (tabBarHeight is 0), but the last focused
+          // card's scale-up ring needs breathing room or it visually pops past
+          // the screen edge — pad extra on TV only.
+          paddingBottom: tabBarHeight + SPACING.space_24 + (isTV ? SPACING.space_32 : 0),
         }}
         showsVerticalScrollIndicator={false}
         refreshControl={
