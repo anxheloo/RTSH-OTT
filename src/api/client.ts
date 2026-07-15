@@ -79,6 +79,38 @@ apiClient.interceptors.request.use((config) => {
  */
 const isAuthRoute = (url?: string): boolean => !!url && url.startsWith('/auth/');
 
+/**
+ * Error code the two playback GETs return (400) when the access token was
+ * minted with no device — a pre-migration client, or a login/register-verify
+ * that skipped `device`. Added 2026-07-14 alongside the device-identity
+ * migration (device now rides the login/register-verify body instead of a
+ * standalone `PUT /users/me/device` — see ARCHITECTURE.md → Device identity).
+ */
+const DEVICE_CLASS_REQUIRED_CODE = 'playback.device_class_required';
+
+const isDeviceClassRequiredError = (error: AxiosError): boolean =>
+  (error.response?.data as { code?: string } | undefined)?.code === DEVICE_CLASS_REQUIRED_CODE;
+
+/**
+ * Session teardown for a token that can never succeed again — shared by a
+ * confirmed refresh 401/403 (`authRefresh.ts`) and a `playback.device_class_required`
+ * 400 (below). Wipes locally, clears cached server data (so a different
+ * account logging in next doesn't inherit it), and tells the user why via the
+ * one-time `session_expired` notify — mirrors the pre-2026-07-14 inline logic
+ * that lived only in `authRefresh.ts`'s 401/403 branch.
+ */
+export async function forceSessionExpired(): Promise<void> {
+  await useAppStore.getState().logout();
+  queryClient.clear();
+  useAppStore.getState().updateModalSlice({
+    currentModal: 'notify',
+    modalData: {
+      title: i18n.t('errors.session_expired'),
+      description: i18n.t('errors.session_expired_body'),
+    },
+  });
+}
+
 apiClient.interceptors.response.use(
   (response) => response,
   async (error: AxiosError) => {
@@ -89,6 +121,14 @@ apiClient.interceptors.response.use(
     // X-App-Version against its minimum). Blocking modal; never retried.
     if (status === 426) {
       useAppStore.getState().updateModalSlice({ currentModal: 'forceUpdate', modalData: {} });
+      return Promise.reject(error);
+    }
+
+    // 400 playback.device_class_required — this token can never play (no
+    // device claim), so force the same re-login teardown as a confirmed
+    // refresh 401/403 rather than let the request just fail.
+    if (status === 400 && isDeviceClassRequiredError(error)) {
+      await forceSessionExpired();
       return Promise.reject(error);
     }
 

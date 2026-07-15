@@ -1,20 +1,26 @@
 /**
- * Auth services — matched to the end-user OpenAPI contract (2026-06-12).
+ * Auth services — matched to the end-user OpenAPI contract (2026-06-12,
+ * device-identity migration 2026-07-14).
  *
  * Flows:
- *   login            → POST /auth/login {email, password} → {user, accessToken, refreshToken}
+ *   login            → POST /auth/login {email, password, device} → {user, accessToken, refreshToken}
  *   refresh          → POST /auth/refresh {refreshToken} → {accessToken} (no user, no rotation)
  *   logout           → POST /auth/logout {refreshToken} (revokes that session's token)
  *   register         → POST /auth/register (single-shot, ALL profile data) → 200 message
- *   register verify  → POST /auth/register/verify {email, code} → tokens (auto-login)
+ *   register verify  → POST /auth/register/verify {email, code, device} → tokens (auto-login)
  *   reset            → forgot-password → reset-password/verify → {resetToken} → reset-password
  *
  * Responses that feed the session are Zod-parsed at this boundary (5.X.2);
  * `confirmPassword` never leaves the client.
+ *
+ * `device` (2026-07-14): the backend now derives device identity from the
+ * access token instead of a standalone `PUT /users/me/device` upsert, so it
+ * rides the two auth calls that mint a token — see ARCHITECTURE.md → Device
+ * identity for the full rationale + rollback note.
  */
 import axios from 'axios';
 
-import type { User } from '@/types';
+import type { DeviceRegistration, User } from '@/types';
 import {
   authResponseSchema,
   refreshResponseSchema,
@@ -30,6 +36,7 @@ import { AUTH_ROUTES } from '../endpoints';
 export interface LoginPayload {
   email: string;
   password: string;
+  device: DeviceRegistration;
 }
 
 export interface AuthResponse {
@@ -91,6 +98,14 @@ export interface OtpPayload {
   code: string;
 }
 
+/**
+ * Register-verify carries `device` too (it mints tokens, same as login) —
+ * `OtpPayload` alone still covers reset-verify, which doesn't mint a session.
+ */
+export interface RegisterVerifyPayload extends OtpPayload {
+  device: DeviceRegistration;
+}
+
 /** Single-shot register — saves a pending account and emails the OTP. */
 export async function register(payload: RegisterPayload): Promise<void> {
   // Wire mapping (RegisterRequestDTO): gender + education → UPPERCASE enums,
@@ -105,7 +120,7 @@ export async function register(payload: RegisterPayload): Promise<void> {
 }
 
 /** Verifies the emailed code — activates the account and returns tokens (auto-login). */
-export async function registerVerifyOtp(payload: OtpPayload): Promise<AuthResponse> {
+export async function registerVerifyOtp(payload: RegisterVerifyPayload): Promise<AuthResponse> {
   const { data } = await apiClient.post(AUTH_ROUTES.REGISTER_VERIFY, payload);
   return authResponseSchema.parse(data);
 }

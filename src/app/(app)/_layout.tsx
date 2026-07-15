@@ -8,7 +8,7 @@ import { StyleSheet, View } from 'react-native';
 import { Stack, usePathname } from 'expo-router';
 
 import { useAdsQuery, useChannelsQuery, useMeQuery } from '@/api/queries';
-import { useAdSlot, useDelayedReveal, useDeviceIdentity, useRealtimeConnection } from '@/hooks';
+import { useAdSlot, useDelayedReveal, useRealtimeConnection } from '@/hooks';
 import RadioMiniPlayer from '@/components/Layout/RadioMiniPlayer';
 import AdOverlay from '@/components/Media/AdOverlay';
 import RadioAudioHost from '@/components/Media/RadioAudioHost';
@@ -22,9 +22,10 @@ const TAB_PATHS = ['/', '/guide', '/search', '/profile'];
 
 const AppLayout: React.FC = () => {
   useMeQuery();
-  // Register this device once per authenticated entry (fires regardless of which
-  // route the user lands on — covers deep links into a non-Home tab).
-  useDeviceIdentity();
+  // Device registration removed 2026-07-14 — the standalone `PUT
+  // /users/me/device` upsert this hook fired is gone; the device now rides
+  // the login/register-verify body instead (see `utils/device.ts` and
+  // ARCHITECTURE.md → Device identity).
   // Open the app-level STOMP connection (= presence) while authenticated.
   useRealtimeConnection();
   // Analytics (src/analytics) is built but DISABLED pending backend ingestion —

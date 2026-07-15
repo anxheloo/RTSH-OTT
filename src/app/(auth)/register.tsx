@@ -30,6 +30,7 @@ import {
   RegisterForm,
   StepHeader,
 } from '@/components/auth';
+import { buildDeviceRegistration } from '@/utils/device';
 import { authErrorMessage } from '@/features/auth/errors';
 import type { RegisterFormData } from '@/features/auth/schemas';
 import { setRefreshToken } from '@/lib/tokenVault';
@@ -64,8 +65,11 @@ const RegisterScreen: React.FC = () => {
     start.mutate(payload, { onSuccess: () => setStep(2) });
   };
 
-  const handleVerify = (code: string) => {
-    verify.mutate({ email, code }, { onSuccess: completeLogin });
+  const handleVerify = async (code: string) => {
+    // device-identity migration 2026-07-14: register-verify mints a session
+    // (auto-login) just like login, so it needs the device object too.
+    const device = await buildDeviceRegistration();
+    verify.mutate({ email, code, device }, { onSuccess: completeLogin });
   };
 
   const onBack = () => (step === 2 ? setStep(1) : router.back());

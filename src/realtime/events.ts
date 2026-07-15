@@ -3,20 +3,17 @@
  * 1:1 — changing a name here without changing that doc breaks the contract.
  */
 import { API_BASE_URL } from '@/api/client';
-import { getDeviceClass } from '@/utils/device';
 import type { Ad } from '@/types/domain';
 
 /**
  * ws(s)://HOST:PORT/ws — derived from the REST base (http→ws, drop /api/v1, add /ws).
- * `?deviceClass=MOBILE|TV|STB` is read at the handshake to attribute the viewer in
- * the backend's live by-platform counter (device identity is static at runtime, so
- * resolving it once at module load is correct). Counting works without it — this
- * only populates the device bucket.
+ *
+ * MIGRATED 2026-07-14: no longer carries `?deviceClass=` — the backend reads
+ * device/platform from the token on the STOMP CONNECT frame (`Authorization:
+ * Bearer <accessToken>`, already sent), the same token-derived source as the
+ * playback GETs. See ARCHITECTURE.md → Device identity.
  */
-export const WS_URL = `${API_BASE_URL.replace(/^http/, 'ws').replace(
-  /\/api\/v1\/?$/,
-  '',
-)}/ws?deviceClass=${getDeviceClass()}`;
+export const WS_URL = `${API_BASE_URL.replace(/^http/, 'ws').replace(/\/api\/v1\/?$/, '')}/ws`;
 
 export const STOMP_DEST = {
   /** SEND — "now watching" (open/switch segment). */

@@ -41,7 +41,8 @@ npm run expoUpgrade                  # full SDK upgrade chain (expo@latest → -
 eas build --profile development --platform ios
 eas build --profile preview --platform all     # internal distribution
 eas build --profile production --platform all  # store-ready
-eas update --channel production --message "..."  # JS-only hotfix
+npm run eas:update:<dev|preview|prod>[:android|:ios] -- -m "..."  # JS-only hotfix (channel=environment; omit -m to be prompted, defaults to last git commit msg)
+npm run eas:update:list:<dev|preview|prod>                        # recent updates on that channel's branch
 
 # Android TV / STB (local dev build; EAS profiles *_tv / *_stb for preview/prod)
 npm run android:tv:dev               # EXPO_TV=1 prebuild + run on a TV emulator/device
@@ -94,7 +95,7 @@ Storage-layer breakdown (keychain vs MMKV vs query cache, and why): `rules/ARCHI
 
 - `client.ts` — single `apiClient` (axios) + `queryClient`. Auth/refresh/device-identity mechanism: `rules/ARCHITECTURE.md → Auth flow` + `→ Device identity`.
 - `endpoints.ts` — string constants for routes (`AUTH_ROUTES`, `CHANNELS_ROUTES`, etc).
-- `services/*.ts` — domain-grouped axios calls (`auth.ts`, `channels.ts`, `epg.ts`, `guide.ts`, `users.ts`, `config.ts`, `devices.ts`).
+- `services/*.ts` — domain-grouped axios calls (`auth.ts`, `channels.ts`, `epg.ts`, `guide.ts`, `users.ts`, `config.ts`). (`devices.ts` removed 2026-07-14 — device identity now rides the login/register-verify body, see `rules/ARCHITECTURE.md → Device identity`.)
 - `queries/*.ts` / `mutations/*.ts` — TanStack Query/Mutation hooks wrapping services.
 - `mocks/` — custom axios-adapter mock (not MSW) + fixtures, active when `EXPO_PUBLIC_API_MODE=mock`.
 

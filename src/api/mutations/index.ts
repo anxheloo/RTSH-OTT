@@ -5,5 +5,4 @@ export * from './useChangePasswordMutation';
 export * from './useDeleteAccountMutation';
 export * from './useLoginMutation';
 export * from './useLogoutMutation';
-export * from './useRegisterDeviceMutation';
 

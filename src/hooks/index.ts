@@ -8,7 +8,6 @@ export * from './useCheckToken';
 export * from './useCountdown';
 export * from './useDateTime';
 export * from './useDelayedReveal';
-export * from './useDeviceIdentity';
 export * from './useHaptic';
 export * from './useImagePrefetch';
 export * from './useKeyboard';

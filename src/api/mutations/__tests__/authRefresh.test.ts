@@ -2,9 +2,15 @@
  * Behavior tests for `refreshAccessToken` — the auth-flow invariants that keep
  * users logged in (or correctly logged out):
  *   • single-flight: concurrent callers share ONE refresh request
- *   • transient failure (network/5xx) → null, NO logout, token survives
- *   • confirmed 401/403 → logout + query-cache wipe + session-expired notice
+ *   • transient failure (network/5xx) → null, NO teardown, token survives
+ *   • confirmed 401/403 → delegates to the shared `forceSessionExpired()` teardown
  *   • no refresh token → null without a network call
+ *
+ * `forceSessionExpired`'s own behavior (logout + query-cache wipe + notify) is
+ * covered by `api/__tests__/client.test.ts` — extracted there 2026-07-14
+ * (device-identity migration) so this module's confirmed-401/403 branch and the
+ * new `playback.device_class_required` 400 branch share one implementation
+ * instead of two hand-copies. This file only asserts the delegation.
  *
  * The store, i18n, vault, and client are mocked so the test exercises only this
  * module's decision logic (no MMKV / native imports).
@@ -14,21 +20,13 @@ import { AxiosError, AxiosHeaders } from 'axios';
 import { useAppStore } from '@/store/useAppStore';
 import { getRefreshToken } from '@/lib/tokenVault';
 
-import { queryClient } from '../../client';
+import { forceSessionExpired } from '../../client';
 import * as authService from '../../services/auth';
 import { refreshAccessToken } from '../authRefresh';
 
-jest.mock('@/store/useAppStore', () => {
-  const logout = jest.fn(async () => {});
-  const updateModalSlice = jest.fn();
-  const setState = jest.fn();
-  return {
-    useAppStore: {
-      getState: () => ({ logout, updateModalSlice }),
-      setState,
-    },
-  };
-});
+jest.mock('@/store/useAppStore', () => ({
+  useAppStore: { getState: () => ({}), setState: jest.fn() },
+}));
 
 jest.mock('@/i18n', () => ({ __esModule: true, default: { t: (k: string) => k } }));
 
@@ -37,7 +35,7 @@ jest.mock('@/lib/tokenVault', () => ({
 }));
 
 jest.mock('../../client', () => ({
-  queryClient: { clear: jest.fn() },
+  forceSessionExpired: jest.fn(async () => {}),
   registerRefreshHandler: jest.fn(),
 }));
 
@@ -47,10 +45,7 @@ jest.mock('../../services/auth', () => ({
 
 const mockRefresh = authService.refresh as jest.Mock;
 const mockGetRefreshToken = getRefreshToken as jest.Mock;
-const store = useAppStore.getState() as unknown as {
-  logout: jest.Mock;
-  updateModalSlice: jest.Mock;
-};
+const mockForceSessionExpired = forceSessionExpired as jest.Mock;
 
 const axios401 = () =>
   new AxiosError('Unauthorized', '401', undefined, undefined, {
@@ -94,21 +89,16 @@ describe('refreshAccessToken', () => {
     expect(mockRefresh).toHaveBeenCalledTimes(2);
   });
 
-  it('transient failure (network/timeout/5xx) → null, NO logout, NO cache wipe', async () => {
+  it('transient failure (network/timeout/5xx) → null, NO session teardown', async () => {
     mockRefresh.mockRejectedValue(new AxiosError('Network Error'));
     await expect(refreshAccessToken()).resolves.toBeNull();
-    expect(store.logout).not.toHaveBeenCalled();
-    expect(queryClient.clear).not.toHaveBeenCalled();
+    expect(mockForceSessionExpired).not.toHaveBeenCalled();
   });
 
-  it('confirmed 401 → logout + query-cache wipe + session-expired notify', async () => {
+  it('confirmed 401 → delegates to the shared forceSessionExpired teardown', async () => {
     mockRefresh.mockRejectedValue(axios401());
     await expect(refreshAccessToken()).resolves.toBeNull();
-    expect(store.logout).toHaveBeenCalledTimes(1);
-    expect(queryClient.clear).toHaveBeenCalledTimes(1);
-    expect(store.updateModalSlice).toHaveBeenCalledWith(
-      expect.objectContaining({ currentModal: 'notify' }),
-    );
+    expect(mockForceSessionExpired).toHaveBeenCalledTimes(1);
   });
 
   it('no stored refresh token → null without touching the network', async () => {

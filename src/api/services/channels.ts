@@ -1,6 +1,5 @@
 import { z } from 'zod';
 
-import { getDeviceClass } from '@/utils/device';
 import type { Channel, ChannelType, PlaybackDecision } from '@/types/domain';
 
 import { apiClient } from '../client';
@@ -68,11 +67,12 @@ export async function getChannels(type: ChannelType): Promise<Channel[]> {
 
 /**
  * Returns the playback decision for a channel — stream URLs + access decision.
- * `deviceClass` lets the backend serve a platform-specific player URL.
+ * The backend picks the platform-specific player URL from the device baked
+ * into the access token at login (no `?deviceClass=` param since 2026-07-14 —
+ * see ARCHITECTURE.md → Device identity). A token minted without a device
+ * 400s with `playback.device_class_required`, handled globally in `client.ts`.
  */
 export async function getChannelById(id: string): Promise<PlaybackDecision> {
-  const { data } = await apiClient.get(CHANNELS_ROUTES.BY_ID(id), {
-    params: { deviceClass: getDeviceClass() },
-  });
+  const { data } = await apiClient.get(CHANNELS_ROUTES.BY_ID(id));
   return toPlaybackDecision(playbackDecisionDtoSchema.parse(data));
 }

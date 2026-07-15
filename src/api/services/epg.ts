@@ -1,6 +1,5 @@
 import { z } from 'zod';
 
-import { getDeviceClass } from '@/utils/device';
 import type { EpgItem, GuideProgramDto, PlaybackDecision } from '@/types/domain';
 import { guideProgramDtoSchema } from '@/types/domain';
 
@@ -52,15 +51,15 @@ export async function getChannelEpg(channelId: string, date?: string): Promise<E
 
 /**
  * Fetch catch-up playback decision for a recorded programme —
- * `GET /channels/{channelId}/epg/{programId}`. `deviceClass` lets the backend
- * serve a platform-specific player URL.
+ * `GET /channels/{channelId}/epg/{programId}`. Platform-specific player URL
+ * selection now comes from the device baked into the access token at login
+ * (no `?deviceClass=` param since 2026-07-14 — see ARCHITECTURE.md → Device
+ * identity).
  */
 export async function getCatchupPlayback(
   channelId: string,
   programId: string,
 ): Promise<PlaybackDecision> {
-  const { data } = await apiClient.get(CHANNELS_ROUTES.CATCHUP_PLAYBACK(channelId, programId), {
-    params: { deviceClass: getDeviceClass() },
-  });
+  const { data } = await apiClient.get(CHANNELS_ROUTES.CATCHUP_PLAYBACK(channelId, programId));
   return toPlaybackDecision(playbackDecisionDtoSchema.parse(data));
 }

@@ -1,16 +1,21 @@
 /**
  * Device identity — the single source for "what device is this" facts the
- * backend consumes: the `deviceKey` UUID for the device registry
- * (`PUT /users/me/device`) and the store-listing URL for the 426 force-update
- * flow.
+ * backend consumes: the `deviceKey` UUID sent in the login/register-verify
+ * `device` object, and the store-listing URL for the 426 force-update flow.
  *
- * Pure module (no React) so services and modals can reach it outside the
- * component tree. `useDeviceIdentity` is the one-shot wiring point that
- * resolves the async parts and fires the registration upsert.
+ * Pure module (no React) so services can reach it outside the component tree.
  *
  * The `deviceKey` lives in the keychain (not MMKV): on iOS it survives
  * reinstall, so a reinstalled device keeps its identity instead of leaving a
  * ghost entry in the backend's device registry.
+ *
+ * MIGRATED 2026-07-14: device identity used to also be re-asserted on every
+ * authenticated app entry via a standalone `PUT /users/me/device` upsert
+ * (`useDeviceIdentity`, now deleted) and on every playback/WS request via a
+ * `?deviceClass=` param. The backend now derives both from the device baked
+ * into the access token at login, so `buildDeviceRegistration()` below is
+ * only ever called from the login/register-verify screens. See
+ * ARCHITECTURE.md → Device identity for the full rationale + rollback note.
  */
 import { Linking, Platform } from 'react-native';
 
@@ -91,10 +96,14 @@ export function getDeviceType(): DeviceType {
 }
 
 /**
- * Coarse platform class the backend uses to choose the player URL, sent as a
- * query param on the playback requests. Derived from `getDeviceType()` so the
- * two never diverge (the `Record` is exhaustive over `DeviceType`). Distinct
- * from `@/responsive`'s window-size class.
+ * Coarse platform class the backend uses to choose the player URL. Derived
+ * from `getDeviceType()` so the two never diverge (the `Record` is exhaustive
+ * over `DeviceType`). Distinct from `@/responsive`'s window-size class.
+ *
+ * No longer sent as a `?deviceClass=` param on the playback GETs or the `/ws`
+ * handshake (2026-07-14 — the backend reads it from the token instead); still
+ * sent on the ad-impression beacon (`services/ads.ts`) — confirmed with
+ * backend 2026-07-15 that one intentionally stays a query param.
  */
 const DEVICE_CLASS_BY_TYPE: Record<DeviceType, DeviceClass> = {
   PHONE_IOS: 'MOBILE',
@@ -158,8 +167,8 @@ const STREAM_ID_HEADER: 'User-Agent' | 'X-Client-Platform' = 'User-Agent';
  * The per-device identifier value, e.g. `RTSHTani-AndroidTV`. The backend matches the
  * `RTSHTani` substring to allow and reads the platform from the rest. No version —
  * gating doesn't need it, and the app version already reaches the backend in the
- * device-registration body (`PUT /users/me/device`). (Same value whichever header
- * name `STREAM_ID_HEADER` selects.)
+ * login/register-verify `device` object (see `buildDeviceRegistration()`). (Same
+ * value whichever header name `STREAM_ID_HEADER` selects.)
  */
 export function getStreamUserAgent(): string {
   return `${STREAM_UA_PRODUCT}-${STREAM_UA_LABEL[getDeviceType()]}`;
@@ -183,8 +192,9 @@ export function getStreamHeaders(): Record<string, string> {
 }
 
 /**
- * `PUT /users/me/device` body. `deviceKey` is the stable keychain UUID — one
- * identity everywhere, or the backend's device registry drifts from the device.
+ * The `device` object sent on login/register-verify. `deviceKey` is the stable
+ * keychain UUID — one identity everywhere, or the backend's device registry
+ * drifts from the device.
  */
 export async function buildDeviceRegistration(): Promise<DeviceRegistration> {
   return {

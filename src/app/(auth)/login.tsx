@@ -22,6 +22,7 @@ import { AuthFooterLink, AuthScreen } from '@/components/auth';
 import ReusableBtn from '@/components/Buttons/ReusableBtn';
 import { Icon } from '@/components/Icons';
 import { Checkbox, ReusableInput, ReusableText } from '@/components/Inputs';
+import { buildDeviceRegistration } from '@/utils/device';
 import { KeyIcon, MailIcon } from '@/assets/icons';
 import { authErrorMessage } from '@/features/auth/errors';
 import { type LoginFormData, loginSchema } from '@/features/auth/schemas';
@@ -43,9 +44,12 @@ const LoginScreen: React.FC = () => {
   // Zod error messages are i18n keys (RTSH pattern) — resolve at render time.
   const tr = (key?: string) => (key ? t(key) : undefined);
 
-  const onSubmit = handleSubmit(({ email, password, rememberMe }) => {
+  const onSubmit = handleSubmit(async ({ email, password, rememberMe }) => {
     setRememberMe(rememberMe); // remember the choice so the box reflects it next time
-    login({ email, password, rememberMe });
+    // device-identity migration 2026-07-14: the backend now bakes the device
+    // into the token at login instead of a separate registration call.
+    const device = await buildDeviceRegistration();
+    login({ email, password, rememberMe, device });
   });
 
   // Inline only for client (4xx) errors; 5xx/network resolves to undefined and

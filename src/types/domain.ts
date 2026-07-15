@@ -438,9 +438,14 @@ export interface AppVersionInfo {
 }
 
 /**
- * Form-factor + OS discriminator for the device registry (`PUT /users/me/device`).
- * Confirmed from the OpenAPI `DeviceInfoDTO` enum (2026-06-12). `TIZEN_TV` /
- * `WEBOS_TV` belong to the separate web apps — this client never sends them.
+ * Form-factor + OS discriminator sent in the `device` object on login/register-
+ * verify (`DeviceInfoDTO`, confirmed 2026-06-12). `TIZEN_TV` / `WEBOS_TV` belong
+ * to the separate web apps — this client never sends them.
+ *
+ * MIGRATED 2026-07-14: previously registered via a standalone `PUT
+ * /users/me/device` upsert on every authenticated entry; the backend now reads
+ * the device from the token (set once at login), so this type's only wire use
+ * is the login/register-verify body. See ARCHITECTURE.md → Device identity.
  */
 export type DeviceType =
   | 'PHONE_IOS'
@@ -453,17 +458,28 @@ export type DeviceType =
   | 'WEBOS_TV';
 
 /**
- * Coarse platform class the backend uses to pick the right player URL — sent as
- * a query param on the playback requests (`GET /channels/{id}` and the catch-up
- * playback endpoint). Derived from `DeviceType` — see `getDeviceClass()`.
- * Distinct from the responsive layout class (`@/responsive`, phone/tablet/tv):
- * this is the *physical platform* the backend serves streams for.
+ * Coarse platform class the backend uses to pick the right player URL. Derived
+ * from `DeviceType` — see `getDeviceClass()`. Distinct from the responsive
+ * layout class (`@/responsive`, phone/tablet/tv): this is the *physical
+ * platform* the backend serves streams for.
+ *
+ * MIGRATED 2026-07-14: no longer sent as a `?deviceClass=` query param on the
+ * playback GETs or the `/ws` handshake — the backend now derives it from the
+ * device baked into the access token at login. `getDeviceClass()` is kept for
+ * the (unrelated) stream `User-Agent` header and the ad-impression beacon,
+ * which still take it as a param — see ARCHITECTURE.md → Device identity.
  */
 export type DeviceClass = 'MOBILE' | 'TV' | 'STB';
 
 /**
- * `PUT /users/me/device` body — registers/upserts this device for the logged-in
- * account. `deviceKey` is the stable keychain UUID sent on app entry.
+ * `device` object sent once on `POST /auth/login` and `POST
+ * /auth/register/verify` — the backend registers/upserts the device and bakes
+ * its id + class into the issued access token (`did`/`dc` claims). `deviceKey`
+ * is the stable keychain UUID generated once per install.
+ *
+ * MIGRATED 2026-07-14 (was a standalone `PUT /users/me/device` upsert fired on
+ * every authenticated entry — see git history / ARCHITECTURE.md → Device
+ * identity for the old flow if this ever needs reverting).
  */
 export interface DeviceRegistration {
   deviceKey: string;

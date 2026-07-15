@@ -31,8 +31,9 @@ export const USERS_ROUTES = {
    * call — so there's no separate logout-others endpoint.
    */
   CHANGE_PASSWORD: '/users/me/change-password',
-  /** Idempotent upsert of this device for the logged-in account (PUT, bare `DeviceInfoDTO` body). */
-  DEVICE: '/users/me/device',
+  // DEVICE ('/users/me/device', PUT) removed 2026-07-14 — the endpoint was
+  // deleted backend-side; device identity now rides the login/register-verify
+  // body instead (see services/auth.ts, utils/device.ts).
 } as const;
 
 export const CHANNELS_ROUTES = {
