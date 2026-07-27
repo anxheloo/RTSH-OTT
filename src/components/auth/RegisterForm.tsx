@@ -35,16 +35,9 @@ export interface RegisterFormProps {
   onSubmit: (data: RegisterFormData) => void;
   isSubmitting?: boolean;
   errorText?: string;
-  /** Pre-fills the "remember me" checkbox with the user's last choice (persisted). */
-  rememberMeDefault?: boolean;
 }
 
-const RegisterForm: React.FC<RegisterFormProps> = ({
-  onSubmit,
-  isSubmitting = false,
-  errorText,
-  rememberMeDefault = true,
-}) => {
+const RegisterForm: React.FC<RegisterFormProps> = ({ onSubmit, isSubmitting = false, errorText }) => {
   const { t } = useTranslation();
   const { control, handleSubmit } = useForm<RegisterFormData>({
     resolver: zodResolver(registerSchema),
@@ -60,8 +53,6 @@ const RegisterForm: React.FC<RegisterFormProps> = ({
       // Empty until the user selects — zod's enum rejects '' → required error.
       education: '' as RegisterFormData['education'],
       acceptTerms: false,
-      // Pre-filled with the last choice; defaults ON (matches login).
-      rememberMe: rememberMeDefault,
     },
   });
 
@@ -231,19 +222,6 @@ const RegisterForm: React.FC<RegisterFormProps> = ({
             placeholder={t('auth.register.education_placeholder')}
             errorText={tr(error?.message)}
             testID="register-education"
-          />
-        )}
-      />
-
-      <Controller
-        control={control}
-        name="rememberMe"
-        render={({ field: { value, onChange } }) => (
-          <Checkbox
-            value={value}
-            onValueChange={onChange}
-            label={t('auth.register.remember_me')}
-            testID="register-remember-me"
           />
         )}
       />

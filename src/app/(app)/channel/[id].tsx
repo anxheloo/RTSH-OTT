@@ -14,14 +14,21 @@
  * Channel metadata (name, geoBlocked) is read from the already-cached TV list.
  * Tapping a past EPG item swaps `activePlayback` to that item's embedded streams
  * so the player replays the recording without an extra network request.
+ *
+ * Both programme lists are virtualized — mobile a `FlashList`, TV a `FlatList`
+ * inside the drawer. A `ProgramRow` is expensive to mount (reanimated layout +
+ * worklet, plus a native BlurView per `scheduled` row on Android), so building a
+ * whole day at once made switching dates janky. The mobile rows pass `recycled`
+ * because FlashList reuses cells and Reanimated would otherwise animate a reuse
+ * as if it were an expand; the TV list doesn't need it (recycling aside, TV
+ * already disables the row's layout animation). Auto-centering on the active
+ * programme is `scrollToIndex` on both.
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   BackHandler,
   FlatList,
-  type LayoutChangeEvent,
   RefreshControl,
-  ScrollView,
   StyleSheet,
   TouchableOpacity,
   View,
@@ -29,6 +36,7 @@ import {
 import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { FlashList, type FlashListRef } from '@shopify/flash-list';
 import { useQueryClient } from '@tanstack/react-query';
 import { router, useLocalSearchParams } from 'expo-router';
 
@@ -81,6 +89,9 @@ const CATCHUP_DAYS_FORWARD = 7;
  * so the whole strip follows the app language, never a partial Intl fallback.
  */
 const WEEKDAY_KEYS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'] as const;
+
+/** Module-level so the virtualized list never sees a new identity (see `programList`). */
+const keyExtractor = (p: EpgItem) => p.id;
 
 const ChannelScreen: React.FC = () => {
   useCellularGate();
@@ -218,6 +229,9 @@ const ChannelScreen: React.FC = () => {
   // (no `isAdult` on the channel list / PlaybackDecision) — per-program covers it.
   const parentalEnabled = useAppStore((s) => s.parentalEnabled);
   const guard = useParentalGuard(channelId, { isLive, enabled: parentalEnabled });
+  // Pulled out so the list's memoized callbacks can depend on this stable
+  // reference rather than `guard`, which is a fresh object every render.
+  const { guardPlay } = guard;
   const blockPlayer = guard.isBlocked;
 
   // Backend access decision — only ALLOWED plays. Anything else (GEO_BLOCKED,
@@ -338,86 +352,95 @@ const ChannelScreen: React.FC = () => {
   // must never look like a future one, so every past row is `recorded`
   // regardless of `hasCatchup` (a finished slot the user could have watched is
   // offered as catch-up, not greyed out like an upcoming one).
-  const programState = (p: EpgItem): ProgramRowState => {
-    if (selectedDay.isToday && playing?.id === p.id) return 'now';
-    if (Date.parse(p.startTime) > nowMs) return 'scheduled'; // not started yet
-    return 'recorded'; // finished → catch-up playable
-  };
+  const isToday = selectedDay.isToday;
+  const playingId = playing?.id ?? null;
+  const programState = useCallback(
+    (p: EpgItem): ProgramRowState => {
+      if (isToday && playingId === p.id) return 'now';
+      if (Date.parse(p.startTime) > nowMs) return 'scheduled'; // not started yet
+      return 'recorded'; // finished → catch-up playable
+    },
+    [isToday, playingId, nowMs],
+  );
 
-  const handleSelectProgram = (p: EpgItem, state: ProgramRowState) => {
-    // TV: picking a programme dismisses the guide drawer back to the full-screen
-    // player (no-op on mobile, where the guide isn't a drawer).
-    if (isTV) setGuideOpen(false);
-    if (state === 'now') {
-      setSelectedProgramId(null);
-      setSelectedProgramTitle(null);
-      queryClient.invalidateQueries({ queryKey: ['channel-playback', channelId, null] });
-      return;
-    }
-    if (state === 'recorded') {
-      // Gate adult recordings before the swap so the signed stream URL is never
-      // fetched pre-PIN; clean items play immediately.
-      guard.guardPlay(p, () => {
-        setSelectedProgramId(p.id);
-        setSelectedProgramTitle(p.title);
-      });
-    }
-  };
+  // Which EPG row shows its full description. A single id is the whole "only one
+  // row open" rule — there is nothing to reconcile. On TV it is driven from row
+  // focus instead of a tap (see the FlatList's onFocus), and focus is unique, so
+  // the same invariant holds there from the same field.
+  const [expandedProgramId, setExpandedProgramId] = useState<string | null>(null);
 
-  // Auto-center the active programme — the list animates so whatever is on the
-  // player (the recorded selection, or live's now-airing programme) sits in the
-  // middle of the EPG. Offsets come from each row's onLayout.
-  //
-  // First entry is a deferred one-shot: instead of scrolling mid-mount (which
-  // competes with the player + day-strip + rows all laying out and reads as an
-  // abrupt jump), we wait until the active row is measured, then defer one frame
-  // (`requestAnimationFrame`) so the layout pass has committed and glide once —
-  // the user watches a deliberate settle-then-scroll. Later changes (boundary
-  // roll-over, recorded selection) re-center immediately via the effect / row
-  // relayout.
-  const activeProgramId = selectedProgramId ?? playing?.id ?? null;
-  const scrollRef = useRef<ScrollView>(null);
-  const rowOffsetsRef = useRef<Record<string, { y: number; height: number }>>({});
-  const viewportHeightRef = useRef(0);
-  const didInitialCenterRef = useRef(false);
-
-  const centerOnProgram = useCallback((pid: string) => {
-    const row = rowOffsetsRef.current[pid];
-    const viewport = viewportHeightRef.current;
-    if (!row || !viewport) return;
-    const y = Math.max(0, row.y - viewport / 2 + row.height / 2);
-    scrollRef.current?.scrollTo({ y, animated: true });
+  // Stable identity — it feeds the virtualized list's `renderItem`, which
+  // FlashList requires to be memoized (see `programList`).
+  const handleToggleExpand = useCallback((p: EpgItem) => {
+    setExpandedProgramId((cur) => (cur === p.id ? null : p.id));
   }, []);
 
-  const handleRowLayout = (pid: string, e: LayoutChangeEvent) => {
-    const { y, height } = e.nativeEvent.layout;
-    rowOffsetsRef.current[pid] = { y, height };
-    if (pid !== activeProgramId) return;
-    if (didInitialCenterRef.current) {
-      // Post-intro: keep the active row centred if it re-lays out.
-      centerOnProgram(pid);
-    } else {
-      // First entry: don't scroll mid-mount. Now that the active row is
-      // measured, defer one frame so the layout pass has committed, then glide
-      // once — a deliberate settle-then-scroll instead of an abrupt jump.
-      didInitialCenterRef.current = true;
-      requestAnimationFrame(() => centerOnProgram(pid));
-    }
+  // Switching day swaps the whole list — an open row from the previous day would
+  // otherwise linger in state with nothing to match.
+  const handleSelectDay = (key: string) => {
+    setSelectedKey(key);
+    setExpandedProgramId(null);
   };
 
-  const handleScrollLayout = (e: LayoutChangeEvent) => {
-    viewportHeightRef.current = e.nativeEvent.layout.height;
-  };
+  // Playback. Reached from the row's play glyph on mobile (the body expands
+  // instead) and from a row press on TV. A `scheduled` programme renders no play
+  // glyph, so it can never get here.
+  const handleSelectProgram = useCallback(
+    (p: EpgItem, state: ProgramRowState) => {
+      // TV: picking a programme dismisses the guide drawer back to the full-screen
+      // player (no-op on mobile, where the guide isn't a drawer).
+      if (isTV) setGuideOpen(false);
+      if (state === 'now') {
+        setSelectedProgramId(null);
+        setSelectedProgramTitle(null);
+        queryClient.invalidateQueries({ queryKey: ['channel-playback', channelId, null] });
+        return;
+      }
+      if (state === 'recorded') {
+        // Gate adult recordings before the swap so the signed stream URL is never
+        // fetched pre-PIN; clean items play immediately.
+        guardPlay(p, () => {
+          setSelectedProgramId(p.id);
+          setSelectedProgramTitle(p.title);
+        });
+      }
+    },
+    // `guard` itself is a fresh object every render (the hook returns a literal),
+    // so depend on the stable callback it exposes — otherwise this, and the
+    // list's memoized `renderItem` below, churn on every render.
+    [queryClient, channelId, guardPlay],
+  );
+
+  // Auto-center the active programme — whatever is on the player (the recorded
+  // selection, or live's now-airing programme) sits in the middle of the EPG.
+  // The mobile list is virtualized, so this is a `scrollToIndex` rather than
+  // per-row offset bookkeeping: nothing to measure, nothing to invalidate on a
+  // day change. The TV branch centers itself (`initialScrollIndex` +
+  // `scrollToFocusedRow`).
+  //
+  // It MUST wait for `onLoad`. FlashList deliberately draws no items on its
+  // first cycle — it measures itself first — so a scroll issued before that
+  // resolves against an unmeasured list, lands at an estimated offset, and then
+  // visibly snaps to the true position on the user's first scroll. `listReady`
+  // is that gate.
+  const activeProgramId = selectedProgramId ?? playing?.id ?? null;
+  const activeIndex = activeProgramId ? programs.findIndex((p) => p.id === activeProgramId) : -1;
+  const listRef = useRef<FlashListRef<EpgItem>>(null);
+  const [listReady, setListReady] = useState(false);
+  // The first center is a silent jump (the screen should simply open on the
+  // active programme); later ones — programme rollover, picking a recording —
+  // animate, so the movement is visible as a change.
+  const didInitialCenterRef = useRef(false);
 
   useEffect(() => {
-    if (activeProgramId) centerOnProgram(activeProgramId);
-  }, [activeProgramId, centerOnProgram]);
-
-  // Drop stale offsets when the day (hence the list) changes, so we never scroll
-  // to a previous day's measurement before the new rows lay out.
-  useEffect(() => {
-    rowOffsetsRef.current = {};
-  }, [selectedKey]);
+    if (isTV || !listReady || activeIndex < 0) return;
+    const animated = didInitialCenterRef.current;
+    didInitialCenterRef.current = true;
+    const raf = requestAnimationFrame(() => {
+      listRef.current?.scrollToIndex({ index: activeIndex, viewPosition: 0.5, animated });
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [listReady, activeIndex, selectedKey]);
 
   // Pull-to-refresh — invalidate every query this screen reads (prefix-matched,
   // so all cached days / both live + recorded playback entries refetch): the EPG
@@ -552,70 +575,127 @@ const ChannelScreen: React.FC = () => {
       <DayStrip
         days={days}
         selectedKey={selectedKey}
-        onSelect={setSelectedKey}
+        onSelect={handleSelectDay}
         testID="player-daystrip"
       />
     </View>
   );
 
-  const programList = (
-    <ScrollView
-      ref={scrollRef}
-      onLayout={handleScrollLayout}
-      contentContainerStyle={[styles.scroll, isTV ? undefined : contentWidth]}
-      showsVerticalScrollIndicator={false}
-      // Pull-to-refresh is a touch-only affordance — omit it on TV (no touch;
-      // refresh happens via re-entry / the day strip).
-      refreshControl={
-        isTV ? undefined : (
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={handleRefresh}
-            tintColor={colors.primary}
-            colors={[colors.primary]}
-          />
-        )
-      }
-    >
-      {!selectedDay.isToday && !selectedDay.isFuture ? (
-        <CatchupBanner label={t('catchup.banner', { day: dayLabel })} testID="catchup-banner" />
-      ) : null}
+  // MOBILE list only — the TV branch never renders this (it uses `tvGuideList`
+  // in the drawer), so nothing here needs an `isTV` guard.
+  //
+  // Virtualized: a full day's schedule is dozens of rows and a `ProgramRow` is
+  // expensive to mount (reanimated layout + worklet, plus a native BlurView per
+  // `scheduled` row on Android). Building them all made switching dates janky.
+  // Rows recycle, hence `recycled` on each one — without it a cell being reused
+  // for a different programme animates the swap as if it were an expand, which
+  // reads as a flicker while scrolling (FlashList → Reanimated guide).
+  // EVERY prop below is memoized on purpose. This screen re-renders on its own
+  // timers (realtime, parental/geo boundary checks, ad slots, now-programme
+  // rollover), and a fresh `ListHeaderComponent` element on each of those makes
+  // FlashList re-measure the header. The header sits at offset 0, so its height
+  // feeds every row's offset — re-measuring it shifts the top of the list and
+  // the first rows visibly hide and reappear mid-scroll. The radio schedule
+  // never showed this only because that screen has no such timers.
+  const listHeader = useMemo(
+    () => (
+      <View style={contentWidth}>
+        {!isToday && !selectedDay.isFuture ? (
+          <CatchupBanner label={t('catchup.banner', { day: dayLabel })} testID="catchup-banner" />
+        ) : null}
+        <ReusableText variant="bodySmall" fontWeight="extraBold" style={styles.epgHeader}>
+          {isToday ? t('catchup.epg') : t('catchup.catchup_for', { day: dayLabel })}
+        </ReusableText>
+      </View>
+    ),
+    [contentWidth, isToday, selectedDay.isFuture, dayLabel, t],
+  );
 
-      <ReusableText variant="bodySmall" fontWeight="extraBold" style={styles.epgHeader}>
-        {selectedDay.isToday ? t('catchup.epg') : t('catchup.catchup_for', { day: dayLabel })}
-      </ReusableText>
-
-      {epgLoading ? (
-        Array.from({ length: 6 }, (_, i) => <ProgramRowSkeleton key={i} />)
-      ) : programs.length === 0 ? (
-        <EmptyEpgState testID="epg-empty" />
+  const listEmpty = useMemo(
+    () =>
+      epgLoading ? (
+        <View style={contentWidth}>
+          {Array.from({ length: 6 }, (_, i) => (
+            <ProgramRowSkeleton key={i} />
+          ))}
+        </View>
       ) : (
-        // On TV, TVFocusZone (a TVFocusGuideView, mobile-inert) gives the
-        // D-pad a guided destination so focus lands on the first row — plain
-        // RN ScrollView children below the fold are otherwise unreachable by
-        // the TV focus engine. Each row scrolls itself into view on focus.
-        <TVFocusZone>
-          {programs.map((p) => {
-            const state = programState(p);
-            return (
-              <View key={p.id} onLayout={(e) => handleRowLayout(p.id, e)}>
-                <ProgramRow
-                  title={p.title}
-                  meta={p.description}
-                  time={formatTime(p.startTime)}
-                  state={state}
-                  isPlaying={p.id === activeProgramId}
-                  isLiveNow={selectedDay.isToday && playing?.id === p.id}
-                  onPress={() => handleSelectProgram(p, state)}
-                  onFocus={() => centerOnProgram(p.id)}
-                  testID={`epg-row-${p.id}`}
-                />
-              </View>
-            );
-          })}
-        </TVFocusZone>
-      )}
-    </ScrollView>
+        <EmptyEpgState testID="epg-empty" />
+      ),
+    [epgLoading, contentWidth],
+  );
+
+  const listRefreshControl = useMemo(
+    () => (
+      <RefreshControl
+        refreshing={refreshing}
+        onRefresh={handleRefresh}
+        tintColor={colors.primary}
+        colors={[colors.primary]}
+      />
+    ),
+    [refreshing, handleRefresh, colors.primary],
+  );
+
+  const handleListLoad = useCallback(() => setListReady(true), []);
+
+  const renderProgram = useCallback(
+    ({ item: p }: { item: EpgItem }) => {
+      const state = programState(p);
+      return (
+        <View style={contentWidth}>
+          <ProgramRow
+            recycled
+            title={p.title}
+            meta={p.description}
+            time={formatTime(p.startTime)}
+            state={state}
+            isPlaying={p.id === activeProgramId}
+            isLiveNow={isToday && playingId === p.id}
+            onPress={() => handleSelectProgram(p, state)}
+            expanded={p.id === expandedProgramId}
+            onToggleExpand={() => handleToggleExpand(p)}
+            testID={`epg-row-${p.id}`}
+          />
+        </View>
+      );
+    },
+    [
+      contentWidth,
+      programState,
+      formatTime,
+      activeProgramId,
+      isToday,
+      playingId,
+      expandedProgramId,
+      handleSelectProgram,
+      handleToggleExpand,
+    ],
+  );
+
+  const listData = useMemo(() => (epgLoading ? [] : programs), [epgLoading, programs]);
+
+  // No `style` on the list itself — its bounding height comes from the `flex: 1`
+  // wrapper below (`guidePane`), matching the radio schedule, which centers
+  // correctly. FlashList derives its viewport from that box, and `viewPosition`
+  // is computed against it, so the box has to be the thing that's definite.
+  const programList = (
+    <FlashList
+      ref={listRef}
+      data={listData}
+      keyExtractor={keyExtractor}
+      // Recycled rows re-render off these, not just `data`.
+      extraData={`${activeProgramId}|${expandedProgramId}|${playingId}|${isToday}`}
+      contentContainerStyle={styles.scroll}
+      showsVerticalScrollIndicator={false}
+      // Items only exist after FlashList's first measure pass — this is the
+      // earliest point `scrollToIndex` resolves against real offsets.
+      onLoad={handleListLoad}
+      ListHeaderComponent={listHeader}
+      ListEmptyComponent={listEmpty}
+      refreshControl={listRefreshControl}
+      renderItem={renderProgram}
+    />
   );
 
   // TV drawer body — a SINGLE vertical FlatList with the date strip as its
@@ -641,10 +721,10 @@ const ChannelScreen: React.FC = () => {
       if (tvScrollDebounceRef.current) clearTimeout(tvScrollDebounceRef.current);
     };
   }, []);
-  // Default the drawer to the programme currently on the player (the now-airing
-  // one when watching live), so the guide opens centered on it instead of at the
-  // top — no manual scrolling to find "what's on now".
-  const tvActiveIndex = programs.findIndex((p) => p.id === activeProgramId);
+  // The drawer opens centered on the programme currently on the player (the
+  // now-airing one when watching live) instead of at the top — no manual
+  // scrolling to find "what's on now". Shares `activeIndex` with the mobile
+  // list's auto-center; only the scrolling mechanism differs.
   const tvGuideHeader = (
     <View>
       {dayStripEl}
@@ -672,7 +752,7 @@ const ChannelScreen: React.FC = () => {
       ListHeaderComponent={tvGuideHeader}
       // Start rendered at the airing programme so its row is mounted (and thus
       // can grab initial focus) and roughly in view; onFocus then centers it.
-      initialScrollIndex={tvActiveIndex > 0 ? tvActiveIndex : undefined}
+      initialScrollIndex={activeIndex > 0 ? activeIndex : undefined}
       ListEmptyComponent={
         epgLoading ? (
           <View>
@@ -695,10 +775,20 @@ const ChannelScreen: React.FC = () => {
             isPlaying={p.id === activeProgramId}
             isLiveNow={selectedDay.isToday && playing?.id === p.id}
             onPress={() => handleSelectProgram(p, state)}
+            expanded={p.id === expandedProgramId}
+            // Marks the row expandable (chevron + un-clamped description). On TV
+            // the body press still plays, so this is never fired by a tap here —
+            // focus below is what opens the row.
+            onToggleExpand={() => handleToggleExpand(p)}
             // Land initial D-pad focus on the airing/active programme when the
             // drawer opens, so the user is on "now" without scrolling.
             hasTVPreferredFocus={p.id === activeProgramId}
-            onFocus={() => scrollToFocusedRow(index)}
+            onFocus={() => {
+              scrollToFocusedRow(index);
+              // Focus IS the expansion on TV: only one row can hold D-pad focus,
+              // so "one open row" falls out without a second source of truth.
+              setExpandedProgramId(p.id);
+            }}
             testID={`epg-row-${p.id}`}
           />
         );
@@ -746,7 +836,7 @@ const ChannelScreen: React.FC = () => {
                   </ReusableText>
                   <TouchableOpacity
                     {...drawerCloseFocus.focusProps}
-                    hasTVPreferredFocus={tvActiveIndex < 0}
+                    hasTVPreferredFocus={activeIndex < 0}
                     style={[
                       styles.drawerCloseBtn,
                       tvFocusHighlight(colors.focus, drawerCloseFocus.focused),
@@ -769,10 +859,14 @@ const ChannelScreen: React.FC = () => {
         <>
           {videoBox}
           {!isFullscreen && (
-            <>
+            // One bounded pane below the player holds the strip + list, so the
+            // list's height is definite (mirrors the radio schedule's
+            // `bottomHalf`). FlashList reads its viewport from this box — that's
+            // what `viewPosition: 0.5` centers against.
+            <View style={styles.guidePane}>
               {dayStripEl}
               {programList}
-            </>
+            </View>
           )}
         </>
       )}
@@ -886,6 +980,12 @@ const styles = StyleSheet.create({
   },
   scroll: {
     paddingBottom: SPACING.space_24,
+  },
+  // Bounded box for the day strip + programme list — it fills whatever is left
+  // below the player, which is what gives the virtualized list a definite
+  // viewport height to center against.
+  guidePane: {
+    flex: 1,
   },
   epgHeader: {
     letterSpacing: 0.6,

@@ -64,8 +64,7 @@
         "high": "I lartë",
         "medium": "I mesëm",
         "low": "I ulët"
-      },
-      "remember_me": "Më mbaj mend"
+      }
     },
     "errors": {
       "email": "Email i pavlefshëm",
@@ -127,8 +126,9 @@
     "title": "Radio",
     "now_playing": "Po luan tani",
     "program": "Programi i radios",
+    "schedule_for": "Programi — {{day}}",
+    "past_banner": "{{day}} — tashmë e transmetuar, vetëm informativ",
     "live_now": "Po transmetohet",
-    "favorite_soon": "Të preferuarat vijnë së shpejti",
     "previous": "Stacioni i mëparshëm",
     "next": "Stacioni tjetër"
   },
@@ -245,6 +245,9 @@
     "terms": {
       "title": "Kushtet e përdorimit"
     },
+    "privacy": {
+      "title": "Politika e privatësisë"
+    },
     "theme": {
       "title": "Tema",
       "system": "Sistemi",
@@ -306,7 +309,8 @@
     "empty": {
       "title": "Asnjë program",
       "subtitle": "Nuk ka programe të disponueshme"
-    }
+    },
+    "a11y_play": "Luaj {{title}}"
   },
   "errors": {
     "api_default": "Diçka shkoi keq",

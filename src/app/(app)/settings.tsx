@@ -237,6 +237,12 @@ const SettingsScreen: React.FC = () => {
             testID="settings-terms-row"
           />
           <ListRow
+            title={t('settings.privacy.title')}
+            leading={<Icon as={ShieldIcon} size={20} color={colors.text} />}
+            onPress={() => WebBrowser.openBrowserAsync(LINKS.PRIVACY)}
+            testID="settings-privacy-row"
+          />
+          <ListRow
             title={t('settings.version.title')}
             subtitle={t('settings.version.subtitle', { version })}
             leading={<Icon as={InfoIcon} size={20} color={colors.text} />}

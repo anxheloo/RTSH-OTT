@@ -121,50 +121,53 @@ const RadioPlayer: React.FC<RadioPlayerProps> = ({
   );
 };
 
-const ART = 230;
+// Compact sizing — this screen pins the whole player above a sibling
+// (non-scrolling) pane, so its footprint must reliably fit above the fold on
+// short screens rather than assuming a generous, scrollable column.
+const ART = 160;
 
 const styles = StyleSheet.create({
   container: {
     alignItems: 'center',
   },
   art: {
-    width: '62%',
+    width: '48%',
     maxWidth: ART,
     aspectRatio: 1,
-    marginTop: SPACING.space_20,
+    marginTop: SPACING.space_12,
     borderRadius: BORDERRADIUS.radius_20,
     overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',
   },
   meta: {
-    paddingTop: SPACING.space_24,
+    paddingTop: SPACING.space_12,
     paddingHorizontal: SPACING.space_24,
   },
   sub: {
     marginTop: SPACING.space_4,
   },
   eq: {
-    paddingVertical: SPACING.space_12,
+    paddingVertical: SPACING.space_8,
     alignItems: 'center',
   },
   transport: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: SPACING.space_24,
-    paddingTop: SPACING.space_12,
+    gap: SPACING.space_16,
+    paddingTop: SPACING.space_8,
   },
   sideBtn: {
-    width: 50,
-    height: 50,
+    width: 44,
+    height: 44,
     borderRadius: BORDERRADIUS.full,
     alignItems: 'center',
     justifyContent: 'center',
   },
   playBtn: {
-    width: 72,
-    height: 72,
+    width: 60,
+    height: 60,
     borderRadius: BORDERRADIUS.full,
     alignItems: 'center',
     justifyContent: 'center',

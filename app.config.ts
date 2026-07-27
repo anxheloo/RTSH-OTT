@@ -71,6 +71,10 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     backgroundColor: '#000000',
     ios: {
       bundleIdentifier,
+      // Icon Composer bundle (SDK 54+). Ships the iOS 26 Liquid Glass treatment
+      // and its own light/dark/tinted variants, so no per-appearance PNGs are
+      // needed here; the top-level `icon` stays as the pre-iOS-26 fallback.
+      icon: './assets/AppIcon.icon',
       infoPlist: {
         ITSAppUsesNonExemptEncryption: false,
         // iOS parallel of Android's usesCleartextTraffic — ATS exception for the
@@ -83,11 +87,15 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     android: {
       package: androidPackage,
       adaptiveIcon: {
-        // Logo centered with ~17% transparent padding so Android's launcher
-        // mask (circle/squircle) never crops the mark. Background is brand
-        // black to match the splash; the foreground's own black areas blend in.
+        // The foreground bakes in its own off-white plate across the inner 66%
+        // (the adaptive-icon safe zone) with a transparent 17% margin, so
+        // `backgroundColor` MUST match that plate (#F9FAFC) — any other value
+        // shows the plate as a visible tile inside the launcher mask.
         foregroundImage: './assets/images/android-icon-foreground.png',
-        backgroundColor: '#000000',
+        backgroundColor: '#F9FAFC',
+        // Android 13+ themed icons: red marks opaque, the RTSH wordmark left as
+        // a knockout so it stays legible when the OS recolors the silhouette.
+        monochromeImage: './assets/images/android-icon-monochrome.png',
       },
       predictiveBackGestureEnabled: false,
     },
@@ -99,7 +107,17 @@ export default ({ config }: ConfigContext): ExpoConfig => {
       // project for TV (leanback launcher intent + TV banner) when EXPO_TV=1 is
       // set at prebuild time — on mobile/tablet prebuilds (EXPO_TV unset) it is
       // a no-op, so phone/tablet builds are unaffected.
-      '@react-native-tvos/config-tv',
+      //
+      // The banner is what the Android TV launcher row renders — it replaces the
+      // icon entirely there and gets no text label, so the app name has to live
+      // in the artwork (320x180 xhdpi, the platform's fixed banner size).
+      [
+        '@react-native-tvos/config-tv',
+        {
+          androidTVBanner: './assets/images/tv-banner.png',
+          androidTVIcon: './assets/images/tv-icon.png',
+        },
+      ],
       // TV-only: patch MainApplication to disable the RN 0.80+ clipped-element focus
       // search that breaks D-pad navigation into ScrollViews (react-native-tvos #1087).
       // Added ONLY for TV prebuilds (mobile native code untouched); auto-applied by EAS.

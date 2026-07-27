@@ -11,6 +11,7 @@ import { StyleSheet, View } from 'react-native';
 import { Host, Picker } from '@expo/ui';
 
 import { BORDERRADIUS } from '@/theme/borders';
+import { darkTheme } from '@/theme/colors';
 import { SPACING } from '@/theme/spacing';
 import { useAppStore } from '@/store/useAppStore';
 
@@ -46,6 +47,10 @@ function SelectInput<T extends string>({
 
   const hasError = Boolean(errorText);
   const borderColor = hasError ? colors.error : colors.border;
+  // @expo/ui renders Picker as a native SwiftUI/Compose control — it ignores
+  // our theme entirely unless the Host is explicitly told the scheme + tint,
+  // so without this it always shows the OS-default (light/white) menu button.
+  const resolvedScheme = colors.background === darkTheme.background ? 'dark' : 'light';
 
   return (
     <View>
@@ -55,8 +60,8 @@ function SelectInput<T extends string>({
         </ReusableText>
       ) : null}
 
-      <View style={[styles.field, { borderColor }]}>
-        <Host matchContents style={styles.host}>
+      <View style={[styles.field, { backgroundColor: colors.inputBackground, borderColor }]}>
+        <Host matchContents style={styles.host} colorScheme={resolvedScheme} seedColor={colors.primary}>
           <Picker
             selectedValue={value}
             onValueChange={(next) => onChange(next as T)}

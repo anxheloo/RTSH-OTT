@@ -4,10 +4,16 @@
  * thin. The hook owns the reactive state (clock, fired-set, session anchor); this
  * module owns the *decisions* derived from it.
  *
- * Model: a mid-roll fires when wall-clock crosses its `startTime` WHILE watching.
+ * Model: a mid-roll is due once wall-clock is inside its viewing window WHILE
+ * watching — the backend contract (fe-midroll-ads-flow.md §3) is "`startTime`
+ * null or ≤ now → play now", with `validUntil` closing the window.
  *  - `startTime` in the future → schedule a boundary timer.
- *  - `startTime` already passed before the session began → never inserted into the
- *    past (so it can't fire late, nor replay on channel re-entry).
+ *  - `startTime` already passed but the window is still open → due NOW. This
+ *    includes a start that predates the channel visit (join mid-window) — the
+ *    server clamps an active band's `startTime` to "now" on the REST seed, and
+ *    gating on the visit's own start instant made that clamp race-y under clock
+ *    skew (a pushed ad could be eaten forever). Replay protection is the
+ *    fired-ids set (cross-mount), NOT a time guard.
  *  - missing / unparseable `startTime` → "fire-now" (a backend quirk surfaces the
  *    ad instead of dropping it).
  *  - `validUntil` (when a valid instant strictly after the start) is the
@@ -57,15 +63,20 @@ export function midrollLapsed(ad: Ad, nowMs: number): boolean {
 export interface MidrollWindow {
   /** Current clock (ms). */
   nowMs: number;
-  /** Wall-clock when this watch session began — the earliest a mid-roll may fire. */
+  /**
+   * Wall-clock when this watch session began. Rank anchor only (orders a
+   * fire-now ad against scheduled ones) — NOT an eligibility guard: an ad whose
+   * `startTime` predates the visit is still due while its window is open.
+   */
   sessionStart: number;
   /** Ad ids already shown (per-mount + cross-mount seed). */
   firedIds: ReadonlySet<number>;
 }
 
 /**
- * The mid-roll due to show now: the earliest one scheduled inside `[sessionStart,
- * now]` (or fire-now), not yet shown, not lapsed. Pure — returns `null` for none.
+ * The mid-roll due to show now: the earliest one whose `startTime` has passed
+ * (or fire-now), not yet shown, whose viewing window is still open (not lapsed).
+ * Pure — returns `null` for none.
  */
 export function selectDueMidroll(midrolls: Ad[], window: MidrollWindow): AdCreative | null {
   const { nowMs, sessionStart, firedIds } = window;
@@ -76,11 +87,9 @@ export function selectDueMidroll(midrolls: Ad[], window: MidrollWindow): AdCreat
     if (firedIds.has(ad.id)) continue;
     if (midrollLapsed(ad, nowMs)) continue;
     const fire = midrollFireMs(ad);
-    // Fire-now: eligible immediately, ranked by sessionStart so a real scheduled ad
-    // wins ties cleanly. Otherwise: must have arrived (≤ now) inside the session
-    // window (≥ sessionStart) — a start that passed before we arrived is skipped.
+    if (fire !== null && fire > nowMs) continue; // not yet due — boundary timer's job
+    // Fire-now ranks at sessionStart; scheduled ads rank at their own instant.
     const rank = fire === null ? sessionStart : fire;
-    if (fire !== null && (fire > nowMs || fire < sessionStart)) continue;
     if (rank < bestFire) {
       best = ad;
       bestFire = rank;

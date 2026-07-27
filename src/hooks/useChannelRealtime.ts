@@ -13,15 +13,15 @@
  * Mechanism (per `useNowProgram`):
  *   - hold `nowMs` in state; advance it at the next mid-roll's `startTime` via ONE
  *     `setTimeout`, and on app foreground (RN throttles backgrounded timers);
- *   - derive `dueAd` = the earliest MID_ROLL scheduled INSIDE the current watch
- *     window ([sessionStart, now]), not yet shown, not lapsed. A start that already
- *     passed before we began watching is NOT inserted into the past — which also
- *     stops a past mid-roll from replaying when you leave and re-enter the channel.
- *     A null/unparseable `startTime` is "fire-now" (shown as soon as seen, so a
- *     backend quirk surfaces the ad instead of dropping it); `validUntil` only
- *     lapses the ad if valid AND strictly after the start. The pure scheduling
- *     core (`selectDueMidroll` / `nextMidrollBoundaryMs`) lives in `@/realtime`;
- *     this hook only owns the reactive state it reads from;
+ *   - derive `dueAd` = the earliest MID_ROLL whose `startTime` has passed (or
+ *     fire-now), not yet shown, whose viewing window is still open — the backend
+ *     contract's "`startTime` ≤ now → play now" (a join mid-window shows the ad;
+ *     replay on channel re-entry is blocked by the fired-ids set, not a time
+ *     guard). A null/unparseable `startTime` is "fire-now" (shown as soon as
+ *     seen, so a backend quirk surfaces the ad instead of dropping it);
+ *     `validUntil` only lapses the ad if valid AND strictly after the start. The
+ *     pure scheduling core (`selectDueMidroll` / `nextMidrollBoundaryMs`) lives
+ *     in `@/realtime`; this hook only owns the reactive state it reads from;
  *   - `onAdComplete` marks it shown → the derived `dueAd` advances to the next/none.
  *
  * Watch model (docs/REALTIME_SOCKET.md): emit `/app/watch` on enter and on every
@@ -40,6 +40,7 @@ import { useQueryClient } from '@tanstack/react-query';
 
 import { useAppStore } from '@/store/useAppStore';
 import type { Ad, AdCreative, EpgItem } from '@/types/domain';
+import { adDtoSchema } from '@/types/domain';
 import type { GeoEvent, MidrollEvent, WatchKind } from '@/realtime';
 import {
   nextMidrollBoundaryMs,
@@ -54,11 +55,12 @@ import { useAppState } from './useAppState';
 /**
  * Ids of mid-rolls already shown this APP SESSION. `firedIds` (below) is per-mount
  * and resets when you leave a channel — so without this, a mid-roll re-fires every
- * time you re-enter the channel (especially a fire-now ad with no parseable
- * `startTime`, which the session-window guard can't filter). This module-level set
- * survives remounts (resets on app restart); a fresh mount seeds `firedIds` from
- * it, and an ADD/UPDATE op re-arms an ad by removing it (a real reschedule should
- * be able to show again). This is the "don't show the same mid-roll again" guard.
+ * time you re-enter the channel while its window is still open (the REST seed
+ * serves an active band on every entry). This module-level set survives remounts
+ * (resets on app restart); a fresh mount seeds `firedIds` from it, and an
+ * ADD/UPDATE op re-arms an ad by removing it (a real reschedule should be able to
+ * show again). This set is the ONLY replay guard — eligibility itself is the
+ * open-window rule, never a time comparison against the visit's start.
  */
 const shownMidrollIds = new Set<number>();
 
@@ -82,9 +84,9 @@ export function useChannelRealtime(
   const [geoBlock, setGeoBlock] = useState<{ channelId: number; notice: string } | null>(null);
 
   // Start of THIS watch session — the wall-clock when we began watching this
-  // channel. A mid-roll only fires if its scheduled instant falls inside the
-  // session window ([sessionStart, now]); one whose start already passed before
-  // we arrived is NOT inserted into the past (and so can't replay on re-entry).
+  // channel. Rank anchor only (orders a fire-now ad against scheduled ones in
+  // `selectDueMidroll`) — eligibility is the open-window rule + the fired-ids
+  // set, never a time guard against this instant (see midroll.ts JSDoc).
   // The channel screen remounts per `[id]` (stacked route), so the hook's life =
   // one channel visit and the lazy initializer captures the right anchor — no
   // in-render reset (the React Compiler bans calling Date.now() during render).
@@ -107,8 +109,8 @@ export function useChannelRealtime(
     [queryClient],
   );
 
-  // Derived (pure): the mid-roll due to show now — earliest scheduled inside the
-  // current watch window, not yet shown, not lapsed. Logic lives in `@/realtime`.
+  // Derived (pure): the mid-roll due to show now — earliest whose start has
+  // passed, not yet shown, window still open. Logic lives in `@/realtime`.
   const dueAd = useMemo<AdCreative | null>(
     () => (isLiveKind ? selectDueMidroll(midrolls, { nowMs, sessionStart, firedIds }) : null),
     [isLiveKind, midrolls, nowMs, firedIds, sessionStart],
@@ -125,8 +127,16 @@ export function useChannelRealtime(
     return () => clearTimeout(id);
   }, [isLiveKind, midrolls, nowMs, firedIds, refresh]);
 
-  // Re-evaluate on foreground (timers throttled while backgrounded).
-  useAppState({ onForeground: refresh });
+  // Foreground: re-evaluate the clock (timers throttled while backgrounded) AND
+  // re-seed the ads from REST (backend contract §6: topics have no replay, so a
+  // push that raced a brief background/network blip — one too short to drop the
+  // STOMP connection and trigger the reconnect reconciler below — is otherwise
+  // lost until channel re-entry). Also picks up the next day's band occurrence.
+  const onForeground = useCallback(() => {
+    refresh();
+    queryClient.invalidateQueries({ queryKey: ['ads', channelId] });
+  }, [refresh, queryClient, channelId]);
+  useAppState({ onForeground });
 
   // Socket mid-roll mutation → write the CACHE (single source of truth); on an
   // UPDATE clear the fired flag so the new timing can re-arm. setState lives in the
@@ -136,18 +146,40 @@ export function useChannelRealtime(
       // The channel topic is already per-channel, but coerce-and-guard like
       // applyGeo so a stray cross-channel frame can't mutate this channel's ads.
       if (Number(ev.channelId) !== channelId) return;
-      queryClient.setQueryData<Ad[]>(['ads', channelId], (prev = []) => {
-        if (ev.op === 'REMOVE') return prev.filter((a) => a.id !== ev.adId);
-        if (!ev.creative) return prev;
-        return [...prev.filter((a) => a.id !== ev.adId), ev.creative]; // upsert by id
-      });
+      // Coerce like channelId — an id serialized as a string would silently miss
+      // every strict-equality match below (REMOVE filter, fired-set re-arm).
+      const adId = Number(ev.adId);
+      if (!Number.isFinite(adId)) return;
+
+      if (ev.op === 'REMOVE') {
+        queryClient.setQueryData<Ad[]>(['ads', channelId], (prev = []) =>
+          prev.filter((a) => a.id !== adId),
+        );
+      } else {
+        // Validate the pushed creative through the SAME schema as the REST seed
+        // (`getAds`) — the two delivery paths must never diverge in shape. A
+        // malformed creative is dropped LOUDLY in dev: silently caching it would
+        // corrupt scheduling (an unparseable startTime demotes to "fire-now").
+        const parsed = adDtoSchema.safeParse(ev.creative);
+        if (!parsed.success) {
+          if (__DEV__) {
+            // eslint-disable-next-line no-console
+            console.warn('[realtime] dropped malformed mid-roll creative', adId, parsed.error);
+          }
+          return;
+        }
+        queryClient.setQueryData<Ad[]>(['ads', channelId], (prev = []) => [
+          ...prev.filter((a) => a.id !== adId),
+          parsed.data, // upsert by id
+        ]);
+      }
       // Re-arm: a reschedule (ADD/UPDATE) or removal clears the "already shown"
       // flag in BOTH the per-mount state and the cross-mount module set.
-      shownMidrollIds.delete(ev.adId);
+      shownMidrollIds.delete(adId);
       setFiredIds((s) => {
-        if (!s.has(ev.adId)) return s;
+        if (!s.has(adId)) return s;
         const next = new Set(s);
-        next.delete(ev.adId);
+        next.delete(adId);
         return next;
       });
     },

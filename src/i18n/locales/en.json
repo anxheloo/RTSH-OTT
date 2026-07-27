@@ -64,8 +64,7 @@
         "high": "High",
         "medium": "Medium",
         "low": "Low"
-      },
-      "remember_me": "Remember me"
+      }
     },
     "errors": {
       "email": "Invalid email address",
@@ -127,8 +126,9 @@
     "title": "Radio",
     "now_playing": "Now playing",
     "program": "Radio schedule",
+    "schedule_for": "Schedule — {{day}}",
+    "past_banner": "{{day}} — already aired, info only",
     "live_now": "On air",
-    "favorite_soon": "Favourites coming soon",
     "previous": "Previous station",
     "next": "Next station"
   },
@@ -245,6 +245,9 @@
     "terms": {
       "title": "Terms of use"
     },
+    "privacy": {
+      "title": "Privacy policy"
+    },
     "theme": {
       "title": "Theme",
       "system": "System",
@@ -306,7 +309,8 @@
     "empty": {
       "title": "No programs",
       "subtitle": "No programs available"
-    }
+    },
+    "a11y_play": "Play {{title}}"
   },
   "errors": {
     "api_default": "Something went wrong",

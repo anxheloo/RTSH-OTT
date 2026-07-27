@@ -63,8 +63,6 @@ export const registerSchema = z
     gender: z.enum(REGISTER_GENDERS, { error: 'auth.errors.gender_required' }),
     education: z.enum(EDUCATION_LEVELS, { error: 'auth.errors.education_required' }),
     acceptTerms: z.boolean().refine((v) => v === true, { error: 'auth.errors.terms_required' }),
-    // Optional persistence choice — carried to the verify step, not posted on register.
-    rememberMe: z.boolean(),
   })
   .refine((d) => d.password === d.confirmPassword, {
     error: 'auth.errors.password_match',

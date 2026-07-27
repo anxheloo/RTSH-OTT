@@ -38,30 +38,23 @@ import { setRefreshToken } from '@/lib/tokenVault';
 const RegisterScreen: React.FC = () => {
   const { t } = useTranslation();
 
-  const rememberMeDefault = useAppStore((s) => s.rememberMe);
-  const persistRememberMe = useAppStore((s) => s.setRememberMe);
-
   const [step, setStep] = useState(1);
   const [email, setEmail] = useState('');
-  // Carried from the form (step 1) to the verify step (step 2), where tokens land.
-  const [rememberMe, setRememberMe] = useState(rememberMeDefault);
 
   const start = useRegister();
   const verify = useRegisterVerifyOtp();
   const resend = useRegisterResendOtp();
 
-  /** Verified OTP → activated account + tokens: persist per "remember me" + log straight in. */
+  /** Verified OTP → activated account + tokens: always persisted (no "remember me" choice at signup) + log straight in. */
   const completeLogin = async ({ user, accessToken, refreshToken }: AuthResponse) => {
-    await setRefreshToken(refreshToken, { remember: rememberMe });
+    await setRefreshToken(refreshToken, { remember: true });
     useAppStore.getState().login(user, accessToken);
   };
 
   const handleRegister = (data: RegisterFormData) => {
-    // confirmPassword + rememberMe are client-only — neither is part of the register payload.
-    const { confirmPassword: _confirmPassword, rememberMe: remember, ...payload } = data;
+    // confirmPassword is client-only — not part of the register payload.
+    const { confirmPassword: _confirmPassword, ...payload } = data;
     setEmail(data.email);
-    setRememberMe(remember);
-    persistRememberMe(remember); // pre-fill the box with this choice next time
     start.mutate(payload, { onSuccess: () => setStep(2) });
   };
 
@@ -86,7 +79,6 @@ const RegisterScreen: React.FC = () => {
           onSubmit={handleRegister}
           isSubmitting={start.isPending}
           errorText={start.error ? authErrorMessage(start.error) : undefined}
-          rememberMeDefault={rememberMeDefault}
         />
       ) : (
         <OtpVerify

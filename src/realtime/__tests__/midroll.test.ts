@@ -1,8 +1,9 @@
 /**
  * Unit tests for the pure mid-roll scheduling core. The invariants under test
- * are the ones the hook relies on for correctness (see midroll.ts JSDoc):
- * session-window gating (no firing into the past / no replay on re-entry),
- * fire-now sentinel for missing timing, lapse rules, and boundary selection.
+ * are the ones the hook relies on for correctness (see midroll.ts JSDoc): the
+ * open-window due rule (`startTime` ≤ now while the window is open — including
+ * a start that predates the visit), fired-set replay protection, fire-now
+ * sentinel for missing timing, lapse rules, and boundary selection.
  */
 import type { Ad } from '@/types/domain';
 import { MIDROLL_MAX_STALENESS_MS } from '@/constants/ads';
@@ -88,14 +89,34 @@ describe('selectDueMidroll', () => {
     ...over,
   });
 
-  it('fires an ad whose startTime falls inside [sessionStart, now]', () => {
+  it('fires an ad whose startTime has passed and window is open', () => {
     // validUntil keeps this about window membership, not the staleness fallback.
     const ad = mkAd(1, { startTime: iso(T0 + 5 * MIN), validUntil: iso(T0 + 100 * MIN) });
     expect(selectDueMidroll([ad], window())?.id).toBe(1);
   });
 
-  it('never fires an ad scheduled before the session began (no replay on re-entry)', () => {
-    const ad = mkAd(1, { startTime: iso(T0 - MIN) });
+  // Backend contract §3: "startTime ≤ now → play now". A start that predates the
+  // channel visit is still due while the window is open (join mid-window; also the
+  // clock-skew case where the server's clamped "now" lands just before mount).
+  it('fires a pre-session ad whose window is still open (join mid-window)', () => {
+    const ad = mkAd(1, { startTime: iso(T0 - 30 * MIN), validUntil: iso(T0 + 100 * MIN) });
+    expect(selectDueMidroll([ad], window())?.id).toBe(1);
+  });
+
+  it('skips a pre-session ad whose window has already closed', () => {
+    const ad = mkAd(1, { startTime: iso(T0 - 60 * MIN), validUntil: iso(T0 + 5 * MIN) });
+    expect(selectDueMidroll([ad], window())).toBeNull(); // nowMs = T0+10min > validUntil
+  });
+
+  it('fires a windowless pre-session ad within the staleness fallback (skew slack)', () => {
+    // fire < sessionStart by 1min but only 2min in the past → inside the 5-min
+    // fallback → due. The old session-window guard ate exactly this case.
+    const ad = mkAd(1, { startTime: iso(T0 + 8 * MIN) });
+    expect(selectDueMidroll([ad], window({ sessionStart: T0 + 9 * MIN }))?.id).toBe(1);
+  });
+
+  it('skips a windowless pre-session ad older than the staleness fallback', () => {
+    const ad = mkAd(1, { startTime: iso(T0 - MIN) }); // 11min before nowMs, no window
     expect(selectDueMidroll([ad], window())).toBeNull();
   });
 

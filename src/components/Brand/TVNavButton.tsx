@@ -4,7 +4,9 @@
  * viewer can switch sections straight from the header with the D-pad instead of
  * driving focus all the way down to the bottom tab bar.
  *
- * Returns null off-TV — phone/tablet keep the bottom tabs only, unchanged. Each
+ * Returns null off-TV — phone/tablet keep the bottom tabs only, unchanged — and
+ * while unauthenticated, since the `(auth)` screens share `BrandHeader` but the
+ * four routes it lists sit behind the auth guard. Each
  * tab screen's `BrandHeader` renders one; only the active screen's is mounted,
  * so its drawer is the one in play (no shared state needed). Selecting a route
  * navigates and closes; the remote Back key closes it too.
@@ -77,12 +79,15 @@ const NavItem: React.FC<NavItemProps> = ({ route, active, preferred, onSelect })
 const TVNavButton: React.FC = () => {
   const { t } = useTranslation();
   const colors = useAppStore((s) => s.colors);
+  const isAuthenticated = useAppStore((s) => s.isAuthenticated);
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const triggerFocus = useTVFocus();
   const closeFocus = useTVFocus();
 
-  if (!isTV) return null;
+  // Off-TV, and on the (auth) stack, there is nothing to navigate to — the four
+  // routes it lists all live behind the auth guard.
+  if (!isTV || !isAuthenticated) return null;
 
   const routes: NavRoute[] = [
     { key: 'home', href: '/(app)/(tabs)', match: '/', icon: HomeIcon, label: t('nav.home') },
