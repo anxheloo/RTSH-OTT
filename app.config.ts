@@ -116,12 +116,13 @@ export default ({ config }: ConfigContext): ExpoConfig => {
       // flag rewrites the iOS project into a tvOS target, so it can never run
       // unconditionally here.
       ['./plugins/withUniversalAndroidTV', { banner: './assets/images/tv-banner.png' }],
-      // Patches MainApplication to disable the RN 0.80+ clipped-element focus
-      // search that breaks D-pad navigation into ScrollViews (react-native-tvos
-      // #1087). Applied to every Android build, but the injected code gates
-      // itself on UiModeManager at RUNTIME so it only takes effect on a TV —
-      // phone/tablet keeps stock RN focus behaviour.
-      './plugins/withAndroidTVFocusFix',
+      // NOTE: `withAndroidTVFocusFix` (the MainApplication patch for the RN 0.80+
+      // D-pad-into-ScrollView regression, react-native-tvos #1087) was DELETED
+      // 2026-07-28 — react-native-tvos 0.86 ships
+      // `enableCustomFocusSearchOnClippedElementsAndroid` defaulting to FALSE, so
+      // forcing it false was a no-op. Re-check that default on every SDK upgrade
+      // (ReactNativeFeatureFlagsDefaults.kt / .h); if upstream flips it back to
+      // true, the patch must return. See rules/ARCHITECTURE.md → Android TV / STB.
       'expo-router',
       'expo-secure-store',
       'expo-localization',

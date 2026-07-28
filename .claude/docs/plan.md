@@ -351,6 +351,22 @@ Phase 8 (5 tabs) → 22.4 (4 tabs). · 5.X.6/5.X.7/5.X.8 (design tokens) → 22.
 
 ---
 
+## 22.18-TV.b — Single Android artifact for phone + tablet + TV (2026-07-28) ✅
+
+Collapses the two-build Android model (mobile prebuild vs `EXPO_TV=1` TV prebuild) into **one APK/AAB** that installs and runs on phone, tablet, Android TV and STB. Google's documented recommendation; enabled by `Platform.isTV` being a **runtime** signal on Android (`UiModeManager`), so the only build-time TV input is the manifest.
+
+- [x] **New `plugins/withUniversalAndroidTV.js`** — always-on, Android-only, additive: leanback launcher category on the *existing* MAIN intent-filter, nine `<uses-feature required="false">` entries, TV banner. Never touches `android:icon` (that's what made `config-tv`'s `androidTVIcon` unusable in a shared build).
+- [x] **`@react-native-tvos/config-tv` unregistered** (kept in devDeps for a future tvOS target) — its `EXPO_TV` gate also rewrites the iOS project into a tvOS target, so it can't run unconditionally.
+- [x] **`expo-audio` → `recordAudioAndroid: false`** — `RECORD_AUDIO` implied `android.hardware.microphone` as REQUIRED, which makes Google Play hide the app from every TV device. Latent bug in the *previous* TV builds too; invisible because sideloading bypasses Play filtering. We never record.
+- [x] **`plugins/withAndroidTVFocusFix.js` DELETED** — proven dead code on react-native-tvos 0.86: `enableCustomFocusSearchOnClippedElementsAndroid` already defaults `false` (Kotlin + C++ sources agree; no override in the runtime provider chain), so forcing it false was a no-op. Supersedes the 22.18 entry above, which records it as done and device-verified — accurate when written (RN 0.80-era default was `true`); upstream flipped the default at the SDK 56→57 / RN 0.86 upgrade and the plugin survived as invisible dead code. The D-pad through the channel guide is carried by the single-`FlatList` restructure, not this patch. **Re-check that default on every SDK upgrade.**
+- [x] **EAS `*_tv` / `*_stb` profiles + `*:tv:*` npm scripts KEPT** by user decision — reference structure for other projects. `EXPO_TV` is now inert so they build identically; only `APP_PLATFORM=androidstb` still changes anything.
+- [ ] **OPEN — STB runtime classification.** An operator STB is runtime-identical to retail Android TV, so `STB_ANDROID` still needs the build-time `APP_PLATFORM` flag. Proposed: the backend maps known operator `model` strings (already sent in the login `device` object) → `STB`, making a new box SKU a backend config row instead of an app release. **Needs backend sign-off** (loose end: the ad-impression beacon's client-side `?deviceClass=`).
+- [ ] **OPEN — Play Console TV form factor.** Opt in, add TV screenshots + 1280×720 banner, pass TV review. Not automatic from the leanback intent. Feeds Phase 24.
+
+Full mechanism + rationale: `rules/ARCHITECTURE.md → Android TV / STB`.
+
+---
+
 ## Reference
 - Style guide: `.claude/rules/STYLE_GUIDE.md` · Architecture: `.claude/rules/ARCHITECTURE.md`
 - Project memory: `.claude/memory/` · Design mockup: `.claude/docs/rtsh-tani-mobile.html`
