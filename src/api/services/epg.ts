@@ -7,6 +7,18 @@ import { apiClient } from '../client';
 import { CHANNELS_ROUTES } from '../endpoints';
 import { playbackDecisionDtoSchema, toPlaybackDecision } from './channels';
 
+/**
+ * Wire `ageRating` → domain number. The backend sends a number or `null`;
+ * older payloads sent a string (`"18"`) or an empty string for "unrated".
+ * Anything that isn't a positive finite number resolves to `undefined` so the
+ * row simply renders no badge — a rating is decorative, it must never throw.
+ */
+function toAgeRating(value: number | string | null | undefined): number | undefined {
+  if (value === null || value === undefined || value === '') return undefined;
+  const n = Number(value);
+  return Number.isFinite(n) && n > 0 ? n : undefined;
+}
+
 /** Maps the wire `GuideProgramDto` (plain array from real API) to the domain `EpgItem`. */
 function mapGuideProgram(dto: GuideProgramDto, channelId: string): EpgItem {
   const now = Date.now();
@@ -19,6 +31,7 @@ function mapGuideProgram(dto: GuideProgramDto, channelId: string): EpgItem {
     startTime: dto.start,
     endTime: dto.end,
     isAdult: dto.isAdult,
+    ageRating: toAgeRating(dto.ageRating),
     isLive: now >= new Date(dto.start).getTime() && now < new Date(dto.end).getTime(),
     hasCatchup: dto.hasCatchup,
     // Per-programme access look-ahead — without these two, a backend-flagged row

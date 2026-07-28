@@ -154,6 +154,8 @@ The client maps `streams` keys to `QualityId` **dynamically** via `resolveStream
 
 Returns EPG items for the channel on the given date. Each item embeds the same `PlaybackDecisionDTO` fields so tapping a recorded programme swaps the player source without an extra network request.
 
+`ageRating` is the minimum viewer age — a **number** (`7`, `12`, `16`, `18`) or `null` when the programme is unrated. Normalised to a number at the service boundary (`toAgeRating`, tolerant of the legacy string form) and rendered as a `12+` pill on the programme row. Display only: the binary `isAdult` is what the parental gate enforces.
+
 ```jsonc
 // 200
 {
@@ -168,6 +170,7 @@ Returns EPG items for the channel on the given date. Each item embeds the same `
       "startTime": "2026-06-18T06:00:00.000Z",
       "endTime":   "2026-06-18T06:30:00.000Z",
       "isAdult": false,
+      "ageRating": 12,          // number | null — null/absent = unrated (no badge)
       "isLive": true,
       "thumbnail": "https://…",
       // Playback data (same shape as PlaybackDecisionDTO)

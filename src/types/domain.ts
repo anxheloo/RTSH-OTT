@@ -119,7 +119,13 @@ export interface GuideProgramDto {
   description: string;
   start: string;   // ISO 8601
   end: string;     // ISO 8601
-  ageRating?: string;
+  /**
+   * Minimum viewer age. The backend sends a **number** (e.g. `12`, `18`) or
+   * `null` when the programme carries no rating; older payloads sent a string
+   * (`"18"` / `""`). All three are accepted here and normalised to a number at
+   * the service boundary (`services/epg.ts → toAgeRating`).
+   */
+  ageRating?: number | string | null;
   isAdult: boolean;
   hasCatchup?: boolean;
   /** Per-programme access look-ahead (backend ask henri-changes2 §5) — see `EpgItem.decision`. */
@@ -136,6 +142,12 @@ export interface EpgItem {
   startTime: string; // ISO 8601
   endTime: string;   // ISO 8601
   isAdult: boolean;
+  /**
+   * Minimum viewer age, normalised to a number (`12`, `18`, …). Absent when the
+   * programme is unrated (wire `null` / `""` / junk). Display-only — the gate
+   * that actually blocks playback is the binary `isAdult` (see `useParentalGuard`).
+   */
+  ageRating?: number;
   /** Currently airing — design `prog` now-state (highlighted row + play glyph). */
   isLive?: boolean;
   /**
@@ -364,7 +376,8 @@ export const guideProgramDtoSchema = z.looseObject({
   description: z.string().catch(''),
   start: z.string(),
   end: z.string(),
-  ageRating: z.string().optional().catch(undefined),
+  // Number on the current backend, string on older payloads, `null` = unrated.
+  ageRating: z.union([z.string(), z.number()]).nullish().catch(undefined),
   isAdult: z.boolean().catch(false),
   hasCatchup: z.boolean().optional().catch(undefined),
   /** Per-programme access look-ahead (see `EpgItem.decision`). */

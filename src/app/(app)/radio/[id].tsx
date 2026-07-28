@@ -423,6 +423,7 @@ const RadioPlayerScreen: React.FC = () => {
                     title={p.title}
                     meta={p.description}
                     time={formatTime(p.startTime)}
+                    ageRating={p.ageRating}
                     state={state}
                     isPlaying={isNow && isPlaying}
                     isLiveNow={isNow}

@@ -649,6 +649,7 @@ const ChannelScreen: React.FC = () => {
             title={p.title}
             meta={p.description}
             time={formatTime(p.startTime)}
+            ageRating={p.ageRating}
             state={state}
             isPlaying={p.id === activeProgramId}
             isLiveNow={isToday && playingId === p.id}
@@ -771,6 +772,7 @@ const ChannelScreen: React.FC = () => {
             title={p.title}
             meta={p.description}
             time={formatTime(p.startTime)}
+            ageRating={p.ageRating}
             state={state}
             isPlaying={p.id === activeProgramId}
             isLiveNow={selectedDay.isToday && playing?.id === p.id}

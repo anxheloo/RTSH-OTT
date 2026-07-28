@@ -2,18 +2,26 @@
 
 import { mockChannels } from './channels';
 
-const PROGRAMS_PER_CHANNEL = [
+// `ageRating` is optional on purpose — the unrated rows exercise the "no badge"
+// path the real backend hits whenever it sends `null`.
+const PROGRAMS_PER_CHANNEL: {
+  title: string;
+  duration: number;
+  isAdult: boolean;
+  hasCatchup?: boolean;
+  ageRating?: number;
+}[] = [
   { title: 'Lajmet', duration: 30, isAdult: false },
   { title: 'Mëngjes me RTSH', duration: 90, isAdult: false, hasCatchup: false },
-  { title: 'Dokumentar', duration: 60, isAdult: false },
-  { title: 'Studio e Hapur', duration: 60, isAdult: false },
+  { title: 'Dokumentar', duration: 60, isAdult: false, ageRating: 7 },
+  { title: 'Studio e Hapur', duration: 60, isAdult: false, ageRating: 12 },
   { title: 'Lajmet e Mesditës', duration: 30, isAdult: false, hasCatchup: false },
-  { title: 'Seria shqiptare', duration: 45, isAdult: false },
-  { title: 'Film Shqiptar', duration: 90, isAdult: false },
+  { title: 'Seria shqiptare', duration: 45, isAdult: false, ageRating: 12 },
+  { title: 'Film Shqiptar', duration: 90, isAdult: false, ageRating: 16 },
   { title: 'Lajmet e Mbrëmjes', duration: 30, isAdult: false },
-  { title: 'Debat Politik', duration: 60, isAdult: false },
+  { title: 'Debat Politik', duration: 60, isAdult: false, ageRating: 16 },
   { title: 'Natën e mirë fëmijë', duration: 30, isAdult: false },
-  { title: 'Film Ndërkombëtar', duration: 110, isAdult: true },
+  { title: 'Film Ndërkombëtar', duration: 110, isAdult: true, ageRating: 18 },
   { title: 'Muzikë Shqipe', duration: 60, isAdult: false },
 ];
 
@@ -49,6 +57,7 @@ function generateDayEpg(channelId: string, channelName: string, dateStr: string)
       startTime: start.toISOString(),
       endTime: end.toISOString(),
       isAdult: prog.isAdult,
+      ageRating: prog.ageRating,
       isLive: now >= start.getTime() && now < end.getTime(),
       hasCatchup: 'hasCatchup' in prog ? prog.hasCatchup : true,
       thumbnail: `https://placehold.co/320x180/212121/fff?text=${encodeURIComponent(prog.title)}`,
@@ -93,6 +102,7 @@ function lateNightAdultProgram(channelId: string, channelName: string) {
     startTime: start.toISOString(),
     endTime: end.toISOString(),
     isAdult: true,
+    ageRating: 18,
     isLive: false,
     thumbnail: 'https://placehold.co/320x180/212121/fff?text=18%2B',
     decision: 'ALLOWED',

@@ -19,6 +19,10 @@
  *    the `time` so the user can spot it and tap to jump back to live.
  * When watching live the airing row is both (red play glyph + LIVE pill).
  *
+ * `ageRating` adds a compact `12+` pill beside the title. It is INFORMATIONAL —
+ * an unrated programme (no value) simply renders no pill, and the pill never
+ * gates playback; the parental gate keys off `isAdult` (see `useParentalGuard`).
+ *
  * Passing `onToggleExpand` turns the row into an EXPANDER: `meta` (the
  * programme description) un-clamps from one line to its full height, and the
  * press targets split — the row body toggles, the play glyph becomes the only
@@ -59,6 +63,13 @@ export interface ProgramRowProps {
   meta: string;
   /** Optional right-aligned time (design `.prog time`). */
   time?: string;
+  /**
+   * Minimum viewer age (`EpgItem.ageRating`). Renders a compact `12+` pill next
+   * to the title; omit/`undefined` for an unrated programme → no pill at all.
+   * Informational only — it never changes what the row can play (the parental
+   * gate keys off `isAdult`, not this).
+   */
+  ageRating?: number;
   /** Visual + interaction state. Default `'now'`. */
   state?: ProgramRowState;
   /** This programme is loaded in the player now — swaps the glyph for the equalizer. */
@@ -103,6 +114,7 @@ const ProgramRow: React.FC<ProgramRowProps> = ({
   title,
   meta,
   time,
+  ageRating,
   state = 'now',
   isPlaying = false,
   isLiveNow = false,
@@ -218,9 +230,30 @@ const ProgramRow: React.FC<ProgramRowProps> = ({
         )}
 
         <View style={styles.meta}>
-          <ReusableText fontSize={FONTSIZE.regular} fontWeight="bold" themeColor={titleColor} numberOfLines={1}>
-            {title}
-          </ReusableText>
+          {/* Row, not an inline span: a `numberOfLines={1}` title truncates its
+              own text but would push a sibling out of the box, so the title
+              shrinks (`flexShrink`) and the pill keeps its intrinsic width. */}
+          <View style={styles.titleRow}>
+            <ReusableText
+              fontSize={FONTSIZE.regular}
+              fontWeight="bold"
+              themeColor={titleColor}
+              numberOfLines={1}
+              style={styles.title}
+            >
+              {title}
+            </ReusableText>
+            {ageRating ? (
+              <View
+                style={[styles.ageBadge, { borderColor: colors.border, backgroundColor: colors.surfaceHigh }]}
+                testID={testID ? `${testID}-age` : undefined}
+              >
+                <ReusableText fontSize={FONTSIZE.xs} fontWeight="bold" themeColor="textMuted">
+                  {`${ageRating}+`}
+                </ReusableText>
+              </View>
+            ) : null}
+          </View>
           {/* `undefined` = RN's unlimited default, so the text wraps to as many
               lines as it needs and the row height flows from it — nothing here
               pins a height. */}
@@ -283,6 +316,21 @@ const styles = StyleSheet.create({
   },
   meta: {
     flex: 1,
+  },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.space_8,
+  },
+  title: {
+    flexShrink: 1,
+  },
+  ageBadge: {
+    flexShrink: 0,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: BORDERRADIUS.radius_8,
+    paddingHorizontal: 5,
+    paddingVertical: 1,
   },
   sub: {
     marginTop: 2,
