@@ -21,7 +21,7 @@ RTSH TANI — OTT streaming app for Radio Televizioni Shqiptar. Live TV (19 chan
 - react-hook-form + zod (forms + validation)
 - i18next + expo-localization (sq default, en fallback)
 - @sentry/react-native — **planned, not yet installed** (crash reporting; deferred by user 2026-07-03, tracked in audit plan 1.4)
-- jest-expo + @testing-library/react-native — unit/behavior tests, co-located `__tests__/` folders (policy: `STANDARDS.md §11`)
+- jest-expo + @testing-library/react-native — unit/behavior tests, co-located `__tests__/` folders (policy: `rules/STANDARDS.md §11`)
 - EAS Build + EAS Update
 
 ## Commands
