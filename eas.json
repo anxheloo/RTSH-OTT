@@ -70,6 +70,11 @@
     }
   },
   "submit": {
-    "production": {}
+    "production": {
+      "ios": {
+        "appleTeamId": "KMS93Q3XB8",
+        "language": "en-US"
+      }
+    }
   }
 }
