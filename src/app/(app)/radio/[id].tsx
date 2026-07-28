@@ -7,6 +7,12 @@
  * schedule for the selected day. The schedule list is the ONLY thing that
  * scrolls; the screen itself never does.
  *
+ * On a TABLET IN LANDSCAPE those two panes sit SIDE BY SIDE instead (see
+ * `splitLayout`) — the same shape, and the same reason, as `channel/[id]`:
+ * stacked, the fixed now-playing pane plus the day strip eat the short landscape
+ * height and leave the list a viewport barely a row tall, with no way to scroll
+ * the rest into view.
+ *
  * Playback is store-driven: mounting selects the station in `PlayerSlice`
  * (which `RadioAudioHost` turns into actual audio); the transport just flips
  * store flags. Prev / next swap the station in place (local `activeId` state,
@@ -68,7 +74,20 @@ import { resolveStreamSource } from '@/utils';
 import { formatDayMonth, toDateKey } from '@/utils/datetime';
 import type { CatchupDay, EpgItem } from '@/types/domain';
 import { ChevronLeftIcon } from '@/assets/icons';
-import { useContentWidth } from '@/responsive';
+import { useContentWidth, useResponsive } from '@/responsive';
+
+/**
+ * Tablet-landscape split ratio (now-playing : schedule) — the radio counterpart
+ * of the channel screen's 62/38. The now-playing core is a fixed-size block
+ * (compact art + a transport row), so it needs far less than a 16:9 player does;
+ * the schedule takes the larger share because it's the only scrolling region.
+ *
+ * The player side is a WIDTH percentage (it stays content-height and centers
+ * vertically), the schedule side is a `flex` weight (it fills the remaining
+ * width and the full height).
+ */
+const PLAYER_SPLIT_PERCENT = 42;
+const SCHEDULE_SPLIT_FLEX = 58;
 
 const CATCHUP_DAYS_BACK = 7;
 const CATCHUP_DAYS_FORWARD = 7;
@@ -94,8 +113,25 @@ const RadioPlayerScreen: React.FC = () => {
   const colors = useAppStore((s) => s.colors);
   const mode = useAppStore((s) => s.mode);
   const insets = useSafeAreaInsets();
-  // Center the now-playing column on tablet/TV; no-op on phone.
-  const contentWidth = useContentWidth('content');
+  // Cap + center the column on tablet/TV; no-op on phone. `player` (820), NOT
+  // `content` (640) — this screen is a player + its EPG, the same kind of column
+  // as `channel/[id]`, and the two must not disagree on width. At 640 a tablet in
+  // portrait (800dp) showed 80dp gutters while the channel screen went
+  // full-bleed; the 820 cap doesn't bind in portrait, so both read the same.
+  const contentWidth = useContentWidth('player');
+
+  // Tablet landscape — the SPLIT layout (now-playing left, schedule right).
+  //
+  // Same defect, same fix as the channel screen: stacked, the fixed now-playing
+  // pane plus the day strip consume most of the short landscape height and leave
+  // the schedule list a viewport barely a row tall — and this screen is a fixed,
+  // non-scrolling column, so nothing can bring the rest of the list back. Side by
+  // side, the schedule column gets the FULL screen height.
+  //
+  // Scoped to `tablet` explicitly: TV classifies as `tv` and a phone must be
+  // untouched by any of this.
+  const { deviceClass, isLandscape } = useResponsive();
+  const splitLayout = deviceClass === 'tablet' && isLandscape;
   const radioChannelId = useAppStore((s) => s.radioChannelId);
   const radioIsPlaying = useAppStore((s) => s.radioIsPlaying);
   const setRadioChannel = useAppStore((s) => s.setRadioChannel);
@@ -357,11 +393,29 @@ const RadioPlayerScreen: React.FC = () => {
 
   return (
     <ScreenLayout>
-      <View style={styles.body}>
-        {/* Top pane — the now-playing core. Sized to its own content (never
-            forced to a fixed fraction, so it can't be squeezed into
-            overlapping the pane below); fixed, never scrolls. */}
-        <View style={[styles.topHalf, contentWidth, { paddingTop: headerHeight }]}>
+      <View
+        style={[
+          styles.body,
+          splitLayout ? styles.bodySplit : styles.bodyStack,
+          // Both columns clear the floating header in split mode; stacked, only
+          // the top pane needs to (see its own paddingTop below). Written as a
+          // value in BOTH states, never a style that appears and disappears —
+          // a dropped layout prop isn't reliably reset across a rotation.
+          { paddingTop: splitLayout ? headerHeight : 0 },
+        ]}
+      >
+        {/* Now-playing core. Sized to its own content (never forced to a fixed
+            fraction, so it can't be squeezed into overlapping the schedule);
+            fixed, never scrolls. In split mode it becomes the left column and
+            `alignSelf: 'center'` — a ROW's cross axis — centers it vertically. */}
+        <View
+          style={[
+            styles.topHalf,
+            contentWidth,
+            { paddingTop: splitLayout ? 0 : headerHeight },
+            splitLayout && styles.topHalfSplit,
+          ]}
+        >
           <RadioPlayer
             station={station}
             isPlaying={isPlaying}
@@ -373,9 +427,11 @@ const RadioPlayerScreen: React.FC = () => {
           />
         </View>
 
-        {/* Bottom pane — day strip (sticky, outside the scroller) + schedule.
-            Only the schedule list scrolls; the day strip stays put. */}
-        <View style={styles.bottomHalf}>
+        {/* Schedule pane — day strip (sticky, outside the scroller) + list.
+            Only the list scrolls; the day strip stays put. In split mode this
+            becomes the right column and takes the FULL screen height, which is
+            the whole point — stacked in landscape it got almost nothing. */}
+        <View style={[styles.bottomHalf, splitLayout && styles.bottomHalfSplit]}>
           <View style={contentWidth}>
             <DayStrip
               days={days}
@@ -472,6 +528,16 @@ const styles = StyleSheet.create({
   body: {
     flex: 1,
   },
+  // The two body directions. `bodyStack` is the default column and exists only
+  // so that leaving landscape WRITES 'column' back rather than dropping the
+  // prop — RN does not reliably reset a layout prop that simply disappears
+  // (learned on the channel screen's `videoSplit`).
+  bodyStack: {
+    flexDirection: 'column',
+  },
+  bodySplit: {
+    flexDirection: 'row',
+  },
   // Sized to its own content, never stretched to a fixed fraction — a forced
   // 50/50 split clipped or overlapped the transport row on shorter screens.
   // `overflow: hidden` is a defensive clip only; RadioPlayer's compact sizing
@@ -481,11 +547,28 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     paddingBottom: SPACING.space_12,
   },
+  // TABLET LANDSCAPE ONLY (see `splitLayout`). Narrows the now-playing core to
+  // the left column; it keeps its content height and `alignSelf: 'center'`
+  // centers it on the row's cross axis (vertically). No `flex` here on purpose —
+  // this style is REMOVED on the way back to portrait, and an override of a
+  // VALUE is safe where a removed PROPERTY is not. The 820 `maxWidth` from
+  // `contentWidth` never binds: 42% of any tablet width is well under it.
+  topHalfSplit: {
+    width: `${PLAYER_SPLIT_PERCENT}%`,
+    alignSelf: 'center',
+  },
   // Takes whatever height remains below the top pane. The day strip renders
   // as its own sibling (not the ScrollView's first child), so it stays fixed
   // while only the schedule list scrolls.
   bottomHalf: {
     flex: 1,
+  },
+  // TABLET LANDSCAPE ONLY — the schedule becomes the right column of the row and
+  // stretches to the FULL screen height, which is the whole point: stacked it
+  // only got what the now-playing pane and the day strip left over, which in
+  // landscape was barely one row.
+  bottomHalfSplit: {
+    flex: SCHEDULE_SPLIT_FLEX,
   },
 });
 

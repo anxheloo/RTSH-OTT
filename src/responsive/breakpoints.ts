@@ -30,6 +30,19 @@ export const GRID_COLUMNS = {
 } as const;
 
 /**
+ * Gutter (dp) between grid columns, per device class. Deliberately NOT a scaled
+ * token: the gap is a layout decision, not typography — a wide screen wants
+ * visibly more air between cards than a 1.15× step would give, and tablet + TV
+ * share ONE value so a card grid reads the same on both. `phone: 8` is the
+ * design baseline (== the previous `SPACING.space_8`), so phones are unchanged.
+ */
+export const GRID_GAP = {
+  phone: 8,
+  tablet: 14,
+  tv: 14,
+} as const;
+
+/**
  * Per-device-class UI scale step. `phone: 1` is the design baseline, so phones
  * render byte-for-byte identically to today (scaled(n) === n). Bigger screens
  * bump tokens a single step — readable, not stretched.

@@ -76,8 +76,21 @@ import type { CatchupDay, EpgItem } from '@/types/domain';
 import { ChevronLeftIcon, CloseIcon, GuideIcon, InfoIcon, LockIcon } from '@/assets/icons';
 import { AD_REVEAL_DELAY_MS } from '@/constants/ads';
 import { DEFAULT_QUALITY } from '@/constants/player';
-import { useContentWidth } from '@/responsive';
+import { useContentWidth, useResponsive } from '@/responsive';
 import { isTV, tvFocusHighlight, TVFocusZone, useTVFocus } from '@/tv';
+
+/**
+ * Tablet-landscape split ratio (video : guide). 62/38 keeps the player the
+ * clear focus while leaving the guide column wide enough for a programme title
+ * plus its time without wrapping every row. Only ever read in landscape on a
+ * tablet — see `splitLayout`.
+ *
+ * The video side is a WIDTH percentage (it keeps its 16:9 `aspectRatio`), the
+ * guide side is a `flex` weight (it fills the remaining width and the full
+ * height). Both are concrete in the non-split state too — see `videoSplit`.
+ */
+const VIDEO_SPLIT_PERCENT = 62;
+const GUIDE_SPLIT_FLEX = 38;
 
 const CATCHUP_DAYS_BACK = 7;
 const CATCHUP_DAYS_FORWARD = 7;
@@ -161,9 +174,27 @@ const ChannelScreen: React.FC = () => {
     : '';
 
   // Fullscreen is button-driven only: the expand control locks the device to
-  // landscape, collapse restores portrait. The app is otherwise portrait-only —
-  // physically rotating the phone does nothing (no sensor auto-rotation).
+  // landscape, collapse restores portrait. PHONES are otherwise portrait-only —
+  // physically rotating one does nothing (no sensor auto-rotation). TABLETS
+  // rotate freely (see `useOrientation.ts`), which is what `splitLayout` below
+  // exists to handle.
   const { isFullscreen, toggleFullscreen, exitFullscreen } = useFullscreenOrientation();
+
+  // Tablet landscape — the SPLIT layout (video left, guide right).
+  //
+  // Why it's mandatory rather than cosmetic: stacked, a 16:9 player eats
+  // width×9/16 of the vertical budget. On a 1280×716dp tablet that is ~450dp of
+  // 716 before any chrome, which pushes the day strip to the screen edge and the
+  // programme list entirely below the fold — and this screen is a fixed,
+  // non-scrolling column, so nothing can bring the list back. Verified on device
+  // 2026-07-28 (zero programme rows in the UI tree; a swipe scrolled nothing).
+  // Side by side, the video is bounded by the COLUMN width instead, and the
+  // guide gets the full screen height for its list.
+  //
+  // Scoped to `tablet` explicitly, never `!== 'phone'`: TV has its own branch
+  // below, and a phone must be untouched by any of this.
+  const { deviceClass, isLandscape } = useResponsive();
+  const splitLayout = deviceClass === 'tablet' && isLandscape && !isTV && !isFullscreen;
 
   // TV/STB only: the player stays full-screen and the guide (day strip +
   // programme list) lives in a slide-in drawer opened from a header button.
@@ -560,8 +591,19 @@ const ChannelScreen: React.FC = () => {
   // a stacked column); on mobile it's the width-capped inline box (fullscreen
   // wins first). Same element in every branch → mobile's single-tree rotation
   // invariant is preserved (mobile is always the else path).
+  //
+  // Tablet landscape adds `styles.videoSplit` LAST, which unsets the two props
+  // `contentWidth` contributes (`width: '100%'` + `maxWidth`) and sizes the box
+  // from the row instead. Unsetting `maxWidth` is the important part: `maxWidth`
+  // and `aspectRatio` on the SAME node is what made this box 820dp wide but far
+  // taller than 820×9/16 — the aspect height is derived before the clamp, so the
+  // player kept a 1280dp-wide box's height. In portrait the window (800dp) is
+  // narrower than the 820dp cap, so the clamp never binds and portrait was
+  // always correct — which is exactly why the bug only ever showed in landscape.
   const videoBoxStyle =
-    isTV || isFullscreen ? styles.videoFull : [styles.video, contentWidth, { marginTop: insets.top }];
+    isTV || isFullscreen
+      ? styles.videoFull
+      : [styles.video, contentWidth, { marginTop: insets.top }, splitLayout && styles.videoSplit];
   const videoBox = (
     <View style={videoBoxStyle}>
       {player}
@@ -807,6 +849,15 @@ const ChannelScreen: React.FC = () => {
 
   return (
     <ScreenLayout
+      // Tablet landscape: flip the ROOT to a row so the video and the guide sit
+      // side by side. Passed as a style on the existing root rather than wrapping
+      // the children in a new <View> — an added/removed wrapper across a rotation
+      // would remount the VideoView and restart playback.
+      //
+      // Always a style, never `undefined`: `flexDirection` must be explicitly
+      // written back to 'column' on the way out of landscape, because a removed
+      // layout prop is not reliably reset (see `videoSplit`).
+      style={splitLayout ? styles.bodySplit : styles.bodyStack}
       edges={isFullscreen ? ['bottom', 'left', 'right'] : []}
       backgroundColor={isFullscreen ? 'videoPlaceholderBg' : 'background'}
     >
@@ -865,7 +916,7 @@ const ChannelScreen: React.FC = () => {
             // list's height is definite (mirrors the radio schedule's
             // `bottomHalf`). FlashList reads its viewport from this box — that's
             // what `viewPosition: 0.5` centers against.
-            <View style={styles.guidePane}>
+            <View style={[styles.guidePane, splitLayout && styles.guidePaneSplit]}>
               {dayStripEl}
               {programList}
             </View>
@@ -915,6 +966,22 @@ const styles = StyleSheet.create({
   videoFull: {
     flex: 1,
     backgroundColor: PLAYER_COLORS.surface,
+  },
+  // TABLET LANDSCAPE ONLY (see `splitLayout`). Narrows the player to the left
+  // column; `aspectRatio` from `styles.video` still sets the height, so the box
+  // is 62% × 9/16 and the guide column keeps the rest of the screen.
+  //
+  // Deliberately NO `flex` here, and every property it touches is also set in
+  // the non-split state. Rotating back to portrait REMOVES this style from the
+  // array, and RN does not reliably reset a layout prop that simply disappears
+  // — a `flex: 62` survived the rotation and made the player fill the whole
+  // portrait screen (verified on device 2026-07-28). Overriding a VALUE is
+  // safe; removing a PROPERTY is not. `maxWidth` needs no override either: 62%
+  // of any tablet width is below the 820dp cap, so the cap never binds.
+  videoSplit: {
+    width: `${VIDEO_SPLIT_PERCENT}%`,
+    alignSelf: 'center',
+    marginTop: 0,
   },
   // TV: guide-drawer header button — top-left, immediately right of the back
   // button (40px button + 8px gap), so it never collides with the player's own
@@ -988,6 +1055,23 @@ const styles = StyleSheet.create({
   // viewport height to center against.
   guidePane: {
     flex: 1,
+  },
+  // TABLET LANDSCAPE ONLY — the guide becomes the right column of the row and
+  // takes the FULL screen height, which is the whole point: stacked it only got
+  // whatever the 16:9 player left over, which was nothing.
+  guidePaneSplit: {
+    flex: GUIDE_SPLIT_FLEX,
+  },
+  // The two ROOT directions, applied to the ScreenLayout root (see its `style`
+  // prop). A style swap on an existing node, never a wrapper, so the VideoView
+  // keeps its tree position across a rotation and playback survives. `bodyStack`
+  // is the default column and exists only so leaving landscape WRITES 'column'
+  // back rather than dropping the prop.
+  bodyStack: {
+    flexDirection: 'column',
+  },
+  bodySplit: {
+    flexDirection: 'row',
   },
   epgHeader: {
     letterSpacing: 0.6,

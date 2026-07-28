@@ -41,13 +41,10 @@ import StationRow from '@/components/radio/StationRow';
 import StationRowSkeleton from '@/components/radio/StationRowSkeleton';
 import { cacheBustUrl } from '@/utils';
 import type { Channel } from '@/types/domain';
-import { useResponsive, useResponsiveGrid } from '@/responsive';
+import { GRID_GAP, useResponsive, useResponsiveGrid } from '@/responsive';
 import { isTV } from '@/tv';
 
 type HomeMode = 'tv' | 'radio';
-
-/** Gutter between grid columns; cells pad out to SCREEN_PADDING on the edges. */
-const GRID_GAP = SPACING.space_8;
 
 // Hero carousel (the "PREMIERË SONTE" section) is disabled until the real
 // /home feed endpoint lands. Re-enable the mock data, the import, and the
@@ -113,7 +110,9 @@ const HomeScreen: React.FC = () => {
   // Orientation feeds the list key (below): on a phone numColumns is identical
   // in both orientations, so without this FlashList never remounts on rotation
   // and keeps a stale multi-column layout (header wedged beside the grid).
-  const { isLandscape } = useResponsive();
+  const { deviceClass, isLandscape } = useResponsive();
+  // Gutter between cards — one wider value shared by tablet + TV, phone unchanged.
+  const gridGap = GRID_GAP[deviceClass];
 
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -158,9 +157,19 @@ const HomeScreen: React.FC = () => {
   // Skeleton stacks ride ListEmptyComponent: the grid/list swaps placeholders
   // for data in place once the query lands, with no layout jump.
   const tvSkeleton = (
-    <View testID="home-tv-skeleton" style={styles.skeletonGrid}>
+    <View
+      testID="home-tv-skeleton"
+      style={[styles.skeletonGrid, { paddingHorizontal: SCREEN_PADDING - gridGap / 2 }]}
+    >
       {Array.from({ length: numColumns * 3 }, (_, i) => (
-        <View key={i} style={[styles.skeletonCell, { width: `${100 / numColumns}%` }]}>
+        <View
+          key={i}
+          style={{
+            width: `${100 / numColumns}%`,
+            paddingHorizontal: gridGap / 2,
+            paddingBottom: gridGap,
+          }}
+        >
           <ChannelCardSkeleton />
         </View>
       ))}
@@ -195,8 +204,9 @@ const HomeScreen: React.FC = () => {
           style={[
             styles.cell,
             {
-              paddingLeft: col === 0 ? SCREEN_PADDING : GRID_GAP / 2,
-              paddingRight: col === numColumns - 1 ? SCREEN_PADDING : GRID_GAP / 2,
+              paddingLeft: col === 0 ? SCREEN_PADDING : gridGap / 2,
+              paddingRight: col === numColumns - 1 ? SCREEN_PADDING : gridGap / 2,
+              paddingBottom: gridGap,
             },
           ]}
         >
@@ -261,18 +271,14 @@ const HomeScreen: React.FC = () => {
 };
 
 const styles = StyleSheet.create({
+  // Gutters are applied inline — the gap is device-class dependent (GRID_GAP),
+  // so it can't live in a static sheet.
   cell: {
     flex: 1,
-    paddingBottom: GRID_GAP,
   },
   skeletonGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    paddingHorizontal: SCREEN_PADDING - GRID_GAP / 2,
-  },
-  skeletonCell: {
-    paddingHorizontal: GRID_GAP / 2,
-    paddingBottom: GRID_GAP,
   },
 });
 
