@@ -103,25 +103,25 @@ export default ({ config }: ConfigContext): ExpoConfig => {
       output: 'static',
     },
     plugins: [
-      // Android TV / STB support. Self-gates: it only rewrites the native
-      // project for TV (leanback launcher intent + TV banner) when EXPO_TV=1 is
-      // set at prebuild time — on mobile/tablet prebuilds (EXPO_TV unset) it is
-      // a no-op, so phone/tablet builds are unaffected.
+      // ONE Android artifact for phone + tablet + Android TV + STB. Always on —
+      // there is no TV-only build any more. Adds the leanback launcher category,
+      // the `uses-feature required="false"` block a TV needs (see the plugin's
+      // JSDoc — one implicitly-required feature de-lists the app from Play on
+      // TV), and the TV launcher banner. All three are additive: a phone build
+      // is unaffected, and `android:icon` is deliberately left alone so the
+      // adaptive icon survives.
       //
-      // The banner is what the Android TV launcher row renders — it replaces the
-      // icon entirely there and gets no text label, so the app name has to live
-      // in the artwork (320x180 xhdpi, the platform's fixed banner size).
-      [
-        '@react-native-tvos/config-tv',
-        {
-          androidTVBanner: './assets/images/tv-banner.png',
-          androidTVIcon: './assets/images/tv-icon.png',
-        },
-      ],
-      // TV-only: patch MainApplication to disable the RN 0.80+ clipped-element focus
-      // search that breaks D-pad navigation into ScrollViews (react-native-tvos #1087).
-      // Added ONLY for TV prebuilds (mobile native code untouched); auto-applied by EAS.
-      ...(process.env.EXPO_TV ? ['./plugins/withAndroidTVFocusFix'] : []),
+      // This replaces `@react-native-tvos/config-tv` (still in devDependencies
+      // for a future tvOS target): that plugin gates on EXPO_TV, and the same
+      // flag rewrites the iOS project into a tvOS target, so it can never run
+      // unconditionally here.
+      ['./plugins/withUniversalAndroidTV', { banner: './assets/images/tv-banner.png' }],
+      // Patches MainApplication to disable the RN 0.80+ clipped-element focus
+      // search that breaks D-pad navigation into ScrollViews (react-native-tvos
+      // #1087). Applied to every Android build, but the injected code gates
+      // itself on UiModeManager at RUNTIME so it only takes effect on a TV —
+      // phone/tablet keeps stock RN focus behaviour.
+      './plugins/withAndroidTVFocusFix',
       'expo-router',
       'expo-secure-store',
       'expo-localization',
@@ -159,6 +159,13 @@ export default ({ config }: ConfigContext): ExpoConfig => {
         'expo-audio',
         {
           enableBackgroundPlayback: true,
+          // We only ever PLAY audio (radio) — never record. Dropping
+          // RECORD_AUDIO isn't cosmetic: Android implies
+          // `android.hardware.microphone` as REQUIRED from that permission, and
+          // a required feature a TV doesn't have makes Google Play hide the app
+          // from every TV device. Also removes a permission we'd otherwise have
+          // to justify in the store listing.
+          recordAudioAndroid: false,
         },
       ],
     ],
