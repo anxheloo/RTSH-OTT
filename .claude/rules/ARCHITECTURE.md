@@ -525,16 +525,31 @@ is the SDK-compatible one. Several APIs the Sentry docs show are 8.x-only — se
 
 ### Known gaps
 
-- **NOT YET PROVEN END-TO-END.** Every gate is green (tsc, lint, format, expo-doctor 20/20, 97/97
-  tests, plugin registered in the resolved config) — but **no real event has been confirmed to land
-  in Sentry**, because that needs a native build (`expo run:*` / `eas build`) which has not been run
-  since installing. Until a confirmed issue URL exists, the correct description of this app is
-  "instrumented", not "monitored". Native crashes, TTID and slow/frozen frames require a native build
-  regardless — they never work in Expo Go.
+- **Symbol upload: PROVEN 2026-07-29** (was listed here as unproven; corrected against Sentry's own
+  records). All four builds off commit `44d62b18` uploaded successfully — verified in Sentry, not
+  inferred from a build log:
+  - **JS source maps** for every build, under releases `1.0.0 (4)`/`(6)`/`(7)`/`(10)` with matching
+    `Dist`. That the release strings line up is the load-bearing part: it means the string the SDK
+    reports and the string the artifacts were uploaded under **agree**, which is the "empty release"
+    trap avoided (nothing errors when they disagree — the release just silently holds no events).
+  - **iOS native dSYMs** (`RTSHTANI`, `RTSHTANIPreview`, plus `React`/`libavif`), ~133 MiB each —
+    the dyld / OOM / ANR frames that never reach the JS handler.
+  - Implies two things that could not be checked statically: `SENTRY_AUTH_TOKEN` does reach the EAS
+    builders, and the **EU regional `url`** is correct. A wrong region would have produced an empty
+    Source Maps page with no error anywhere.
+- **STILL UNPROVEN: no real event has been confirmed to land.** This is now the *only* open link in
+  the chain. Until a confirmed issue URL exists, the honest description of this app is
+  **"instrumented", not "monitored"**. Cheapest proof: run a dev build (`npm run start:dev`) and
+  throw once — `Sentry.init` has no `__DEV__` gate, so dev events send tagged
+  `environment: development`. Note Sentry's Issues page will keep showing its "Set up the SDK"
+  onboarding banner until that first event arrives; the banner reflects an empty project, NOT a
+  misconfigured SDK, and **running the suggested wizard would overwrite this setup** with its
+  defaults (`sendDefaultPii: true`, `tracesSampleRate: 1.0`, no `beforeSend`/`beforeBreadcrumb`).
+  Native crashes, TTID and slow/frozen frames need a native build regardless — never Expo Go.
 - **Alerting is the Sentry default only.** The project has one auto-created rule ("Send a
   notification for high priority issues"). The two floor rules — *a new issue in the latest release*
-  and *a crash-rate / volume spike* — are **not** created; they need a `SENTRY_AUTH_TOKEN`.
-  Instrumented but un-notified means you learn about a bad release from a 1-star review.
+  and *a crash-rate / volume spike* — are **not** created. Instrumented but un-notified means you
+  learn about a bad release from a 1-star review.
 - **`beforeSend` does not see native crashes.** dyld / OOM / ANR bypass the JS layer entirely. They
   are protected by what never reaches native context, not by that hook.
 - **Commit association is not wired.** Without linking the repo in Sentry, a crash cannot point at a

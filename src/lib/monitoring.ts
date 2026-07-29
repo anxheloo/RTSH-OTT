@@ -52,7 +52,6 @@
  *   (`expo run:*` / `eas build`); they do not work in Expo Go.
  */
 import * as Sentry from '@sentry/react-native';
-import * as Application from 'expo-application';
 import Constants from 'expo-constants';
 import * as Updates from 'expo-updates';
 
@@ -171,13 +170,22 @@ export function initMonitoring(): void {
     dsn: SENTRY_DSN,
     environment: APP_VARIANT,
 
-    // `version@build` — matches what the config plugin uploads for. Source-map
-    // resolution itself rides Debug IDs (see metro.config.js), so this pair is
-    // for release health and "which build was this?", not for symbolication.
-    release: `${Application.applicationId ?? 'al.rtsh.tani'}@${
-      Application.nativeApplicationVersion ?? '0.0.0'
-    }`,
-    dist: Application.nativeBuildVersion ?? undefined,
+    // `release` / `dist` are DELIBERATELY NOT SET — do not add them back.
+    //
+    // The SDK derives them natively as `<bundleId>@<version>+<build>`
+    // (`integrations/release.js`: `${nativeRelease.id}@${nativeRelease.version}+${nativeRelease.build}`),
+    // which is byte-identical to what the `@sentry/react-native/expo` plugin uploads
+    // artifacts under, because both read the same native app info. Setting `release`
+    // here OVERRIDES that (same file, the `options.release` branch wins) — and an
+    // override that omits `+build` silently pools every build into ONE release:
+    // crash-free rate per build, adoption, and "new issue in the latest release"
+    // all stop distinguishing build 4 from build 10.
+    //
+    // Found live 2026-07-29: this file previously set `al.rtsh.tani@1.0.0` while the
+    // uploads landed under `al.rtsh.tani@1.0.0+N`. Nothing errored — stack traces
+    // stayed readable (Debug IDs, see metro.config.js) so the mismatch was invisible
+    // except as an empty Releases page. Omitting both is the fix: there is no string
+    // left for the two sides to disagree on.
 
     tracesSampleRate: TRACES_SAMPLE_RATE,
 
