@@ -110,6 +110,8 @@ STOMP-over-WebSocket (`@stomp/stompjs`). `events.ts`, `midroll.ts` (pure schedul
 - `components/Media/RadioPlayer.tsx` — presentational now-playing core; no playback logic. `RadioMiniPlayer` (Layout/) is the docked strip.
 - `components/Media/PlayerControls.tsx` — overlay (auto-hide, fullscreen, PIP, audio tracks). Draggable scrubber, active only when seekable (recorded/catch-up — **live is deliberately non-seekable**). Requires `GestureHandlerRootView` at the app root.
 
+**`expo-video` must stay `>= 57.0.2` — never relax this floor.** expo-modules-core 57 changed the SharedObject lifecycle so `release()` no longer deallocates the native object immediately (it lives until JS GC). expo-video 57.0.0/57.0.1 still tore the player down in `deinit`, so on iOS the `AVPlayer` **kept decoding and holding the audio session after the JS component unmounted** — closing the channel screen or switching to a catch-up programme left the previous stream audible, two at once (expo/expo#47569). 57.0.2 moves teardown into `sharedObjectWillRelease()` (expo/expo#47828). This is a **native** fix: it ships only in a new build, never via `eas update`.
+
 Stream `User-Agent` stamping + the AES-128 header-forwarding open risk: `rules/ARCHITECTURE.md → Device identity`.
 
 ### Theme
