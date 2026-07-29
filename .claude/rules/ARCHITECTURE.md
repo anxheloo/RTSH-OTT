@@ -433,3 +433,52 @@ Real-time layer in `src/realtime/` (`@/realtime`) over **STOMP-on-WebSocket** (`
 - **Foreground REST re-seed (2026-07-21).** The hook's foreground handler now also invalidates `['ads', channelId]` (alongside the existing clock re-eval) — backend doc §6 recommendation: topics have no replay, so a push that raced a background/network blip too short to drop the STOMP connection (and thus never trigger the reconnect reconciler) was otherwise lost until channel re-entry. Also picks up the next day's band occurrence on resume.
 - **`fired-ids` are the replay guard** — per-mount state seeded from the module-level `shownMidrollIds` set (survives channel re-entry within an app session; reset on app restart). Keyed by ad `id` (globally unique) so they don't leak across channels; an ADD/UPDATE/REMOVE socket op re-arms the id (a real reschedule may show again).
 - **Fix verified by unit tests only so far (2026-07-21)** — the open-window rule + boundary-timer behavior are covered in `realtime/__tests__/midroll.test.ts` + `hooks/__tests__/useChannelRealtime.test.tsx`; the on-device matrix (REST-seed future band, WS ADD future band, WS ADD mid-band clamp, background-across-boundary, REMOVE while pending/on-screen — `docs/fe-midroll-ads-response.md` §4) still needs a run against the live backend.
+
+---
+
+## Upgrade log
+
+Append-only, dated record of SDK/dependency upgrades — what moved, whether the native layer changed
+(and therefore whether a new binary was required), and which layers were re-verified.
+
+- **2026-07-29: Expo SDK 57 patch realignment — `expo` 57.0.2 → 57.0.8** (`expo-modules-core`
+  57.0.2 → 57.0.7, 26 `expo-*` packages realigned, `react-native-screens` 4.25.2 → ~4.26.0,
+  `jest-expo` → ~57.0.2). **Not an SDK-major** — stayed on SDK 57 throughout, so none of the
+  React 19 / New Architecture / native-tabs / `expo-av` migrations applied.
+  - **Motivation:** a **dyld `Symbol not found` `SIGABRT` at launch** on iOS (both iPad Pro 11" M5
+    and iPhone 17 Pro, reproduced pre-fix). `expo-video@57.0.2`'s **precompiled** xcframework calls
+    `AnyModule._decorateModule(object:in:)` (2-param, introduced in core 57.0.3) while the pinned
+    core 57.0.2 exported the 3-param `(object:in:appContext:)`. Root cause was a **lagging `expo`
+    patch**, not expo-video (already latest). Full mechanism + `nm` diagnosis recipe + escape
+    hatches: `CLAUDE.md → Player`.
+  - **Also fixed in the same pass:** `ios.supportsTablet: true` added to `app.config.ts`. The app
+    had been shipping iPhone-only (`UIDeviceFamily = [1]`), so iPad ran it in compatibility mode and
+    the window never reported tablet size — meaning the 2026-07-28 tablet layout pass was
+    **unverifiable on iPad**. This closes `docs/PUBLISHING_AUDIT.md` item 13, which had predicted
+    exactly this trigger ("ship `true` once the large-screen pass lands").
+  - **Native rebuild required: YES.** `prebuild --clean` regenerated both native projects.
+    **New binary + submit needed: YES — an `eas update` CANNOT deliver this** (the JS bundle assumes
+    a native runtime the installed app doesn't have). `runtimeVersion` policy is `appVersion`
+    (`#3 eas-setup` owns it), so a version bump is owed before the next preview/production release.
+  - **Re-VERIFY:** `expo-doctor` 20/20 · `tsc --noEmit` clean · `expo lint` clean · **97/97 tests**.
+    Per-skill `verify.sh`: `#3 eas-setup` ✅, `#10 tv` ✅; `#1 project-setup`, `#2 core-arch`,
+    `#6 realtime`, `#8 lists-animations`, `#11 i18n` fail **only** on `format:check` (two files —
+    `components/empty/ErrorState.tsx`, `features/auth/errors.ts` — confirmed **already unformatted
+    on `main` pre-upgrade**, formatter versions unchanged ⇒ pre-existing debt, not a regression).
+    Two further failures are **false positives against this project's documented design**:
+    `#2`'s "single-flight appears nowhere in the source" (it lives inside `refreshAccessToken`, see
+    → Auth flow 3) and `#6`'s "no `src/lib/realtime` seam" (this project uses `src/realtime/`).
+  - **Device-verified** (preview variant, Release config): iPad Pro 11" M5 ✅ (full-screen, form
+    capped+centered, free rotation), iPhone 17 Pro ✅, Pixel 6 API 33 ✅, `RTSH_Tablet_API33` ✅
+    (1280×800dp → 3 columns portrait / 4 landscape, matching `GRID_COLUMNS`), `RTSH_TV_API34` ✅.
+    All five launch clean against the live backend; zero crash reports post-upgrade.
+  - **Known non-issue observed:** on **iPadOS 26 every iPad app is windowed and resizable** and
+    `UIRequiresFullScreen` is deprecated (Apple TN3192) — apps open in a floating window and are
+    maximized via the `•••` → green control. This is OS behavior, not a layout fault, and cannot be
+    opted out of. The app already declares all four orientations, which Apple has signalled will
+    become mandatory.
+  - **Deliberately NOT done** (kept out so the crash fix stays attributable): registering the
+    `expo-image` / `expo-status-bar` / `expo-web-browser` config plugins that `expo install --fix`
+    suggested (doctor passes without them); `npm audit`'s 13 findings (11 moderate / 2 high) are all
+    in `@expo/config-plugins` / `prebuild-config` / `metro-config` — **build-time-only chains**,
+    which `STANDARDS.md §11` permits accepting with a written note; re-check at the next SDK upgrade.

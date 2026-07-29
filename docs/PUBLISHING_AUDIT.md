@@ -5,19 +5,18 @@
 
 ## Verdict
 
-**Not submit-ready.** The engineering foundation is unusually clean (network security, SDK compliance, background modes, account deletion, versioning all pass), but there are **4 blockers** — all product/legal-surface gaps, not code quality: placeholder legal URLs, no web account-deletion link, no review-account strategy for a geo-blocked login-walled app, and unresolved publisher identity/rights setup. Estimated effort: ~2–4 days of app+backend work plus store-console setup that needs RTSH/MCN business input.
+**Not submit-ready — 3 blockers, all external.** The engineering surface is clean and five previously-flagged items were closed on 2026-07-29 (see Resolved). What remains needs RTSH/business input, not code: review credentials + geo allowlist, an explicitly-labelled account-deletion route, and the store publisher account.
 
 ---
 
 ## 🔴 BLOCKERS — guaranteed or near-certain rejection / cannot submit
 
-### 1. [BOTH] Terms & Privacy Policy links are Apple's own legal pages (placeholders)
-- **Evidence:** [links.ts:10-11](src/constants/links.ts#L10-L11) — `TERMS: 'https://www.apple.com/legal/...'`, `PRIVACY: 'https://www.apple.com/legal/privacy/...'`, with a `TODO(anx 2026-06-15)` acknowledging it.
-- **Policy:** Apple 5.1.1 (privacy policy required, must be the app's own); Google Play User Data policy (privacy policy URL on the listing AND in-app must describe *this* app's practices). A reviewer tapping T&C at registration and landing on apple.com is an instant metadata/data-policy rejection on both stores.
-- **Fix:** RTSH must host real Terms + Privacy Policy pages (sq + en); swap the two URLs in `links.ts`; the same privacy URL goes into App Store Connect and the Play listing. The privacy policy must cover: email/username/birthdate/gender/city/country collection, device identifiers, watch analytics (even though currently disabled — or state it), ads, and account deletion.
 
-### 2. [GOOGLE] No web account-deletion URL
-- **Evidence:** in-app deletion exists and is correct ([profile.tsx](src/app/(app)/(tabs)/profile.tsx) → `DELETE /users/me`, wipe only on confirmed 200 — passes the in-app half). Searched the repo — no web deletion resource exists.
+### 2. [GOOGLE] Account-deletion route not discoverable as a URL (downgraded 2026-07-29)
+- **Re-verified 2026-07-29 — the substance already exists.** The live privacy policy covers deletion: §8 states that on a deletion request the account data is *"fshihen menjëherë nga të gjitha bazat e të dhënave"* with a legal/financial retention carve-out; §9 lists the full data-subject rights under Ligji 124/2024; §14 gives `dpo@rtsh.al` as the route to exercise them. The original finding ("no web deletion resource exists") searched the **repo** rather than reading the published policy, and was wrong.
+- **What is actually missing is labelling, not policy.** No section is titled *account deletion*, there is no anchor to link to, and a reviewer must assemble the answer from §8 + §9 + §14. The Data safety field expects a URL that lands on an unambiguous deletion route.
+- **Fix (~10 min, RTSH web):** add a titled section with an `id` (e.g. `<h2 id="fshirja-e-llogarise">Fshirja e llogarisë dhe e të dhënave</h2>`) naming the app, both routes (in-app `Profili → Fshi llogarinë`, and email `dpo@rtsh.al` from the registered address *even after uninstalling*), what is deleted, and the timeframe. Paste `…/#fshirja-e-llogarise` into Play Console → App content → Data safety.
+- **Evidence (in-app half, unchanged):** in-app deletion exists and is correct ([profile.tsx](src/app/(app)/(tabs)/profile.tsx) → `DELETE /users/me`, wipe only on confirmed 200).
 - **Policy:** Play User Data policy (enforced since 2024-04-15): apps with in-app account creation must also provide a **web link** where users can request account + data deletion *without reinstalling the app*. The URL is a required field in the Data safety form — you cannot complete the form (and therefore cannot release) without it. Source: https://support.google.com/googleplay/android-developer/answer/13327111
 - **Fix:** backend/web team hosts a deletion-request page (email-verified form is acceptable); enter it in Play Console → App content → Data safety. Apple doesn't mandate the web link, but the same page strengthens the 5.1.1(v) story.
 
@@ -38,10 +37,6 @@
 
 ## 🟠 HIGH — likely rejection or a gate you cannot skip
 
-### 5. [APPLE] No `ios.privacyManifests` — required-reason API aggregation missing
-- **Evidence:** `app.config.ts` has no `privacyManifests` key. Native deps that touch required-reason APIs: `react-native-mmkv` (file timestamps / UserDefaults-class storage), keychain, and Expo modules. Expo modules ship their own manifests, but Apple does not reliably parse manifests from statically linked pods — Expo's own guidance is to aggregate reasons at the app level (https://docs.expo.dev/guides/apple-privacy/).
-- **Risk:** ITMS-91053 rejection email at upload; submission blocked until declared.
-- **Fix:** add `ios.privacyManifests` with `NSPrivacyAccessedAPITypes` for `CA92.1` (UserDefaults), `C617.1`/`0A2A.1` (file timestamps), `E174.1` (disk space) as applicable; after the first production build, inspect the merged `PrivacyInfo.xcprivacy` in the IPA and reconcile.
 
 ### 6. [EXPO] `eas.json` submit profile is empty — submission pipeline not configured
 - **Evidence:** [eas.json:72-74](eas.json#L72-L74) — `"submit": { "production": {} }`.
@@ -64,10 +59,6 @@
 
 ## 🟡 MEDIUM — review-risk, gray zone, or dated deadline
 
-### 10. [GOOGLE] Android TV banner missing (TV track only)
-- **Evidence:** `@react-native-tvos/config-tv` is configured with **no `androidTVBanner` option** ([app.config.ts:102](app.config.ts#L102)) and no banner asset exists in `assets/images/`. A leanback app without a banner fails Play's TV review.
-- **Scope note:** current strategy is sideload-first for TV/STB (no Play TV track yet) — this only gates a future Play TV submission, plus TV screenshots (1920×1080) and the separate TV quality review (https://developer.android.com/docs/quality-guidelines/tv-app-quality).
-- **Fix:** add a 320×180 dp (960×540 px @xhdpi) banner PNG; pass it via the plugin options.
 
 ### 11. [BOTH] No crash reporting in production
 - **Evidence:** Sentry planned, not installed (deferred 2026-07-03, plan 1.4). Stores don't require it — but you'll be blind to release crashes, and Play's Android Vitals (ANR/crash rates) *does* gate visibility and can trigger enforcement; you want your own telemetry before Google's.
@@ -76,11 +67,7 @@
 ### 12. [APPLE] EU DSA trader status (if distributing in EU storefronts)
 - Albanian diaspora across the EU is presumably a target audience. Trader status (with verified contact info, displayed publicly) has been required for EU distribution since 2025-02-17; non-declared apps are removed from EU storefronts. **Fix (console):** declare trader status in App Store Connect under the publishing org; Google has an equivalent under Play's DSA compliance settings.
 
-### 13. [APPLE] `supportsTablet` — make the decision explicit
-- **Evidence:** key absent from `app.config.ts` → defaults to iPhone-only. The plan defers the tablet pass (22.18), which is consistent — but Apple still reviews iPhone apps in iPad compatibility mode, and the responsive module already handles tablet layouts. **Fix:** either set `ios.supportsTablet: false` explicitly (documents the v1 decision) or ship `true` once the large-screen pass lands. Don't leave it implicit.
 
-### 14. [GOOGLE] Verify the merged release manifest before first submission
-- Library-added permissions you don't use should be stripped via `android.blockedPermissions`. **Fix (verify task):** after `npm run prebuild:dev`, run `aapt dump permissions` (or read `android/app/src/main/AndroidManifest.xml` post-merge) on a release build; confirm nothing beyond INTERNET, FOREGROUND_SERVICE(_MEDIA_PLAYBACK), WAKE_LOCK-class entries; confirm `usesCleartextTraffic` is absent/false in the production variant (config is correct — verify the output once).
 
 ---
 
@@ -109,7 +96,17 @@
 - **Play App Signing:** AAB via EAS default ✓.
 
 ## Resolved since last audit
-_Re-confirmation pass — no fixes applied yet, nothing resolved. All 14 numbered findings re-verified against current file:line evidence (links.ts, client.ts, profile.tsx, app.config.ts, eas.json, console.* call sites, privacyManifests/TV-banner/locales/Sentry absence all re-checked)._
+
+Closed and verified **2026-07-29**:
+
+- ~~**1. Legal URLs were Apple placeholders**~~ — real rtsh.al Terms + Privacy pages, both verified `HTTP 200`, `text/html`.
+- ~~**5. `ios.privacyManifests` missing**~~ — **not needed.** `apple.privacyManifestAggregationEnabled` already emits an aggregated `PrivacyInfo.xcprivacy` into the built app declaring FileTimestamp `C617.1`, UserDefaults `CA92.1`, SystemBootTime `35F9.1`, plus 25 per-pod bundles. The original finding checked `app.config.ts` for the key instead of the built artifact. Add a manual block only if Apple returns a specific ITMS-91053.
+- ~~**10. Android TV banner**~~ — `assets/images/tv-banner.png` present; `banner='res/9n.png'` confirmed in the merged release manifest.
+- ~~**13. `supportsTablet`**~~ — set to `true`; `UIDeviceFamily = [1,2]` verified in the built app and on an iPad Pro 11" M5.
+- ~~**14. Merged release manifest**~~ — verified via `aapt2` on the release APK: no `RECORD_AUDIO`, microphone `not-required`, leanback launcher + `leanback` not-required (visible to both phones and TVs). Three unused library permissions remain (`SYSTEM_ALERT_WINDOW`, `USE_BIOMETRIC`, `USE_FINGERPRINT`) — none are declaration-gated, so they are cosmetic.
+
+**Correction to item 4:** `owner: 'anxheloo'` was cited as evidence. That field is the **Expo/EAS account** only (`@expo/config-types`: *"The name of the Expo account that owns the project"*) and has no bearing on store publisher identity. Item 4 stands on the store-account and rights question alone.
+
 
 ## Store-console tasks (not in the codebase)
 
@@ -129,10 +126,10 @@ _Re-confirmation pass — no fixes applied yet, nothing resolved. All 14 numbere
 
 ## Next steps (ordered)
 
-1. Unblock the legal surface: real T&C/Privacy URLs (item 1) + web deletion page (item 2) — needs RTSH/backend, longest lead time, start now.
-2. Settle publisher accounts + rights docs (item 4) — business decision, also long lead time.
-3. Code fixes: `ios.privacyManifests` (5), explicit `supportsTablet` (13), TV banner asset (10), Sentry (11).
-4. Configure submission: `eas.json` submit profiles + credentials (6) → use `expo:eas-app-stores` / `anxheloo-expo-eas-setup`.
-5. Provision review accounts + geo-allowlist for review (3); write review notes.
-6. Work the console-task table; verify the merged manifest (14) on the first production build.
+1. **Review credentials + geo allowlist (3)** — the critical path; nothing else unblocks review.
+2. Label an account-deletion section on the privacy page + paste the URL into Play Data safety (2).
+3. Settle publisher account + rights docs (4) — long lead time, start in parallel.
+4. Configure submission: `eas.json` submit profiles + credentials (6).
+5. Install Sentry (11) before the production release.
+6. Work the console-task table.
 7. Re-run `/anxheloo-expo-publishing-audit` — fixed items disappear from this file.
