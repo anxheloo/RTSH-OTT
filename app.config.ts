@@ -71,6 +71,12 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     backgroundColor: '#000000',
     ios: {
       bundleIdentifier,
+      // iPadOS is a contracted target (spec App.1). Without this the app ships
+      // as iPhone-only (UIDeviceFamily = [1]) and iPad runs it letterboxed in
+      // compatibility mode — the window never reports iPad size, so
+      // `useResponsive()` classifies it as `phone` and the tablet layout pass
+      // (landscape two-column, useContentWidth caps) is unreachable on iPad.
+      supportsTablet: true,
       // Icon Composer bundle (SDK 54+). Ships the iOS 26 Liquid Glass treatment
       // and its own light/dark/tinted variants, so no per-appearance PNGs are
       // needed here; the top-level `icon` stays as the pre-iOS-26 fallback.
