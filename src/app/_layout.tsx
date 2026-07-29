@@ -3,6 +3,7 @@ import '@/polyfills';
 
 import { useEffect } from 'react';
 import { StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import * as Sentry from '@sentry/react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
 
@@ -17,10 +18,11 @@ import {
 import { QueryClientProvider } from '@tanstack/react-query';
 import { useFonts } from 'expo-font';
 import { NavigationBar } from 'expo-navigation-bar';
-import { type ErrorBoundaryProps, Stack } from 'expo-router';
+import { type ErrorBoundaryProps, Stack, useNavigationContainerRef } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 
 import { useAppStore } from '@/store/useAppStore';
+import { initMonitoring, navigationIntegration } from '@/lib/monitoring';
 import { setupAuthRefresh } from '@/api';
 import { queryClient } from '@/api/client';
 import { setupFocusManager } from '@/api/focusManager';
@@ -40,6 +42,15 @@ if (process.env.EXPO_PUBLIC_API_MODE === 'mock') {
 }
 
 SplashScreen.preventAutoHideAsync();
+
+// Armed FIRST and in its own guard, deliberately ahead of the wiring block
+// below: everything after this point can be reported if it throws, and a
+// failure to arm the reporter must not take the app down with it.
+try {
+  initMonitoring();
+} catch {
+  // Swallow — an unreportable app still boots. See lib/monitoring.ts.
+}
 
 // One-time, app-session-wide wiring. At module scope (not in render) so it runs
 // exactly once: 401 → refresh on the api client, AppState → TanStack focus
@@ -77,6 +88,14 @@ const RootLayoutNav = () => {
   useNetworkMonitor();
   useSystemTheme();
   useLockPortrait(); // Portrait-only app; only the player rotates to landscape (non-TV).
+
+  // Sentry navigation instrumentation. The integration is created at init time
+  // but can only be bound once expo-router's container ref exists — until this
+  // runs, a crash reports with no route attached, which is half a crash.
+  const navigationRef = useNavigationContainerRef();
+  useEffect(() => {
+    if (navigationRef) navigationIntegration.registerNavigationContainer(navigationRef);
+  }, [navigationRef]);
 
   useEffect(() => {
     StatusBar.setBarStyle(mode === 'dark' ? 'light-content' : 'dark-content');
@@ -122,9 +141,22 @@ const RootLayoutNav = () => {
  * Deliberately DEPENDENCY-FREE — no theme store, no i18n, no shared primitives:
  * any of those could be the thing that crashed, and the error screen must never
  * throw itself. Static bilingual copy (sq-first, matching the app default) and
- * hardcoded brand-black/white stand in for the token system here only.
+ * hardcoded brand-black/white stand in for the token system here only. Sentry is
+ * the one allowed import: it is the reporter, not app state, and it is already
+ * loaded at module scope.
+ *
+ * It REPORTS and shows a recoverable fallback — not one or the other. The report
+ * is explicit because `@sentry/react-native` 7.11.0 (the version Expo SDK 57
+ * pins) predates `Sentry.wrapExpoRouterErrorBoundary` / the Metro
+ * `autoWrapExpoRouterErrorBoundary` option; both arrive in 8.16+. Revisit this
+ * on the SDK upgrade that moves Sentry past 8.16 — until then, expo-router
+ * swallows render errors and Sentry never sees them without this call.
  */
 export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
+  useEffect(() => {
+    Sentry.captureException(error, { tags: { boundary: 'expo-router-root' } });
+  }, [error]);
+
   return (
     <View style={styles.errorRoot}>
       <Text style={styles.errorTitle}>Diçka shkoi keq</Text>
@@ -200,4 +232,8 @@ const styles = StyleSheet.create({
   },
 });
 
-export default RootLayout;
+// `Sentry.wrap` is REQUIRED, not decorative: it installs the React error handler
+// + TouchEventBoundary (touch breadcrumbs, rage-tap detection) and marks the
+// component tree root for app-start spans. Without it, render-phase crashes
+// above the router are invisible.
+export default Sentry.wrap(RootLayout);

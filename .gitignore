@@ -34,6 +34,12 @@ yarn-error.*
 .env
 .env*.local
 !.env.example
+# Sentry's own local-credentials file, read by the Xcode build phase
+# (SENTRY_DOTENV_PATH) and by sentry-expo-upload-sourcemaps. It holds
+# SENTRY_AUTH_TOKEN, which can publish releases to the org — and it matches
+# NEITHER `.env` (exact) NOR `.env*.local`, so without this line it is tracked.
+.env.sentry-build-plugin
+sentry.properties
 
 # typescript
 *.tsbuildinfo

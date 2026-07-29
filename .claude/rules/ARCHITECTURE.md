@@ -436,6 +436,118 @@ Real-time layer in `src/realtime/` (`@/realtime`) over **STOMP-on-WebSocket** (`
 
 ---
 
+## Observability (crash / error monitoring)
+
+### How it works today (built 2026-07-29 — closes 14.1 / 5.X.12 / 11.Y.6)
+
+`@sentry/react-native` **7.11.0** — the version `expo install` pins for SDK 57
+(`expo/bundledNativeModules.json` → `~7.11.0`). npm's latest is 8.20.0; **do not chase it**, the pin
+is the SDK-compatible one. Several APIs the Sentry docs show are 8.x-only — see Known gaps.
+
+- **`lib/monitoring.ts`** is the single `Sentry.init` site (in `lib/` because it is platform infra,
+  beside `keychain.ts` / `tokenVault.ts` — not a domain API call). Armed from `app/_layout.tsx` at
+  module scope in **its own guard, before** the `setupAuthRefresh` / `setupFocusManager` / `initI18n`
+  block, so everything after it is reportable and a reporter failure cannot wedge boot.
+- **DSN is public, auth token is secret.** The DSN only permits *writing* events and is hardcoded in
+  `monitoring.ts` — same convention and rationale as `API_BASE_URL` in `api/client.ts` (one value,
+  bundled identically for local / EAS / OTA, env surface stays honestly documented as
+  `EXPO_PUBLIC_API_MODE` only). `SENTRY_AUTH_TOKEN` can publish releases to the org and lives only in
+  `eas env` / the local shell. DSN abuse is answered by spike protection + rate limits on the Sentry
+  project, not by hiding it.
+- **EU region.** The org `acsolutions-1a` is on `ingest.de.sentry.io`. Every tool that talks to it —
+  the config plugin, `sentry-cli`, `sentry-expo-upload-sourcemaps` — must use `https://de.sentry.io/`.
+  An upload sent to `sentry.io` lands nowhere **with no error anywhere**; traces just stay minified.
+- **Environments.** `environment` comes from `APP_VARIANT` via `extra.appVariant` (the same
+  build-time → runtime mechanism as `extra.devicePlatform`). Without it every build pools into one
+  stream: simulator noise beside real user crashes, a meaningless crash-free rate, and
+  "alert me on a new issue in production" becomes inexpressible.
+- **PII is scrubbed on BOTH channels.** `beforeSend` scrubs the event; `beforeBreadcrumb` scrubs
+  breadcrumbs, which Sentry collects *separately*. The second hook is not optional here — `client.ts`
+  sets `Authorization: Bearer <token>` on every request and Sentry's default HTTP breadcrumb
+  integration records request metadata, so a token reaches Sentry **past a flawless `beforeSend`**.
+  Console breadcrumbs are dropped outright (the style guide bans committed `console.log`, so they are
+  pure noise and the one place a stray token would surface). The deep scrubber **fails CLOSED**: at
+  `MAX_SCRUB_DEPTH` it returns `[redacted]`, never the raw subtree. This is the ISO 27001
+  "no credentials in logs" obligation enforced in code.
+- **`sendDefaultPii: false`** — deliberate. Sentry's own docs example ships `true`; that is
+  defensible (IP-geo + headers improve grouping) but this app holds auth tokens and carries a store
+  data-safety declaration. Flipping it is a recorded decision and must be re-declared to
+  `docs/PUBLISHING_AUDIT.md` (item 24.6, third-party SDK disclosure).
+- **User context.** `store/createUserSlice.ts` is the single chokepoint: `setMonitoringUser(user.id)`
+  on `login`, `clearMonitoringUser()` on `logout`. **Opaque account id only, never the email.**
+  Without an identity Sentry cannot separate "one user hit this 400 times" from "400 users hit it
+  once"; without the clear-on-logout a shared device (the living-room STB) attributes the next
+  person's crashes to whoever signed in last.
+- **Error boundary.** The existing expo-router `ErrorBoundary` in `app/_layout.tsx` now **reports and
+  still shows the recoverable fallback**. The `Sentry.captureException` call is explicit because
+  7.11.0 predates `Sentry.wrapExpoRouterErrorBoundary` and the Metro
+  `autoWrapExpoRouterErrorBoundary` option (both 8.16+). expo-router *swallows* render errors, so
+  without that call Sentry never sees them. The boundary stays otherwise dependency-free.
+- **`Sentry.wrap(RootLayout)`** is required, not decorative: it installs the React error handler +
+  `TouchEventBoundary` (touch breadcrumbs, rage-tap detection) and roots app-start spans.
+- **Navigation instrumentation.** `reactNavigationIntegration({ enableTimeToInitialDisplay: true })`,
+  bound in `RootLayoutNav` via `registerNavigationContainer(useNavigationContainerRef())`. A crash
+  with no route attached is half a crash.
+- **Tracing** is on at `__DEV__ ? 1.0 : 0.2`. `1.0` in production is a metered-spend bug — every
+  transaction is billed. Replay, structured logging and profiling are **deliberately not enabled**
+  (user decision 2026-07-29): replay is of limited value on a 10-foot TV UI and would expand the
+  data-safety declaration.
+- **`ignoreErrors`** filters only *known-transient* conditions this app already handles by design
+  (offline `Network Error`, axios cancel on fast navigation, axios timeout). Do not extend the list
+  without a written reason — an unexplained filter is how a real bug stays invisible for months.
+- **Readable stack traces — three paths, all wired.**
+  - *EAS Build* + *local release builds* (`expo run:* --variant release` / `--configuration Release`):
+    the `@sentry/react-native/expo` config plugin generates the iOS build phase (dSYMs + JS maps) and
+    applies the Android Gradle plugin (ProGuard mappings + Hermes `.hbc.map`). `disableAutoUpload` is
+    `IS_DEV` — dev builds skip the wait, preview/production never do. Needs `SENTRY_AUTH_TOKEN` in
+    the build environment.
+  - *EAS Update (OTA)*: an OTA bundle is **new JS**, so it needs its own upload or every crash on
+    OTA'd code is unreadable — precisely the code shipped fastest and tested least. Every
+    `eas:update:*` script is now `export → upload → publish`:
+    `APP_VARIANT=x npm run ota:export && npm run ota:sourcemaps && eas update --skip-bundler …`.
+    **`expo export --source-maps` is mandatory — the flag defaults to `false`**, and without it the
+    uploader finds nothing and silently succeeds.
+  - Symbolication itself rides **Debug IDs** injected by `getSentryExpoConfig` in `metro.config.js`,
+    so it does not depend on `release`/`dist` strings matching the uploaded artifact — historically
+    the commonest "maps uploaded, traces still minified" cause.
+- **Releases.** `release` = `applicationId@nativeApplicationVersion`, `dist` = `nativeBuildVersion`
+  (both from `expo-application`) — used for release health, not symbolication. The OTA identity rides
+  **tags** (`ota_update_id`, `ota_channel`, `app_variant`) rather than being folded into `dist`,
+  because `runtimeVersion` policy is `appVersion`: two devices on the same binary can run different
+  JS, and without the tag an OTA-introduced crash is indistinguishable from a store-build crash.
+- **Jest.** `@sentry/react-native` is mocked in `jest.setup.ts`. This is not a native-module
+  convenience — `createUserSlice.ts` imports the monitoring seam, so an un-mocked SDK would make the
+  **test suite send events to the production project**: CI noise indistinguishable from real user
+  crashes, plus quota spent on it.
+- **The boundary.** `eas env` secrets → `docs`/EAS (Phase 21.1–21.12); OTA rollback on a bad release
+  → `useOTA` + `eas update` (see CLAUDE.md); store data-safety **declarations** for the new SDK →
+  `docs/PUBLISHING_AUDIT.md` 24.6. This section instruments; the audit declares.
+
+### Known gaps
+
+- **NOT YET PROVEN END-TO-END.** Every gate is green (tsc, lint, format, expo-doctor 20/20, 97/97
+  tests, plugin registered in the resolved config) — but **no real event has been confirmed to land
+  in Sentry**, because that needs a native build (`expo run:*` / `eas build`) which has not been run
+  since installing. Until a confirmed issue URL exists, the correct description of this app is
+  "instrumented", not "monitored". Native crashes, TTID and slow/frozen frames require a native build
+  regardless — they never work in Expo Go.
+- **Alerting is the Sentry default only.** The project has one auto-created rule ("Send a
+  notification for high priority issues"). The two floor rules — *a new issue in the latest release*
+  and *a crash-rate / volume spike* — are **not** created; they need a `SENTRY_AUTH_TOKEN`.
+  Instrumented but un-notified means you learn about a bad release from a 1-star review.
+- **`beforeSend` does not see native crashes.** dyld / OOM / ANR bypass the JS layer entirely. They
+  are protected by what never reaches native context, not by that hook.
+- **Commit association is not wired.** Without linking the repo in Sentry, a crash cannot point at a
+  suspect commit — the single biggest cut in time-to-diagnosis, and one `sentry-cli` step in the
+  release flow.
+- **OTA env-var caveat.** `eas update --skip-bundler` bundles **locally**, so EAS-side environment
+  variables are no longer injected at bundle time. Safe today because `EXPO_PUBLIC_API_MODE` (local
+  `.env`) is the only env var the app reads. **If an EAS-only `EXPO_PUBLIC_*` var is ever added, this
+  breaks silently** — revisit the update scripts then.
+- **`react-native-tvos` alias.** Sentry installed and resolved cleanly against the alias, and Android
+  TV is plain Android to the SDK. Not yet exercised on a TV/STB device.
+- **Spike protection / quota alerts** not configured on the Sentry project (dashboard-side).
+
 ## Upgrade log
 
 Append-only, dated record of SDK/dependency upgrades — what moved, whether the native layer changed

@@ -85,9 +85,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
         ITSAppUsesNonExemptEncryption: false,
         // iOS parallel of Android's usesCleartextTraffic — ATS exception for the
         // dev backend, dev/preview ONLY (never production; see ALLOW_CLEARTEXT).
-        ...(ALLOW_CLEARTEXT
-          ? { NSAppTransportSecurity: { NSAllowsArbitraryLoads: true } }
-          : {}),
+        ...(ALLOW_CLEARTEXT ? { NSAppTransportSecurity: { NSAllowsArbitraryLoads: true } } : {}),
       },
     },
     android: {
@@ -130,12 +128,47 @@ export default ({ config }: ConfigContext): ExpoConfig => {
       // (ReactNativeFeatureFlagsDefaults.kt / .h); if upstream flips it back to
       // true, the patch must return. See rules/ARCHITECTURE.md → Android TV / STB.
       'expo-router',
-      'expo-secure-store',
+      // `faceIDPermission: false` DELETES `NSFaceIDUsageDescription` from the
+      // built Info.plist (@expo/config-plugins `applyPermissions` treats an
+      // explicit `false` as "remove the key"). Without it the plugin injects a
+      // default string, and a usage-description for a permission the app never
+      // requests is a real App Review risk — the reviewer sees a declared reason
+      // with no feature behind it. We use SecureStore purely as a keychain
+      // wrapper (`lib/keychain.ts`); `requireAuthentication` is never set, so
+      // Face ID is never invoked.
+      ['expo-secure-store', { faceIDPermission: false }],
       'expo-localization',
       // Allow plain-HTTP (cleartext) traffic for the dev backend (http://<ip>:port).
       // Android blocks cleartext by default in release builds; dev/preview ONLY
       // (false in production — see ALLOW_CLEARTEXT).
       ['expo-build-properties', { android: { usesCleartextTraffic: ALLOW_CLEARTEXT } }],
+      [
+        // Crash/error monitoring. This plugin wires the NATIVE half: the iOS
+        // build phase that uploads dSYMs + JS source maps, and the Android
+        // Gradle plugin that uploads ProGuard mappings + Hermes maps. Without
+        // it you get JS-only symbolication and the hard crashes (dyld, OOM,
+        // ANR) — the least debuggable ones — stay unreadable forever.
+        //
+        // `url` MUST be the EU regional host: the acsolutions-1a org lives in
+        // Sentry's EU region, and an upload sent to sentry.io lands nowhere
+        // with no error anywhere. The same value is read back by
+        // `sentry-expo-upload-sourcemaps` on the EAS Update path — it parses
+        // THIS plugin entry (matched by the exact name below) for url/org/project.
+        //
+        // `SENTRY_AUTH_TOKEN` is deliberately absent: it is a real secret (it
+        // can publish releases to the org) and lives in `eas env` / the local
+        // shell only. The DSN in `lib/monitoring.ts` is public by design.
+        '@sentry/react-native/expo',
+        {
+          url: 'https://de.sentry.io/',
+          organization: 'acsolutions-1a',
+          project: 'react-native-rtsh-ott',
+          // Skip symbol upload on day-to-day dev builds so they don't wait on
+          // the network. NEVER true for preview/production — those are the
+          // builds whose traces you actually need readable.
+          disableAutoUpload: IS_DEV,
+        },
+      ],
       [
         'expo-splash-screen',
         {
@@ -173,6 +206,10 @@ export default ({ config }: ConfigContext): ExpoConfig => {
           // from every TV device. Also removes a permission we'd otherwise have
           // to justify in the store listing.
           recordAudioAndroid: false,
+          // The iOS half of the same decision: without this the plugin injects a
+          // default `NSMicrophoneUsageDescription`, declaring a permission we
+          // never request. `recordAudioAndroid` only covers Android.
+          microphonePermission: false,
         },
       ],
     ],
@@ -184,6 +221,12 @@ export default ({ config }: ConfigContext): ExpoConfig => {
       eas: {
         projectId: '19f4d236-ba4f-4208-bf8b-4a0c229e027c',
       },
+      // Which variant this binary is. Build-time only (`APP_VARIANT` is not
+      // readable from the JS bundle at runtime), surfaced through `extra` the
+      // same way `devicePlatform` is. Consumed by `lib/monitoring.ts` as
+      // Sentry's `environment` — without it every build pools into one stream
+      // and the crash-free rate is meaningless.
+      appVariant: process.env.APP_VARIANT ?? 'production',
       // Build-time platform override for distributions the runtime can't
       // detect — operator STBs (`APP_PLATFORM=androidstb`) look identical to
       // retail Android TV at runtime. Unset on mobile builds; consumed by

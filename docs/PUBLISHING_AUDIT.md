@@ -107,6 +107,29 @@ Closed and verified **2026-07-29**:
 
 **Correction to item 4:** `owner: 'anxheloo'` was cited as evidence. That field is the **Expo/EAS account** only (`@expo/config-types`: *"The name of the Expo account that owns the project"*) and has no bearing on store publisher identity. Item 4 stands on the store-account and rights question alone.
 
+## Found and fixed outside the audit — unearned iOS permission strings (2026-07-29)
+
+Not previously reported, because no prior pass inspected a **built** `Info.plist`. Two
+`NS*UsageDescription` strings were being injected by config plugins for permissions the app never
+requests — the class Apple's own guidance calls out (a declared reason with no feature behind it
+invites a 2.1 / privacy question at review):
+
+| String | Injected by | Reality |
+|---|---|---|
+| `NSFaceIDUsageDescription` | `expo-secure-store` (default) | SecureStore is used purely as a keychain wrapper (`lib/keychain.ts`); `requireAuthentication` is never set, so Face ID is never invoked |
+| `NSMicrophoneUsageDescription` | `expo-audio` (default) | Radio is playback-only. `recordAudioAndroid: false` had already covered the **Android** half; the iOS string was untouched |
+
+Fixed in `app.config.ts` with `faceIDPermission: false` / `microphonePermission: false` —
+`@expo/config-plugins`' `applyPermissions` deletes the key on an explicit `false`. Confirmed absent
+from `expo config --type introspect`. **Requires the next native build to land**; the currently
+installed preview artifact still carries both.
+
+Why it went unseen: these strings exist **only** in the built artifact — they never appear in
+`app.config.ts`, so no amount of source scanning could surface them. Note also that
+`NSLocalNetworkUsageDescription` (from `expo-dev-launcher`) *does* appear in `expo config
+--type introspect` yet is **absent from the Release artifact** — introspect over-reports, so the
+binary is the only trustworthy evidence for Info.plist questions.
+
 
 ## Store-console tasks (not in the codebase)
 

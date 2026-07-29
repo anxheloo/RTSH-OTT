@@ -20,7 +20,7 @@ RTSH TANI — OTT streaming app for Radio Televizioni Shqiptar. Live TV (19 chan
 - @shopify/flash-list · react-native-reanimated v4 · react-native-gesture-handler · react-native-keyboard-controller
 - react-hook-form + zod (forms + validation)
 - i18next + expo-localization (sq default, en fallback)
-- @sentry/react-native — **planned, not yet installed** (crash reporting; deferred by user 2026-07-03, tracked in audit plan 1.4)
+- @sentry/react-native **7.11.0** — crash/error monitoring + tracing. **Installed 2026-07-29** (closes the 2026-07-03 deferral; plan 14.1 / 5.X.12 / 11.Y.6). Init in `lib/monitoring.ts`; org `acsolutions-1a`, project `react-native-rtsh-ott`, **EU region** (`https://de.sentry.io/` — never `sentry.io`). Version is pinned by Expo SDK 57, **not** npm-latest: several documented APIs are 8.x-only. Full mechanism + known gaps: `rules/ARCHITECTURE.md → Observability`. Replay / structured logging / profiling deliberately off.
 - jest-expo + @testing-library/react-native — unit/behavior tests, co-located `__tests__/` folders (policy: `rules/STANDARDS.md §11`)
 - EAS Build + EAS Update
 
@@ -59,7 +59,9 @@ npm run android:stb:dev              # APP_PLATFORM=androidstb (operator STB dev
 `.env` at root:
 - `EXPO_PUBLIC_API_MODE` — `mock | dev | staging | prod` (the **only** env var the app reads; the backend base URL is hardcoded in `src/api/client.ts`).
 
-Planned private (EAS dashboard, not yet wired): `SENTRY_DSN` (Sentry not yet installed). MMKV is intentionally unencrypted, so there is no `MMKV_ENCRYPTION_KEY`.
+`EXPO_PUBLIC_API_MODE` really is the only var the **app** reads. The earlier plan to put `SENTRY_DSN` in the EAS dashboard was **dropped 2026-07-29**: a DSN is public (write-only) and must be in the client bundle anyway, so it is hardcoded in `lib/monitoring.ts` exactly like `API_BASE_URL`.
+
+Build-time only (never read by app code): `APP_VARIANT`, `APP_PLATFORM`, and **`SENTRY_AUTH_TOKEN`** — a real secret that can publish releases to the Sentry org. It belongs in `eas env` (Sensitive) + your local shell for release builds; it is never committed and never passed to `Sentry.init`. MMKV is intentionally unencrypted, so there is no `MMKV_ENCRYPTION_KEY`.
 
 ## App variants
 
