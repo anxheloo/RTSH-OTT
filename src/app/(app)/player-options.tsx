@@ -1,9 +1,13 @@
 /**
  * Player options sheet (design `.sheet` → `openPlayerOpts`). A native form sheet
  * (decision 7) listing playback settings: video quality (drills into the
- * quality sheet) and cast. Presented via
+ * quality sheet). Presented via
  * `getModalScreenOptions` from the (app) layout; reads/writes the store so it
  * stays decoupled from the player route underneath.
+ *
+ * Cast to TV was REMOVED here (2026-07-31): it was a stub row that fired a
+ * "Casting to TV" toast and did nothing. See `VideoPlayer.tsx` for why the
+ * underlying AirPlay path is also disabled, and CLAUDE.md → Out of scope for v1.
  */
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
@@ -21,7 +25,6 @@ const PlayerOptionsSheet: React.FC = () => {
   const { t } = useTranslation();
   const colors = useAppStore((s) => s.colors);
   const videoQuality = useAppStore((s) => s.videoQuality);
-  const showToast = useAppStore((s) => s.showToast);
   const insets = useSafeAreaInsets();
 
   // Auto shows the localized ABR hint; a pinned rendition shows its backend key verbatim.
@@ -43,14 +46,6 @@ const PlayerOptionsSheet: React.FC = () => {
         description={qualityLabel}
         onPress={() => router.replace('/(app)/quality')}
         testID="opt-quality"
-      />
-      <SheetOptionRow
-        label={t('player.cast')}
-        onPress={() => {
-          router.back();
-          showToast(t('player.cast_toast'));
-        }}
-        testID="opt-cast"
       />
     </View>
   );

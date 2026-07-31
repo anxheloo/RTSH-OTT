@@ -5,7 +5,7 @@
  * "Llogaria" (change password). Toggles write `SettingsSlice`; the parental
  * toggle drives the device-level `ParentalSlice` (client-only — no network;
  * verify-then-disable). Opened from Profile. (Quality is player-only — picked
- * per session in the player options sheet; cast lives on the player too.)
+ * per session in the player options sheet.)
  */
 import React, { useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';

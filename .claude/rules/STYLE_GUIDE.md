@@ -456,6 +456,10 @@ sheetCornerRadius: BORDERRADIUS.radius_20,
 
 Single-modal slice (`currentModal` + `modalData`), one modal at a time — matches RTSH + SOLITAR. All modals route through `ModalSlice` + `ModalWrapper`, callable from anywhere (React components, async flows, axios interceptors). `ModalWrapper` owns the default i18n copy per type, so alert-style triggers (e.g. `noInternet`) pass no text. Up to three buttons via `button`/`button2`/`button3` + `action`/`action2`/`action3`; `button` defaults to "OK".
 
+**A route that opens global modals must NOT be presented as a native modal.** `ModalWrapper` lives at the app root, so its RN `<Modal>` presents from the *root* view controller. A screen with `presentation: 'fullScreenModal'` is a second natively-presented VC from that same controller, and on iOS the two race — the loser is orphaned: visible for ~1s, then an invisible full-screen modal window that eats every touch app-wide (nothing clears `currentModal` on unmount, so it survives navigation). This bit `channel/[id]` for real. Use a **card push with `animation: 'slide_from_bottom'` + `gestureEnabled: false`** when you want modal semantics on a screen that can raise a global modal — identical on iOS, and global modals then present cleanly over it. `presentation: 'formSheet'` / `'modal'` sheets (`getModalScreenOptions()`) are fine _because they never raise a global modal_; don't add one to a sheet route.
+
+**A route-owned modal must clear itself on unmount.** Anything that opens `currentModal` from a screen's effect must clear it in that effect's cleanup — see `useCellularGate`. Otherwise leaving the screen strands an undismissable overlay over whatever comes next.
+
 ```ts
 useAppStore.getState().updateModalSlice({
   currentModal: 'confirmation',

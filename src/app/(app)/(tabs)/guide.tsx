@@ -133,7 +133,9 @@ const GuideScreen: React.FC = () => {
       badge: channel.now ? formatTime(channel.now.start) : t('guide.live'),
       isRadio: !isTv,
       onPress: () =>
-        router.push(isTv ? `/(app)/channel/${channel.channelId}` : `/(app)/radio/${channel.channelId}`),
+        router.push(
+          isTv ? `/(app)/channel/${channel.channelId}` : `/(app)/radio/${channel.channelId}`,
+        ),
     }));
   }, [guide, nowMs, isTv, formatTime, t, dataUpdatedAt]);
 

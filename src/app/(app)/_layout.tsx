@@ -59,16 +59,26 @@ const AppLayout: React.FC = () => {
 
   return (
     <View style={styles.root}>
-      {/* Pushed screens slide in from the right (matches the auth stack);
-          full-screen player modals slide up from the bottom — modal semantics,
-          and the gesture/back direction reads correctly on both platforms. */}
+      {/* Pushed screens slide in from the right (matches the auth stack); the
+          player slides up from the bottom, which reads as modal on both platforms.
+
+          The player is a plain CARD push, NOT `presentation: 'fullScreenModal'`.
+          `fullScreenModal` makes it a natively-presented view controller, and
+          `ModalWrapper` (app root) presents its RN `<Modal>` from that same root
+          controller — on iOS the two race, so any global modal opened while the
+          player is on screen (the cellular gate, `noInternet`, `apiError`)
+          flashes for ~1s, is orphaned, and leaves an invisible full-screen modal
+          window swallowing every touch app-wide. A card push keeps the player in
+          the root controller's own stack, so global modals present cleanly over
+          it. Visually identical on iOS; `gestureEnabled: false` preserves
+          `fullScreenModal`'s no-swipe-to-dismiss behavior. */}
       <Stack screenOptions={{ headerShown: false, animation: 'slide_from_right' }}>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen
           name="channel/[id]"
           options={{
-            presentation: 'fullScreenModal',
             animation: 'slide_from_bottom',
+            gestureEnabled: false,
           }}
         />
         <Stack.Screen name="settings" />

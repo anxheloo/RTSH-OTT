@@ -6,7 +6,7 @@
  *  - LIVE tag (bottom-left, YouTube-style — part of the chrome, hides with it)
  *  - bottom control row: play/pause + seek track (fill + knob) + fullscreen
  *
- * Quality / audio / cast / PIP live in the options sheet (opened via the top
+ * Quality / audio / PIP live in the options sheet (opened via the top
  * options button → `onOpenOptions`), not in this chrome. Tap anywhere to reveal
  * the chrome; it hides after 3s. Controls are white over a glass/scrim so they
  * read on any frame. The player surface is always dark, so colors come from
@@ -51,7 +51,7 @@ export type PlayerControlsProps = {
   onToggleFullscreen?: () => void;
   isFullscreen?: boolean;
   onClose?: () => void;
-  /** Opens the player options sheet (quality/audio/subtitles/cast/PIP) — 22.10. */
+  /** Opens the player options sheet (quality/audio/subtitles/PIP) — 22.10. */
   onOpenOptions?: () => void;
   channelName?: string;
   programTitle?: string;

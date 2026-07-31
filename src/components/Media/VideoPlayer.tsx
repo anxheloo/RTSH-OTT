@@ -10,7 +10,7 @@
  * shipping. Fallback: react-native-video if headers don't propagate.
  */
 import React, { useEffect, useRef, useState } from 'react';
-import { AppState, StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
+import { AppState, Platform, StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
 
 import { useEvent, useEventListener } from 'expo';
 import { useKeepAwake } from 'expo-keep-awake';
@@ -108,6 +108,17 @@ function VideoPlayer({
     // Background audio + lock-screen now-playing controls (opt-in via prop).
     p.staysActiveInBackground = backgroundPlayback;
     p.showNowPlayingNotification = backgroundPlayback;
+    // Casting is OUT OF SCOPE for v1 — and expo-video defaults
+    // `allowsExternalPlayback` to TRUE, so without this line iOS silently offers
+    // AirPlay from Control Center on every stream. That path cannot work here:
+    // the receiver (Apple TV) fetches the manifest, segments AND the AES-128 key
+    // itself, and custom headers do NOT cross the AirPlay session boundary — so
+    // `getStreamHeaders()`'s `User-Agent: RTSHTani-*` never reaches the origin
+    // and the request is rejected. Leaving it on ships a discoverable feature
+    // that fails. Re-enable only once playback auth rides a signed/expiring URL
+    // (Apple's documented pattern: auth as a query param on the multivariant
+    // playlist) rather than a request header. iOS-only property.
+    if (Platform.OS === 'ios') p.allowsExternalPlayback = false;
     if (autoPlay && !paused) {
       p.play();
     }

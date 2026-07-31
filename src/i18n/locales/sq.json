@@ -261,10 +261,6 @@
     "default_quality": {
       "title": "Cilësia e parazgjedhur"
     },
-    "cast": {
-      "title": "Transmeto (Cast)",
-      "subtitle": "Në TV ose pajisje"
-    },
     "haptics": {
       "title": "Reagime haptike",
       "subtitle": "Dridhje në prekjet dhe ndryshimet"
@@ -292,8 +288,6 @@
     "audio_default": "Shqip",
     "subtitles": "Titrat",
     "subtitles_off": "Të çaktivizuara",
-    "cast": "Transmeto në TV (Cast)",
-    "cast_toast": "Po transmetohet në TV",
     "quality_title": "Cilësia e videos",
     "quality_changed": "Cilësia: {{quality}}",
     "quality_value_auto": "Auto (ABR)"

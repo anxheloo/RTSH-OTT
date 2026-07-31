@@ -107,7 +107,9 @@ const WEEKDAY_KEYS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'] as const;
 const keyExtractor = (p: EpgItem) => p.id;
 
 const ChannelScreen: React.FC = () => {
-  useCellularGate();
+  // Cellular data warning. While `pending`, the confirmation modal is up and the
+  // player stays unmounted — the stream must not start behind it.
+  const cellular = useCellularGate();
   const { id } = useLocalSearchParams<{ id: string }>();
   const channelId = id ?? '';
   const { t } = useTranslation();
@@ -490,7 +492,7 @@ const ChannelScreen: React.FC = () => {
   }, [queryClient, channelId, numericChannelId]);
 
   const player =
-    mediaPending || adPending ? (
+    cellular.pending || mediaPending || adPending ? (
       <Skeleton
         borderRadius={BORDERRADIUS.none}
         style={styles.playerSkeleton}
@@ -563,13 +565,16 @@ const ChannelScreen: React.FC = () => {
   // button clear the home indicator / landscape notch; `contain` re-centers the
   // video into the safe area, the inset bars use the black video token.
   //
-  // Portrait (non-fullscreen): the screen is presented as an iOS `fullScreenModal`,
-  // where `SafeAreaView`'s `edges` prop does NOT reliably apply the top inset — so
-  // the full-bleed video sat under the notch and the overlaid back button was
-  // clipped + unclickable. We own the top inset explicitly via `useSafeAreaInsets`
-  // (`marginTop: insets.top` on the video box, outside its aspect-ratio frame),
-  // which DOES report correctly inside these modals; the absolutely-positioned
-  // back button rides down with the box and clears the notch.
+  // Portrait (non-fullscreen): we own the top inset explicitly via
+  // `useSafeAreaInsets` (`marginTop: insets.top` on the video box, outside its
+  // aspect-ratio frame) rather than leaning on `SafeAreaView`'s `edges` prop;
+  // the absolutely-positioned back button rides down with the box and clears
+  // the notch. This dates from when the route was an iOS `fullScreenModal`,
+  // where `edges` did NOT reliably apply the top inset (full-bleed video sat
+  // under the notch, back button clipped + unclickable). The route is a card
+  // push now (see `(app)/_layout.tsx`), so `edges` may well work — but the
+  // explicit inset is correct either way, so it stays until someone verifies
+  // the simpler form on a notched device.
   // TV: a header button (hamburger) that slides the guide drawer in. Sits
   // top-right over the full-screen video, opposite the back button. TV-only —
   // never rendered on mobile (the guide is stacked below the inline player).

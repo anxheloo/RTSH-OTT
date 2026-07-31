@@ -105,7 +105,9 @@ const HEADER_BASE_HEIGHT = 56;
 const HEADER_CONTENT_GAP = SPACING.space_10;
 
 const RadioPlayerScreen: React.FC = () => {
-  useCellularGate();
+  // Cellular data warning. While `pending`, the station is not selected into the
+  // store — `RadioAudioHost` is store-driven, so nothing streams behind the modal.
+  const cellular = useCellularGate();
   const { t } = useTranslation();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { formatTime } = useDateTime();
@@ -258,7 +260,7 @@ const RadioPlayerScreen: React.FC = () => {
   // A ref guard keeps a store clear (mini-player close) from re-selecting it.
   const selectedRef = useRef<string | null>(null);
   useEffect(() => {
-    if (!station || !playback || selectedRef.current === activeId) return;
+    if (cellular.pending || !station || !playback || selectedRef.current === activeId) return;
     selectedRef.current = activeId;
     setRadioChannel({
       channelId: station.id,
@@ -266,7 +268,9 @@ const RadioPlayerScreen: React.FC = () => {
       title: station.name,
       artworkUrl: station.imageUrl,
     });
-  }, [station, playback, activeId, setRadioChannel]);
+    // `cellular.pending` is a dep so the station is selected the moment the user
+    // accepts the data warning — not only on the next unrelated re-render.
+  }, [cellular.pending, station, playback, activeId, setRadioChannel]);
 
   // Closing the player (X on the mini-player, on-screen or off) clears the store;
   // when that happens while this screen is open, leave it too.

@@ -261,10 +261,6 @@
     "default_quality": {
       "title": "Default quality"
     },
-    "cast": {
-      "title": "Cast",
-      "subtitle": "To TV or device"
-    },
     "haptics": {
       "title": "Haptic feedback",
       "subtitle": "Vibrations on toggles and inputs"
@@ -292,8 +288,6 @@
     "audio_default": "Albanian",
     "subtitles": "Subtitles",
     "subtitles_off": "Off",
-    "cast": "Cast to TV",
-    "cast_toast": "Casting to TV",
     "quality_title": "Video quality",
     "quality_changed": "Quality: {{quality}}",
     "quality_value_auto": "Auto (ABR)"
