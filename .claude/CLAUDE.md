@@ -61,7 +61,19 @@ npm run android:stb:dev              # APP_PLATFORM=androidstb (operator STB dev
 
 `EXPO_PUBLIC_API_MODE` really is the only var the **app** reads. The earlier plan to put `SENTRY_DSN` in the EAS dashboard was **dropped 2026-07-29**: a DSN is public (write-only) and must be in the client bundle anyway, so it is hardcoded in `lib/monitoring.ts` exactly like `API_BASE_URL`.
 
-Build-time only (never read by app code): `APP_VARIANT`, `APP_PLATFORM`, and **`SENTRY_AUTH_TOKEN`** — a real secret that can publish releases to the Sentry org. It belongs in `eas env` (Sensitive) + your local shell for release builds; it is never committed and never passed to `Sentry.init`. MMKV is intentionally unencrypted, so there is no `MMKV_ENCRYPTION_KEY`.
+Build-time only (never read by app code): `APP_VARIANT`, `APP_PLATFORM`, and **`SENTRY_AUTH_TOKEN`** — a real secret that can publish releases to the Sentry org. It is **never committed**, never in the tree, and never passed to `Sentry.init`. It lives in exactly **one** place: **`eas env`, at `sensitive` visibility**, in the `preview` + `production` environments (`development` has none by design — `disableAutoUpload: IS_DEV`, and the dev OTA scripts skip the upload step entirely). That single copy serves both consumers:
+- **EAS Build** injects it into the builder automatically.
+- **EAS Update (OTA)** pulls it at publish time via **`eas env:exec <environment> '<cmd>'`** (`ota:sourcemaps:preview` / `:prod`), because the export + map upload run **locally**, before `eas update` is invoked.
+
+**Visibility must stay `sensitive`, not `secret` (changed 2026-07-31).** `secret` means *"can only be accessed on EAS builder"* — proven empirically: `eas env:exec preview 'test -n "$SENTRY_AUTH_TOKEN"'` returned **absent** while the var was `secret`, so the local OTA upload silently had no credential. `sensitive` is still masked in the dashboard UI but is readable by the CLI, which is what `env:exec` needs. **A `secret` var cannot be converted in place** — EAS can't decrypt it either (`env:update --visibility` fails with *"type == SECRET can't be decrypted in any UI outside of EAS build environment"*); it must be re-set with `eas env:set`.
+
+**No token file, no committed credential.** `.env.sentry-build-plugin` is **gitignored** and deliberately unused — an earlier plan to commit it was **withdrawn 2026-07-31** in favour of `env:exec`, which gives the same zero-setup fresh-clone workflow (you're already `eas login`'d if you can publish at all) without putting a release-publishing credential into permanent git history. **`npm run ota:preflight` was deleted** as redundant: `expo-upload-sourcemaps.js` itself `process.exit(1)`s on a missing token, so the `&&` chain already blocks the publish — a stronger guarantee than a proxy check, since it's the real uploader failing.
+
+**`SENTRY_AUTH_TOKEN` can NEVER live in `.env`** — verified 2026-07-31: `@expo/env` exports `EXPO_PUBLIC_*` vars **only**, so it would be silently unloaded *and* inlined into every shipped bundle. **Never put a secret in `.env`.**
+
+**`.env` stays gitignored**, and a fresh clone does not need it: `EXPO_PUBLIC_API_MODE` is read in exactly ONE place (`app/_layout.tsx`, `=== 'mock'`), so an absent `.env` resolves to "not mock" — the real API, the correct default for preview/production. Tracking it would only create a way to ship `mock` to users by accident.
+
+MMKV is intentionally unencrypted, so there is no `MMKV_ENCRYPTION_KEY`.
 
 ## App variants
 
@@ -84,7 +96,7 @@ matching section there before changing behavior. Coding conventions are in
 Expo Router file-based. Root `_layout.tsx` uses `Stack.Protected` guards:
 - No token → `(auth)/` (login → register → forgot)
 - Token → `(app)/(tabs)/` (live, epg, catchup, radio, profile)
-- Player route (`channel/[id]`) is a full-screen modal at root.
+- Player route (`channel/[id]`) is full-screen at root — a **card push** with `slide_from_bottom` + `gestureEnabled: false`, deliberately NOT `presentation: 'fullScreenModal'` (that broke every global modal on iOS; `rules/ARCHITECTURE.md → Network state`).
 
 ### State (`src/store/`)
 
@@ -173,7 +185,7 @@ Beyond the architecture scaffold, these features are spec-mandated for v1 — do
 
 - **T&C acceptance** — enforced once at registration: the `acceptTerms` checkbox (zod-required) on the register form, with an inline link that opens the T&C URL in `expo-web-browser`. Acceptance is account-level (sent to backend as `termsAccepted`), not re-prompted on login — no client gate, no `tcAcceptedAt` flag (removed 2026-06-17).
 - **Geoblocking** — channel-level (CDN / `PlaybackDecision`) + per-programme (EPG `decision` flag, live-boundary stop). Full mechanism: `rules/ARCHITECTURE.md → Real-time → Geo`.
-- **Cellular-data gate** — confirmation modal before playback over cellular when `settings.cellularPlaybackAllowed === false`.
+- **Cellular-data gate** — confirmation modal before playback over cellular when `settings.cellularPlaybackAllowed === false`. `useCellularGate()` mounts on both player routes and returns `{ pending }`; while pending the player stays unmounted (channel) / the station isn't selected (radio), so nothing streams behind the modal. Requires `channel/[id]` to stay a **card push, not `fullScreenModal`** — see `rules/ARCHITECTURE.md → Network state`.
 - ~~**Mosaic view**~~ — **cut from v1 by user decision (2026-06-11, plan 22.14f)**; route + components removed.
 - **PIP + iOS background video** — always-on (no user setting). See `### Player` above for `LivePlayer`'s background/PiP wiring; entitlements come from the `expo-video` config plugin (native rebuild required on change).
 - **Ads** — three slots (`APP_OPEN`, `CHANNEL_CHANGE` preroll, `MID_ROLL`), one merged array per context (`GET /ads?channelId=`), single `AdOverlay` component (`components/Media/AdOverlay.tsx`, design `adpop`), one-ad-at-a-time app-wide via `AdsSlice` + `useAdSlot`. Full slot orchestration (preroll gating, reveal delay, mid-roll pause + PiP gating, impression reporting, route-scoped exclusivity): `rules/ARCHITECTURE.md → Real-time`.
@@ -186,6 +198,6 @@ Beyond the architecture scaffold, these features are spec-mandated for v1 — do
 
 ## Out of scope for v1
 
-- Cast (Chromecast / AirPlay) — stub button only, on the player options sheet (removed from Settings).
+- Cast (Chromecast / AirPlay) — **fully removed 2026-07-31**. There is no cast UI anywhere, and the *implicit* AirPlay path is off too: `expo-video` defaults `allowsExternalPlayback` to **`true`**, so iOS was silently offering AirPlay from Control Center on every stream; `VideoPlayer.tsx` now sets it `false` on iOS. **Blocker to re-enabling either platform:** the receiver device fetches the manifest, segments and the AES-128 key itself, and custom headers do **not** cross the AirPlay/Cast session boundary — so `getStreamHeaders()`'s `User-Agent: RTSHTani-*` (`utils/device.ts`, the origin's gate) never arrives and the request is rejected. Playback auth must move to a **signed/expiring URL** (Apple's documented pattern: auth as a query param on the multivariant playlist — the same direction as the 15.2 geo contract) before casting is worth scoping. Once it does, iOS AirPlay is cheap (`VideoAirPlayButton` ships in expo-video already); Chromecast is not — `react-native-google-cast` has had **no code release since 2025-07-26** (4.9.1, "New Architecture **compatibility mode**", RN ≥ 0.76) and is unverified against our RN 0.86 New-Arch-only runtime, and the default Cast receiver does **not** support AES-128, so it would need a custom receiver plus a key-server CORS allowlist.
 - Server-side ad insertion (SSAI) — client-side overlay only in v1.
 - Widevine / FairPlay / PlayReady — AES-128 HLS only (spec confirms).

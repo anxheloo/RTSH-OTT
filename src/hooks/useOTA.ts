@@ -12,14 +12,17 @@ import { useAppStore } from '@/store/useAppStore';
  * User flow: Update → fetchUpdateAsync + reloadAsync. Later → dismiss.
  */
 
-const IS_DEV = process.env.APP_VARIANT === 'development';
-
 export function useOTA() {
   const updateModalSlice = useAppStore((s) => s.updateModalSlice);
   const { t } = useTranslation();
 
   useEffect(() => {
-    if (IS_DEV) return; // Skip the whole effect in dev, where OTAs are disabled and the check would be a no-op.
+    // `Updates.isEnabled` is the ONLY dev guard needed — expo-updates reports
+    // false in any dev-client / debug build. A previous `process.env.APP_VARIANT
+    // === 'development'` check sat above this line and was dead code: only
+    // `EXPO_PUBLIC_*` vars are inlined into the bundle (babel-preset-expo →
+    // `inline-env-vars`), so it evaluated to `false` in every build. Never read a
+    // non-`EXPO_PUBLIC_` env var from app code — it is always `undefined`.
     if (!Updates.isEnabled) return;
 
     const checkForUpdate = async () => {

@@ -32,11 +32,16 @@ npx expo run:ios       # local iOS build + launch (simulator)
 
 > The backend base URL is **hardcoded** in `src/api/client.ts` (bundled identically for local / EAS / OTA — no build-time `.env` dependency); change it there and ship an OTA. `EXPO_PUBLIC_API_MODE` is the only env var the app reads today.
 
-Planned private vars (EAS dashboard only, not yet wired):
+Build/publish-time only — **never read by app code, never committed**:
 
-| Variable | Description |
-|----------|-------------|
-| `SENTRY_DSN` | Sentry project DSN — **Sentry is not yet installed** (tracked) |
+| Variable | Where it lives | Used by |
+|----------|----------------|---------|
+| `SENTRY_AUTH_TOKEN` | `eas env`, `sensitive` visibility, `preview` + `production` | EAS Build (auto-injected) and the OTA source-map upload (via `eas env:exec`) |
+| `APP_VARIANT` | set inline by the npm scripts | bundle ID / display name / Sentry environment |
+
+The Sentry **DSN** is public (write-only) and is hardcoded in `src/lib/monitoring.ts`, like the API
+base URL. Visibility must stay `sensitive`, not `secret` — `secret` is unreadable outside an EAS
+builder, which breaks the local OTA upload. See `.claude/rules/ARCHITECTURE.md → Observability`.
 
 MMKV is intentionally **unencrypted** (low-sensitivity data; real secrets stay in the keychain — see `rules/ARCHITECTURE.md → Persistence boundaries`), so there is no `MMKV_ENCRYPTION_KEY`.
 
@@ -60,7 +65,11 @@ eas build --profile preview --platform all       # internal distribution
 eas build --profile production --platform all    # store-ready
 eas build --platform android --profile preview_tv     # Android TV internal build
 eas build --platform android --profile preview_stb    # STB internal build
-eas update --channel production --message "..."
+# OTA — ALWAYS go through the npm scripts, never a raw `eas update`.
+# They upload Sentry source maps (a raw publish ships unsymbolicated JS) and
+# set APP_VARIANT on the publish itself, which `eas update` bakes into the
+# update manifest — and that manifest outranks the config inside the binary.
+npm run eas:update:prod -- -m "..."
 ```
 
 ## App variants

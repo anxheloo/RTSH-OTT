@@ -139,7 +139,9 @@ Boot gates: `useCheckToken` (keychain check) + `useFonts` (Inter). `SplashScreen
 - No offline **banner** UI (the unused `OfflineBanner` component exists). Currently offline is surfaced via the `noInternet` modal triggered from the listener; a persistent banner is optional/future.
 - Data screens now distinguish list states (2026-06-17): `ListEmptyComponent` is a three-way pick — skeleton while `isLoading`, `ErrorState` (with Retry → `refetch`) on a failed load, else the domain `Empty*State` for a genuine `[]`. Wired on Home (TV + radio) and Guide; built on the reusable `ListStateView` (`components/empty`). The live screen no longer spins forever offline (loader gated on `isOnline`). (Catch-up has no screen yet; Search reuses already-loaded data so it has no separate load-error surface.)
 - **Unhandled query/mutation errors are no longer silent (2026-06-17).** The `queryClient` (`client.ts`) carries a `QueryCache`/`MutationCache` `onError` that opens the `apiError` modal for any **unexpected** failure (5xx, network, 404…) — a query offers Retry (`query.fetch()`), a mutation dismisses. It deliberately stays silent on 401/403/426 (the interceptor owns refresh-or-logout + force-update). Forms render their own errors via a **hybrid** opt-out — `meta: INLINE_CLIENT_ERROR` (auth forms, change-password, register/reset wizards, reworked 2026-06-17): the modal is suppressed only for **client (4xx)** failures the form shows inline (`isClientError(status)` in `client.ts`), but **unexpected** failures (5xx, network, timeout) still fire the modal. The inline side mirrors that boundary — `authErrorMessage` (`features/auth/errors.ts`) returns `undefined` for 5xx/network — so a request never shows both an inline message and a modal. This is the v5-idiomatic replacement for per-`useQuery` `onError` (removed in v5), chosen over a per-hook `useEffect(error→modal)` to avoid boilerplate and the banned "react to query state in useEffect" smell.
-- No cellular-data gate UI (spec mandates a confirmation modal before playback over cellular when `cellularPlaybackAllowed === false`). Setting field exists; gate UI tracked for the player phase.
+- ~~No cellular-data gate UI~~ — **built 2026-07-31.** `useCellularGate()` mounts at the top of both player routes (`channel/[id]`, `radio/[id]`) and returns `{ pending }`, which those routes gate playback on: the channel screen holds the player skeleton (`cellular.pending || mediaPending || adPending`, so `LivePlayer` never mounts and no stream is fetched), and the radio screen skips its `setRadioChannel` selection (`RadioAudioHost` is store-driven, so nothing reaches the speakers). `pending` is **derived, not stored** — exactly `connectionType === cellular && !cellularPlaybackAllowed && !cellularAcknowledged`. Continue sets the session-only `cellularAcknowledged`, which clears `pending` in the same render and releases the player; Cancel `router.back()`s. Because `pending` is reactive rather than mount-once, a mid-session Wi-Fi → cellular switch re-asks and re-holds playback — the behavior `createNetworkSlice` always documented as the intent but the old mount-only effect never delivered. The effect also clears its own modal on unmount: a route-owned `confirmation` must never outlive its route. Locked by `hooks/__tests__/useCellularGate.test.tsx`.
+
+- **`channel/[id]` is a plain card push, NOT `presentation: 'fullScreenModal'` — load-bearing, do not "restore" it.** `ModalWrapper` lives at the app root, so its RN `<Modal>` presents from the root view controller. `fullScreenModal` makes the player a _second_ natively-presented VC from that same controller, and on iOS the two race: ANY global modal opened while the player is on screen (the cellular gate, `noInternet` on a mid-stream drop, `apiError`) flashed ~1s, was orphaned when the presentation settled, and — since nothing cleared `currentModal` — stranded the store at `'confirmation'`: an invisible full-screen modal window swallowing every touch app-wide once the user went back to the tabs. The card push keeps the player in the root controller's own stack, so global modals present cleanly over it. `animation: 'slide_from_bottom'` keeps the modal look; `gestureEnabled: false` preserves the no-swipe-to-dismiss behavior. **Needs a device pass on the player's fullscreen/rotation + PiP paths** — previously governed by the presented VC, now the root one.
 
 ---
 
@@ -425,7 +427,7 @@ Real-time layer in `src/realtime/` (`@/realtime`) over **STOMP-on-WebSocket** (`
 ### Known gaps / open items
 
 - ~~**Backend contract pending Henri's validation**~~ — **CONFIRMED 2026-07-06.** Merged `GET /ads` (always a JSON array, both contexts; key off each element's `placement`, not index — preroll not guaranteed present or at [0]); **absolute ISO `Instant` `startTime`/`validUntil`** on mid-rolls (converted server-side from a DB time-of-day band, anchored Europe/Tirane, today-only); `POST /ads/{id}/impression` → 204 (`placement` dropped, send `clientEventId`); geo brokered on both `/topic` + `/queue` (`enableSimpleBroker("/topic","/queue")`, user prefix `/user`) so `/user/queue/geo` delivers; `GeoBlockEvent`/`MidrollEvent`/placement casing all UPPER_SNAKE. **`deviceClass` is REQUIRED + case-sensitive on the two playback GETs (400 if omitted/lowercased)** — the WS handshake param is optional/lenient. Remaining infra caveat: prod `wss://` rides nginx TLS; `/ws` needs `Upgrade`/`Connection` proxied + `proxy_read_timeout ≥` the WS heartbeat (ops task — a connect-then-drop-after-~1min is that timeout). Simple broker is single-node (fine now; needs a relay/Redis for horizontal scale).
-- **`wss://` required in production** — iOS ATS blocks cleartext `ws://`; the current host is `http://`. Dev works over `ws://` on Android.
+- ~~**`wss://` required in production**~~ — **resolved (verified 2026-07-30).** `API_BASE_URL` is `https://api.mcn-mw.com/api/v1/` (`api/client.ts`) and `WS_URL` derives from it via `replace(/^http/, 'ws')` (`realtime/events.ts`) → `wss://api.mcn-mw.com/ws`. Production builds additionally ship **no** cleartext exception (`ALLOW_CLEARTEXT = IS_DEV || IS_PREVIEW`, `app.config.ts` → no `NSAllowsArbitraryLoads`, `usesCleartextTraffic: false`), so a cleartext URL is blocked by the OS rather than sent in the clear. This is what backs the Play Data-safety **"encrypted in transit: Yes"** declaration. Dev/preview still use `ws://` via the cleartext exception. The nginx `Upgrade` / `proxy_read_timeout` work is a separate ops task — see the entry above.
 - **`TextEncoder`/`TextDecoder`** — `@stomp/stompjs` needs both at runtime (frame encode/decode; we force binary frames — see below — so BOTH are on the hot path). Hermes ships `TextEncoder`, but `TextDecoder` has been unreliable/absent on RN (present in debug via the JS-debugger runtime, **missing in release** — the classic "works in debug, breaks in release" trap; stomp-js #149). A **guarded pure-JS fallback** (`src/polyfills.ts` → `fastestsmallesttextencoderdecoder`) installs whichever global is missing — a no-op where the engine provides one, a guaranteed shim where it doesn't. Imported as the **first statement** of the root `app/_layout.tsx` (an `eslint-disable simple-import-sort` keeps it pinned above all other imports). Pure JS, no native, EAS-safe.
 - **RN NULL-byte chopping → binary/append flags (`client.ts`, 2026-06-29).** RN's `WebSocket` strips the trailing NULL that terminates every STOMP frame, silently corrupting the protocol (works in dev, flakes in release; stomp-js RN notes + #53/#89/#149). The client sets **`forceBinaryWSFrames: true`** (outgoing frames sent as binary so the NULL survives) + **`appendMissingNULLonIncoming: true`** (re-append the NULL the socket chops off incoming text frames — Spring's STOMP broker sends text by default). Safe for small unfragmented messages (ours are tiny JSON). We deliberately do **not** force the _broker_ to binary — broker-binary incoming can hit an Android "Cannot create URL for blob" error (stomp-js #546). `connectionTimeout: 10000` fails a stalled CONNECT on flaky mobile → retry after `reconnectDelay`.
 - **Subscribe/watch re-fire on (re)connect (`useChannelRealtime`, 2026-06-29).** `subscribe()`/`publish()` are no-ops until the socket is connected, and on a cold channel-open the screen mounts before the CONNECT handshake completes (so the first subscribe was previously lost). The subscribe + watch-open effects now depend on `realtimeConnected`, so they (re)attach when the connection opens AND re-open the watch segment after a reconnect (RN drops the socket on background → server-side subscriptions are lost). `watch.end` stays keyed on `channelId` only (must not fire on reconnect).
@@ -451,16 +453,39 @@ is the SDK-compatible one. Several APIs the Sentry docs show are 8.x-only — se
 - **DSN is public, auth token is secret.** The DSN only permits *writing* events and is hardcoded in
   `monitoring.ts` — same convention and rationale as `API_BASE_URL` in `api/client.ts` (one value,
   bundled identically for local / EAS / OTA, env surface stays honestly documented as
-  `EXPO_PUBLIC_API_MODE` only). `SENTRY_AUTH_TOKEN` can publish releases to the org and lives only in
-  `eas env` / the local shell. DSN abuse is answered by spike protection + rate limits on the Sentry
-  project, not by hiding it.
+  `EXPO_PUBLIC_API_MODE` only). `SENTRY_AUTH_TOKEN` can publish releases to the org and lives in
+  exactly one place — **`eas env` at `sensitive` visibility** — reaching EAS Build by injection and
+  the local OTA upload via `eas env:exec`. It is never in the tree and never in `.env`. DSN abuse is
+  answered by spike protection + rate limits on the Sentry project, not by hiding it.
 - **EU region.** The org `acsolutions-1a` is on `ingest.de.sentry.io`. Every tool that talks to it —
   the config plugin, `sentry-cli`, `sentry-expo-upload-sourcemaps` — must use `https://de.sentry.io/`.
   An upload sent to `sentry.io` lands nowhere **with no error anywhere**; traces just stay minified.
-- **Environments.** `environment` comes from `APP_VARIANT` via `extra.appVariant` (the same
-  build-time → runtime mechanism as `extra.devicePlatform`). Without it every build pools into one
-  stream: simulator noise beside real user crashes, a meaningless crash-free rate, and
-  "alert me on a new issue in production" becomes inexpressible.
+- **Environments — derived from the BINARY, not from `extra` (reworked 2026-07-31).** `environment`
+  comes from **`Application.applicationId`**'s suffix (`.dev` → development, `.preview` → preview,
+  else production), mirroring `getVariantValues()` in `app.config.ts`. Without an environment split
+  every build pools into one stream: simulator noise beside real user crashes, a meaningless
+  crash-free rate, and "alert me on a new issue in production" becomes inexpressible.
+
+  It originally read `extra.appVariant` (the same build-time → runtime mechanism as
+  `extra.devicePlatform`). **That is wrong for this signal and must not be restored.** `extra` is not
+  baked once at build time — it is whatever process minted the *current manifest* evaluated
+  `app.config.ts` to, and `expo-constants` resolves
+  `rawUpdatesManifest ?? rawDevLauncherManifest ?? rawAppConfig`, so a **dev server** or an **OTA
+  update** manifest silently outranks the binary's own copy. Two processes routinely evaluate that
+  config with `APP_VARIANT` unset — where `app.config.ts` falls back to `'production'`:
+  - **Metro.** `npm start` (`package.json`, no `APP_VARIANT`; only `start:dev` sets it) served a
+    `.dev` simulator build a manifest saying `production` → issue `REACT-NATIVE-RTSH-OTT-2` landed
+    in the **production** stream on 2026-07-31. This is what prompted the rework.
+  - **`eas update`.** It re-evaluates the config in its own process. A shell `VAR=x cmd1 && cmd2`
+    prefix binds to `cmd1` **only**, so `APP_VARIANT=production npm run ota:export && … && eas update`
+    left it unset on the publish itself — every OTA shipped `appVariant: 'production'` regardless of
+    channel. Fixed by prefixing `eas update` directly in all nine `eas:update:*` scripts.
+
+  A rejected alternative: flipping `app.config.ts`'s unset-default to `'development'`. It would have
+  fixed the Metro case and **broken the production OTA case** — production users' crashes filed under
+  `development`, i.e. invisible. It also fails open on `ALLOW_CLEARTEXT` (`IS_DEV || IS_PREVIEW`) and
+  on Sentry's `disableAutoUpload: IS_DEV`. Reading the binary's identity fixes both cases and touches
+  no native config. `app.config.ts` is deliberately **unchanged**.
 - **PII is scrubbed on BOTH channels.** `beforeSend` scrubs the event; `beforeBreadcrumb` scrubs
   breadcrumbs, which Sentry collects *separately*. The second hook is not optional here — `client.ts`
   sets `Authorization: Bearer <token>` on every request and Sentry's default HTTP breadcrumb
@@ -500,13 +525,15 @@ is the SDK-compatible one. Several APIs the Sentry docs show are 8.x-only — se
     the `@sentry/react-native/expo` config plugin generates the iOS build phase (dSYMs + JS maps) and
     applies the Android Gradle plugin (ProGuard mappings + Hermes `.hbc.map`). `disableAutoUpload` is
     `IS_DEV` — dev builds skip the wait, preview/production never do. Needs `SENTRY_AUTH_TOKEN` in
-    the build environment.
+    the build environment, which EAS injects from `eas env` automatically.
   - *EAS Update (OTA)*: an OTA bundle is **new JS**, so it needs its own upload or every crash on
-    OTA'd code is unreadable — precisely the code shipped fastest and tested least. Every
-    `eas:update:*` script is now `export → upload → publish`:
-    `APP_VARIANT=x npm run ota:export && npm run ota:sourcemaps && eas update --skip-bundler …`.
-    **`expo export --source-maps` is mandatory — the flag defaults to `false`**, and without it the
-    uploader finds nothing and silently succeeds.
+    OTA'd code is unreadable — precisely the code shipped fastest and tested least. Each
+    preview/production `eas:update:*` script is `export → upload → publish`:
+    `APP_VARIANT=x npm run ota:export && npm run ota:sourcemaps:<preview|prod> && APP_VARIANT=x eas update --skip-bundler …`.
+    **Upload BEFORE publish, never after** — a failed upload must abort the `&&` chain rather than
+    leave a live update whose crashes are unreadable. **`expo export --source-maps` is mandatory —
+    the flag defaults to `false`**, and without it the uploader finds nothing and silently succeeds.
+    The upload step pulls the token via `eas env:exec` (see Known gaps); dev scripts omit it.
   - Symbolication itself rides **Debug IDs** injected by `getSentryExpoConfig` in `metro.config.js`,
     so it does not depend on `release`/`dist` strings matching the uploaded artifact — historically
     the commonest "maps uploaded, traces still minified" cause.
@@ -537,19 +564,33 @@ is the SDK-compatible one. Several APIs the Sentry docs show are 8.x-only — se
   - Implies two things that could not be checked statically: `SENTRY_AUTH_TOKEN` does reach the EAS
     builders, and the **EU regional `url`** is correct. A wrong region would have produced an empty
     Source Maps page with no error anywhere.
-- **STILL UNPROVEN: no real event has been confirmed to land.** This is now the *only* open link in
-  the chain. Until a confirmed issue URL exists, the honest description of this app is
-  **"instrumented", not "monitored"**. Cheapest proof: run a dev build (`npm run start:dev`) and
-  throw once — `Sentry.init` has no `__DEV__` gate, so dev events send tagged
-  `environment: development`. Note Sentry's Issues page will keep showing its "Set up the SDK"
-  onboarding banner until that first event arrives; the banner reflects an empty project, NOT a
-  misconfigured SDK, and **running the suggested wizard would overwrite this setup** with its
-  defaults (`sendDefaultPii: true`, `tracesSampleRate: 1.0`, no `beforeSend`/`beforeBreadcrumb`).
-  Native crashes, TTID and slow/frozen frames need a native build regardless — never Expo Go.
-- **Alerting is the Sentry default only.** The project has one auto-created rule ("Send a
-  notification for high priority issues"). The two floor rules — *a new issue in the latest release*
-  and *a crash-rate / volume spike* — are **not** created. Instrumented but un-notified means you
-  learn about a bad release from a 1-star review.
+- **Event delivery: PROVEN 2026-07-31** (this bullet previously read "STILL UNPROVEN: no real event
+  has been confirmed to land" — that is now stale; corrected against Sentry's own records, not
+  inferred). Two issues exist in `acsolutions-1a/react-native-rtsh-ott`:
+  - `REACT-NATIVE-RTSH-OTT-1` — `Error: PROVE-RTSH-OBSERVABILITY: verifying Sentry pipeline`,
+    first seen **2026-07-30**, culprit `TouchableOpacity.props.onPress (src/app/_layout.tsx)`. The
+    deliberate proof throw.
+  - `REACT-NATIVE-RTSH-OTT-2` — `Invariant Violation: 'new NativeEventEmitter()' requires a non-null
+    argument`, first seen **2026-07-31**. An unsolicited real error, i.e. the pipeline catches
+    things nobody planted.
+
+  Both carry local `/Users/...` culprit paths, so both came from a **dev** build — which also
+  confirms `Sentry.init` has no `__DEV__` gate and dev events send tagged `environment: development`.
+  What this does **not** yet prove: a **release**-build event (native crashes, TTID, slow/frozen
+  frames need a native build — never Expo Go), and symbolication actually resolving against the
+  uploaded maps on a store or OTA build. Sentry's "Set up the SDK" onboarding banner is gone now
+  that events have arrived; if it ever reappears it reflects an empty project, NOT a misconfigured
+  SDK, and **running the suggested wizard would overwrite this setup** with its defaults
+  (`sendDefaultPii: true`, `tracesSampleRate: 1.0`, no `beforeSend`/`beforeBreadcrumb`).
+- **Alerting is the Sentry default only — but the default is live.** The project has one
+  auto-created issue rule ("Send a notification for high priority issues", id `728141`), and it
+  **fired on 2026-07-31T10:55Z** for `REACT-NATIVE-RTSH-OTT-2` — so the notify path works end to
+  end, not just the ingest path. Still missing: **zero metric alert rules**, so the two floor rules
+  — *a new issue in the latest release* and *a crash-rate / volume spike* — do not exist. The
+  default rule only catches what Sentry independently scores high-priority; a slow bleed across a
+  bad release stays under it. These are **dashboard-only** (the Sentry MCP exposes
+  `find_alert_rules` / `get_alert_rule` but no create), so they must be added by hand at
+  `https://acsolutions-1a.sentry.io/alerts/new/`.
 - **`beforeSend` does not see native crashes.** dyld / OOM / ANR bypass the JS layer entirely. They
   are protected by what never reaches native context, not by that hook.
 - **Commit association is not wired.** Without linking the repo in Sentry, a crash cannot point at a
@@ -559,6 +600,71 @@ is the SDK-compatible one. Several APIs the Sentry docs show are 8.x-only — se
   variables are no longer injected at bundle time. Safe today because `EXPO_PUBLIC_API_MODE` (local
   `.env`) is the only env var the app reads. **If an EAS-only `EXPO_PUBLIC_*` var is ever added, this
   breaks silently** — revisit the update scripts then.
+- **OTA symbolication pulls the token from `eas env` at publish time (reworked 2026-07-31).** The OTA
+  chain's first two steps (`expo export --source-maps`, `sentry-expo-upload-sourcemaps`) run **on the
+  developer's machine before `eas update` is ever invoked**, so nothing injects an EAS-side variable
+  into them automatically. `ota:sourcemaps:preview` / `:prod` therefore wrap the uploader in
+  **`eas env:exec <environment> '<cmd>'`**, which fetches the environment's variables and runs the
+  command with them. `url`/`organization`/`project` come from the `@sentry/react-native/expo` plugin
+  entry in `app.config.ts`, so the token is the only value that has to travel.
+
+  **This requires `sensitive` visibility, and that was the whole bug.** While the var was `secret`,
+  `env:exec` delivered **nothing**; after re-creating it as `sensitive` it delivers. Both directions
+  proven with the same one-liner, not assumed:
+
+  ```
+  # while secret:
+  $ eas env:exec preview 'test -n "$SENTRY_AUTH_TOKEN" && echo PRESENT || echo ABSENT'
+  ABSENT
+
+  # after re-creating as sensitive (2026-07-31):
+  $ eas env:exec preview    …   →  PRESENT
+  $ eas env:exec production …   →  PRESENT
+  $ eas env:exec development …  →  ABSENT   ← correct: dev has no token and its scripts skip upload
+  ```
+
+  EAS states the rule itself in `env:exec`'s own output: *"Environment variables with visibility
+  **Plain text** and **Sensitive** loaded from the … environment on EAS"* — `secret` is excluded by
+  construction, because it *"can only be accessed on EAS builder and can't be read in any UI,
+  **including on the website and in EAS CLI**"*, and `env:exec` is the CLI running locally.
+  `sensitive` stays masked in the dashboard and obfuscated in logs, but is CLI-readable.
+  **A `secret` var cannot be downgraded in place** — EAS cannot decrypt it either;
+  `eas env:update --visibility sensitive` fails with *"type == SECRET can't be decrypted in any UI
+  outside of EAS build environment"*. It must be **deleted and re-created** (dashboard or
+  `eas env:set`) with the value re-supplied — rotate at Sentry if the original wasn't kept.
+
+  **`ota:preflight` was deleted as redundant.** It existed to hard-fail before publishing an
+  unsymbolicated bundle, but `expo-upload-sourcemaps.js` already does exactly that — it
+  `process.exit(1)`s on a missing token (`scripts/expo-upload-sourcemaps.js:188-191`), so the `&&`
+  chain stops before `eas update` runs. Letting the real uploader be the guard is a stronger
+  guarantee than a proxy check that could drift from it. **Dev OTA scripts skip the upload entirely**
+  (no token in the `development` environment, by design — matches `disableAutoUpload: IS_DEV`).
+
+  **Status:** token *retrieval* is proven in all three environments (above). The full
+  `export → upload → publish` chain has **still never been run end to end** — the first real
+  `npm run eas:update:preview` is also its first test. The remaining unknown is the upload step
+  itself (does `sentry-expo-upload-sourcemaps` find the maps in `dist` and land them on the EU
+  region), not the credential.
+- **No credential lives in the tree — the "commit the token" plan was WITHDRAWN (2026-07-31).** An
+  earlier decision this same day was to track `.env.sentry-build-plugin` in git, so a fresh clone of
+  the private repo could publish an OTA with zero setup (the project is to live only on GitHub, with
+  no local working copy). `eas env:exec` reaches that same goal without the credential ever entering
+  git — publishing already requires `eas login`, so a clone that can publish can also read the var.
+  The file was never created; it is **gitignored**, and the risks that plan had accepted are simply
+  gone: no permanent git history, no "repo read ⇒ Sentry publish rights" for every collaborator and
+  authorized GitHub App, no silent transfer at the RTSH credentials handover (contract Shtojca 5 §1),
+  no standing **ISO 27001** finding for credentials at rest in source, no GitHub push-protection
+  fight. **Invariant restored: there are ZERO credentials in the tree.** Signing keys stay on EAS,
+  the refresh token stays in the keychain, `SENTRY_AUTH_TOKEN` stays in `eas env`. Residual exposure
+  is the intended one — anyone with EAS project access can read a `sensitive` var, which is a
+  smaller, revocable blast radius than git history. A further hardening, if ever wanted: run OTA
+  publishes from GitHub Actions with the token as a repo secret, so no human machine reads it at all.
+- **A secret can NEVER live in `.env`** (verified 2026-07-31). `@expo/env.load()` exports
+  `EXPO_PUBLIC_*` variables **only** — a `SENTRY_AUTH_TOKEN=` line there is silently not loaded, and
+  the uploader (`@sentry/react-native/scripts/expo-upload-sourcemaps.js`) falls through to
+  `.env.sentry-build-plugin` or the shell. `.env` is tracked, but by construction it can only ever
+  hold `EXPO_PUBLIC_*` values, which are inlined into every shipped bundle and are therefore already
+  public. A secret placed there would both fail to work and leak.
 - **`react-native-tvos` alias.** Sentry installed and resolved cleanly against the alias, and Android
   TV is plain Android to the SDK. Not yet exercised on a TV/STB device.
 - **Spike protection / quota alerts** not configured on the Sentry project (dashboard-side).

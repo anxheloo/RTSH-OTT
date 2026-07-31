@@ -31,13 +31,22 @@ yarn-error.*
 *.pem
 
 # local env files
+# `.env` stays IGNORED (re-confirmed 2026-07-31 after a brief plan to track it).
+# It is not needed for a fresh clone: `EXPO_PUBLIC_API_MODE` is read in exactly
+# ONE place (`app/_layout.tsx`, `=== 'mock'`), so an absent `.env` means "not
+# mock" — the real API, which is the correct default for preview/production.
+# Tracking it would only add a way to accidentally ship `mock` to users.
+# NEVER put a real secret here either: `@expo/env` exports `EXPO_PUBLIC_*` ONLY,
+# so a secret would silently fail to load *and* be inlined into every bundle.
 .env
 .env*.local
 !.env.example
-# Sentry's own local-credentials file, read by the Xcode build phase
-# (SENTRY_DOTENV_PATH) and by sentry-expo-upload-sourcemaps. It holds
-# SENTRY_AUTH_TOKEN, which can publish releases to the org — and it matches
-# NEITHER `.env` (exact) NOR `.env*.local`, so without this line it is tracked.
+# Sentry's local-credentials file. It matches NEITHER `.env` (exact) NOR
+# `.env*.local`, so without this line it would be tracked. The OTA flow
+# deliberately does NOT use it — the token is pulled from `eas env` at publish
+# time via `eas env:exec` (see `rules/ARCHITECTURE.md → Observability`), so no
+# credential ever lands in the tree. Ignored so a stray local copy can't be
+# committed by accident.
 .env.sentry-build-plugin
 sentry.properties
 

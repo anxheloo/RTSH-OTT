@@ -24,9 +24,10 @@
  * - **`environment` separates the variants.** Without it every build pools into
  *   one stream: simulator noise sits beside real user crashes, the crash-free
  *   rate is meaningless, and "alert me on a new issue in production" cannot be
- *   expressed at all. Derived from the same `APP_VARIANT` signal `app.config.ts`
- *   already uses for bundle IDs, surfaced through `extra.appVariant` (the same
- *   mechanism as `extra.devicePlatform` → `utils/device.ts`).
+ *   expressed at all. Derived from **`Application.applicationId`** — the installed
+ *   binary's own identity — and deliberately NOT from `extra.appVariant`, which a
+ *   dev server or an OTA manifest can silently override. Full reasoning at the
+ *   `APP_VARIANT` const below; do not "simplify" it back to `extra`.
  *
  * - **PII is scrubbed on BOTH channels.** `beforeSend` scrubs the *event*;
  *   `beforeBreadcrumb` scrubs the *breadcrumbs*, which are collected separately.
@@ -52,7 +53,7 @@
  *   (`expo run:*` / `eas build`); they do not work in Expo Go.
  */
 import * as Sentry from '@sentry/react-native';
-import Constants from 'expo-constants';
+import * as Application from 'expo-application';
 import * as Updates from 'expo-updates';
 
 /**
@@ -67,9 +68,41 @@ const SENTRY_DSN =
 
 type AppVariant = 'development' | 'preview' | 'production';
 
-/** `production` is the safe default: an unknown variant must never masquerade as dev. */
-const APP_VARIANT: AppVariant =
-  (Constants.expoConfig?.extra?.appVariant as AppVariant | undefined) ?? 'production';
+/**
+ * Which variant is running, derived from the **binary's own identity** — never
+ * from `extra.appVariant`.
+ *
+ * `extra` is NOT baked once at build time: it is whatever the process that minted
+ * the *current manifest* evaluated `app.config.ts` to, and two of those processes
+ * routinely run without `APP_VARIANT` set (where `app.config.ts` falls back to
+ * `'production'`):
+ *
+ * 1. **Metro.** A dev client attached to a dev server reads the server's manifest,
+ *    which outranks the config embedded in the binary (`expo-constants` resolves
+ *    `rawUpdatesManifest ?? rawDevLauncherManifest ?? rawAppConfig`). A bare
+ *    `npm start` therefore labels a `.dev` simulator build `production` — observed
+ *    2026-07-31 on issue `REACT-NATIVE-RTSH-OTT-2`, which is what prompted this.
+ * 2. **`eas update`.** It re-evaluates `app.config.ts` in its own process and
+ *    embeds the result in the update manifest — which outranks the binary's copy
+ *    for every user who takes the update. Note a shell `VAR=x cmd1 && cmd2` prefix
+ *    binds to `cmd1` ONLY, so even the `eas:update:*` scripts left it unset until
+ *    they were fixed alongside this.
+ *
+ * `Application.applicationId` is read from the installed binary (iOS bundle id /
+ * Android package name), so no manifest — dev-server or OTA — can override it.
+ * The suffixes mirror `getVariantValues()` in `app.config.ts`; keep them in sync
+ * if a bundle id ever changes.
+ *
+ * `production` stays the fallback for an unrecognized id: mislabeling a real
+ * production crash as `development` hides it from the stream that matters, which
+ * is strictly worse than the reverse.
+ */
+const APP_VARIANT: AppVariant = ((): AppVariant => {
+  const id = Application.applicationId;
+  if (id?.endsWith('.dev')) return 'development';
+  if (id?.endsWith('.preview')) return 'preview';
+  return 'production';
+})();
 
 /**
  * Trace 20% of transactions in the field. `1.0` in production is a metered-spend
