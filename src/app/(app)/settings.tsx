@@ -13,6 +13,7 @@ import { useTranslation } from 'react-i18next';
 
 import Constants from 'expo-constants';
 import { router } from 'expo-router';
+import * as Updates from 'expo-updates';
 import * as WebBrowser from 'expo-web-browser';
 
 import { BORDERRADIUS } from '@/theme/borders';
@@ -88,7 +89,16 @@ const SettingsScreen: React.FC = () => {
   // The modal mode maps: 'change' → 'change', 'disable' → 'verify', 'set' → 'set'.
   const modalMode = pinMode === 'change' ? 'change' : pinMode === 'disable' ? 'verify' : 'set';
 
+  // `Updates.updateId` is null while the app runs the JS bundle embedded in the
+  // binary, and a UUID once an OTA update has been applied — so appending it
+  // makes this row the ONE user-visible answer to "which JS is this device
+  // actually running?". Over a 48-month contract that turns a vague bug report
+  // into an exact bundle, and it is also what makes an `eas update` verifiable
+  // on-device at all (identical JS otherwise looks identical). Short prefix
+  // only: the full UUID is unreadable on a phone row and the first 8 chars are
+  // enough to match against `eas update:list`.
   const version = Constants.expoConfig?.version ?? '';
+  const updateSuffix = Updates.updateId ? ` (${Updates.updateId.slice(0, 8)})` : '';
 
   return (
     <ScreenLayout>
@@ -244,7 +254,7 @@ const SettingsScreen: React.FC = () => {
           />
           <ListRow
             title={t('settings.version.title')}
-            subtitle={t('settings.version.subtitle', { version })}
+            subtitle={t('settings.version.subtitle', { version: `${version}${updateSuffix}` })}
             leading={<Icon as={InfoIcon} size={20} color={colors.text} />}
             showDivider={false}
             testID="settings-version-row"
