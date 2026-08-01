@@ -640,11 +640,29 @@ is the SDK-compatible one. Several APIs the Sentry docs show are 8.x-only — se
   guarantee than a proxy check that could drift from it. **Dev OTA scripts skip the upload entirely**
   (no token in the `development` environment, by design — matches `disableAutoUpload: IS_DEV`).
 
-  **Status:** token *retrieval* is proven in all three environments (above). The full
-  `export → upload → publish` chain has **still never been run end to end** — the first real
-  `npm run eas:update:preview` is also its first test. The remaining unknown is the upload step
-  itself (does `sentry-expo-upload-sourcemaps` find the maps in `dist` and land them on the EU
-  region), not the credential.
+  **Status: the full chain RAN END TO END and PASSED, 2026-08-01** — first real
+  `npm run eas:update:preview:ios`, against the live backend. Every link verified from the command's
+  own output, not inferred:
+  - `expo export --source-maps` produced the Hermes bundle + `.hbc.map`.
+  - `eas env:exec` delivered the credential: *"Environment variables with visibility Plain text and
+    Sensitive loaded from the preview environment on EAS: SENTRY_AUTH_TOKEN."*
+  - Sentry accepted the upload — *"✅ Uploaded bundles and sourcemaps to Sentry successfully"*,
+    debug id `c900b8bf-8a58-4f27-bf07-ed3d99b486fd`, org `acsolutions-1a`, EU region.
+  - `eas update` published to branch `preview`, runtime `1.0.0`, update id
+    `019fbdc9-e639-77fb-9be5-3d5320937a62`, commit `7886429`.
+
+  **`Release: None` / `Dist: None` in the upload report is CORRECT, not a misconfiguration** — per
+  Sentry's docs, *"uploaded source maps for updates have no associated releases, which is expected as
+  updates can apply to multiple releases."* Symbolication rides the **Debug ID**, which is why the
+  release/dist strings are irrelevant on this path (see "Symbolication itself rides Debug IDs" above).
+  Do not "fix" this by forcing a release string onto the OTA upload.
+
+  **On-device verification** uses the Settings → Version row, which appends `Updates.updateId`'s
+  first 8 chars (`settings.tsx`). It is empty on the embedded bundle and shows the id once an update
+  is applied, so `RTSH TANI 1.0.0 (019fbdc9)` is direct proof of *which JS the device is running* —
+  otherwise two bundles look identical and "the update worked" is a guess. `useOTA` checks on
+  **mount** and prompts a confirmation modal (fetch + `reloadAsync`), so a full app **force-close** is
+  required to re-trigger it; backgrounding does not.
 - **No credential lives in the tree — the "commit the token" plan was WITHDRAWN (2026-07-31).** An
   earlier decision this same day was to track `.env.sentry-build-plugin` in git, so a fresh clone of
   the private repo could publish an OTA with zero setup (the project is to live only on GitHub, with
