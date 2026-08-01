@@ -596,10 +596,33 @@ is the SDK-compatible one. Several APIs the Sentry docs show are 8.x-only — se
 - **Commit association is not wired.** Without linking the repo in Sentry, a crash cannot point at a
   suspect commit — the single biggest cut in time-to-diagnosis, and one `sentry-cli` step in the
   release flow.
-- **OTA env-var caveat.** `eas update --skip-bundler` bundles **locally**, so EAS-side environment
-  variables are no longer injected at bundle time. Safe today because `EXPO_PUBLIC_API_MODE` (local
-  `.env`) is the only env var the app reads. **If an EAS-only `EXPO_PUBLIC_*` var is ever added, this
-  breaks silently** — revisit the update scripts then.
+- **OTA bundles on the PUBLISHER'S MACHINE — this shipped a mock bundle to preview once
+  (2026-08-01).** `eas update` bundles locally (that is what `--skip-bundler` skips), so the
+  publishing laptop's `.env` **and Metro cache** decide what devices receive. This bullet previously
+  read *"safe today because `EXPO_PUBLIC_API_MODE` is the only env var the app reads"* — that was
+  wrong, and it is precisely the var that caused the incident.
+
+  **What happened:** a mock-mode `expo export` earlier that day populated Metro's transform cache.
+  A later publish ran with `.env = dev` but reused the cached result, so the **mock** bundle went to
+  the `preview` channel. `rm -rf dist` did not help — it removes the output, not the cache.
+
+  **Proven by content hash, not inference:** a `mock` export and the published bundle shared the
+  filename hash `entry-14130fd4…` while `dev`/`prod` exports produced `entry-c240202b…`; the
+  published bundle also carried the fixture strings (`Radio Studentore`, …) and was ~22KB larger.
+  A fixed export contains **zero** fixture strings.
+
+  **Two independent defects, both fixed in `ota:export`:**
+  1. **Metro's transform cache does not invalidate on an `EXPO_PUBLIC_*` change** → `--clear`.
+  2. **The export inherited the publisher's `.env`** → the value is pinned inline
+     (`EXPO_PUBLIC_API_MODE=prod expo export …`), which wins because dotenv does not override an
+     already-set variable.
+
+  **Rule: `.env` is a LOCAL toggle for `expo start` only. It must never decide what a published
+  bundle contains.** Note the mock gate IS eliminated at bundle time when the value is not `'mock'`
+  (that is why the size differs), so the decision is frozen into the artifact — there is no runtime
+  recovery from publishing the wrong one. EAS **Build** was never affected: it runs on a clean
+  machine with no `.env` (gitignored) and no warm cache. **If an EAS-only `EXPO_PUBLIC_*` var is ever
+  added, the local-bundling gap returns** — revisit the update scripts then.
 - **OTA symbolication pulls the token from `eas env` at publish time (reworked 2026-07-31).** The OTA
   chain's first two steps (`expo export --source-maps`, `sentry-expo-upload-sourcemaps`) run **on the
   developer's machine before `eas update` is ever invoked**, so nothing injects an EAS-side variable
