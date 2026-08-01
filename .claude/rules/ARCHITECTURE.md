@@ -606,6 +606,22 @@ is the SDK-compatible one. Several APIs the Sentry docs show are 8.x-only — se
   A later publish ran with `.env = dev` but reused the cached result, so the **mock** bundle went to
   the `preview` channel. `rm -rf dist` did not help — it removes the output, not the cache.
 
+  **This was a REGRESSION introduced by the `--skip-bundler` split, not a pre-existing hazard.**
+  The prior one-line script (`eas update --channel preview --environment preview`) was immune, for a
+  reason nothing documented — eas-cli does this (`build/commands/update/index.js`):
+
+  ```js
+  clearCache: flags['clear-cache'] ? true : !!flags['environment'],
+  ```
+
+  **Passing `--environment` silently forces `clearCache: true`**, so eas-cli ran `expo export --clear`
+  on every publish. It also passed the EAS environment's variables into that export as `extraEnv`
+  (`build/project/publish.js`). Moving the export out to a manual `expo export` for Sentry source maps
+  discarded **both** protections at once. Restored explicitly: `--clear` plus a pinned
+  `EXPO_PUBLIC_API_MODE` in `ota:export`. **Any future change that hand-rolls a step eas-cli used to
+  perform must re-audit what that step was silently doing** — the `--clear` was invisible in every
+  log and doc, and only appears in eas-cli's source.
+
   **Proven by content hash, not inference:** a `mock` export and the published bundle shared the
   filename hash `entry-14130fd4…` while `dev`/`prod` exports produced `entry-c240202b…`; the
   published bundle also carried the fixture strings (`Radio Studentore`, …) and was ~22KB larger.
