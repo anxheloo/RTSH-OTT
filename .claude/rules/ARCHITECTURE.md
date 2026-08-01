@@ -627,9 +627,16 @@ is the SDK-compatible one. Several APIs the Sentry docs show are 8.x-only — se
   whenever source maps aren't needed.** `eas:update:withSentry:<env>[:platform]` does the local
   `ota:export` → map upload → `--skip-bundler` publish, and must re-create by hand both protections
   that `--skip-bundler` discards. **Never drop `--environment` from either family to "simplify" it:**
-  that flag is what turns on the cache clear. `EXPO_PUBLIC_API_MODE=real` is pinned in both paths
-  (inline on the plain scripts, inside `ota:export` for the Sentry ones) so the publisher's `.env`
-  can never choose what ships.
+  that flag is what turns on the cache clear.
+
+  `EXPO_PUBLIC_API_MODE=real` is pinned in **`ota:export` only** — the path that actually shipped the
+  mock bundle. The plain scripts are deliberately left as the bare one-liner so they stay portable to
+  projects that have no such variable; their exposure is small because `.env` defaults to `real` and
+  is gitignored, so a fresh clone has none at all and resolves to real. If a project ever wants that
+  guard on the plain path, the correct home is the environment, not the script —
+  `eas env:create --name EXPO_PUBLIC_API_MODE --value real --environment preview --environment
+  production` — since `--environment` injects it as `extraEnv`, which beats `.env` (dotenv does not
+  override an already-set variable).
 
   **`APP_VARIANT` is deliberately NOT set on any update script (removed 2026-08-01).** It was added
   when `Sentry.init` read `extra.appVariant`, but that same change moved Sentry onto
