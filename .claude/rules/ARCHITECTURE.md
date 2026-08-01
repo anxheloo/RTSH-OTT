@@ -622,6 +622,14 @@ is the SDK-compatible one. Several APIs the Sentry docs show are 8.x-only — se
   perform must re-audit what that step was silently doing** — the `--clear` was invisible in every
   log and doc, and only appears in eas-cli's source.
 
+  **Two script families exist on purpose.** `eas:update:*` is this project's default (local export →
+  Sentry map upload → `--skip-bundler` publish). `eas:update:plain:*` is the one-liner
+  `eas update --channel X --environment X`, kept because a project without Sentry needs no local
+  export at all — there, letting eas-cli bundle is strictly better, since it keeps the implicit
+  `--clear` and the `extraEnv` injection. **Never drop `--environment` from the plain family to
+  "simplify" it:** that flag is what turns on the cache clear. Both families also pin
+  `EXPO_PUBLIC_API_MODE=real` so the publisher's `.env` can never choose what ships.
+
   **Proven by content hash, not inference:** a `mock` export and the published bundle shared the
   filename hash `entry-14130fd4…` while `dev`/`prod` exports produced `entry-c240202b…`; the
   published bundle also carried the fixture strings (`Radio Studentore`, …) and was ~22KB larger.

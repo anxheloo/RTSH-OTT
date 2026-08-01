@@ -40,8 +40,10 @@ npm run expoUpgrade                  # full SDK upgrade chain (expo@latest → -
 eas build --profile development --platform ios
 eas build --profile preview --platform all     # internal distribution
 eas build --profile production --platform all  # store-ready
-npm run eas:update:<dev|preview|prod>[:android|:ios] -- -m "..."  # JS-only hotfix (channel=environment; omit -m to be prompted, defaults to last git commit msg)
+npm run eas:update:<dev|preview|prod>[:android|:ios] -- -m "..."  # JS-only hotfix WITH Sentry source maps (this project's default)
+npm run eas:update:plain:<dev|preview|prod> -- -m "..."           # same, WITHOUT Sentry — kept as a portable pattern for projects that have none
 npm run eas:update:list:<dev|preview|prod>                        # recent updates on that channel's branch
+npm run eas:update:help                                           # prints both families + the --environment caveat
 
 # Android TV / STB — NO separate build any more (2026-07-28). The normal
 # android/preview/production artifacts already run on TV. The *_tv / *_stb
