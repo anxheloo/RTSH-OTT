@@ -582,15 +582,37 @@ is the SDK-compatible one. Several APIs the Sentry docs show are 8.x-only — se
   that events have arrived; if it ever reappears it reflects an empty project, NOT a misconfigured
   SDK, and **running the suggested wizard would overwrite this setup** with its defaults
   (`sendDefaultPii: true`, `tracesSampleRate: 1.0`, no `beforeSend`/`beforeBreadcrumb`).
-- **Alerting is the Sentry default only — but the default is live.** The project has one
-  auto-created issue rule ("Send a notification for high priority issues", id `728141`), and it
-  **fired on 2026-07-31T10:55Z** for `REACT-NATIVE-RTSH-OTT-2` — so the notify path works end to
-  end, not just the ingest path. Still missing: **zero metric alert rules**, so the two floor rules
-  — *a new issue in the latest release* and *a crash-rate / volume spike* — do not exist. The
-  default rule only catches what Sentry independently scores high-priority; a slow bleed across a
-  bad release stays under it. These are **dashboard-only** (the Sentry MCP exposes
-  `find_alert_rules` / `get_alert_rule` but no create), so they must be added by hand at
-  `https://acsolutions-1a.sentry.io/alerts/new/`.
+- ~~**Alerting is the Sentry default only.**~~ **Closed 2026-08-01 — the two floor rules exist and
+  were verified via MCP** (config read back, not assumed):
+  - **`New issue in latest production release`** (issue rule `734519`) — trigger *First seen event*,
+    action filter *Latest release*, `environment: production`, email action. This is the
+    bad-ship alarm the default rule cannot express.
+  - **`Production crash-free session rate`** (metric rule `10001584932`) — aggregate
+    `percentage(sessions_crashed, sessions)`, 60-min window, `environment: production`,
+    **critical below 98 / warning below 99.5**, email on both triggers.
+  - The auto-created **`Send a notification for high priority issues`** (`728141`) stays as the
+    catch-all. It is deliberately left `environment: null` (fires on dev/preview too) — it is the
+    only standing proof the notify path works; it **fired 2026-07-31T10:55Z** for
+    `REACT-NATIVE-RTSH-OTT-2`. Scope it to production once the app is live.
+  - A fourth rule (`Notify anxheloo`, `734524`) was created by accident during the same session —
+    *any* new issue, no environment and no release filter — and **deleted the same day**. It would
+    have double-emailed every production issue alongside `734519` and fired on every dev error.
+
+  **Both new rules will read as silent until launch, and that is correct, not broken.** Every
+  `preview`/`production` release currently reports `firstEvent: null` — only the two `.dev` releases
+  have ever produced events, so there is no production traffic for either rule to evaluate.
+
+  **Alert rules are dashboard-only.** Three automation paths were tested and all fail: the Sentry
+  MCP exposes `find_alert_rules` / `get_alert_rule` but **no create**; `sentry-cli` has no `alerts`
+  command at all; and the REST API rejects the `eas env` token with **403** (it is scoped to
+  releases/sourcemaps, and cannot even *read* alert rules). Creating or deleting one means
+  `https://acsolutions-1a.sentry.io/alerts/new/` by hand — do not plan an automated path for it.
+- **Rule 2 depends on sessions actually being sent, which is NOT yet proven.** `Sentry.init` does not
+  disable `enableAutoSessionTracking` (defaults `true`), so sessions *should* flow — but no query
+  available here can confirm it (`firstEvent` tracks errors, not sessions, and the MCP exposes no
+  sessions dataset). **Verification owed at launch:** open rule `10001584932` against a release that
+  has real usage; a "no data" crash-free-rate chart means session tracking is not reaching the
+  server and the rule is decorative.
 - **`beforeSend` does not see native crashes.** dyld / OOM / ANR bypass the JS layer entirely. They
   are protected by what never reaches native context, not by that hook.
 - **Commit association is not wired.** Without linking the repo in Sentry, a crash cannot point at a
