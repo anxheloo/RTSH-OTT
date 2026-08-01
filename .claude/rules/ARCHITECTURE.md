@@ -739,12 +739,28 @@ is the SDK-compatible one. Several APIs the Sentry docs show are 8.x-only — se
   is the intended one — anyone with EAS project access can read a `sensitive` var, which is a
   smaller, revocable blast radius than git history. A further hardening, if ever wanted: run OTA
   publishes from GitHub Actions with the token as a repo secret, so no human machine reads it at all.
-- **A secret can NEVER live in `.env`** (verified 2026-07-31). `@expo/env.load()` exports
-  `EXPO_PUBLIC_*` variables **only** — a `SENTRY_AUTH_TOKEN=` line there is silently not loaded, and
-  the uploader (`@sentry/react-native/scripts/expo-upload-sourcemaps.js`) falls through to
-  `.env.sentry-build-plugin` or the shell. `.env` is tracked, but by construction it can only ever
-  hold `EXPO_PUBLIC_*` values, which are inlined into every shipped bundle and are therefore already
-  public. A secret placed there would both fail to work and leak.
+- **A secret must never live in `.env` — but NOT for the reason stated here until 2026-08-01.**
+  The earlier entry claimed `@expo/env.load()` "exports `EXPO_PUBLIC_*` variables only", so a
+  `SENTRY_AUTH_TOKEN=` line would be silently unloaded. **That was wrong, and it was wrong in a
+  dangerous direction** (it implied `.env` was self-protecting). Corrected against source
+  (**@expo/env 2.4.2**, `build/index.js` + `build/constants.js`):
+  - `load()` assigns **every** parsed key into `process.env`, minus a hardcoded security denylist
+    (`isIgnoredEnvKey` / `isLocalEnvKey` — `PATH`, `NODE_OPTIONS`, `DYLD_*`, package-manager roots…).
+    There is **no `EXPO_PUBLIC_` filter**. That prefix governs **bundle inlining**, not loading.
+  - The uploader (`@sentry/react-native/scripts/expo-upload-sourcemaps.js:126`) explicitly calls
+    `require('@expo/env').load(projectRoot)` **before** falling through to `.env.sentry-build-plugin`
+    and the shell. So a `SENTRY_AUTH_TOKEN` in `.env` **would have worked** — the opposite of the
+    claim. It "working" is precisely what would have made it a durable mistake.
+
+  The conclusion is unchanged, the reasoning is not: the token stays out of `.env` because that is a
+  **credential at rest in the working tree** (one `git add -f`, one gitignore edit, or one repo
+  handover from permanent exposure — contract Shtojca 5 §1), and `eas env:exec` gives the same
+  access with no local copy at all. What IS true about the prefix: `EXPO_PUBLIC_*` values are inlined
+  into every shipped bundle and are therefore already public — so a secret must never carry that
+  prefix either.
+- **Already-set env vars beat `.env`** (`@expo/env` `load()`: *"is already defined and IS NOT
+  overwritten"*). This is the mechanism that makes `ota:export`'s inline `EXPO_PUBLIC_API_MODE=real`
+  prefix authoritative over whatever the publisher's `.env` holds — it is load-bearing, not stylistic.
 - **`react-native-tvos` alias.** Sentry installed and resolved cleanly against the alias, and Android
   TV is plain Android to the SDK. Not yet exercised on a TV/STB device.
 - **Spike protection / quota alerts** not configured on the Sentry project (dashboard-side).
