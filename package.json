@@ -120,7 +120,7 @@
     "eas:android:tv:prod": "eas build --platform android --profile production_tv",
     "eas:android:stb:preview": "eas build --platform android --profile preview_stb",
     "eas:android:stb:prod": "eas build --platform android --profile production_stb",
-    "ota:export": "rm -rf dist && EXPO_PUBLIC_API_MODE=prod expo export --source-maps --clear --output-dir dist",
+    "ota:export": "rm -rf dist && EXPO_PUBLIC_API_MODE=real expo export --source-maps --clear --output-dir dist",
     "ota:sourcemaps:preview": "eas env:exec preview 'sentry-expo-upload-sourcemaps dist'",
     "ota:sourcemaps:prod": "eas env:exec production 'sentry-expo-upload-sourcemaps dist'",
     "eas:update:dev": "APP_VARIANT=development npm run ota:export && APP_VARIANT=development eas update --skip-bundler --channel development --environment development",

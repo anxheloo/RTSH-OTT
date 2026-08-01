@@ -57,7 +57,7 @@ npm run android:stb:dev              # APP_PLATFORM=androidstb (operator STB dev
 ## Environment
 
 `.env` at root:
-- `EXPO_PUBLIC_API_MODE` — `mock | dev | staging | prod` (the **only** env var the app reads; the backend base URL is hardcoded in `src/api/client.ts`).
+- `EXPO_PUBLIC_API_MODE` — **`mock | real`** (the **only** env var the app reads; the backend base URL is hardcoded in `src/api/client.ts`). Only the literal `mock` enables the fixture adapter; any other value is real. **It is a LOCAL DEV toggle for `expo start` only** — every EAS build profile and `ota:export` pin the value themselves, so `.env` can never decide what a build or an OTA ships (see `rules/ARCHITECTURE.md → OTA bundles on the publisher's machine`).
 
 `EXPO_PUBLIC_API_MODE` really is the only var the **app** reads. The earlier plan to put `SENTRY_DSN` in the EAS dashboard was **dropped 2026-07-29**: a DSN is public (write-only) and must be in the client bundle anyway, so it is hardcoded in `lib/monitoring.ts` exactly like `API_BASE_URL`.
 

@@ -28,9 +28,14 @@ npx expo run:ios       # local iOS build + launch (simulator)
 
 | Variable | Required | Values | Description |
 |----------|----------|--------|-------------|
-| `EXPO_PUBLIC_API_MODE` | ✅ | `mock` · `dev` · `staging` · `prod` | API mode — `mock` serves the custom axios-adapter fixtures |
+| `EXPO_PUBLIC_API_MODE` | local dev only | `mock` · `real` | `mock` serves the custom axios-adapter fixtures offline; `real` hits the live backend |
 
 > The backend base URL is **hardcoded** in `src/api/client.ts` (bundled identically for local / EAS / OTA — no build-time `.env` dependency); change it there and ship an OTA. `EXPO_PUBLIC_API_MODE` is the only env var the app reads today.
+>
+> **`.env` is a local toggle for `expo start` and nothing more.** Every EAS build profile and
+> `ota:export` pin `EXPO_PUBLIC_API_MODE` explicitly, so your local value can never reach a build or
+> an OTA. It once did — a stale Metro cache published a `mock` bundle to the preview channel; see
+> `.claude/rules/ARCHITECTURE.md → OTA bundles on the publisher's machine`.
 
 Build/publish-time only — **never read by app code, never committed**:
 

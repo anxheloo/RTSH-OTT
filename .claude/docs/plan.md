@@ -171,7 +171,7 @@ Phase 8 (5 tabs) → 22.4 (4 tabs). · 5.X.6/5.X.7/5.X.8 (design tokens) → 22.
 
 ### Phase 18 — Backend-readiness Handoff
 - [ ] **18.1** `docs/API.md` (OpenAPI) from current services — **partially exists** (referenced throughout ARCHITECTURE.md as the source of truth for `src/api/`); confirm it's fully current against the live swagger.
-- [ ] **18.3** `EXPO_PUBLIC_API_MODE` env switching + dev-menu quick switcher. (The env var itself works today — `mock|dev|staging|prod`; a dev-menu quick switcher is the remaining polish.)
+- [ ] **18.3** `EXPO_PUBLIC_API_MODE` env switching + dev-menu quick switcher. (The env var itself works today — **`mock|real`**, narrowed from `mock|dev|staging|prod` on 2026-08-01 since only the literal `mock` was ever branched on; a dev-menu quick switcher is the remaining polish. Note a runtime switcher cannot work as-is: the mock module is dropped from the bundle at build time when the value is not `mock`, so a switcher would need the fixtures bundled unconditionally in dev builds.)
 - [ ] **18.4** `config/featureFlags.ts` — local + remote from `/config`.
 
 ### Phase 21 — Device Testing & Distribution (deferred until feature-complete)
