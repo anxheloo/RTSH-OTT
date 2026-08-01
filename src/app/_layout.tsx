@@ -35,7 +35,20 @@ import ModalWrapper from '@/components/ModalWrapper';
 import { initI18n } from '@/i18n';
 
 // Start mock server before any React rendering so the first API call is intercepted.
-// Tree-shaken in production — the conditional is evaluated at module load time.
+//
+// The mock module + fixtures are dropped from the bundle when this value is not
+// 'mock' (verified 2026-08-01: a `mock` export is ~22KB larger and contains the
+// fixture strings; a non-mock export contains none of them). So the decision is
+// made ENTIRELY AT BUNDLE TIME, by whatever `EXPO_PUBLIC_API_MODE` was set when
+// the bundle was built.
+//
+// The trap: Metro's transform cache does NOT invalidate when an `EXPO_PUBLIC_*`
+// value changes. A `mock` export followed by a non-mock one reuses the cached
+// result and silently produces a MOCK bundle from a non-mock `.env`. That is how
+// a mock bundle once reached the preview channel via `eas update`. `ota:export`
+// therefore pins the value AND passes `--clear`; `.env` is a LOCAL DEV toggle
+// only (it drives `expo start`) and must never decide what a published bundle
+// contains.
 if (process.env.EXPO_PUBLIC_API_MODE === 'mock') {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   require('@/api/mocks/server').initMockServer();
