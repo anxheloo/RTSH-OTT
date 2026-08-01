@@ -622,13 +622,21 @@ is the SDK-compatible one. Several APIs the Sentry docs show are 8.x-only — se
   perform must re-audit what that step was silently doing** — the `--clear` was invisible in every
   log and doc, and only appears in eas-cli's source.
 
-  **Two script families exist on purpose.** `eas:update:*` is this project's default (local export →
-  Sentry map upload → `--skip-bundler` publish). `eas:update:plain:*` is the one-liner
-  `eas update --channel X --environment X`, kept because a project without Sentry needs no local
-  export at all — there, letting eas-cli bundle is strictly better, since it keeps the implicit
-  `--clear` and the `extraEnv` injection. **Never drop `--environment` from the plain family to
-  "simplify" it:** that flag is what turns on the cache clear. Both families also pin
-  `EXPO_PUBLIC_API_MODE=real` so the publisher's `.env` can never choose what ships.
+  **Two script families exist on purpose.** `eas:update:<env>` is the plain one-liner — eas-cli
+  bundles, so it keeps the implicit `--clear` *and* the `extraEnv` injection for free; **prefer it
+  whenever source maps aren't needed.** `eas:update:withSentry:<env>[:platform]` does the local
+  `ota:export` → map upload → `--skip-bundler` publish, and must re-create by hand both protections
+  that `--skip-bundler` discards. **Never drop `--environment` from either family to "simplify" it:**
+  that flag is what turns on the cache clear. `EXPO_PUBLIC_API_MODE=real` is pinned in both paths
+  (inline on the plain scripts, inside `ota:export` for the Sentry ones) so the publisher's `.env`
+  can never choose what ships.
+
+  **`APP_VARIANT` is deliberately NOT set on any update script (removed 2026-08-01).** It was added
+  when `Sentry.init` read `extra.appVariant`, but that same change moved Sentry onto
+  `Application.applicationId`, leaving the prefix dead. Nothing in `src/` reads `extra.appVariant`
+  now, and everything else `APP_VARIANT` drives in `app.config.ts` — `ALLOW_CLEARTEXT`, bundle IDs,
+  display names, icons, `disableAutoUpload` — is **native config an OTA cannot change**. Re-adding it
+  would only restore a misleading no-op. It remains load-bearing for `prebuild`/`build` scripts.
 
   **Proven by content hash, not inference:** a `mock` export and the published bundle shared the
   filename hash `entry-14130fd4…` while `dev`/`prod` exports produced `entry-c240202b…`; the
