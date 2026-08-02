@@ -108,7 +108,7 @@
     "eas:android:preview": "eas build --platform android --profile preview",
     "eas:ios:preview": "eas build --platform ios --profile preview",
     "eas:android:prod": "eas build --platform android --profile production",
-    "eas:ios:prod": "eas build --platform ios --profile production",
+    "eas:ios:prod": "eas build --platform ios --profile production --auto-submit",
     "prebuild:tv:dev": "EXPO_TV=1 APP_VARIANT=development expo prebuild --clean",
     "prebuild:tv:preview": "EXPO_TV=1 APP_VARIANT=preview expo prebuild --clean",
     "prebuild:tv:prod": "EXPO_TV=1 APP_VARIANT=production expo prebuild --clean",
