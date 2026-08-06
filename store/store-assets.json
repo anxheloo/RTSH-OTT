@@ -1,0 +1,151 @@
+{
+  "platforms": ["ios", "android"],
+  "spec_verified": "2026-08-06",
+  "notes": [
+    "ios.icon (assets/AppIcon.icon, the SDK54+ Icon Composer directory) is validated by verify.sh Gate A directly against the resolved app config — it is a directory, not a single image, so it is deliberately NOT listed as an asset here (Gate C's shape/format check reads image bytes and would false-fail on a directory).",
+    "Screenshot dirs live outside this repo, in the sibling Claude-Cowork-Workspace project folder (projects/RTSH/assets/AppStore-PlayStore/), per this workspace's own convention that deliverables go under projects/<name>/assets and outputs, not into the app's own git repo.",
+    "play-feature-graphic has no source file yet (checked 2026-08-06 — nothing in AppStore-PlayStore/ matches Play's 1024x500 spec). Declared required so Gate B fails loudly and names it, rather than the requirement being silently absent from tracking."
+  ],
+  "assets": [
+    {
+      "id": "ios-listing-icon",
+      "role": "icon",
+      "platform": "ios",
+      "path": "../assets/AppStore-PlayStore/AppIcons/appstore.png",
+      "required": true,
+      "shape": { "width": 1024, "height": 1024, "square": true },
+      "formats": ["png"],
+      "alpha": "forbidden",
+      "spec_verified": "2026-08-01",
+      "source": "https://developer.apple.com/help/app-store-connect/reference/app-icon-specifications"
+    },
+    {
+      "id": "play-listing-icon",
+      "role": "icon",
+      "platform": "android",
+      "path": "../assets/AppStore-PlayStore/AppIcons/playstore.png",
+      "required": true,
+      "shape": { "width": 512, "height": 512, "square": true },
+      "formats": ["png"],
+      "alpha": "allowed",
+      "spec_verified": "2026-08-01",
+      "source": "https://support.google.com/googleplay/android-developer/answer/9866151"
+    },
+    {
+      "id": "android-adaptive-foreground",
+      "role": "app-source-icon",
+      "platform": "android",
+      "path": "./assets/images/android-icon-foreground.png",
+      "required": true,
+      "shape": { "width": 1024, "height": 1024, "square": true },
+      "formats": ["png"],
+      "alpha": "required",
+      "spec_verified": "2026-08-01",
+      "source": "https://docs.expo.dev/versions/latest/config/app/#adaptiveicon"
+    },
+    {
+      "id": "android-adaptive-monochrome",
+      "role": "app-source-icon",
+      "platform": "android",
+      "path": "./assets/images/android-icon-monochrome.png",
+      "required": true,
+      "shape": { "width": 1024, "height": 1024, "square": true },
+      "formats": ["png"],
+      "alpha": "required",
+      "spec_verified": "2026-08-01",
+      "source": "https://docs.expo.dev/versions/latest/config/app/#adaptiveicon"
+    },
+    {
+      "id": "android-legacy-fallback-icon",
+      "role": "app-source-icon",
+      "platform": "android",
+      "path": "./assets/images/icon.png",
+      "required": true,
+      "shape": { "width": 1024, "height": 1024, "square": true },
+      "formats": ["png"],
+      "alpha": "allowed",
+      "spec_verified": "2026-08-01",
+      "source": "https://docs.expo.dev/versions/latest/config/app/#icon"
+    },
+    {
+      "id": "play-feature-graphic",
+      "role": "listing-art",
+      "platform": "android",
+      "path": "../assets/AppStore-PlayStore/play/feature-graphic.png",
+      "required": true,
+      "shape": { "width": 1024, "height": 500 },
+      "formats": ["png", "jpeg"],
+      "alpha": "forbidden",
+      "spec_verified": "2026-08-06",
+      "source": "https://support.google.com/googleplay/android-developer/answer/9866151"
+    },
+    {
+      "id": "ios-iphone-screenshots",
+      "role": "screenshot-set",
+      "platform": "ios",
+      "dir": "../assets/AppStore-PlayStore/App Screenshots/ios/mobile",
+      "required": true,
+      "min_count": 1,
+      "max_count": 10,
+      "shape": { "width": 1320, "height": 2868 },
+      "formats": ["png", "jpeg"],
+      "spec_verified": "2026-08-01",
+      "source": "https://developer.apple.com/help/app-store-connect/reference/screenshot-specifications"
+    },
+    {
+      "id": "ios-ipad-screenshots",
+      "role": "screenshot-set",
+      "platform": "ios",
+      "dir": "../assets/AppStore-PlayStore/App Screenshots/ios/ipad",
+      "required": true,
+      "min_count": 1,
+      "max_count": 10,
+      "shape": { "width": 2064, "height": 2752 },
+      "formats": ["png", "jpeg"],
+      "spec_verified": "2026-08-01",
+      "source": "https://developer.apple.com/help/app-store-connect/reference/screenshot-specifications"
+    },
+    {
+      "id": "android-mobile-screenshots",
+      "role": "screenshot-set",
+      "platform": "android",
+      "dir": "../assets/AppStore-PlayStore/App Screenshots/android/mobile",
+      "required": true,
+      "min_count": 2,
+      "max_count": 8,
+      "shape": { "width": 1080, "height": 2400 },
+      "formats": ["png", "jpeg"],
+      "alpha": "forbidden",
+      "spec_verified": "2026-08-06",
+      "source": "https://support.google.com/googleplay/android-developer/answer/9866151"
+    },
+    {
+      "id": "android-tablet-screenshots",
+      "role": "screenshot-set",
+      "platform": "android",
+      "dir": "../assets/AppStore-PlayStore/App Screenshots/android/tablet",
+      "required": true,
+      "min_count": 4,
+      "max_count": 8,
+      "shape": { "width": 2560, "height": 1600 },
+      "formats": ["png", "jpeg"],
+      "alpha": "forbidden",
+      "spec_verified": "2026-08-06",
+      "source": "https://support.google.com/googleplay/android-developer/answer/9866151"
+    },
+    {
+      "id": "android-tv-screenshots",
+      "role": "screenshot-set",
+      "platform": "android",
+      "dir": "../assets/AppStore-PlayStore/App Screenshots/android/tv",
+      "required": true,
+      "min_count": 1,
+      "max_count": 8,
+      "shape": { "width": 1920, "height": 1080 },
+      "formats": ["png", "jpeg"],
+      "alpha": "forbidden",
+      "spec_verified": "2026-08-06",
+      "source": "https://support.google.com/googleplay/android-developer/answer/9866151"
+    }
+  ]
+}

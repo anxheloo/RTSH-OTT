@@ -367,6 +367,22 @@ Full mechanism + rationale: `rules/ARCHITECTURE.md → Android TV / STB`.
 
 ---
 
+## 22.18-TV.c — `radio/[id]` made usable on TV (2026-08-06) ✅
+
+Reported as "radio player screen is not shown correctly on Android TV". Root-caused to **two independent defects** on a booted `RTSH_TV_API34`, then fixed and re-verified by walking the remote.
+
+- [x] **`RadioPlayer` artwork was never square — a cross-platform bug, not a TV one.** `styles.art` combined `width: '48%'` + `maxWidth: 160` + `aspectRatio: 1`, and Yoga derives the aspect-ratio height from the **percentage-resolved** width, then clamps only the width. Any parent wider than `160 / 0.48 ≈ 334dp` therefore got a 160-wide **tower**: 160×189 on phone, 160×394 on TV (an 820dp `useContentWidth('player')` column) — one box eating 73% of the TV's 540dp height, pushing the transport, day strip and entire EPG list below the fold of a screen that deliberately doesn't scroll. Fixed by clamping **both** axes (`maxHeight: ART`). Proven by hit-testing the live tree, not read off pixels.
+- [x] **TV excluded from the split layout.** `splitLayout` was `tablet && isLandscape` (a deliberate 22.18 deferral). A 1080p set is **540dp tall at density 320 — shorter than the phone the stacked layout was drawn for** — while `UI_SCALE` steps tokens 1.3×, so even with the art square the schedule got ~43dp, under one row. Now `deviceClass === 'tv' || (tablet && landscape)`; per the user's call, TV/STB matches the tablet design exactly.
+- [x] **Play button's focus ring was invisible** — `colors.focus` is `#EB122F`, the same value as `colors.primary`, so the ring was red-on-red on the one control that most needs feedback. Now rings in `colors.onPrimary`.
+- [x] **Device-verified D-pad walk:** list ↔ day strip hand-off, strip → header back button, list row → transport at matching height, `select` toggles playback, `select` on a day chip loads that day + shows the past-day banner while radio keeps playing. The cross-scroller hazard flagged in `ARCHITECTURE.md → Android TV / STB` did **not** materialize, so the day strip was deliberately left as a sibling `FlatList` rather than folded into `ListHeaderComponent` — folding it in would make it scroll away and break tablet parity.
+- [x] `tsc --noEmit` clean · `expo lint` clean · **104/104 tests**.
+- [ ] **OPEN — `ReusableBtn`'s `primary` variant has the same invisible ring**, i.e. every primary CTA app-wide on TV (auth submit, confirms, PIN confirm); `destructive` needs the same check. Not fixed here to keep this change attributable. Two non-equivalent options (per-call-site token vs. changing the `focus` token itself) — decide in the 22.18 10-foot pass. See `ARCHITECTURE.md → Android TV / STB → Known gaps`.
+- [ ] **OPEN — phone/tablet not re-verified on device** after the shared `RadioPlayer` art change. Off-TV the only visual delta is the art becoming genuinely square (the `splitLayout` expression is unchanged for tablet/phone, and the ring change is `isTV`-gated), but it was not seen on a device: the host disk is at 95%, so a second emulator would not boot alongside the TV one.
+
+Full mechanism + rationale: `rules/ARCHITECTURE.md → Android TV / STB`.
+
+---
+
 ## Reference
 - Style guide: `.claude/rules/STYLE_GUIDE.md` · Architecture: `.claude/rules/ARCHITECTURE.md`
 - Project memory: `.claude/memory/` · Design mockup: `.claude/docs/rtsh-tani-mobile.html`

@@ -297,7 +297,7 @@ A self-contained, **portable** module (`src/responsive/`) owns every device-size
 - **Token scale is fixed at launch** — if a device enters/exits split-view mid-session the typography step does not re-resolve (layout columns do). Accepted: font jumps are worse than a stale step, and full-screen→split transitions are rare. Re-resolve via a context provider if it ever matters.
 - **Single multiplier for all token types** — headings/body/spacing share one step. Per-category steps (e.g. headings scale less than body) are a refinement if tablet type feels heavy; not needed at 1.15×.
 - **Card badge internals are still literal px** — `ChannelCard`'s frosted badge paddings/icon sizes are hardcoded (not tokens), so they don't scale on tablet. Minor (the card name text does scale via `FONTSIZE`); convert to tokens if badges look small on a real tablet.
-- **TV (`4/4`, step 1.3) is untested on device** — no D-pad/focus nav yet (22.18); the column + scale config is in place but the large-screen pass will tune it.
+- **TV (`4/4`, step 1.3) is only partly validated on device** — the D-pad/focus foundation works (Home grid, focus rings, and the `radio/[id]` walk of 2026-08-06), but the 10-foot sizing pass is still owed. **The 1.3 step is a height cost, not just a type cost:** a 1080p set is 540dp tall at density 320, so a stacked layout drawn for a phone has LESS vertical room on TV while every token is 30% larger. That combination is what made `radio/[id]` unusable (see `→ Android TV / STB`); assume any other stacked screen has the same latent defect until it's checked on a TV.
 - ~~**`radio/[id]` landscape untested**~~ — **fixed 2026-07-28.** It did share the channel screen's defect (a fixed two-pane column + the short landscape height ⇒ a schedule list with barely a row of viewport and no way to scroll the rest in), so it got the same split: on **tablet landscape** the now-playing core becomes the left column (42%, content-height, vertically centered via `alignSelf` on the row's cross axis) and the day strip + schedule the right column (`flex: 58`, full screen height). Applied the same way as the channel screen — a style swap on the existing `body`/pane nodes with both directions written explicitly, never an added/removed wrapper. Its column cap also moved from `useContentWidth('content')` (640) to **`'player'` (820)**, matching `channel/[id]`: at 640 a tablet in portrait (800dp) rendered 80dp gutters while the channel screen went full-bleed, so two sibling player screens disagreed on width. Verified on a 1280×800dp tablet emulator 2026-07-28: portrait renders edge-to-edge, landscape shows the two columns with the schedule scrolling through the full day.
 - **`CountryPickerInput` sheet height is frozen at launch** — `SHEET_HEIGHT` reads `Dimensions.get('window').height` at **module scope** (`components/Inputs/CountryPickerInput.tsx`), so on a tablet the sheet keeps its launch-orientation height after a rotation until the app restarts. Latent before (nothing rotated); live now that tablets do.
 
@@ -336,11 +336,23 @@ Android TV and operator STB run the **same codebase** as mobile, not a fork — 
 
 ### Known gaps
 
-- **TV/tablet large-screen display-adjustment pass (22.18) is not done.** The current screens still run the **mobile portrait** layout on TV (only the channel screen has a TV-specific branch so far) — on a 1920×1080 screen the portrait inline video (`width:100%` + `aspectRatio:16/9`) renders at the full screen height, so anything stacked below it (day-strip, EPG list on non-channel screens) sits below the fold with nothing to scroll it into view. Root-caused 2026-07-07 (confirmed via a UI-tree dump on a real TV emulator boot) as a **layout** gap, not a focus bug — the D-pad/focus foundation itself works (Home grid nav, focus rings all verified on-device).
+- **TV/tablet large-screen display-adjustment pass (22.18) is not done.** The current screens still run the **mobile portrait** layout on TV (the channel screen and — since 2026-08-06 — `radio/[id]` are the only ones with a TV branch) — on a 1920×1080 screen the portrait inline video (`width:100%` + `aspectRatio:16/9`) renders at the full screen height, so anything stacked below it (day-strip, EPG list on non-channel screens) sits below the fold with nothing to scroll it into view. Root-caused 2026-07-07 (confirmed via a UI-tree dump on a real TV emulator boot) as a **layout** gap, not a focus bug — the D-pad/focus foundation itself works (Home grid nav, focus rings all verified on-device).
+
+- ~~**`radio/[id]` unusable on TV**~~ — **fixed 2026-08-06** (device-verified on `RTSH_TV_API34`). Two independent defects, stacked:
+
+  1. **`RadioPlayer`'s artwork was never square** — `styles.art` was `width: '48%'` + `maxWidth: 160` + `aspectRatio: 1`, and **Yoga derives the aspect-ratio height from the PERCENTAGE-resolved width, then clamps only the width to `maxWidth`.** So on any parent wider than `160 / 0.48 ≈ 334dp` the box rendered 160 wide by (48% of parent) tall. On TV that parent is the 820dp `useContentWidth('player')` column ⇒ **160×394** — 73% of the TV's 540dp height, one box. Everything under it (equalizer, transport, day strip, the whole EPG list) fell below the fold of a screen that deliberately does not scroll. Fixed by clamping **both** axes (`maxHeight: ART`); below 334dp neither clamp binds and the 48% square is unchanged. **This was NOT TV-only** — phone rendered 160×189 and tablet likewise; both were quietly non-square since the component was written, just not fatal there. Proven on device by hit-testing the live tree (`x=390,y=281` outside the art, `x=405,y=440` inside it), not inferred from pixels.
+
+     **This is the SAME trap already diagnosed on `channel/[id]` on 2026-07-28** — see its `videoBoxStyle` comment: *"`maxWidth` and `aspectRatio` on the SAME node is what made this box 820dp wide but far taller than 820×9/16 — the aspect height is derived before the clamp."* It was fixed there **locally** (the `videoSplit` style unsets `maxWidth`) and never generalized, so the same construct sat unnoticed in `RadioPlayer` — and in a **second copy**, `radio/[id]`'s `styles.skeletonArt`, which was missed on the first pass of this fix and caught on review. The skeleton copy was the worse of the two: `skeletonBody` carries no `contentWidth`, so its parent is the full 960dp window ⇒ 461dp of tower. Now recorded as a rule in `STYLE_GUIDE.md → Things Worth Avoiding` so the next occurrence is caught at write time.
+
+     **Latent instance still open:** `channel/[id]`'s `styles.video` (`width: '100%'` + `aspectRatio: 16/9`) takes its `maxWidth` from `contentWidth` (820). The 2026-07-28 note reasons the clamp "never binds in portrait" from an **800dp** test tablet — but that is a property of that device, not of portrait. iPad Pro 11" portrait is **834dp** (binds by 14dp, ~8dp too tall — small enough to pass the 2026-07-29 device check unnoticed) and iPad Pro 13" portrait is **1024dp** (height derived from 1024 instead of 820 ⇒ the player renders ~115dp too tall). Not reproduced yet — needs an iPad Pro 13" / large-tablet portrait pass.
+  2. **TV was excluded from the split layout** — `splitLayout` was `deviceClass === 'tablet' && isLandscape`, a deliberate 22.18 deferral. But a 1080p set at density 320 is **540dp tall — SHORTER than the phone the stacked layout was drawn for** — while `UI_SCALE` steps every token up 1.3×. Even with the art square, the schedule got ~43dp, under one row. TV now takes the same split as tablet landscape (`deviceClass === 'tv' || (tablet && landscape)`), with no `isLandscape` test for TV since a TV is always landscape.
+
+  **The cross-scroller D-pad hand-off that `→ Android TV / STB` warns about did NOT materialize here** — verified by walking the remote, not assumed: focus flows list → day strip at the top of the list, strip → header back button off its left end, and list row → transport when the row is at matching height. The transport is reachable; the one skip observed (`play` → back, passing `prev`) is correct — `prev` is `disabled` on the first station. Left unchanged deliberately: the strip is still a horizontal `FlatList` sibling of the vertical `FlashList`, NOT folded into `ListHeaderComponent` like the channel screen's TV drawer, because folding it in would make it scroll away and break parity with the tablet design.
 - **STB is the one thing the single build can't resolve.** An operator STB and a retail Android TV box are **runtime-identical** — nothing distinguishes them — so `DeviceType: STB_ANDROID` still depends on the build-time `APP_PLATFORM=androidstb` flag (`extra.devicePlatform` → `buildTimePlatform` in `utils/device.ts`). That means a *fully* single artifact reports every STB as `ANDROID_TV`. **Proposed fix (needs backend sign-off): let the backend classify it.** The login/register-verify `device` object already carries `model`, and the backend already bakes `dc` into the access token — so the client can send `ANDROID_TV` + the model string and the server maps known operator models → `STB`. A new box SKU then becomes a backend config row instead of an app release, which matters over a 48-month contract. Loose end: `getDeviceClass()` is still read client-side for the ad-impression beacon's `?deviceClass=` param, which would report `TV` for STBs until the backend corrects it on its side. Until that lands, the `*_stb` EAS profiles remain the escape hatch.
 - **Play Store TV filtering is unverifiable off-store.** Sideloading (`adb install`) bypasses Play's feature filtering entirely, so the `uses-feature` / `RECORD_AUDIO` work can only be proven by `aapt2 dump badging` output plus Play Console's supported-device count after upload — never by a device test. Adding the leanback intent does **not** auto-publish to TV either: the TV form factor still needs an explicit Play Console opt-in with TV screenshots + a 1280×720 banner and a TV review.
 - **STB self-update flow not built** — the `GET /app/version?platform=` endpoint exists (sideload poll) but the boot check/download/install orchestration lands with the rest of the TV pass.
 - **10-foot visual tuning (contrast, safe margins, text size at distance) not done** — the `UI_SCALE` TV step (1.3×) and `GRID_COLUMNS` (4/4) are wired (see Responsive layout & sizing) but unvalidated against a real living-room viewing distance.
+- **`colors.focus` === `colors.primary` (`#EB122F`), so the focus ring is INVISIBLE on any primary-filled control** — found 2026-08-06 on the radio transport, where the play button (`backgroundColor: colors.primary`) was the one control you could not tell was focused. Fixed **only at that one call site** (`RadioPlayer` passes `colors.onPrimary`); the systemic instance is **`ReusableBtn`'s `primary` variant** (`VARIANTS.primary → backgroundColor: 'primary'` + `tvFocusHighlight(colors.focus, …)`), i.e. **every primary CTA app-wide has an invisible ring on TV** — auth submit, confirm buttons, the parental PIN confirm. `destructive` (`backgroundColor: 'error'`) needs the same check. Deliberately not fixed in the radio pass to keep that change attributable and because it touches every screen. **Two candidate fixes, and they are not equivalent:** re-point the ring per call site to a contrasting token (surgical, but the next primary-filled control repeats the bug), or change the `focus` token itself to a non-brand colour (one edit, fixes every present and future case, but restyles every focus ring in the app and needs a design call). Decide during the 22.18 10-foot pass.
 
 ---
 
@@ -786,6 +798,45 @@ is the SDK-compatible one. Several APIs the Sentry docs show are 8.x-only — se
 - **`react-native-tvos` alias.** Sentry installed and resolved cleanly against the alias, and Android
   TV is plain Android to the SDK. Not yet exercised on a TV/STB device.
 - **Spike protection / quota alerts** not configured on the Sentry project (dashboard-side).
+
+---
+
+## Store assets
+
+### How it works today (built 2026-08-06)
+
+`store/store-assets.json` is the source of truth for every store-listing art requirement — app
+icons, both stores' screenshot sets, Play's feature graphic. Per asset it declares the resolved
+path (or, for a screenshot set, the directory), the required shape/format/alpha state, whether it
+is required for the platforms this app targets, and a `spec_verified` date + source URL. Screenshot
+directories live **outside this repo**, in the sibling `projects/RTSH/assets/AppStore-PlayStore/`
+folder, per this workspace's convention that deliverables live under `projects/<name>/assets`, not
+inside the app's own git tree — the manifest just records the resolved relative path.
+
+`scripts/verify.sh` (from the `anxheloo-expo-store-assets` skill) reads the manifest and asserts the
+durable invariant — *declared assets exist, at the declared shape* — holding **no store dimension
+of its own**: Apple and Google revise their specs by accretion, so a gate with a pixel literal baked
+in would eventually block a correct release. Re-verify the manifest's `spec_verified` dates against
+the sources named in it; a stale date WARNs, it never fails a build.
+
+**`ios.icon` (`assets/AppIcon.icon`, the SDK 57 Icon Composer directory) is deliberately NOT a
+manifest asset** — it is a directory, not a single image, and is validated separately by the gate
+suite's config-reading check (existence + that the `.icon` form is valid for the installed SDK),
+which reads the resolved app config directly rather than the manifest.
+
+### Known gaps (found running the gate for the first time, 2026-08-06)
+
+- **Play's feature graphic (1024×500) has no source file.** Nothing in `AppStore-PlayStore/` matches
+  the spec — it has never been produced. Mandatory for a Play Store listing.
+- **The App Store Connect listing icon carries an alpha channel.**
+  `assets/AppStore-PlayStore/AppIcons/appstore.png` (1024×1024) has transparency; Apple's listing
+  icon spec requires none. Needs a flattened re-export before upload — this is the app's on-device
+  icon's marketing counterpart, not the `ios.icon` Icon Composer bundle, and is unaffected by it.
+- Neither gap blocks development or an internal/preview build — both are pre-submission blockers
+  only, caught here specifically so they surface before the App Store Connect / Play Console upload
+  step rather than at it.
+
+---
 
 ## Upgrade log
 

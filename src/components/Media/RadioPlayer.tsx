@@ -88,7 +88,14 @@ const RadioPlayer: React.FC<RadioPlayerProps> = ({
           style={[
             styles.playBtn,
             { backgroundColor: colors.primary },
-            tvFocusHighlight(colors.focus, playFocus.focused),
+            // `onPrimary`, NOT `colors.focus` — the focus token is '#EB122F',
+            // the SAME value as `colors.primary`, so the standard ring is a red
+            // border on this button's red fill: invisible. On TV that made the
+            // primary transport control the one control you couldn't tell was
+            // focused. Same precedent as `AdOverlay` (rings on a bright fill use
+            // white). Any ring must contrast with the fill it sits on, not with
+            // the page background.
+            tvFocusHighlight(colors.onPrimary, playFocus.focused),
           ]}
           onPress={onTogglePlay}
           activeOpacity={0.85}
@@ -133,6 +140,16 @@ const styles = StyleSheet.create({
   art: {
     width: '48%',
     maxWidth: ART,
+    // LOAD-BEARING, not redundant with `aspectRatio` — do not delete. Yoga
+    // derives the aspect-ratio height from the PERCENTAGE-resolved width, then
+    // clamps only the width to `maxWidth`. So on any parent wider than
+    // ART / 0.48 ≈ 334dp the box came out 160 wide by (48% of parent) tall — a
+    // tower, not a square. On TV (an 820dp `useContentWidth('player')` column)
+    // that was 160×394: it ate 73% of the 540dp screen height and pushed the
+    // transport, day strip and whole EPG list below the fold of a screen that
+    // deliberately doesn't scroll. Clamping BOTH axes makes it square at every
+    // width — below 334dp neither clamp binds and the 48% square still applies.
+    maxHeight: ART,
     aspectRatio: 1,
     marginTop: SPACING.space_12,
     borderRadius: BORDERRADIUS.radius_20,

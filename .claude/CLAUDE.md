@@ -23,6 +23,7 @@ RTSH TANI — OTT streaming app for Radio Televizioni Shqiptar. Live TV (19 chan
 - @sentry/react-native **7.11.0** — crash/error monitoring + tracing. **Installed 2026-07-29** (closes the 2026-07-03 deferral; plan 14.1 / 5.X.12 / 11.Y.6). Init in `lib/monitoring.ts`; org `acsolutions-1a`, project `react-native-rtsh-ott`, **EU region** (`https://de.sentry.io/` — never `sentry.io`). Version is pinned by Expo SDK 57, **not** npm-latest: several documented APIs are 8.x-only. Full mechanism + known gaps: `rules/ARCHITECTURE.md → Observability`. Replay / structured logging / profiling deliberately off.
 - jest-expo + @testing-library/react-native — unit/behavior tests, co-located `__tests__/` folders (policy: `rules/STANDARDS.md §11`)
 - EAS Build + EAS Update
+- Store listing art (icons, screenshots, Play feature graphic) is tracked in `store/store-assets.json` — a dated manifest, verified against `scripts/verify.sh` from the `anxheloo-expo-store-assets` skill. **2026-08-06: two real gaps open** — Play's feature graphic has no source file yet, and the App Store Connect listing icon (`assets/AppStore-PlayStore/AppIcons/appstore.png`) carries an alpha channel Apple rejects. Full mechanism: `rules/ARCHITECTURE.md → Store assets`.
 
 ## Commands
 

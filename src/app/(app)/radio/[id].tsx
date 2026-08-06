@@ -7,11 +7,13 @@
  * schedule for the selected day. The schedule list is the ONLY thing that
  * scrolls; the screen itself never does.
  *
- * On a TABLET IN LANDSCAPE those two panes sit SIDE BY SIDE instead (see
- * `splitLayout`) — the same shape, and the same reason, as `channel/[id]`:
- * stacked, the fixed now-playing pane plus the day strip eat the short landscape
- * height and leave the list a viewport barely a row tall, with no way to scroll
- * the rest into view.
+ * On a TABLET IN LANDSCAPE and on TV/STB those two panes sit SIDE BY SIDE
+ * instead (see `splitLayout`) — the same shape, and the same reason, as
+ * `channel/[id]`: stacked, the fixed now-playing pane plus the day strip eat the
+ * short landscape height and leave the list a viewport barely a row tall, with
+ * no way to scroll the rest into view. A 1080p TV is 540dp tall at density 320,
+ * so it is SHORTER than the phone this stacked layout was drawn for while
+ * `UI_SCALE` steps every token up 1.3× — stacked, the schedule got ~43dp.
  *
  * Playback is store-driven: mounting selects the station in `PlayerSlice`
  * (which `RadioAudioHost` turns into actual audio); the transport just flips
@@ -122,7 +124,8 @@ const RadioPlayerScreen: React.FC = () => {
   // full-bleed; the 820 cap doesn't bind in portrait, so both read the same.
   const contentWidth = useContentWidth('player');
 
-  // Tablet landscape — the SPLIT layout (now-playing left, schedule right).
+  // Tablet landscape AND TV/STB — the SPLIT layout (now-playing left, schedule
+  // right).
   //
   // Same defect, same fix as the channel screen: stacked, the fixed now-playing
   // pane plus the day strip consume most of the short landscape height and leave
@@ -130,10 +133,15 @@ const RadioPlayerScreen: React.FC = () => {
   // non-scrolling column, so nothing can bring the rest of the list back. Side by
   // side, the schedule column gets the FULL screen height.
   //
-  // Scoped to `tablet` explicitly: TV classifies as `tv` and a phone must be
-  // untouched by any of this.
+  // TV is in because it has exactly that shape, only worse: a 1080p set is 540dp
+  // tall at density 320 — SHORTER than the phone this stacked layout was drawn
+  // for — while UI_SCALE steps every token up 1.3×. Stacked, the schedule got
+  // ~43dp, under a single row. TV needs no `isLandscape` test: a TV is always
+  // landscape (see GRID_COLUMNS' tv entry, which carries the same assumption).
+  //
+  // A phone stays untouched by any of this.
   const { deviceClass, isLandscape } = useResponsive();
-  const splitLayout = deviceClass === 'tablet' && isLandscape;
+  const splitLayout = deviceClass === 'tv' || (deviceClass === 'tablet' && isLandscape);
   const radioChannelId = useAppStore((s) => s.radioChannelId);
   const radioIsPlaying = useAppStore((s) => s.radioIsPlaying);
   const setRadioChannel = useAppStore((s) => s.setRadioChannel);
@@ -519,6 +527,13 @@ const styles = StyleSheet.create({
   skeletonArt: {
     width: '48%',
     maxWidth: ART_MAX,
+    // Mirrors `RadioPlayer`'s `styles.art` — including the `maxHeight` clamp,
+    // which is load-bearing there and here for the same reason (see that file:
+    // an aspect-ratio height is derived from the PERCENTAGE width, before
+    // `maxWidth` clamps it). This copy is the worse of the two: `skeletonBody`
+    // carries no `contentWidth`, so its parent is the FULL window — 48% of a
+    // 960dp TV is 461dp of tower where a 160dp square belongs.
+    maxHeight: ART_MAX,
     aspectRatio: 1,
   },
   floatingHeader: {
