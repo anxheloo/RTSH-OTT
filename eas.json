@@ -72,8 +72,15 @@
   "submit": {
     "production": {
       "ios": {
+        "appleId": "ott@rtsh.al",
+        "ascAppId": "6796258611",
         "appleTeamId": "KMS93Q3XB8",
-        "language": "en-US"
+        "language": "en-US",
+        "metadataPath": "store/store.config.json"
+      },
+      "android": {
+        "serviceAccountKeyPath": "TODO(anx 2026-08-06): Play service-account JSON path",
+        "track": "internal"
       }
     }
   }

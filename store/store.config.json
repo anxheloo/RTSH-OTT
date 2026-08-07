@@ -1,0 +1,67 @@
+{
+  "configVersion": 0,
+  "apple": {
+    "copyright": "TODO(anx 2026-08-06): confirm the exact copyright line with RTSH legal — likely '2026 Radio Televizioni Shqiptar', but do NOT submit an unconfirmed legal-entity name.",
+    "info": {
+      "en-US": {
+        "title": "TODO(anx): confirm title",
+        "subtitle": "TODO(anx): confirm sub",
+        "description": "RTSH TANI brings Albania's public broadcaster to your phone and tablet. Watch all 19 RTSH television channels live, listen to 13 radio stations, and never miss a programme again.\n\nLIVE TELEVISION\nStream every RTSH channel live in adaptive quality that adjusts to your connection. Pick your own quality when you want to, or let the app handle it.\n\nRADIO THAT KEEPS PLAYING\nAll 13 RTSH radio stations, with full background playback and lock-screen controls. Lock your phone, switch apps, keep listening.\n\nFULL TV GUIDE\nBrowse the complete schedule for every channel, seven days back and seven days ahead. Open any programme for its full description.\n\nCATCH-UP\nMissed something? Play it back from the guide. Pause, rewind and scrub through any recorded programme.\n\nBUILT FOR EVERY SCREEN\nDesigned for iPhone and iPad, with picture-in-picture so you can keep watching while you do something else.\n\nIN YOUR LANGUAGE\nAlbanian by default, with English available. Light and dark themes.\n\nPARENTAL CONTROLS\nSet a PIN on this device to gate age-restricted programming.\n\nRTSH TANI is the official application of Radio Televizioni Shqiptar. An account is required. Some content may not be available in all regions.",
+        "keywords": [
+          "albania",
+          "shqip",
+          "tv",
+          "live",
+          "radio",
+          "televizion",
+          "shqiptar",
+          "kanale",
+          "lajme",
+          "epg",
+          "catchup",
+          "stream",
+          "iptv",
+          "news"
+        ],
+        "promoText": "Watch RTSH live — 19 TV channels and 13 radio stations from Albania's public broadcaster. Full TV guide, catch-up on the last 7 days, and radio that keeps playing.",
+        "releaseNotes": "TODO(anx 2026-08-06): not shown for a first 1.0.0 release — fill this in before the first UPDATE, or delete the key.",
+        "privacyPolicyUrl": "https://rtsh.al/rreth-rtsh/rtsh-tani-platforma-ott-e-radio-televizionit-shqiptar/",
+        "supportUrl": "https://rtsh.al/rreth-rtsh/rtsh-tani-platforma-ott-e-radio-televizionit-shqiptar/",
+        "marketingUrl": "https://rtsh.al/rreth-rtsh/rtsh-tani-platforma-ott-e-radio-televizionit-shqiptar/"
+      }
+    },
+    "advisory": {
+      "alcoholTobaccoOrDrugUseOrReferences": "NONE",
+      "contests": "NONE",
+      "gamblingSimulated": "NONE",
+      "horrorOrFearThemes": "NONE",
+      "matureOrSuggestiveThemes": "NONE",
+      "medicalOrTreatmentInformation": "NONE",
+      "profanityOrCrudeHumor": "NONE",
+      "sexualContentGraphicAndNudity": "NONE",
+      "sexualContentOrNudity": "NONE",
+      "violenceCartoonOrFantasy": "NONE",
+      "violenceRealistic": "NONE",
+      "violenceRealisticProlongedGraphicOrSadistic": "NONE",
+      "gambling": false,
+      "unrestrictedWebAccess": false,
+      "kidsAgeBand": null,
+      "ageRatingOverride": "NONE",
+      "koreaAgeRatingOverride": "NONE"
+    },
+    "release": {
+      "automaticRelease": false,
+      "phasedRelease": true
+    },
+    "review": {
+      "firstName": "TODO(anx 2026-08-06): App Review contact first name",
+      "lastName": "TODO(anx 2026-08-06): App Review contact last name",
+      "email": "TODO-app-review-contact@example.com",
+      "phone": "TODO(anx 2026-08-06): +355 ... App Review contact phone, E.164",
+      "demoRequired": true,
+      "demoUsername": "TODO(anx 2026-08-06): BLOCKER — a working RTSH TANI review account (email) must be created on the production backend and confirmed to sign in. Apple auto-rejects (Guideline 2.1) without one.",
+      "demoPassword": "TODO(anx 2026-08-06): BLOCKER — password for the review account above.",
+      "notes": "RTSH TANI is the official OTT application of Radio Televizioni Shqiptar (RTSH), Albania's national public broadcaster. It streams RTSH's own live TV and radio channels plus catch-up of previously aired programming.\n\nCONTENT AVAILABILITY: RTSH holds broadcast rights primarily for Albania, so some channels are geo-restricted. TODO(anx 2026-08-06): confirm with backend whether the review account is exempted from geo-restriction before submitting — a US-based reviewer hitting a geo-block screen is an Apple 2.1 rejection.\n\nHOW TO REVIEW:\n1. Sign in with the credentials above.\n2. Home tab — tap any channel tile to start live playback. Use the Radio toggle to switch to radio stations.\n3. Guide tab — the full 7-day programme schedule. Tap a past programme to play it back (catch-up).\n4. Player — tap the screen for controls. The options sheet has quality selection and audio tracks.\n5. Radio continues playing in the background and on the lock screen; this is intentional and is the app's core radio feature.\n\nFEATURES THAT MAY PROMPT QUESTIONS:\n- Cellular data gate: Settings has a \"play over cellular\" toggle. When off, a confirmation modal appears before playback starts on a cellular connection. Tap Continue to proceed.\n- Parental control: Settings — Parental control sets a device-level PIN that gates age-restricted programmes. It is stored only on the device and never sent to our servers. It is off by default.\n- Advertising: short pre-roll and mid-roll ads may appear. These are RTSH's own promotional spots served from our backend; no third-party ad SDK is used.\n- Account deletion is available in-app: Profile — Delete account."
+    }
+  }
+}

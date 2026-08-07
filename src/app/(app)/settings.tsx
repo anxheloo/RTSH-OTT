@@ -203,7 +203,7 @@ const SettingsScreen: React.FC = () => {
             title={t('settings.language.title')}
             subtitle={t(`settings.language.${locale}`)}
             leading={<Icon as={LanguageIcon} size={20} color={colors.text} />}
-            onPress={() => router.push('/(app)/language')}
+            onPress={() => router.push('/(app)/(modals)/language')}
             testID="settings-language-row"
           />
           <ListRow
@@ -237,7 +237,7 @@ const SettingsScreen: React.FC = () => {
             title={t('settings.theme.title')}
             subtitle={t(`settings.theme.${mode}`)}
             leading={<Icon as={LayersIcon} size={20} color={colors.text} />}
-            onPress={() => router.push('/(app)/theme')}
+            onPress={() => router.push('/(app)/(modals)/theme')}
             testID="settings-theme-row"
           />
           <ListRow

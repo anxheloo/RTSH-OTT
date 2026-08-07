@@ -531,7 +531,7 @@ const ChannelScreen: React.FC = () => {
         paused={adActive}
         isFullscreen={isFullscreen}
         onToggleFullscreen={toggleFullscreen}
-        onOpenOptions={() => router.push('/(app)/player-options')}
+        onOpenOptions={() => router.push('/(app)/(modals)/player-options')}
       />
     );
 

@@ -44,7 +44,7 @@ const PlayerOptionsSheet: React.FC = () => {
       <SheetOptionRow
         label={t('player.video_quality')}
         description={qualityLabel}
-        onPress={() => router.replace('/(app)/quality')}
+        onPress={() => router.replace('/(app)/(modals)/quality')}
         testID="opt-quality"
       />
     </View>

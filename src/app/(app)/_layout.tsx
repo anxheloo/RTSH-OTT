@@ -7,12 +7,13 @@ import { StyleSheet, View } from 'react-native';
 
 import { Stack, usePathname } from 'expo-router';
 
+import { useAppStore } from '@/store/useAppStore';
 import { useAdsQuery, useChannelsQuery, useMeQuery } from '@/api/queries';
 import { useAdSlot, useDelayedReveal, useRealtimeConnection } from '@/hooks';
 import RadioMiniPlayer from '@/components/Layout/RadioMiniPlayer';
 import AdOverlay from '@/components/Media/AdOverlay';
 import RadioAudioHost from '@/components/Media/RadioAudioHost';
-import { getModalScreenOptions } from '@/utils/navigation';
+import { getModalScreenOptions, getPlayerScreenOptions } from '@/utils/navigation';
 import { AD_REVEAL_DELAY_MS } from '@/constants/ads';
 
 // The app-open ad greets a cold open — it must never trail the user once they've
@@ -21,6 +22,10 @@ import { AD_REVEAL_DELAY_MS } from '@/constants/ads';
 const TAB_PATHS = ['/', '/guide', '/search', '/profile'];
 
 const AppLayout: React.FC = () => {
+  // Sheets paint their CONTAINER, not just their content — see
+  // `getModalScreenOptions`'s `backgroundColor` note.
+  const colors = useAppStore((s) => s.colors);
+  const sheetOptions = getModalScreenOptions({ backgroundColor: colors.surface });
   useMeQuery();
   // Device registration removed 2026-07-14 — the standalone `PUT
   // /users/me/device` upsert this hook fired is gone; the device now rides
@@ -59,35 +64,26 @@ const AppLayout: React.FC = () => {
 
   return (
     <View style={styles.root}>
-      {/* Pushed screens slide in from the right (matches the auth stack); the
-          player slides up from the bottom, which reads as modal on both platforms.
-
-          The player is a plain CARD push, NOT `presentation: 'fullScreenModal'`.
-          `fullScreenModal` makes it a natively-presented view controller, and
-          `ModalWrapper` (app root) presents its RN `<Modal>` from that same root
-          controller — on iOS the two race, so any global modal opened while the
-          player is on screen (the cellular gate, `noInternet`, `apiError`)
-          flashes for ~1s, is orphaned, and leaves an invisible full-screen modal
-          window swallowing every touch app-wide. A card push keeps the player in
-          the root controller's own stack, so global modals present cleanly over
-          it. Visually identical on iOS; `gestureEnabled: false` preserves
-          `fullScreenModal`'s no-swipe-to-dismiss behavior. */}
+      {/* Pushed screens slide in from the right (matches the auth stack); both
+          player routes slide up from the bottom and dismiss on a downward swipe,
+          which reads as modal — while staying CARD PUSHES. That distinction is
+          load-bearing, not cosmetic: see `getPlayerScreenOptions` for why a
+          native presentation here strands an invisible touch-eating overlay. */}
       <Stack screenOptions={{ headerShown: false, animation: 'slide_from_right' }}>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen
-          name="channel/[id]"
-          options={{
-            animation: 'slide_from_bottom',
-            gestureEnabled: false,
-          }}
-        />
+        <Stack.Screen name="channel/[id]" options={getPlayerScreenOptions()} />
+        <Stack.Screen name="radio/[id]" options={getPlayerScreenOptions()} />
         <Stack.Screen name="settings" />
         <Stack.Screen name="account" />
         <Stack.Screen name="change-password" />
-        <Stack.Screen name="player-options" options={getModalScreenOptions()} />
-        <Stack.Screen name="quality" options={getModalScreenOptions()} />
-        <Stack.Screen name="language" options={getModalScreenOptions()} />
-        <Stack.Screen name="theme" options={getModalScreenOptions()} />
+        {/* `(modals)/` groups every route that presents as a native sheet, so a
+            sheet is distinguishable from a push in the file tree alone. Typed
+            routes require the group in the href (`/(app)/(modals)/language`) —
+            it is part of the generated union, not elided. */}
+        <Stack.Screen name="(modals)/player-options" options={sheetOptions} />
+        <Stack.Screen name="(modals)/quality" options={sheetOptions} />
+        <Stack.Screen name="(modals)/language" options={sheetOptions} />
+        <Stack.Screen name="(modals)/theme" options={sheetOptions} />
       </Stack>
       <RadioAudioHost />
       <RadioMiniPlayer />

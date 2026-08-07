@@ -50,6 +50,14 @@ yarn-error.*
 .env.sentry-build-plugin
 sentry.properties
 
+# Google Play service-account key used by `eas submit --platform android`
+# (eas.json -> submit.production.android.serviceAccountKeyPath). It can publish
+# releases to the Play Console, so it is a real credential: never commit it.
+# Prefer a GOOGLE_SERVICE_ACCOUNT_KEY file secret in `eas env` over a local path.
+google-service-account.json
+*-service-account*.json
+play-store-credentials.json
+
 # typescript
 *.tsbuildinfo
 

@@ -99,7 +99,8 @@ matching section there before changing behavior. Coding conventions are in
 Expo Router file-based. Root `_layout.tsx` uses `Stack.Protected` guards:
 - No token → `(auth)/` (login → register → forgot)
 - Token → `(app)/(tabs)/` (live, epg, catchup, radio, profile)
-- Player route (`channel/[id]`) is full-screen at root — a **card push** with `slide_from_bottom` + `gestureEnabled: false`, deliberately NOT `presentation: 'fullScreenModal'` (that broke every global modal on iOS; `rules/ARCHITECTURE.md → Network state`).
+- Player routes (`channel/[id]`, `radio/[id]`) are full-screen at root — **card pushes** via `getPlayerScreenOptions()`: `slide_from_bottom` + `gestureEnabled` + `gestureDirection: 'vertical'` (swipe down to dismiss), deliberately NOT any native presentation. `fullScreenModal`/`modal`/`formSheet` all race `ModalWrapper`'s RN `<Modal>` for the root view controller and strand an invisible touch-eating window — **re-verified still broken on screens 4.26 / iOS 26.1 on 2026-08-07**, with the reproduction recipe in `rules/ARCHITECTURE.md → Network state`.
+- Sheet routes live in the `(modals)/` group (`player-options`, `quality`, `language`, `theme`) via `getModalScreenOptions()`. The group is **not** elided from typed-route hrefs — `/(app)/(modals)/theme`. Both option builders live in `utils/navigation.ts`; never inline presentation options at a `Stack.Screen`.
 
 ### State (`src/store/`)
 
