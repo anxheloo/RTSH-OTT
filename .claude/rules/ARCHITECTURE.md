@@ -513,7 +513,7 @@ is the SDK-compatible one. Several APIs the Sentry docs show are 8.x-only — se
 - **`sendDefaultPii: false`** — deliberate. Sentry's own docs example ships `true`; that is
   defensible (IP-geo + headers improve grouping) but this app holds auth tokens and carries a store
   data-safety declaration. Flipping it is a recorded decision and must be re-declared to
-  `docs/PUBLISHING_AUDIT.md` (item 24.6, third-party SDK disclosure).
+  `docs/publish/AUDIT.md` (item 24.6, third-party SDK disclosure).
 - **User context.** `store/createUserSlice.ts` is the single chokepoint: `setMonitoringUser(user.id)`
   on `login`, `clearMonitoringUser()` on `logout`. **Opaque account id only, never the email.**
   Without an identity Sentry cannot separate "one user hit this 400 times" from "400 users hit it
@@ -564,7 +564,7 @@ is the SDK-compatible one. Several APIs the Sentry docs show are 8.x-only — se
   crashes, plus quota spent on it.
 - **The boundary.** `eas env` secrets → `docs`/EAS (Phase 21.1–21.12); OTA rollback on a bad release
   → `useOTA` + `eas update` (see CLAUDE.md); store data-safety **declarations** for the new SDK →
-  `docs/PUBLISHING_AUDIT.md` 24.6. This section instruments; the audit declares.
+  `docs/publish/AUDIT.md` 24.6. This section instruments; the audit declares.
 
 ### Known gaps
 
