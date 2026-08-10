@@ -1,0 +1,751 @@
+<!DOCTYPE html>
+<!--
+  RTSH TANI — large-screen (22.18) design prototype.
+  Produced by anxheloo-expo-design (#25). ONE self-contained file: no CDN, no webfont link,
+  no remote image, no fetch. Open it by double-click; it works on a laptop with no network.
+
+  WHY THIS EXISTS
+  ---------------
+  The mobile design is settled (.claude/docs/rtsh-tani-mobile.html). The OPEN question is 22.18:
+  how the same app behaves on iPad, Android tablet and Android TV. This prototype answers it by
+  reproducing the app's REAL responsive rules rather than describing them:
+
+    * device class by SHORTEST SIDE >= 600dp  (responsive/breakpoints.ts TABLET_MIN_SHORTEST_SIDE)
+    * GRID_COLUMNS   phone 2/2 · tablet 3/4 · TV 4/4
+    * UI_SCALE       phone 1 · tablet 1.15 · TV 1.3
+    * CONTENT_MAX_WIDTH  form 480 · content 640 · player 820, centred on tablet/TV, no-op on phone
+
+  The load-bearing fact it makes visible: Android TV is 960x540 dp — SHORTER than every phone
+  here — while every token scales UP 1.3x. That combination is what made radio/[id] unusable
+  (ARCHITECTURE.md -> Android TV / STB). Switch the frame to Android TV and it is obvious.
+
+  RESOLVED 2026-08-10: this prototype originally shipped focus === primary (#EB122F) verbatim from
+  src/theme/colors.ts, which made the TV focus ring invisible on every primary-filled control, and
+  gate G failed on it on purpose so the deferred decision had a failing check attached. The token
+  was then fixed app-wide (focus is now white on dark / near-black on light) after confirming the
+  blast radius is TV-only. Gate G now passes. History: docs/design/tokens.json -> meta.notes.
+
+  Layer order is fixed (anxheloo-expo-design references/blueprint.md 2).
+-->
+<html lang="sq">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>RTSH TANI — Large-screen prototype</title>
+<style>
+/* ============================================================================
+   2. TOKENS — GENERATED FROM docs/design/tokens.json. DO NOT HAND-EDIT.
+   Regenerate from that file; verify.sh gate B fails on any drift.
+   Values are the phone-scale 1x baseline — scaled() applies the tablet/TV step.
+   ============================================================================ */
+:root{
+  /* color */
+  --background:#000000; --surface:#141417; --surface-elevated:#1B1B20;
+  --surface-high:#26262C; --card-background:#141417; --primary:#EB122F;
+  --primary-bright:#FF3A52; --primary-soft:rgba(235,18,47,0.10); --primary-border:rgba(235,18,47,0.28);
+  --on-primary:#FFFFFF; --text:#FFFFFF; --text-muted:#9A9AA2;
+  --muted-dim:#6E6E77; --on-surface:#FFFFFF; --link:#EB122F;
+  --border:#2A2A31; --focus:#FFFFFF; --disabled:#4B4B4B;
+  --overlay:rgba(0,0,0,0.6); --skeleton:#1C1C1C; --success:#22C55E;
+  --error:#EF4444; --warning:#FBBF24; --tab-bar:rgba(10,10,12,0.6);
+  --tab-bar-solid:rgba(10,10,12,0.94); --tab-bar-border:#2A2A31; --input-background:#141417;
+  --header-background:transparent; --video-placeholder-bg:#000000;
+  /* space */
+  --space-2:2px; --space-4:4px; --space-8:8px;
+  --space-10:10px; --space-12:12px; --space-15:15px;
+  --space-16:16px; --space-18:18px; --space-20:20px;
+  --space-24:24px; --space-28:28px; --space-32:32px;
+  --space-40:40px; --space-48:48px; --space-56:56px;
+  --space-64:64px;
+  /* radius */
+  --radius-none:0px; --radius-card:5px; --radius-sm:8px;
+  --radius-md:12px; --radius-lg:14px; --radius-xl:20px;
+  --radius-pill-input:24px; --radius-button:27px; --radius-pill-sm:30px;
+  --radius-pill:32px; --radius-full:9999px;
+  /* type */
+  --font-sans:Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; --text-xxs:8px; --text-xs:10px;
+  --text-sm:12px; --text-regular:14px; --text-md:16px;
+  --text-lg:18px; --text-xl:20px; --text-xxl:22px;
+  --text-title:26px; --text-display:32px; --w-regular:400;
+  --w-medium:500; --w-semibold:600; --w-bold:700;
+  --w-extrabold:800; --w-black:900;
+}
+[data-theme="light"]{
+  --background:#FFFFFF; --surface:#F5F6F8; --surface-elevated:#E8E9EC;
+  --surface-high:#DCDEE3; --card-background:#FFFFFF; --primary:#EB122F;
+  --primary-bright:#FF3A52; --primary-soft:rgba(235,18,47,0.08); --primary-border:rgba(235,18,47,0.25);
+  --on-primary:#FFFFFF; --text:#0B0B0F; --text-muted:#6B7280;
+  --muted-dim:#9CA3AF; --on-surface:#0B0B0F; --link:#EB122F;
+  --border:#E5E7EB; --focus:#0B0B0F; --disabled:#9CA3AF;
+  --overlay:rgba(0,0,0,0.5); --skeleton:#E9EAEC; --success:#16A34A;
+  --error:#DC2626; --warning:#F59E0B; --tab-bar:rgba(255,255,255,0.6);
+  --tab-bar-solid:rgba(255,255,255,0.94); --tab-bar-border:#E5E7EB; --input-background:#F3F4F6;
+  --header-background:transparent; --video-placeholder-bg:#0B0B0F;
+}
+
+/* ============================================================================
+   3. RESET
+   ============================================================================ */
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%}
+body{font-family:var(--font-sans);background:#0d0d10;color:var(--text);
+  -webkit-font-smoothing:antialiased;display:flex;align-items:center;justify-content:center}
+button{font:inherit;cursor:pointer;border:none;background:none;color:inherit}
+input,select{font:inherit}
+svg{display:block}
+.hidden{display:none!important}
+::-webkit-scrollbar{width:0;height:0}
+
+/* ============================================================================
+   4. DEVICE FRAME
+   ============================================================================ */
+.stage{display:flex;align-items:center;justify-content:center;width:100%;height:100vh}
+.frame{
+  position:relative;
+  /* content-box is LOAD-BEARING, not style. The global `* { box-sizing: border-box }` would make
+     the 11px bezel eat the viewport — a frame declaring 402px would render its screens at 380px,
+     lying about the device by 22px with nothing looking wrong. */
+  box-sizing:content-box;
+  width:var(--dev-w,402px); height:var(--dev-h,874px);
+  background:var(--background); overflow:hidden;
+  display:flex; flex-direction:column; flex:0 0 auto;
+  transform:scale(var(--fit,1)); transform-origin:center center;
+  border-radius:var(--dev-r,55px);
+  border:11px solid #060608;
+  box-shadow:0 0 0 2px #2a2a32, 0 40px 90px -20px rgba(0,0,0,.7);
+}
+.frame[data-chrome="none"],.frame[data-mode="tv"]{border-width:14px}
+.frame[data-mode="tv"]{border-radius:10px}
+
+/* UI_SCALE — the discrete per-class step from responsive/breakpoints.ts. Applied at the frame
+   root so every rem-free token inherits it, mirroring scaled() at the token source. */
+.frame[data-class="tablet"]{font-size:1.15em}
+.frame[data-class="tv"]{font-size:1.3em}
+
+.statusbar{position:absolute;top:0;left:0;right:0;height:var(--safe-t,59px);
+  display:flex;align-items:flex-end;justify-content:space-between;
+  padding:0 var(--space-24) 8px;z-index:80;color:var(--text);
+  font-size:var(--text-sm);font-weight:var(--w-semibold);pointer-events:none}
+.frame[data-mode="tv"] .statusbar{display:none}
+.sb-r{display:flex;align-items:center;gap:6px}
+.sb-r svg{width:17px;height:12px;fill:currentColor}
+.cutout{position:absolute;top:0;left:50%;transform:translateX(-50%);z-index:81;background:#060608}
+.frame[data-chrome="dynamic-island"] .cutout{width:126px;height:37px;border-radius:20px;top:11px}
+.frame[data-chrome="punch-hole"]     .cutout{width:11px;height:11px;border-radius:50%;top:12px}
+.frame[data-chrome="none"]           .cutout{display:none}
+
+/* TV overscan-safe inset — older sets crop the edges, so nothing is drawn there.
+   960x540 screen -> 864x486 drawable. Both numbers are real and they differ. */
+.frame[data-mode="tv"] #screens{inset:5% 5%}
+
+/* ============================================================================
+   5. COMPONENTS
+   ============================================================================ */
+#screens{position:absolute;inset:0}
+.screen{position:absolute;inset:0;display:none;flex-direction:column;background:var(--background)}
+.screen.on{display:flex;animation:fade 260ms cubic-bezier(.2,.8,.2,1)}
+@keyframes fade{from{opacity:0}to{opacity:1}}
+.safe-top{height:var(--safe-t,59px);flex:0 0 auto}
+.scroll{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;min-height:0}
+.scroll.has-nav{padding-bottom:calc(64px + var(--safe-b,34px))}
+
+.hdr{display:flex;align-items:center;justify-content:space-between;
+  padding:var(--space-8) var(--space-10);flex:0 0 auto;gap:var(--space-12)}
+.hdr-title{font-size:var(--text-lg);font-weight:var(--w-extrabold);letter-spacing:.2px}
+.brand{display:flex;align-items:center;gap:var(--space-8);font-weight:var(--w-black);
+  font-size:var(--text-md);letter-spacing:.4px}
+.brand i{width:10px;height:10px;border-radius:2px;background:var(--primary);display:block}
+.iconbtn{width:40px;height:40px;border-radius:var(--radius-full);display:flex;align-items:center;
+  justify-content:center;background:var(--surface);border:1px solid var(--border);flex:0 0 auto}
+.iconbtn svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.9}
+
+.btn{height:54px;border-radius:var(--radius-button);display:flex;align-items:center;
+  justify-content:center;gap:var(--space-8);width:100%;
+  font-size:var(--text-md);font-weight:var(--w-bold)}
+.btn-primary{background:var(--primary);color:var(--on-primary)}
+.btn-ghost{background:var(--surface);border:1px solid var(--border);color:var(--text)}
+
+.card{border-radius:var(--radius-lg);background:var(--surface);border:1px solid var(--border)}
+.row{display:flex;align-items:center;gap:var(--space-12);
+  padding:var(--space-12) var(--space-10);border-bottom:1px solid var(--border)}
+.row-main{flex:1;min-width:0}
+.row-main b{display:block;font-size:var(--text-regular);font-weight:var(--w-semibold)}
+.row-main span{font-size:var(--text-sm);color:var(--text-muted)}
+.muted{color:var(--text-muted)}
+.dim{color:var(--muted-dim)}
+
+/* CONTENT_MAX_WIDTH — a single column CAPS and CENTRES on tablet/TV, and is a NO-OP on phone.
+   A login form or a schedule list at 1280dp wide is unreadable; stretching is not "responsive". */
+.col{width:100%}
+.frame[data-class="tablet"] .col,.frame[data-class="tv"] .col{max-width:640px;margin:0 auto}
+.frame[data-class="tablet"] .col-player,.frame[data-class="tv"] .col-player{max-width:820px;margin:0 auto}
+
+/* GRID_COLUMNS — phone 2/2 · tablet 3/4 · TV 4/4. Driven by the frame's class + orientation,
+   never by a browser @media query: the frame is not the viewport. */
+.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:var(--space-8);padding:var(--space-10)}
+.frame[data-class="tablet"] .grid{grid-template-columns:repeat(3,1fr);gap:14px}
+.frame[data-class="tablet"][data-orient="landscape"] .grid{grid-template-columns:repeat(4,1fr)}
+.frame[data-class="tv"] .grid{grid-template-columns:repeat(4,1fr);gap:14px}
+
+/* imagery WITHOUT binary assets: gradient + inline SVG silhouette + scrim */
+.scene{position:relative;overflow:hidden;background:var(--surface)}
+.scene>.art{position:absolute;left:0;right:0;bottom:0;width:100%;height:62%;opacity:.5}
+.scene>.scrim{position:absolute;inset:0;
+  background:linear-gradient(180deg,rgba(0,0,0,.15),rgba(0,0,0,0) 40%,rgba(0,0,0,.78))}
+.g1{background:linear-gradient(180deg,#8FA0AB,#9DAB8C 42%,#43503E 72%,#1b1f1a)}
+.g2{background:linear-gradient(180deg,#3E5C78,#2F6D5B 58%,#102b22)}
+.g3{background:linear-gradient(180deg,#C7D6B2,#82A35F 52%,#37551f)}
+.g4{background:linear-gradient(180deg,#A6BFC9,#86A98F 50%,#3a5440)}
+.g5{background:linear-gradient(180deg,#CBB89A,#9C8F6C 55%,#46402f)}
+.g6{background:linear-gradient(180deg,#AEC0D2,#DCE5EE 52%,#74808f)}
+
+.chcard{aspect-ratio:16/10;padding:0;border-radius:var(--radius-card);overflow:hidden;
+  position:relative;border:1px solid var(--border)}
+.chcard b{position:absolute;left:8px;bottom:7px;z-index:3;font-size:var(--text-sm);
+  font-weight:var(--w-bold);text-shadow:0 1px 3px rgba(0,0,0,.8)}
+.livedot{position:absolute;top:7px;left:7px;z-index:3;background:var(--primary);
+  color:var(--on-primary);font-size:var(--text-xxs);font-weight:var(--w-black);
+  padding:2px 6px;border-radius:var(--radius-sm);letter-spacing:.5px}
+
+.bottomnav{position:absolute;left:0;right:0;bottom:0;
+  height:calc(64px + var(--safe-b,34px));padding-bottom:var(--safe-b,34px);
+  background:var(--tab-bar-solid);border-top:1px solid var(--tab-bar-border);display:flex;z-index:60}
+.frame[data-mode="tv"] .bottomnav{display:none}   /* a bottom bar is poor 10-foot UX */
+.bottomnav button{flex:1;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;gap:3px;color:var(--muted-dim);
+  font-size:var(--text-xs);font-weight:var(--w-semibold)}
+.bottomnav button svg{width:23px;height:23px;fill:none;stroke:currentColor;stroke-width:1.9}
+.bottomnav button.on{color:var(--text)}
+.bottomnav button.on svg{stroke:var(--primary)}
+
+/* TV replaces the tab bar with a header route menu — see TVNavButton in the app. */
+.tvnav{display:none}
+.frame[data-mode="tv"] .tvnav{display:flex;gap:var(--space-8)}
+.tvnav button{padding:6px 14px;border-radius:var(--radius-pill-input);font-size:var(--text-sm);
+  font-weight:var(--w-bold);background:var(--surface);border:1px solid var(--border);color:var(--text-muted)}
+.tvnav button.on{background:var(--primary-soft);border-color:var(--primary-border);color:var(--text)}
+
+/* overlays live at FRAME level so they read as native, not as browser chrome */
+.scrim-full{position:absolute;inset:0;background:var(--overlay);z-index:90;display:none}
+.scrim-full.on{display:block}
+.sheet{position:absolute;left:0;right:0;bottom:0;background:var(--surface);
+  border-radius:var(--radius-xl) var(--radius-xl) 0 0;z-index:91;max-height:80%;
+  transform:translateY(100%);transition:transform 260ms cubic-bezier(.2,.8,.2,1);
+  border-top:1px solid var(--border);display:flex;flex-direction:column}
+.sheet.on{transform:translateY(0)}
+.sheet .grab{width:40px;height:4px;border-radius:3px;background:var(--border);margin:10px auto}
+.toast{position:absolute;bottom:96px;left:50%;transform:translateX(-50%) translateY(16px);
+  background:var(--text);color:var(--background);padding:11px 18px;border-radius:var(--radius-pill);
+  font-size:var(--text-sm);font-weight:var(--w-bold);z-index:96;opacity:0;
+  transition:260ms cubic-bezier(.2,.8,.2,1);pointer-events:none}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* --- player + schedule --- */
+.video{width:100%;aspect-ratio:16/9;background:var(--video-placeholder-bg);position:relative;
+  display:flex;align-items:center;justify-content:center;overflow:hidden}
+.video .plabel{position:absolute;left:var(--space-12);bottom:var(--space-12);z-index:4}
+.video .plabel b{display:block;font-size:var(--text-xl);font-weight:var(--w-extrabold)}
+.video .plabel span{font-size:var(--text-sm);color:var(--text-muted)}
+.pbar{position:absolute;left:0;right:0;bottom:0;height:3px;background:rgba(255,255,255,.18);z-index:5}
+.pbar i{display:block;height:100%;width:38%;background:var(--primary)}
+.daystrip{display:flex;gap:var(--space-8);overflow-x:auto;padding:var(--space-10);flex:0 0 auto}
+.daystrip button{flex:0 0 auto;padding:7px 14px;border-radius:var(--radius-pill-input);
+  background:var(--surface);border:1px solid var(--border);font-size:var(--text-sm);
+  font-weight:var(--w-semibold);color:var(--text-muted);white-space:nowrap}
+.daystrip button.on{background:var(--primary);border-color:var(--primary);color:var(--on-primary)}
+.prog{display:flex;gap:var(--space-12);padding:var(--space-12) var(--space-10);
+  border-bottom:1px solid var(--border);align-items:flex-start}
+.prog time{font-size:var(--text-sm);font-weight:var(--w-bold);color:var(--text-muted);
+  flex:0 0 auto;width:44px;padding-top:1px}
+.prog.now{background:var(--primary-soft);border-left:3px solid var(--primary)}
+.prog.now time{color:var(--primary-bright)}
+.prog b{display:block;font-size:var(--text-regular);font-weight:var(--w-semibold)}
+.prog span{font-size:var(--text-sm);color:var(--text-muted)}
+.badge{display:inline-block;font-size:var(--text-xxs);font-weight:var(--w-black);padding:2px 5px;
+  border-radius:3px;margin-left:6px;vertical-align:middle}
+.badge-18{background:var(--error);color:#fff}
+.badge-cu{background:var(--surface-high);color:var(--text-muted)}
+
+/* THE 22.18 SPLIT. On tablet-landscape and on TV the stacked mobile layout does not fit:
+   a 1080p set is 540dp TALL, shorter than every phone, while every token is 1.3x larger.
+   Left pane sizes to content; right pane owns the scroll. */
+.split{display:flex;flex-direction:column;flex:1;min-height:0}
+.split>.pane-a{flex:0 0 auto}
+.split>.pane-b{flex:1;display:flex;flex-direction:column;min-height:0}
+.frame[data-class="tv"] .split,
+.frame[data-class="tablet"][data-orient="landscape"] .split{flex-direction:row;gap:var(--space-12)}
+.frame[data-class="tv"] .split>.pane-a,
+.frame[data-class="tablet"][data-orient="landscape"] .split>.pane-a{flex:0 0 42%;align-self:center}
+.frame[data-class="tv"] .split>.pane-b,
+.frame[data-class="tablet"][data-orient="landscape"] .split>.pane-b{flex:1 1 58%}
+
+/* radio now-playing. `art` clamps BOTH axes: Yoga derives an aspect-ratio height from the
+   percentage-resolved width and clamps only the width, so a maxWidth-only box silently becomes
+   a tower on any parent wider than 334dp. That defect shipped twice in this app. */
+.art-sq{width:48%;max-width:160px;max-height:160px;aspect-ratio:1;border-radius:var(--radius-lg);
+  margin:0 auto;position:relative;overflow:hidden}
+.nowrap-c{display:flex;flex-direction:column;align-items:center;gap:var(--space-10);
+  padding:var(--space-16) var(--space-10)}
+.nowrap-c b{font-size:var(--text-xl);font-weight:var(--w-extrabold);text-align:center}
+.nowrap-c span{font-size:var(--text-sm);color:var(--text-muted)}
+.eq{display:flex;align-items:flex-end;gap:3px;height:22px}
+.eq i{width:3px;background:var(--primary);border-radius:2px;animation:eq 900ms ease-in-out infinite}
+.eq i:nth-child(1){height:40%;animation-delay:0ms}.eq i:nth-child(2){height:80%;animation-delay:120ms}
+.eq i:nth-child(3){height:55%;animation-delay:240ms}.eq i:nth-child(4){height:95%;animation-delay:80ms}
+.eq i:nth-child(5){height:65%;animation-delay:300ms}
+@keyframes eq{0%,100%{transform:scaleY(.4)}50%{transform:scaleY(1)}}
+.transport{display:flex;align-items:center;justify-content:center;gap:var(--space-20)}
+.tbtn{width:44px;height:44px;border-radius:var(--radius-full);background:var(--surface);
+  border:1px solid var(--border);display:flex;align-items:center;justify-content:center}
+.tbtn.play{width:58px;height:58px;background:var(--primary);border-color:var(--primary)}
+.tbtn svg{width:20px;height:20px;fill:currentColor;stroke:none}
+
+/* --- states --- */
+.skel{background:var(--skeleton);border-radius:var(--radius-card);
+  animation:pulse 1.4s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.45}}
+.state{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  text-align:center;padding:var(--space-32);gap:var(--space-12)}
+.state svg{width:34px;height:34px;fill:none;stroke:var(--muted-dim);stroke-width:1.6}
+.state b{font-size:var(--text-lg);font-weight:var(--w-bold)}
+.state span{font-size:var(--text-sm);color:var(--text-muted);max-width:38ch;line-height:1.45}
+
+/* ============================================================================
+   TV MODE — a mode, not a size.
+   ============================================================================ */
+[data-focusable]{outline:none}
+.frame[data-mode="tv"] [data-focusable].tv-focus{
+  box-shadow:0 0 0 3px var(--focus);border-radius:var(--radius-sm)}
+/* The ring must contrast with the element's FILL, not the page — which is why focus is white
+   rather than the brand red: a red ring on a red-filled CTA is invisible, and on a pointerless
+   device an invisible ring means an unoperable control. Gate G asserts focus !== primary.
+   Check it on the Android TV frame: arrow-key onto the red play button, the ring is visible. */
+
+/* ============================================================================
+   7. REVIEW TOOLBAR — desktop only. Under 480px the frame goes full-bleed, so the same
+   file is a real, unframed, native-feeling demo in the client's own hand.
+   ============================================================================ */
+.review{position:fixed;top:14px;left:50%;transform:translateX(-50%);display:flex;gap:10px;
+  align-items:center;z-index:200;background:#15151a;border:1px solid #2a2a32;
+  border-radius:12px;padding:7px 10px;color:#cfcfd6;font-size:12.5px}
+.review select,.review button{height:32px;background:#0d0d10;border:1px solid #2a2a32;
+  border-radius:8px;color:#cfcfd6;font-size:12.5px;padding:0 10px;font-weight:600}
+.review button:hover{background:#1b1b22}
+.review .meta{font-variant-numeric:tabular-nums;color:#8a8a95;padding:0 4px}
+@media(max-width:479px){
+  .review{display:none}
+  .stage{height:100dvh}
+  .frame{width:100%;height:100dvh;max-width:none;border:0;border-radius:0;
+    box-shadow:none;transform:none}
+  .cutout,.statusbar{display:none}
+  .safe-top{height:env(safe-area-inset-top,0px)}
+}
+@media print{body{background:#fff}.review{display:none}}
+</style>
+</head>
+<body>
+
+<!-- 7. review toolbar -->
+<div class="review">
+  <select id="devPick" onchange="setDevice(this.value)"></select>
+  <span class="meta" id="devMeta"></span>
+  <select id="jump" onchange="go(this.value)"></select>
+  <button onclick="toggleTheme()" id="themeBtn">Dark</button>
+  <button onclick="restart()">Restart</button>
+</div>
+
+<!-- 6. frame markup -->
+<div class="stage" id="stage">
+  <div class="frame" id="frame" data-chrome="dynamic-island" data-mode="touch" data-class="phone" data-orient="portrait">
+    <div class="cutout"></div>
+    <div class="statusbar">
+      <span>9:41</span>
+      <span class="sb-r">
+        <svg viewBox="0 0 18 12"><rect x="0" y="7" width="3" height="5" rx="1"/><rect x="5" y="4" width="3" height="8" rx="1"/><rect x="10" y="2" width="3" height="10" rx="1"/><rect x="15" y="0" width="3" height="12" rx="1"/></svg>
+        <svg viewBox="0 0 18 12"><rect x="0" y="1" width="15" height="10" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.2"/><rect x="2" y="3" width="11" height="6" rx="1.2"/><rect x="16" y="4" width="2" height="4" rx="1"/></svg>
+      </span>
+    </div>
+
+    <div id="screens"></div>
+    <div class="bottomnav hidden" id="nav"></div>
+
+    <!-- overlay layer -->
+    <div class="scrim-full" id="scrim" onclick="closeSheet()"></div>
+    <div class="sheet" id="sheet"></div>
+    <div class="toast" id="toast"></div>
+  </div>
+</div>
+
+<script>
+/* ============================================================================
+   8. DEVICES — T3 installed ground truth, extracted 2026-08-08 from the Xcode
+   CoreSimulator profiles (mainScreenWidth / mainScreenScale) and the Android SDK
+   device catalog (dp = px x 160 / density). NEVER hand-type a viewport from recall:
+   iPad Pro 11" is 834x1210, and most web sources still say 1194 (the 2018-2022 model).
+   The set below is exactly what RTSH TANI ships to — no Apple TV, since tvOS is a
+   future target only (config-tv is unregistered, kept in devDeps).
+   Regenerate per anxheloo-expo-design references/device-registry.md 1.
+   ============================================================================ */
+const DEVICES = {
+  'iphone-17-pro':     {label:'iPhone 17 Pro',        w:402,  h:874,  r:55, chrome:'dynamic-island', safe:{t:59,b:34}},
+  'iphone-17-pro-max': {label:'iPhone 17 Pro Max',    w:440,  h:956,  r:55, chrome:'dynamic-island', safe:{t:59,b:34}},
+  'pixel-9':           {label:'Pixel 9',              w:411,  h:923,  r:40, chrome:'punch-hole',     safe:{t:24,b:24}},
+  'ipad-pro-11':       {label:'iPad Pro 11" (M5)',    w:834,  h:1210, r:18, chrome:'none',           safe:{t:24,b:20}},
+  'ipad-pro-13':       {label:'iPad Pro 13" (M5)',    w:1032, h:1376, r:18, chrome:'none',           safe:{t:24,b:20}},
+  'pixel-tablet':      {label:'Pixel Tablet',         w:1280, h:800,  r:20, chrome:'none',           safe:{t:24,b:24}},
+  'android-tv':        {label:'Android TV (1080p/4K)',w:960,  h:540,  r:0,  chrome:'none', mode:'tv', safe:{t:27,b:27}},
+};
+const DEFAULT_DEVICE = 'iphone-17-pro';
+
+/* ============================================================================
+   9. ICONS — inline path map. No icon font, no sprite, no network.
+   ============================================================================ */
+function ic(n){
+  const p = {
+    live:'<path d="M4 6h16v12H4zM9 21h6M12 18v3"/><circle cx="12" cy="12" r="2.4"/>',
+    guide:'<rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/>',
+    radio:'<circle cx="12" cy="14" r="4"/><path d="M3 8.5L18 3M3 8.5V20a1 1 0 001 1h16a1 1 0 001-1V9a1 1 0 00-1-1H3z"/>',
+    user:'<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/>',
+    back:'<path d="M15 18l-6-6 6-6"/>',
+    chev:'<path d="M9 6l6 6-6 6"/>',
+    search:'<circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/>',
+    alert:'<circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/>',
+    lock:'<rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 018 0v3"/>',
+    menu:'<path d="M4 7h16M4 12h16M4 17h16"/>',
+  }[n] || '';
+  return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"
+    stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
+}
+const glyph = n => ({
+  play:'<path d="M7 4l13 8-13 8z"/>', pause:'<path d="M7 4h4v16H7zM13 4h4v16h-4z"/>',
+  prev:'<path d="M18 4v16L7 12zM5 4h2v16H5z"/>', next:'<path d="M6 4l11 8L6 20zM17 4h2v16h-2z"/>',
+}[n] || '');
+const tGlyph = (n, cls) => `<span class="tbtn ${cls||''}" data-focusable><svg viewBox="0 0 24 24">${glyph(n)}</svg></span>`;
+const ART = `<svg class="art" viewBox="0 0 400 120" preserveAspectRatio="none"><path d="M0 120 L70 50 L120 80 L180 30 L240 75 L300 40 L360 70 L400 45 L400 120 Z" fill="rgba(0,0,0,.45)"/><path d="M0 120 L60 75 L130 95 L210 60 L280 90 L340 70 L400 88 L400 120 Z" fill="rgba(0,0,0,.3)"/></svg>`;
+const scene = () => ART + '<div class="scrim"></div>';
+
+/* ============================================================================
+   10. DATA — REAL volume, taken from this repo's own fixtures (src/api/mocks/fixtures).
+   19 TV channels and 13 radio stations, because that is what the app lists. Three rows
+   would hide scroll behaviour, truncation, and the moment the grid reflows.
+   ============================================================================ */
+const G = ['g1','g2','g3','g4','g5','g6'];
+const CH = ['RTSH 1','RTSH 2','RTSH 3 Kultura','RTSH Sport','RTSH Muzik','RTSH Fëmijë',
+  'RTSH Parlament','RTSH Film','RTSH SAT','RTSH Shkollë','RTSH 24','RTSH Korça',
+  'RTSH Gjirokastra','RTSH Kukësi','RTSH Shkodra','RTSH Lajme','RTSH Plus','RTSH Agro','RTSH Shqip']
+  .map((name,i)=>({name, art:G[i%6]}));
+const RADIO = ['Radio Tirana 1','Radio Tirana 2','Radio Tirana 3','Radio Tirana Muzik',
+  'Radio Tirana Sport','Radio Tirana Fëmijë','Radio Studentore','Radio Top Albania',
+  'Radio Klan FM','Radio Deejay Albania','Radio Plus','Kiss FM Albania','Radio Metropol']
+  .map((name,i)=>({name, art:G[i%6], sub:'FM ' + (89.0 + i*0.7).toFixed(1)}));
+const DAYS = ['Sht 2','Die 3','Hën 4','Mar 5','Mër 6','Enj 7','Sot','Nes 9','E shtunë 10'];
+const EPG = [
+  {t:'06:00', n:'Mëngjes me RTSH',            d:'Magazina e mëngjesit', s:'past'},
+  {t:'09:30', n:'Studio e Hapur',             d:'Emision studio me të ftuar', s:'past'},
+  {t:'12:00', n:'Lajmet e Mesditës',          d:'Edicioni informativ i mesditës', s:'past'},
+  {t:'13:00', n:'Seria shqiptare',            d:'Episodi 42', s:'past'},
+  {t:'15:00', n:'Historia që nuk e dini',     d:'Dokumentar historik', s:'past'},
+  {t:'17:00', n:'Magazina Sportive',          d:'Përmbledhje javore', s:'now'},
+  {t:'19:30', n:'Edicioni Qendror i Lajmeve', d:'Edicioni kryesor informativ', s:'next'},
+  {t:'20:30', n:'Debat Politik',              d:'Debat me analistë', s:'next'},
+  {t:'22:00', n:'Film Shqiptar',              d:'Kinematografia kombëtare', s:'next'},
+  {t:'00:15', n:'Kinema e Natës (18+)',       d:'Përmbajtje për të rritur', s:'next', adult:true},
+];
+
+/* ============================================================================
+   11. SCREENS — one function per screen. Every data-bearing screen declares its states.
+   ============================================================================ */
+const brand = () => `<span class="brand"><i></i>RTSH TANI</span>`;
+const iconBtn = (name, onclick) =>
+  `<button class="iconbtn" data-focusable onclick="${onclick}">${ic(name)}</button>`;
+const tvnav = active => `<span class="tvnav">${NAV.map(([id,label]) =>
+  `<button data-focusable class="${id===active?'on':''}" onclick="go('${id}')">${label}</button>`).join('')}</span>`;
+const hdr = (title, active, right) => `
+  <div class="hdr">${title ? `<span class="hdr-title">${title}</span>` : brand()}
+    ${tvnav(active)}
+    ${right || iconBtn('user', "go('sc-profile')")}</div>`;
+
+function scHome(){ return `
+  <div class="screen" id="sc-home">
+    <div class="safe-top"></div>
+    ${hdr('', 'sc-home')}
+    <div class="scroll has-nav">
+      <div class="grid">
+        ${CH.map(c => `
+          <div class="chcard scene ${c.art}" data-focusable onclick="go('sc-channel')">
+            ${scene()}<span class="livedot">LIVE</span><b>${c.name}</b>
+          </div>`).join('')}
+      </div>
+    </div>
+  </div>`; }
+
+function scGuide(){ return `
+  <div class="screen" id="sc-guide">
+    <div class="safe-top"></div>
+    ${hdr('Programi', 'sc-guide')}
+    <div class="daystrip">${DAYS.map(d =>
+      `<button data-focusable class="${d==='Sot'?'on':''}">${d}</button>`).join('')}</div>
+    <div class="scroll has-nav"><div class="col">
+      ${CH.slice(0,10).map((c,i) => `
+        <div class="row" data-focusable onclick="go('sc-channel')">
+          <div class="chcard scene ${c.art}" style="width:76px;flex:0 0 76px">${scene()}</div>
+          <div class="row-main"><b>${c.name}</b>
+            <span>${EPG[(i+5)%EPG.length].t} · ${EPG[(i+5)%EPG.length].n}</span></div>
+          <span class="dim">${ic('chev')}</span></div>`).join('')}
+    </div></div>
+  </div>`; }
+
+function scRadio(){ return `
+  <div class="screen" id="sc-radio">
+    <div class="safe-top"></div>
+    ${hdr('Radio', 'sc-radio')}
+    <div class="scroll has-nav"><div class="col">
+      ${RADIO.map(r => `
+        <div class="row" data-focusable onclick="go('sc-radio-now')">
+          <div class="scene ${r.art}" style="width:48px;height:48px;border-radius:var(--radius-sm);flex:0 0 48px">${scene()}</div>
+          <div class="row-main"><b>${r.name}</b><span>${r.sub}</span></div>
+          <span class="dim">${ic('chev')}</span></div>`).join('')}
+    </div></div>
+  </div>`; }
+
+function scChannel(){ return `
+  <div class="screen" id="sc-channel">
+    <div class="safe-top"></div>
+    ${hdr('', 'sc-home', iconBtn('back', "go('sc-home')"))}
+    <div class="split">
+      <div class="pane-a col-player">
+        <div class="video scene g2">${scene()}
+          <div class="plabel"><b>RTSH 1</b><span>17:00 · Magazina Sportive</span></div>
+          <div class="pbar"><i></i></div></div>
+      </div>
+      <div class="pane-b">
+        <div class="daystrip">${DAYS.map(d =>
+          `<button data-focusable class="${d==='Sot'?'on':''}">${d}</button>`).join('')}</div>
+        <div class="scroll has-nav">
+          ${EPG.map(p => `
+            <div class="prog ${p.s==='now'?'now':''}" data-focusable
+                 onclick="${p.adult ? "go('sc-channel--blocked')" : `toast('${p.n}')`}">
+              <time>${p.t}</time>
+              <div class="row-main"><b>${p.n}${p.adult?'<span class="badge badge-18">18+</span>':''}${p.s==='past'?'<span class="badge badge-cu">Catch-up</span>':''}</b>
+                <span>${p.d}</span></div></div>`).join('')}
+        </div>
+      </div>
+    </div>
+  </div>`; }
+
+function scRadioNow(){ return `
+  <div class="screen" id="sc-radio-now">
+    <div class="safe-top"></div>
+    ${hdr('', 'sc-radio', iconBtn('back', "go('sc-radio')"))}
+    <div class="split">
+      <div class="pane-a">
+        <div class="nowrap-c">
+          <div class="art-sq scene g4">${scene()}</div>
+          <b>Radio Tirana 1</b><span>FM 89.0 · Transmetim live</span>
+          <div class="eq"><i></i><i></i><i></i><i></i><i></i></div>
+          <div class="transport">${tGlyph('prev')}${tGlyph('play','play')}${tGlyph('next')}</div>
+        </div>
+      </div>
+      <div class="pane-b">
+        <div class="daystrip">${DAYS.map(d =>
+          `<button data-focusable class="${d==='Sot'?'on':''}">${d}</button>`).join('')}</div>
+        <div class="scroll has-nav">
+          ${EPG.map(p => `
+            <div class="prog ${p.s==='now'?'now':''}" data-focusable onclick="toast('${p.n}')">
+              <time>${p.t}</time>
+              <div class="row-main"><b>${p.n}</b><span>${p.d}</span></div></div>`).join('')}
+        </div>
+      </div>
+    </div>
+  </div>`; }
+
+function scProfile(){ return `
+  <div class="screen" id="sc-profile">
+    <div class="safe-top"></div>
+    ${hdr('Profili', 'sc-profile', iconBtn('back', "go('sc-home')"))}
+    <div class="scroll has-nav"><div class="col">
+      ${[['Llogaria','Email, fjalëkalimi, pajisjet'],
+         ['Kontrolli prindëror','PIN 4-6 shifror, përmbajtje 18+'],
+         ['Cilësia e videos','Auto, 1080p, 720p, 480p'],
+         ['Gjuha','Shqip'],
+         ['Të dhënat celulare','Pyet para luajtjes'],
+         ['Rreth aplikacionit','Versioni 1.0.0']].map(([t,s]) => `
+        <div class="row" data-focusable onclick="openSheet('${t}','${s}')">
+          <div class="row-main"><b>${t}</b><span>${s}</span></div>
+          <span class="dim">${ic('chev')}</span></div>`).join('')}
+      <div style="padding:var(--space-20) var(--space-10)">
+        <button class="btn btn-primary" data-focusable onclick="toast('Dil nga llogaria')">Dil</button></div>
+    </div></div>
+  </div>`; }
+
+/* --- states: reachable from the jump picker, so a reviewer never has to simulate a
+       failure to inspect how it looks --- */
+function scHomeLoading(){ return `
+  <div class="screen" id="sc-home--loading">
+    <div class="safe-top"></div>${hdr('', 'sc-home')}
+    <div class="scroll has-nav"><div class="grid">
+      ${Array(12).fill(0).map(() => `<div class="skel" style="aspect-ratio:16/10"></div>`).join('')}
+    </div></div>
+  </div>`; }
+
+function scHomeEmpty(){ return `
+  <div class="screen" id="sc-home--empty">
+    <div class="safe-top"></div>${hdr('', 'sc-home')}
+    <div class="state">${ic('search')}<b>Asnjë kanal i disponueshëm</b>
+      <span>Nuk ka kanale për rajonin tuaj për momentin. Provoni përsëri më vonë.</span></div>
+  </div>`; }
+
+function scHomeError(){ return `
+  <div class="screen" id="sc-home--error">
+    <div class="safe-top"></div>${hdr('', 'sc-home')}
+    <div class="state">${ic('alert')}<b>Nuk u ngarkua</b>
+      <span>Kontrolloni lidhjen me internetin dhe provoni sërish.</span>
+      <button class="btn btn-primary" data-focusable style="max-width:200px"
+              onclick="go('sc-home')">Provo sërish</button></div>
+  </div>`; }
+
+function scChannelBlocked(){ return `
+  <div class="screen" id="sc-channel--blocked">
+    <div class="safe-top"></div>
+    ${hdr('', 'sc-home', iconBtn('back', "go('sc-channel')"))}
+    <div class="state">${ic('lock')}<b>Përmbajtje e kufizuar</b>
+      <span>Kjo emision është shënuar 18+. Vendosni PIN-in e kontrollit prindëror për ta parë.</span>
+      <button class="btn btn-primary" data-focusable style="max-width:220px"
+              onclick="go('sc-channel')">Vendos PIN-in</button></div>
+  </div>`; }
+
+/* Registry: id -> [label, renderFn]. Drives #screens, the jump picker and gate C. */
+const SCREENS = {
+  'sc-home':            ['Live · kanalet',        scHome],
+  'sc-guide':           ['Programi (EPG)',        scGuide],
+  'sc-radio':           ['Radio · stacionet',     scRadio],
+  'sc-channel':         ['Kanali + programi',     scChannel],
+  'sc-radio-now':       ['Radio · duke luajtur',  scRadioNow],
+  'sc-profile':         ['Profili',               scProfile],
+  'sc-home--loading':   ['Live · duke u ngarkuar', scHomeLoading],
+  'sc-home--empty':     ['Live · bosh',            scHomeEmpty],
+  'sc-home--error':     ['Live · gabim',           scHomeError],
+  'sc-channel--blocked':['Kanali · i bllokuar',    scChannelBlocked]
+};
+const NAV = [['sc-home','Live','live'],['sc-guide','Programi','guide'],
+             ['sc-radio','Radio','radio'],['sc-profile','Profili','user']];
+const START = 'sc-home';
+
+/* ============================================================================
+   12. ROUTER + INTERACTIONS
+   ============================================================================ */
+function go(id){
+  if(!SCREENS[id]) return;
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('on'));
+  document.getElementById(id).classList.add('on');
+  closeSheet();
+  const base = id.split('--')[0];
+  document.getElementById('nav').classList.toggle('hidden', !NAV.some(n => n[0] === base));
+  document.querySelectorAll('#nav button').forEach(b =>
+    b.classList.toggle('on', b.dataset.target === base));
+  document.getElementById('jump').value = id;
+  history.replaceState(null, '', '#' + id);
+  if(document.getElementById('frame').dataset.mode === 'tv') focusFirst();
+}
+const restart = () => go(START);
+
+/* --- device switching. Class + orientation are derived exactly as the app derives them:
+       shortest side >= 600dp is a tablet (orientation-independent, the sw600dp standard). --- */
+function setDevice(id){
+  const d = DEVICES[id], f = document.getElementById('frame');
+  f.style.setProperty('--dev-w', d.w + 'px');
+  f.style.setProperty('--dev-h', d.h + 'px');
+  f.style.setProperty('--dev-r', (d.r ?? 40) + 'px');
+  f.style.setProperty('--safe-t', (d.safe?.t ?? 0) + 'px');
+  f.style.setProperty('--safe-b', (d.safe?.b ?? 0) + 'px');
+  f.dataset.chrome = d.chrome;
+  f.dataset.mode   = d.mode || 'touch';
+  f.dataset.class  = d.mode === 'tv' ? 'tv' : (Math.min(d.w, d.h) >= 600 ? 'tablet' : 'phone');
+  f.dataset.orient = d.w > d.h ? 'landscape' : 'portrait';
+  document.getElementById('devPick').value = id;
+  const scale = {phone:1, tablet:1.15, tv:1.3}[f.dataset.class];
+  document.getElementById('devMeta').textContent =
+    `${d.w}x${d.h}dp · ${f.dataset.class} · ${scale}x`;
+  fitStage();
+  if(f.dataset.mode === 'tv') focusFirst();
+}
+/* scale the frame down when it exceeds the browser viewport, so a 1280dp tablet is
+   inspectable on a laptop without a scrollbar */
+function fitStage(){
+  const f = document.getElementById('frame');
+  const fit = Math.min(1,
+    (window.innerWidth  - 80) / (f.offsetWidth  || 1),
+    (window.innerHeight - 90) / (f.offsetHeight || 1));
+  f.style.setProperty('--fit', fit.toFixed(3));
+}
+window.addEventListener('resize', fitStage);
+
+/* --- theme --- */
+function toggleTheme(){
+  const light = document.documentElement.dataset.theme === 'light';
+  document.documentElement.dataset.theme = light ? 'dark' : 'light';
+  document.getElementById('themeBtn').textContent = light ? 'Dark' : 'Light';
+}
+
+/* --- overlays --- */
+function openSheet(title, body){
+  document.getElementById('sheet').innerHTML =
+    `<div class="grab"></div><h3 style="padding:0 var(--space-20) var(--space-12);
+      font-size:var(--text-lg);font-weight:var(--w-bold)">${title}</h3>
+     <div style="overflow-y:auto;padding:0 var(--space-20) var(--space-24);
+      color:var(--text-muted);font-size:var(--text-regular)">${body}</div>`;
+  document.getElementById('sheet').classList.add('on');
+  document.getElementById('scrim').classList.add('on');
+}
+function closeSheet(){
+  document.getElementById('sheet').classList.remove('on');
+  document.getElementById('scrim').classList.remove('on');
+}
+let toastT;
+function toast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('show'), 1900);
+}
+
+/* --- TV D-pad: arrow keys walk the focusable ring, Enter activates. A TV has no pointer,
+       so anything not reachable this way is unreachable on the device. --- */
+function focusables(){
+  const on = document.querySelector('.screen.on');
+  return on ? [...on.querySelectorAll('[data-focusable]')] : [];
+}
+function focusFirst(){ const f = focusables(); if(f.length) setFocus(f[0]); }
+function setFocus(el){
+  document.querySelectorAll('.tv-focus').forEach(e => e.classList.remove('tv-focus'));
+  el.classList.add('tv-focus');
+  el.scrollIntoView({block:'nearest'});
+}
+document.addEventListener('keydown', e => {
+  if(document.getElementById('frame').dataset.mode !== 'tv') return;
+  const f = focusables(); if(!f.length) return;
+  const cur = f.findIndex(x => x.classList.contains('tv-focus'));
+  if(e.key === 'Enter'){ f[cur]?.click(); return; }
+  const step = {ArrowRight:1, ArrowDown:1, ArrowLeft:-1, ArrowUp:-1}[e.key];
+  if(step === undefined) return;
+  e.preventDefault();
+  setFocus(f[Math.max(0, Math.min(f.length - 1, (cur < 0 ? 0 : cur) + step))]);
+});
+
+/* --- boot --- */
+function boot(){
+  document.getElementById('screens').innerHTML =
+    Object.values(SCREENS).map(([, fn]) => fn()).join('');
+  document.getElementById('nav').innerHTML = NAV.map(([id, label, icon]) =>
+    `<button data-target="${id}" data-focusable onclick="go('${id}')">
+       ${ic(icon)}<span>${label}</span></button>`).join('');
+  document.getElementById('devPick').innerHTML = Object.entries(DEVICES)
+    .map(([id, d]) => `<option value="${id}">${d.label}</option>`).join('');
+  document.getElementById('jump').innerHTML = Object.entries(SCREENS)
+    .map(([id, [label]]) => `<option value="${id}">${label}</option>`).join('');
+  setDevice(DEFAULT_DEVICE);
+  go(location.hash.slice(1) || START);   /* deep-link: #sc-channel opens that screen */
+}
+boot();
+</script>
+</body>
+</html>
