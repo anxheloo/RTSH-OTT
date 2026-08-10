@@ -88,14 +88,14 @@ const RadioPlayer: React.FC<RadioPlayerProps> = ({
           style={[
             styles.playBtn,
             { backgroundColor: colors.primary },
-            // `onPrimary`, NOT `colors.focus` — the focus token is '#EB122F',
-            // the SAME value as `colors.primary`, so the standard ring is a red
-            // border on this button's red fill: invisible. On TV that made the
-            // primary transport control the one control you couldn't tell was
-            // focused. Same precedent as `AdOverlay` (rings on a bright fill use
-            // white). Any ring must contrast with the fill it sits on, not with
-            // the page background.
-            tvFocusHighlight(colors.onPrimary, playFocus.focused),
+            // Standard ring. This was pinned to `onPrimary` from 2026-08-06 to
+            // 2026-08-10 because `colors.focus` was '#EB122F' — the SAME value as
+            // `colors.primary` — so the ring was a red border on this button's red
+            // fill: invisible, making the primary transport the one control you
+            // could not tell was focused. That was fixed at the TOKEN instead
+            // (`focus` is now white), which fixes every primary-filled control
+            // app-wide rather than this one, so the override is no longer needed.
+            tvFocusHighlight(colors.focus, playFocus.focused),
           ]}
           onPress={onTogglePlay}
           activeOpacity={0.85}

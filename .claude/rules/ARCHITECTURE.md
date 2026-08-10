@@ -83,8 +83,8 @@ The **choice** (not the token) is persisted to MMKV via `SettingsSlice.rememberM
 - Missing semantic tokens (`overlay`, `disabled`, `onSurface`, `link`, `focus`, `skeleton`) — **5.X.6**.
 - Missing `SHADOWS`, `OPACITY`, `Z_INDEX`, `ANIMATION` token files — **5.X.7**.
 - `BORDERRADIUS` missing `pill`, `full`, `none` — **5.X.7**.
-- `SPACING.space_10` + `space_28` off the 4px grid — **5.X.8**.
-- Current `lightTheme` / `darkTheme` values are reasonable defaults but will need full replacement when design lands.
+- `SPACING.space_2`, `space_10`, `space_15`, `space_18` off the 4px grid — **5.X.8**. **Corrected 2026-08-08** (counted from `spacing.ts`, not from this note): this previously read "`space_10` + `space_28`", but **`space_28` is `4x7` — on-grid** and never belonged on the list, while `space_2`, `space_15` and `space_18` were missing from it. `space_10` is the expensive one to change: it *is* `SCREEN_PADDING`, the single horizontal inset every route uses, so retrofitting it is a diff across every screen — which is the real reason this item has aged.
+- ~~Current `lightTheme` / `darkTheme` values are reasonable defaults but will need full replacement when design lands.~~ **Stale — design landed.** The palette in `colors.ts` came from the designer HTML (2026-06-06, Phase 22.1); it is no longer a placeholder set. Since 2026-08-08 it also has a machine-readable form at **`docs/design/tokens.json`**, reverse-derived from `theme/{colors,spacing,borders,fonts}.ts` so the two cannot drift. One value in it is deliberately still wrong — see **→ Android TV / STB → Known gaps** (`colors.focus` === `colors.primary`).
 
 ---
 
@@ -356,7 +356,13 @@ Android TV and operator STB run the **same codebase** as mobile, not a fork — 
 - **Play Store TV filtering is unverifiable off-store.** Sideloading (`adb install`) bypasses Play's feature filtering entirely, so the `uses-feature` / `RECORD_AUDIO` work can only be proven by `aapt2 dump badging` output plus Play Console's supported-device count after upload — never by a device test. Adding the leanback intent does **not** auto-publish to TV either: the TV form factor still needs an explicit Play Console opt-in with TV screenshots + a 1280×720 banner and a TV review.
 - **STB self-update flow not built** — the `GET /app/version?platform=` endpoint exists (sideload poll) but the boot check/download/install orchestration lands with the rest of the TV pass.
 - **10-foot visual tuning (contrast, safe margins, text size at distance) not done** — the `UI_SCALE` TV step (1.3×) and `GRID_COLUMNS` (4/4) are wired (see Responsive layout & sizing) but unvalidated against a real living-room viewing distance.
-- **`colors.focus` === `colors.primary` (`#EB122F`), so the focus ring is INVISIBLE on any primary-filled control** — found 2026-08-06 on the radio transport, where the play button (`backgroundColor: colors.primary`) was the one control you could not tell was focused. Fixed **only at that one call site** (`RadioPlayer` passes `colors.onPrimary`); the systemic instance is **`ReusableBtn`'s `primary` variant** (`VARIANTS.primary → backgroundColor: 'primary'` + `tvFocusHighlight(colors.focus, …)`), i.e. **every primary CTA app-wide has an invisible ring on TV** — auth submit, confirm buttons, the parental PIN confirm. `destructive` (`backgroundColor: 'error'`) needs the same check. Deliberately not fixed in the radio pass to keep that change attributable and because it touches every screen. **Two candidate fixes, and they are not equivalent:** re-point the ring per call site to a contrasting token (surgical, but the next primary-filled control repeats the bug), or change the `focus` token itself to a non-brand colour (one edit, fixes every present and future case, but restyles every focus ring in the app and needs a design call). Decide during the 22.18 10-foot pass.
+- ~~**`colors.focus` === `colors.primary` (`#EB122F`), so the focus ring is INVISIBLE on any primary-filled control**~~ — **RESOLVED 2026-08-10 at the token; see the end of this entry.** Found 2026-08-06 on the radio transport, where the play button (`backgroundColor: colors.primary`) was the one control you could not tell was focused. Fixed **only at that one call site** (`RadioPlayer` passes `colors.onPrimary`); the systemic instance is **`ReusableBtn`'s `primary` variant** (`VARIANTS.primary → backgroundColor: 'primary'` + `tvFocusHighlight(colors.focus, …)`), i.e. **every primary CTA app-wide has an invisible ring on TV** — auth submit, confirm buttons, the parental PIN confirm. `destructive` (`backgroundColor: 'error'`) needs the same check. Deliberately not fixed in the radio pass to keep that change attributable and because it touches every screen. **Two candidate fixes, and they are not equivalent:** re-point the ring per call site to a contrasting token (surgical, but the next primary-filled control repeats the bug), or change the `focus` token itself to a non-brand colour (one edit, fixes every present and future case, but restyles every focus ring in the app and needs a design call). ~~Decide during the 22.18 10-foot pass.~~
+
+  **DECIDED + FIXED 2026-08-10 — the second option (change the token).** `darkTheme.focus` is now `#FFFFFF` and `lightTheme.focus` `#0B0B0F`; `RadioPlayer`'s per-call-site `onPrimary` override was removed, since the token now does the job app-wide. The first option (re-point per call site) was rejected for the reason stated above — it leaves the next primary-filled control to repeat the bug.
+
+  **What made the call cheap was measuring the blast radius instead of assuming it.** This entry had deferred the token change because it "restyles every focus ring in the app and needs a design call". It does not touch phone or tablet at all: **all 27 consumers of `colors.focus` are TV-gated**, three independent ways — `tvFocusHighlight()` returns `undefined` when `!isTV` (`src/tv/focusRing.ts`), `TVNavButton` returns `null` when `!isTV`, and `ProgramRow`'s `focused` branch is only ever true on TV. So the change is confined to the surface that was broken, and the 10-foot visual pass it would have "restyled" has not started, so nothing validated regressed. White was also already the value every hand-fixed call site had converged on (`RadioPlayer`, `AdOverlay`) — this promoted it to the token rather than inventing a colour.
+
+  **Still open, and NOT closed by this:** `destructive` (`backgroundColor: 'error'` `#EF4444`) is now ringed in white, which is legible, but the 10-foot contrast of every ring at real viewing distance is still unvalidated — that remains part of 22.18. Verified here: `tsc` clean, 104/104 tests, and `anxheloo-expo-design`'s gate G (which asserts `focus !== primary`) passes.
 
 ---
 
@@ -839,6 +845,85 @@ which reads the resolved app config directly rather than the manifest.
 - Neither gap blocks development or an internal/preview build — both are pre-submission blockers
   only, caught here specifically so they surface before the App Store Connect / Play Console upload
   step rather than at it.
+
+---
+
+## Release & store submission
+
+### How it works today (Apple listing as code, 2026-08-08)
+
+The App Store listing is **source, not console state**. `store/store.config.json` is committed to the
+repo and referenced from `eas.json` → `submit.production.ios.metadataPath`; `eas metadata:push` writes
+it into App Store Connect over Apple's API, so the listing is reviewable in a diff and cannot drift
+into "whatever someone last typed into a form".
+
+**Three commands, none of which triggers another** — verified against the installed eas-cli 21.6.0,
+whose `eas submit --help` exposes no metadata flag at all:
+
+| Command | Sends | Chains to |
+|---|---|---|
+| `eas build` | nothing to Apple | `--auto-submit` → submit (wired on `eas:ios:prod` only) |
+| `eas submit` | the **binary** → ASC / TestFlight | nothing |
+| `npm run eas:metadata:push` | the **listing** | nothing |
+
+Order is **build → submit → metadata:push → review in ASC → the human clicks Submit for Review**.
+Submit precedes push because several fields carry `meta.versioned: true` in the schema (description,
+promo text, release notes, all three URLs) and attach to an App Store *version* record — pushing them
+before a version exists has nothing to bind to.
+
+`npm run eas:metadata:lint` is the zero-risk dry run (no network, no writes) and `eas:metadata:push`
+runs it first via `&&`, so an invalid config can never reach the store. **There is deliberately no
+`pull` script:** `metadataPath` is non-default here, and `eas metadata:pull` writes to the *repo root*
+instead of back into `store/` — `push` reads the path correctly, `pull` does not. The file is
+write-only from our side; never round-trip it.
+
+**Release strategy** is in the metadata, not `eas.json`: `apple.release.automaticRelease: false` +
+`phasedRelease: true` — manual release with Apple's 7-day gradual rollout, the safe default for a
+first launch.
+
+**Listing language is Albanian in the `en-US` slot.** Apple ships **39** App Store localizations and
+Albanian is not among them (read from the installed schema, not assumed); `apple.info` is
+`additionalProperties: false`, so an `sq` key hard-fails `metadata:push` rather than degrading. Since
+the audience is Albanian, the listing copy (title, subtitle, description, keywords, promo text) is
+written in Albanian under `en-US`, which Apple permits. **`apple.review.notes` is deliberately the one
+exception and stays in ENGLISH** — App Review is US-based, and review instructions a reviewer cannot
+read are worse than none. Do not "fix" this inconsistency by translating the notes.
+
+**Age rating: 16+ by honest answers, not by override.** `violenceRealistic`,
+`matureOrSuggestiveThemes` and `profanityOrCrudeHumor` are `INFREQUENT_OR_MILD` (live news and
+post-watershed scheduling), everything else `NONE`, with `parentalControls: true` declaring the device
+PIN and `advertising: true` declaring the first-party ad slots. `ageRatingOverrideV2` is left `null` so
+the questionnaire computes the rating — an override asserts your own answers understate your content
+and invites the question of why you answered that way. `UNRATED` was rejected: it triggers storefront
+restrictions in several regions for no gain. **This holds only while RTSH's adult-flagged slots are
+post-watershed material rather than genuinely 18+ content** — if that changes, the rating must change
+with it, since under-declaring is a post-launch removal risk, not merely a rejection risk.
+
+**Both age-rating override keys must be present.** `ageRatingOverride` (legacy enum
+`NONE|SEVENTEEN_PLUS|UNRATED`) is still in the schema's `required` list even though
+`ageRatingOverrideV2` (`NINE_PLUS|THIRTEEN_PLUS|SIXTEEN_PLUS|EIGHTEEN_PLUS|UNRATED`) supersedes it —
+dropping the legacy key fails `metadata:lint` outright. Ten advisory fields that exist in eas-cli
+21.6.0 were absent from this file until 2026-08-08 (`advertising`, `parentalControls`,
+`userGeneratedContent`, `messagingAndChat`, `ageAssurance`, `lootBox`, `gunsOrOtherWeapons`,
+`healthOrWellnessTopics`, `ageRatingOverrideV2`, `developerAgeRatingInfoUrl`) — these are Apple's
+September-2026 social-media/age-assurance questions, already answerable today.
+
+### Known gaps
+
+- **Seven placeholders remain and are all external** (`verify.sh` gate J): `apple.copyright` (RTSH
+  legal entity), the four `apple.review` contact fields, and `demoUsername`/`demoPassword`. The demo
+  account is audit blocker #3 and needs a **US-IP geo exemption** as well as credentials — a reviewer
+  hitting a geo-block screen is an Apple 2.1 rejection regardless of whether the login works. An
+  eighth gate-J hit is the geo-exemption `TODO` embedded inside `apple.review.notes`.
+- **App Privacy is not in the metadata schema.** The listing carries `privacyPolicyUrl` and
+  `privacyChoicesUrl`, but the App Privacy questionnaire itself is console-only — the single Apple
+  surface `metadata:push` cannot reach.
+- **EAS Metadata is Apple-scoped.** The Play listing, Data Safety, App Content and IARC are all
+  console work; nothing in `store/store.config.json` reaches Google.
+- **`privacyChoicesUrl` is unset**, pending audit blocker #2 — the RTSH privacy page has no titled
+  account-deletion section with an `id` to anchor to.
+- **`submit.production.android.serviceAccountKeyPath` is still a placeholder** (gate A fails), so
+  `eas:submit:android` / `:all` cannot run yet.
 
 ---
 

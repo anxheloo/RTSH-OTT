@@ -19,6 +19,14 @@ export interface ThemeColors {
   link: string;
   // semantic
   border: string;
+  /**
+   * TV D-pad focus ring. MUST NOT equal `primary` — the ring is drawn as a border on the
+   * focused control's own fill, so a brand-coloured ring on a brand-filled button is
+   * invisible and that control cannot be operated on a pointerless device. It was
+   * `#EB122F` (=== `primary`) until 2026-08-10, which left every primary CTA app-wide
+   * unfocusable on TV. Only ever rendered on TV (`tvFocusHighlight` returns undefined
+   * off-TV), so this value has no effect on phone or tablet.
+   */
   focus: string;
   disabled: string;
   overlay: string;
@@ -53,7 +61,7 @@ export const darkTheme: ThemeColors = {
   onSurface: '#FFFFFF',
   link: '#EB122F',
   border: '#2A2A31',
-  focus: '#EB122F',
+  focus: '#FFFFFF',
   disabled: '#4B4B4B',
   overlay: 'rgba(0,0,0,0.6)',
   skeleton: '#1C1C1C',
@@ -86,7 +94,7 @@ export const lightTheme: ThemeColors = {
   onSurface: '#0B0B0F',
   link: '#EB122F',
   border: '#E5E7EB',
-  focus: '#EB122F',
+  focus: '#0B0B0F',
   disabled: '#9CA3AF',
   overlay: 'rgba(0,0,0,0.5)',
   skeleton: '#E9EAEC',
