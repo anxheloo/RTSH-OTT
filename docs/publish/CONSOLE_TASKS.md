@@ -5,7 +5,7 @@ repo's code so you transcribe rather than decide. Drafted 2026-08-10.
 
 ---
 
-## 1. Apple — App Privacy  🔴 blocks Submit for Review
+## 1. Apple — App Privacy  ✅ COMPLETED + VERIFIED 2026-08-14
 
 App Store Connect → your app → **App Privacy** → Get Started.
 
@@ -25,10 +25,11 @@ account id). Nothing is "Not Linked to You".
 | Location → **Coarse Location** | Yes | App Functionality | user-typed `city` / `country` profile field |
 | Identifiers → **User ID** | Yes | App Functionality | account id |
 | Identifiers → **Device ID** | Yes | App Functionality | `deviceKey` keychain UUID, sent in login/register-verify |
-| Usage Data → **Advertising Data** | Yes | App Functionality, Analytics | `POST /ads/{id}/impression` — which ad was seen + `watchedSeconds` |
+| Usage Data → **Product Interaction** | Yes | App Functionality, **Analytics** | STOMP `/app/watch` — `{ channelId, programId, kind }`, i.e. what you are watching |
+| Usage Data → **Advertising Data** | Yes | **Developer's Advertising or Marketing**, Analytics | `POST /ads/{id}/impression` — which ad was seen + `watchedSeconds` |
 | Diagnostics → **Crash Data** | Yes | App Functionality | Sentry |
 | Diagnostics → **Performance Data** | Yes | App Functionality | Sentry tracing, 0.2 sample in production |
-| Other Data → **Other Data** | Yes | App Functionality | birth date + gender at registration |
+| Other Data → **Other Data** | Yes | App Functionality | birth date, gender **and education level** at registration (`RegisterPayload`) |
 
 **Answer No to everything else** — no health/fitness, financial info, precise location,
 sensitive info, contacts, photos, audio, user content, browsing history, search history,
@@ -43,11 +44,15 @@ purchases, payment info, or credit info.
   what this declares.
 - **Search History = No.** The search screen filters data already loaded on the client; no
   query string is sent to the backend.
-- **Product Interaction = No, today — and this is the one that will go stale.** Analytics is
-  fully built but **disabled** (mounts commented out in `(app)/_layout.tsx` and
-  `channel/[id].tsx`). **The moment analytics is re-enabled, this form must be updated in the
-  same release.** Shipping enabled analytics against a form that says No is a false privacy
-  declaration, which is an enforcement matter, not a rejection.
+- **Product Interaction = YES — corrected 2026-08-14, the original draft here was WRONG.** The
+  reasoning was "analytics is disabled, so no interaction data leaves the device". That missed the
+  **realtime layer**: `useChannelRealtime` publishes `{ channelId, programId, kind }` to
+  `/app/watch` on every channel open and programme switch (`hooks/useChannelRealtime.ts:290`), and
+  `useRealtimeConnection()` is mounted and uncommented in `(app)/_layout.tsx:35`. That is Apple's
+  Product Interaction definition verbatim — *"video views… music listening data"*. **The lesson:
+  a disabled analytics module does not mean no telemetry — check every transport, not just the one
+  named "analytics".** Re-enabling the analytics module changes nothing here; it is already
+  declared.
 
 ### Sentry is a third-party SDK and must be declared
 
