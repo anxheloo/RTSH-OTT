@@ -19,7 +19,7 @@ import { useEffect } from 'react';
 import { setAudioModeAsync, useAudioPlayer } from 'expo-audio';
 
 import { useAppStore } from '@/store/useAppStore';
-import { getStreamHeaders } from '@/utils';
+import { getStreamHeaders, resolveExternalPlaybackChange } from '@/utils';
 import { publish, STOMP_DEST } from '@/realtime';
 
 const RadioAudioHost: React.FC = () => {
@@ -74,15 +74,30 @@ const RadioAudioHost: React.FC = () => {
 
   // Lock-screen now-playing controls (also required on Android for sustained
   // >3min background playback). Cleared when the station is torn down.
+  //
+  // `isLiveStream: true` is load-bearing, not cosmetic: expo-audio gates the
+  // scrub bar on it (`changePlaybackPositionCommand.isEnabled = !isLiveStream`
+  // in MediaController.swift), so without it the lock screen offers a duration
+  // and a seek control for a stream that has neither. Radio is always live.
+  //
+  // Next/previous station are NOT available here and cannot be added from JS:
+  // expo-audio wires only play/pause/togglePlayPause/changePlaybackPosition/
+  // skipForward/skipBackward, and never touches `nextTrackCommand` /
+  // `previousTrackCommand` — so iOS draws those two buttons permanently
+  // greyed out. See `rules/ARCHITECTURE.md → Radio audio → Known gaps`.
   useEffect(() => {
     if (!radioStreamUrl) {
       player.clearLockScreenControls();
       return;
     }
-    player.setActiveForLockScreen(true, {
-      title: radioTitle ?? undefined,
-      artworkUrl: radioArtworkUrl ?? undefined,
-    });
+    player.setActiveForLockScreen(
+      true,
+      {
+        title: radioTitle ?? undefined,
+        artworkUrl: radioArtworkUrl ?? undefined,
+      },
+      { isLiveStream: true },
+    );
   }, [radioStreamUrl, radioTitle, radioArtworkUrl, player]);
 
   // Mirror the store's play/pause intent onto the engine.
@@ -97,6 +112,27 @@ const RadioAudioHost: React.FC = () => {
       player.pause();
     }
   }, [radioIsPlaying, radioStreamUrl, player]);
+
+  // ...and mirror the engine back onto the store, closing the loop. The
+  // lock-screen / notification transport moves the player NATIVELY inside
+  // expo-audio, so this is the only way JS learns the user paused from outside
+  // the app — without it the intent goes stale, the UI shows a pause icon over
+  // silence, and the sync effect above never re-runs (the intent didn't
+  // change), so resuming takes two taps. Same in reverse for lock-screen play.
+  //
+  // Intent is read via `getState()` rather than closed over, so the listener is
+  // subscribed once per player instead of re-attached on every play/pause. No
+  // feedback loop: the write re-runs the sync effect, which then commands an
+  // engine that already agrees. `resolveExternalPlaybackChange` abstains on
+  // buffering/loading frames — see its JSDoc for why that guard is required.
+  useEffect(() => {
+    const sub = player.addListener('playbackStatusUpdate', (status) => {
+      const { radioIsPlaying: intent, setRadioPlaying } = useAppStore.getState();
+      const next = resolveExternalPlaybackChange(status, intent);
+      if (next !== null) setRadioPlaying(next);
+    });
+    return () => sub.remove();
+  }, [player]);
 
   return null;
 };

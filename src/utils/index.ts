@@ -5,6 +5,7 @@
  * @example
  * import { formatClockTime } from '@/utils';
  */
+export * from './audioSync';
 export * from './device';
 export * from './epg';
 export * from './formatters';
