@@ -40,6 +40,28 @@ if (!exp.version) {
   throw new Error('store.config.js: app.config.ts resolved no `version` — refusing to push metadata to an unknown App Store version record.');
 }
 
+// ---------------------------------------------------------------------------------------------
+// RELEASE NOTES — required from the FIRST UPDATE onward (1.0 does not display them).
+//
+// Apple pre-fills a new version record from the previous one, so description / keywords /
+// screenshots / URLs carry forward automatically. `releaseNotes` is the ONE field that is
+// mandatory for an update and always starts EMPTY — Apple blocks submission without it.
+//
+// It cannot live here as a commented key: `AppleInfo` is `additionalProperties: false`, so any
+// extra key in store.config.json fails `metadata:lint`. Paste this into
+// store.config.json → apple.info["en-US"], as a sibling of "promoText" (max 4000 chars):
+//
+//   "releaseNotes": "Fixed a problem where …",
+//
+// Then bump `version` in app.config.ts and push. Do NOT hand-type release notes into App Store
+// Connect: this config is authoritative, so the next `metadata:push` would overwrite them.
+//
+// And before reaching for a store release at all — a JS-only bug fix does not need one. Ship it
+// with `npm run eas:update:withSentry:prod` and leave `version` ALONE: bumping it changes
+// runtimeVersion (policy 'appVersion'), and an OTA published against the new runtime never
+// reaches anyone still running the old build.
+// ---------------------------------------------------------------------------------------------
+
 module.exports = {
   ...config,
   apple: {
