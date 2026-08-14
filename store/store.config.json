@@ -58,10 +58,10 @@
       }
     },
     "advisory": {
-      "alcoholTobaccoOrDrugUseOrReferences": "NONE",
+      "alcoholTobaccoOrDrugUseOrReferences": "INFREQUENT_OR_MILD",
       "contests": "NONE",
       "gamblingSimulated": "NONE",
-      "horrorOrFearThemes": "NONE",
+      "horrorOrFearThemes": "INFREQUENT_OR_MILD",
       "matureOrSuggestiveThemes": "INFREQUENT_OR_MILD",
       "medicalOrTreatmentInformation": "NONE",
       "profanityOrCrudeHumor": "INFREQUENT_OR_MILD",
