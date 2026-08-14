@@ -52,7 +52,11 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     ...config,
     name,
     slug: 'rtshtani',
-    version: '1.0.0',
+    // Single source of truth for the version. Drives the build's CFBundleShortVersionString,
+    // runtimeVersion (policy 'appVersion', below), the Sentry release string, and — via
+    // store/store.config.js — which App Store version record `eas metadata:push` writes to.
+    // Kept at '1.0' to match the App Store Connect record created before the first submission.
+    version: '1.0',
     // Mobile/TV only — no web target (product scope; also keeps `eas update
     // --platform=all` from bundling an unused web target).
     platforms: ['ios', 'android'],

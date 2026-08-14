@@ -919,7 +919,7 @@ count.
   config (it swaps the extension for `.json` and writes to the project root), so the file is
   write-only — which was already true for a non-default `metadataPath`.
 
-  **One-time migration owed:** ASC's existing record was created as `1.0` while `app.config.ts` says
+  **Resolved 2026-08-14:** ASC's record was created as `1.0`, so `app.config.ts` was set to `1.0` to match (rather than renaming the record) — nothing is published yet, so the version string was the cheaper side to move. Superseded note: it previously said
   `1.0.0`. The record must be renamed `1.0` → `1.0.0` in App Store Connect **before** the next push,
   or eas will look for a `1.0.0` record that does not exist. Renaming edits the record in place, so
   the 19 already-uploaded screenshots stay on it.
