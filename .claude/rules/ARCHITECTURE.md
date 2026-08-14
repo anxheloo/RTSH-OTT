@@ -937,9 +937,28 @@ US-based, and review instructions a reviewer cannot read are worse than none.
 `AppleAgeRatingOverrideV2` enum in the installed eas-cli schema is
 `NONE|NINE_PLUS|THIRTEEN_PLUS|SIXTEEN_PLUS|EIGHTEEN_PLUS|UNRATED`). Because
 `ageRatingOverrideV2` is `null`, **Apple derives the number from the questionnaire — we do not
-pick it.** With three fields at `INFREQUENT_OR_MILD` and `unrestrictedWebAccess: false`, the
-expected result is **13+**; the authoritative value appears in App Store Connect after
-`metadata:push` and must be read there before submitting. `violenceRealistic`,
+pick it.** **CONFIRMED 13+ on 2026-08-14**, read from the questionnaire's own Calculated Rating screen — not
+predicted. Nine fields sit at `INFREQUENT_OR_MILD` (profanity, horror, alcohol/tobacco/drugs, mature
+themes, sexual content, realistic violence, cartoon violence, guns, medical information) and it still
+computes 13+: **Infrequent never reaches 16+**. Only a `FREQUENT_OR_INTENSE` answer, or one of the
+graphic/prolonged categories, raises the tier — so the four 18+ gates
+(`violenceRealisticProlongedGraphicOrSadistic`, `sexualContentGraphicAndNudity`, `gambling`,
+`lootBox`) are the ones to guard, and all four are clean.
+
+**The advisory answers were tightened during the live questionnaire**, because Apple's on-screen
+definitions are broader than they look: `horrorOrFearThemes` covers *"anxiety, dread"* (news),
+`gunsOrOtherWeapons` covers *"references to **or** depictions of"*, and
+`alcoholTobaccoOrDrugUseOrReferences` covers references. All three had been `NONE` and were wrong.
+The consistency argument that settled sexual content: the app **ships a parental PIN to gate
+adult-flagged programmes and says so in the review notes** — declaring `NONE` across every sexual
+content field while shipping that gate is self-contradictory in a document a reviewer reads.
+
+**Chance-based activities are app-capability questions, not content questions** ("allow *users* to
+compete", "for purchase", "your app has") — all `NONE`/`false`, correctly.
+
+**`Entertainment` as primary category excludes the app from sale in Afghanistan** by Apple's local-law
+rule. Automatic, unavoidable with this category, and irrelevant to an Albanian audience — but it is a
+category consequence, not a misconfiguration. `violenceRealistic`,
 `matureOrSuggestiveThemes` and `profanityOrCrudeHumor` are `INFREQUENT_OR_MILD` (live news and
 post-watershed scheduling), everything else `NONE`, with `parentalControls: true` declaring the device
 PIN and `advertising: true` declaring the first-party ad slots. `ageRatingOverrideV2` is left `null` so
