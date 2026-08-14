@@ -24,6 +24,7 @@ RTSH TANI — OTT streaming app for Radio Televizioni Shqiptar. Live TV (19 chan
 - jest-expo + @testing-library/react-native — unit/behavior tests, co-located `__tests__/` folders (policy: `rules/STANDARDS.md §11`)
 - EAS Build + EAS Update
 - Store listing art (icons, screenshots, Play feature graphic) is tracked in `store/store-assets.json` — a dated manifest, verified against `scripts/verify.sh` from the `anxheloo-expo-store-assets` skill. **2026-08-06: two real gaps open** — Play's feature graphic has no source file yet, and the App Store Connect listing icon (`assets/AppStore-PlayStore/AppIcons/appstore.png`) carries an alpha channel Apple rejects. Full mechanism: `rules/ARCHITECTURE.md → Store assets`.
+- The **App Store listing itself is code** — `store/store.config.json`, committed and pushed by `eas metadata:push` (never typed into a form). Copy is **Albanian in the `en-US` slot** (Apple has no `sq` localization); `apple.review.notes` deliberately stays English for US-based reviewers. Age rating is 16+ by honest questionnaire answers, no override. Apple-only: the Play listing, Data Safety and App Content stay console work, as does Apple's App Privacy questionnaire. Full mechanism + the seven remaining external placeholders: `rules/ARCHITECTURE.md → Release & store submission`.
 
 ## Commands
 
@@ -45,6 +46,11 @@ npm run eas:update:<dev|preview|prod> -- -m "..."                            # J
 npm run eas:update:withSentry:<dev|preview|prod>[:android|:ios] -- -m "..."  # + local export & Sentry source-map upload
 npm run eas:update:list:<dev|preview|prod>                                   # recent updates on that channel's branch
 npm run eas:update:help                                                      # prints both families + the --environment caveat
+
+# App Store listing (Apple only — Play stays console-driven)
+npm run eas:metadata:lint    # validate store/store.config.json. No network, no writes. Safe.
+npm run eas:metadata:push    # PUBLISH the listing to App Store Connect (lints first, refuses on error)
+npm run eas:metadata:help    # order of operations + why there is no pull script
 
 # Android TV / STB — NO separate build any more (2026-07-28). The normal
 # android/preview/production artifacts already run on TV. The *_tv / *_stb

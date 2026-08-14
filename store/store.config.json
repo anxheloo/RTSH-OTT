@@ -1,33 +1,61 @@
 {
   "configVersion": 0,
   "apple": {
-    "copyright": "TODO(anx 2026-08-06): confirm the exact copyright line with RTSH legal — likely '2026 Radio Televizioni Shqiptar', but do NOT submit an unconfirmed legal-entity name.",
+    "copyright": "2026 Radio Televizioni Shqiptar",
+    "categories": [
+      "ENTERTAINMENT",
+      "NEWS"
+    ],
     "info": {
       "en-US": {
-        "title": "TODO(anx): confirm title",
-        "subtitle": "TODO(anx): confirm sub",
-        "description": "RTSH TANI brings Albania's public broadcaster to your phone and tablet. Watch all 19 RTSH television channels live, listen to 13 radio stations, and never miss a programme again.\n\nLIVE TELEVISION\nStream every RTSH channel live in adaptive quality that adjusts to your connection. Pick your own quality when you want to, or let the app handle it.\n\nRADIO THAT KEEPS PLAYING\nAll 13 RTSH radio stations, with full background playback and lock-screen controls. Lock your phone, switch apps, keep listening.\n\nFULL TV GUIDE\nBrowse the complete schedule for every channel, seven days back and seven days ahead. Open any programme for its full description.\n\nCATCH-UP\nMissed something? Play it back from the guide. Pause, rewind and scrub through any recorded programme.\n\nBUILT FOR EVERY SCREEN\nDesigned for iPhone and iPad, with picture-in-picture so you can keep watching while you do something else.\n\nIN YOUR LANGUAGE\nAlbanian by default, with English available. Light and dark themes.\n\nPARENTAL CONTROLS\nSet a PIN on this device to gate age-restricted programming.\n\nRTSH TANI is the official application of Radio Televizioni Shqiptar. An account is required. Some content may not be available in all regions.",
+        "title": "RTSH TANI",
+        "subtitle": "TV, radio dhe guidë televizive",
+        "description": "RTSH TANI sjell transmetuesin publik shqiptar në telefonin dhe tabletin tuaj. Shikoni drejtpërdrejt të 19 kanalet televizive të RTSH-së, dëgjoni 13 stacione radiofonike dhe mos humbisni asnjë program.\n\nTELEVIZION DIREKT\nTransmetoni çdo kanal të RTSH-së drejtpërdrejt, me cilësi që përshtatet automatikisht me lidhjen tuaj. Zgjidhni vetë cilësinë kur të doni, ose lëreni aplikacionin ta bëjë për ju.\n\nRADIO QË NUK NDALET\nTë 13 stacionet radiofonike të RTSH-së, me luajtje në sfond dhe kontrolle në ekranin e kyçur. Kyçni telefonin, ndërroni aplikacion — dëgjimi vazhdon.\n\nGUIDË E PLOTË TELEVIZIVE\nShfletoni programin e plotë për çdo kanal, shtatë ditë prapa dhe shtatë ditë përpara. Hapni çdo program për të lexuar përshkrimin e tij.\n\nSHIKO ME VONESË\nJu shpëtoi diçka? Luajeni nga guida. Ndaloni, kthehuni pas dhe lëvizni lirshëm brenda çdo programi të regjistruar.\n\nPËR ÇDO EKRAN\nI projektuar për iPhone dhe iPad, me pamje brenda pamjes (PiP) që ju lejon të vazhdoni të shikoni ndërsa bëni diçka tjetër.\n\nNË GJUHËN TUAJ\nShqip si parazgjedhje, me anglishten në dispozicion. Temë e çelët dhe e errët.\n\nKONTROLL PRINDËROR\nVendosni një PIN në këtë pajisje për të kufizuar programet me moshë të kufizuar.\n\nRTSH TANI është aplikacioni zyrtar i Radio Televizionit Shqiptar. Kërkohet një llogari. Disa përmbajtje mund të mos jenë të disponueshme në të gjitha rajonet.",
         "keywords": [
           "albania",
           "shqip",
-          "tv",
-          "live",
-          "radio",
-          "televizion",
           "shqiptar",
+          "televizion",
           "kanale",
           "lajme",
           "epg",
           "catchup",
           "stream",
           "iptv",
-          "news"
+          "sport",
+          "muzike",
+          "filma",
+          "live"
         ],
-        "promoText": "Watch RTSH live — 19 TV channels and 13 radio stations from Albania's public broadcaster. Full TV guide, catch-up on the last 7 days, and radio that keeps playing.",
-        "releaseNotes": "TODO(anx 2026-08-06): not shown for a first 1.0.0 release — fill this in before the first UPDATE, or delete the key.",
+        "promoText": "Shikoni RTSH-në drejtpërdrejt — 19 kanale televizive dhe 13 stacione radiofonike. Guidë e plotë televizive, shiko me vonesë deri në 7 ditë, dhe radio që nuk ndalet.",
         "privacyPolicyUrl": "https://rtsh.al/rreth-rtsh/rtsh-tani-platforma-ott-e-radio-televizionit-shqiptar/",
         "supportUrl": "https://rtsh.al/rreth-rtsh/rtsh-tani-platforma-ott-e-radio-televizionit-shqiptar/",
-        "marketingUrl": "https://rtsh.al/rreth-rtsh/rtsh-tani-platforma-ott-e-radio-televizionit-shqiptar/"
+        "marketingUrl": "https://rtsh.al/rreth-rtsh/rtsh-tani-platforma-ott-e-radio-televizionit-shqiptar/",
+        "screenshots": {
+          "APP_IPHONE_67": [
+            "../assets/AppStore-PlayStore/App Screenshots/ios/mobile/03-home-live.png",
+            "../assets/AppStore-PlayStore/App Screenshots/ios/mobile/04-home-radio.png",
+            "../assets/AppStore-PlayStore/App Screenshots/ios/mobile/07-channel-player.png",
+            "../assets/AppStore-PlayStore/App Screenshots/ios/mobile/05-guide.png",
+            "../assets/AppStore-PlayStore/App Screenshots/ios/mobile/09-radio-player.png",
+            "../assets/AppStore-PlayStore/App Screenshots/ios/mobile/06-search.png",
+            "../assets/AppStore-PlayStore/App Screenshots/ios/mobile/08-player-options.png",
+            "../assets/AppStore-PlayStore/App Screenshots/ios/mobile/10-settings.png",
+            "../assets/AppStore-PlayStore/App Screenshots/ios/mobile/01-login.png",
+            "../assets/AppStore-PlayStore/App Screenshots/ios/mobile/02-register.png"
+          ],
+          "APP_IPAD_PRO_3GEN_129": [
+            "../assets/AppStore-PlayStore/App Screenshots/ios/ipad/01-home-live.png",
+            "../assets/AppStore-PlayStore/App Screenshots/ios/ipad/02-home-radio.png",
+            "../assets/AppStore-PlayStore/App Screenshots/ios/ipad/05-channel-player.png",
+            "../assets/AppStore-PlayStore/App Screenshots/ios/ipad/03-guide.png",
+            "../assets/AppStore-PlayStore/App Screenshots/ios/ipad/07-radio-player.png",
+            "../assets/AppStore-PlayStore/App Screenshots/ios/ipad/04-search.png",
+            "../assets/AppStore-PlayStore/App Screenshots/ios/ipad/06-player-options.png",
+            "../assets/AppStore-PlayStore/App Screenshots/ios/ipad/08-account.png",
+            "../assets/AppStore-PlayStore/App Screenshots/ios/ipad/09-settings.png"
+          ]
+        }
       }
     },
     "advisory": {
@@ -35,18 +63,27 @@
       "contests": "NONE",
       "gamblingSimulated": "NONE",
       "horrorOrFearThemes": "NONE",
-      "matureOrSuggestiveThemes": "NONE",
+      "matureOrSuggestiveThemes": "INFREQUENT_OR_MILD",
       "medicalOrTreatmentInformation": "NONE",
-      "profanityOrCrudeHumor": "NONE",
+      "profanityOrCrudeHumor": "INFREQUENT_OR_MILD",
       "sexualContentGraphicAndNudity": "NONE",
       "sexualContentOrNudity": "NONE",
       "violenceCartoonOrFantasy": "NONE",
-      "violenceRealistic": "NONE",
+      "violenceRealistic": "INFREQUENT_OR_MILD",
       "violenceRealisticProlongedGraphicOrSadistic": "NONE",
+      "gunsOrOtherWeapons": "NONE",
       "gambling": false,
+      "lootBox": false,
       "unrestrictedWebAccess": false,
+      "advertising": true,
+      "parentalControls": true,
+      "userGeneratedContent": false,
+      "messagingAndChat": false,
+      "ageAssurance": false,
+      "healthOrWellnessTopics": false,
       "kidsAgeBand": null,
       "ageRatingOverride": "NONE",
+      "ageRatingOverrideV2": null,
       "koreaAgeRatingOverride": "NONE"
     },
     "release": {
@@ -54,14 +91,14 @@
       "phasedRelease": true
     },
     "review": {
-      "firstName": "TODO(anx 2026-08-06): App Review contact first name",
-      "lastName": "TODO(anx 2026-08-06): App Review contact last name",
-      "email": "TODO-app-review-contact@example.com",
-      "phone": "TODO(anx 2026-08-06): +355 ... App Review contact phone, E.164",
+      "firstName": "Sueda",
+      "lastName": "Sofija",
+      "email": "ott@rtsh.al",
+      "phone": "+355695656660",
       "demoRequired": true,
-      "demoUsername": "TODO(anx 2026-08-06): BLOCKER — a working RTSH TANI review account (email) must be created on the production backend and confirmed to sign in. Apple auto-rejects (Guideline 2.1) without one.",
-      "demoPassword": "TODO(anx 2026-08-06): BLOCKER — password for the review account above.",
-      "notes": "RTSH TANI is the official OTT application of Radio Televizioni Shqiptar (RTSH), Albania's national public broadcaster. It streams RTSH's own live TV and radio channels plus catch-up of previously aired programming.\n\nCONTENT AVAILABILITY: RTSH holds broadcast rights primarily for Albania, so some channels are geo-restricted. TODO(anx 2026-08-06): confirm with backend whether the review account is exempted from geo-restriction before submitting — a US-based reviewer hitting a geo-block screen is an Apple 2.1 rejection.\n\nHOW TO REVIEW:\n1. Sign in with the credentials above.\n2. Home tab — tap any channel tile to start live playback. Use the Radio toggle to switch to radio stations.\n3. Guide tab — the full 7-day programme schedule. Tap a past programme to play it back (catch-up).\n4. Player — tap the screen for controls. The options sheet has quality selection and audio tracks.\n5. Radio continues playing in the background and on the lock screen; this is intentional and is the app's core radio feature.\n\nFEATURES THAT MAY PROMPT QUESTIONS:\n- Cellular data gate: Settings has a \"play over cellular\" toggle. When off, a confirmation modal appears before playback starts on a cellular connection. Tap Continue to proceed.\n- Parental control: Settings — Parental control sets a device-level PIN that gates age-restricted programmes. It is stored only on the device and never sent to our servers. It is off by default.\n- Advertising: short pre-roll and mid-roll ads may appear. These are RTSH's own promotional spots served from our backend; no third-party ad SDK is used.\n- Account deletion is available in-app: Profile — Delete account."
+      "demoUsername": "ott@rtsh.al",
+      "demoPassword": "11111111",
+      "notes": "NOTE: this field is deliberately in ENGLISH while the store listing is in Albanian — App Review is US-based and must be able to act on these instructions.\n\nRTSH TANI is the official OTT application of Radio Televizioni Shqiptar (RTSH), Albania's national public broadcaster. It streams RTSH's own live TV and radio channels plus catch-up of previously aired programming. The app's interface and the App Store listing are in Albanian because the audience is Albanian; English is selectable in-app under Settings — Language.\n\nCONTENT AVAILABILITY: all channels are currently available worldwide with no regional restriction, so every channel and every catch-up programme is playable from your location. The app does contain regional-availability handling because RTSH's broadcast rights are territorial and may change; if a channel ever becomes restricted, the app shows an explanatory notice rather than failing. Nothing is restricted at the time of this submission.\n\nHOW TO REVIEW:\n1. Sign in with the credentials above.\n2. Home tab — tap any channel tile to start live playback. Use the Radio toggle to switch to radio stations.\n3. Guide tab — the full 7-day programme schedule. Tap a past programme to play it back (catch-up).\n4. Player — tap the screen for controls. The options sheet has quality selection and audio tracks.\n5. Radio continues playing in the background and on the lock screen; this is intentional and is the app's core radio feature.\n\nFEATURES THAT MAY PROMPT QUESTIONS:\n- Cellular data gate: Settings has a \"play over cellular\" toggle. When off, a confirmation modal appears before playback starts on a cellular connection. Tap Continue to proceed.\n- Parental control: Settings — Parental control sets a device-level PIN that gates age-restricted programmes. It is stored only on the device and never sent to our servers. It is off by default. This is the in-app control declared in the age-rating questionnaire.\n- Advertising: short pre-roll and mid-roll ads may appear. These are RTSH's own promotional spots served from our backend; no third-party ad SDK is used. This is why the age-rating questionnaire declares advertising.\n- Account deletion is available in-app: Profile — Delete account."
     }
   }
 }

@@ -889,7 +889,14 @@ written in Albanian under `en-US`, which Apple permits. **`apple.review.notes` i
 exception and stays in ENGLISH** — App Review is US-based, and review instructions a reviewer cannot
 read are worse than none. Do not "fix" this inconsistency by translating the notes.
 
-**Age rating: 16+ by honest answers, not by override.** `violenceRealistic`,
+**Age rating: computed from honest answers, not set by override.** Apple's current bands are
+**4+ / 9+ / 13+ / 16+ / 18+** — there is no 12+ and no 17+ any more (proof: the
+`AppleAgeRatingOverrideV2` enum in the installed eas-cli schema is
+`NONE|NINE_PLUS|THIRTEEN_PLUS|SIXTEEN_PLUS|EIGHTEEN_PLUS|UNRATED`). Because
+`ageRatingOverrideV2` is `null`, **Apple derives the number from the questionnaire — we do not
+pick it.** With three fields at `INFREQUENT_OR_MILD` and `unrestrictedWebAccess: false`, the
+expected result is **13+**; the authoritative value appears in App Store Connect after
+`metadata:push` and must be read there before submitting. `violenceRealistic`,
 `matureOrSuggestiveThemes` and `profanityOrCrudeHumor` are `INFREQUENT_OR_MILD` (live news and
 post-watershed scheduling), everything else `NONE`, with `parentalControls: true` declaring the device
 PIN and `advertising: true` declaring the first-party ad slots. `ageRatingOverrideV2` is left `null` so
