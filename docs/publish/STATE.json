@@ -1,0 +1,114 @@
+{
+  "$comment": "Resumable state for anxheloo-expo-publishing. A CACHE of reality, never a substitute for it: re-verify the cheap facts before trusting the recorded phase, and when a re-check disagrees, reality wins.",
+  "schemaVersion": 1,
+  "app": "RTSH TANI",
+  "phase": "audit",
+  "phaseNote": "Android half is submit-ready except for 4 open blockers. Holding at 'audit' deliberately: the skill forbids finalizing submit config over an open blocker, and #19 (Hermes) must be fixed in a fresh binary before any production build.",
+  "audit": {
+    "ranAt": "2026-08-14",
+    "scope": "PARTIAL - Google Play console + shared engineering only. Apple items 3(a)/(c), 12, 17 carry their 2026-08-07 state and were NOT re-verified.",
+    "blockers": 1,
+    "openBlockerIds": [
+      7
+    ],
+    "closedThisRun": [
+      4,
+      15,
+      16,
+      18,
+      19
+    ],
+    "artifactSha256": "2607985d633317b0d7c0934fd577030b3b418c72d90ced04cb19161d9f31266a",
+    "policyChecklistsReVerified": false,
+    "downgradedThisRun": {
+      "2": "blocker -> HIGH; privacy page finally read, 2 of 3 Google criteria met, cheapest item to be wrong about"
+    }
+  },
+  "decisions": {
+    "browserAssist": 1,
+    "browserAssistNote": "Tier 1 (read-only) used throughout the Play Console on 2026-08-14. Nothing typed, nothing saved, nothing submitted. Play declaration forms stay tier 0 for typing by policy. User restated the boundary explicitly mid-session: never publish or send for review without confirmation.",
+    "buildMethod": "eas-cloud",
+    "submitMethod": "eas-submit",
+    "releaseStrategy": "manual-release",
+    "androidTrack": "production",
+    "promoteVsRebuild": "REBUILD - and the tree is now FIXED (expo 57.0.13, react-native-tvos 0.86.2-0, Hermes clean). Internal-testing vc12 predates the fix and must not be promoted.",
+    "approximateLocation": "KEEP CHECKED - registration requires/stores city+country independently of IP geo-blocking; Address is unchecked so nothing else carries it. Reverses the pending 2026-08-14 recommendation to uncheck.",
+    "geoExemption": "NOT NEEDED - user confirmed 2026-08-14 the service is accessible from everywhere. Review notes say so without over-claiming, since RTSH policy s3 documents per-channel geo-blocking."
+  },
+  "play": {
+    "developerId": "6801667389174391983",
+    "appId": "4975999587846851502",
+    "packageName": "al.rtsh.tani",
+    "accountType": "organization",
+    "legalIdentity": "RADIO TELEVIZIONI SHQIPTAR, Ismail Qemali 11, Tirana 1000, Albania",
+    "accountPolicyStatus": "no issues found",
+    "developerVerification": "registered 2026-07-30",
+    "productionTrack": "inactive",
+    "internalTestingVersionCode": 12,
+    "easRemoteVersionCode": 14,
+    "stagedChangesAwaitingSubmit": 9,
+    "appContentDeclarations": {
+      "actioned": 10,
+      "needsAttention": 1,
+      "outstanding": "foreground service permissions"
+    },
+    "formFactors": [
+      "phone",
+      "tablet",
+      "chromeos",
+      "androidxr"
+    ],
+    "formFactorsNote": "Android TV is NOT an included form factor. The single artifact runs on TV, but Play TV distribution needs a separate opt-in with TV screenshots + a 1280x720 banner and its own review. In contract scope, not in this submission."
+  },
+  "submitChain": {
+    "verifiedAt": "2026-08-14",
+    "method": "scripts/verify_play_submit_chain.py (read-only Android Publisher API probe; nothing uploaded)",
+    "serviceAccount": "eas-play-submit@rtsh-ott.iam.gserviceaccount.com",
+    "cloudProject": "rtsh-ott",
+    "keyPath": "./rtsh-ott-5016e1d0e915.json",
+    "keyGitStatus": "gitignored at .gitignore:73, never committed, absent from git history",
+    "playPermission": "Admin (all permissions) on al.rtsh.tani - MORE than least privilege; only release + store presence are needed",
+    "result": "PASS - key valid, Android Publisher API enabled, service account authorized"
+  },
+  "steps": [
+    {
+      "at": "2026-08-07",
+      "step": "audit",
+      "result": "4 blockers (2, 3, 4, 15)"
+    },
+    {
+      "at": "2026-08-14",
+      "step": "audit",
+      "result": "partial re-audit; closed 4/15/16, opened 7/19; still 4 open"
+    },
+    {
+      "at": "2026-08-14",
+      "step": "verify",
+      "result": "submit chain PASS; expo-doctor 19/21, 2 failed"
+    },
+    {
+      "at": "2026-08-14",
+      "step": "fix",
+      "result": "Hermes regression cleared via RN tvos alias bump; doctor 21/21, 111/111 tests; blockers 4 -> 1"
+    }
+  ],
+  "nextActions": [
+    "USER: complete the foreground-service declaration (#7) - the ONLY remaining blocker. Answers drafted in CONSOLE_TASKS.md 3.3",
+    "USER: paste the sign-in details free text - CONSOLE_TASKS.md 3.2 (geo paragraph now safe to include)",
+    "USER: device smoke test - npx expo run:android --variant release (native RN bump, unproven on hardware)",
+    "USER: eas build -p android --profile production, then eas submit -p android (both metered, both yours)",
+    "OPTIONAL/PARALLEL: RTSH web adds the ~4-line deletion steps + anchor (#2), then repoint the Data safety URL",
+    "AFTER LAUNCH: drop the '19 channels' count from the Play description; export the feature-graphic source into the repo"
+  ],
+  "engineering": {
+    "expo": "57.0.13",
+    "reactNative": "npm:react-native-tvos@0.86.2-0",
+    "doctor": "21/21 no issues",
+    "tsc": "clean",
+    "tests": "111/111",
+    "lint": "clean",
+    "hermesRegression": "cleared 2026-08-14",
+    "rootCause": "react-native-tvos npm alias - expo install --fix cannot retarget an alias; version bumped by hand",
+    "owed": "device smoke test of the new native binary before the production build"
+  }
+}

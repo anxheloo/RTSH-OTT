@@ -10,7 +10,74 @@
 > **Live URLs read:** `HEAD` 200 + `text/html` confirmed on **both** legal URLs. **Neither body was read this run** — WebFetch returned HTTP 403 and a browser-UA `curl` was blocked/timed out (WAF). Item 2's content finding below is therefore **carried from 2026-07-29, explicitly NOT re-verified**.
 > **Console pages read:** none — no browser attached this run (tier 0).
 > **Open blockers:** 4
-> **Audit date:** 2026-08-07
+> **Audit date:** 2026-08-14
+>
+> ---
+> ## 2026-08-14 — PARTIAL re-audit: Google Play console + shared engineering
+>
+> **Scope, stated honestly: this run re-verified the GOOGLE half and the shared engineering
+> surface only.** The whole Play Console was walked in the browser at tier 1 (read-only,
+> nothing typed, nothing submitted) and `expo-doctor` was re-run. **Apple-side items were NOT
+> re-checked this run** — #3(a)/(c), #12 and #17 carry their 2026-08-07 state unchanged. The
+> three store-policy checklists were **not** re-verified live this run either, so their
+> `Last verified:` stamps stand as-is; this is a console-state + engineering diff, not a
+> policy-matrix pass.
+>
+> **Console tier-1 read (2026-08-14):** developer `6801667389174391983`, app
+> `4975999587846851502`. Pages read — app list, app dashboard, publishing overview, App
+> content overview + Actioned, Sign in details (incl. the credential dialog), Data safety
+> steps 1-3, store listings + default listing graphics, releases overview, internal-testing
+> track, account policy status, Android developer verification (both tabs), users &
+> permissions + the service account's app permissions. Full detail: `CONSOLE_TASKS.md §3`.
+>
+> **RESOLVED this run — 3 of the 4 standing blockers, on console evidence:**
+> - **#4 publisher identity → CLOSED for Play.** The developer account is an **Organization**
+>   account whose legal identity is **RADIO TELEVIZIONI SHQIPTAR**, Ismail Qemali 11, Tirana.
+>   The rights holder is publishing. Account policy status: *"No issues found."* The two
+>   `sk.antik.*` apps marked *Removed by Google* belong to the previous vendor and carry no
+>   active enforcement. (Apple's publisher entity was not re-checked.)
+> - **#15 feature graphic → CLOSED in the console.** Present, 1/1, on the default listing.
+>   Downgraded to 🟡: the repo has **no source file**, so `anxheloo-expo-store-assets` gate B
+>   still fails and the live asset is unversioned.
+> - **#16 Play Console app registration (the 2026-09-30 global-removal deadline) → CLOSED.**
+>   `al.rtsh.tani` shows **Registered**, 3 keys, Jul 30 2026, under Android developer
+>   verification. The deadline no longer applies to this app.
+>
+> **Also newly proven green:** the Android submit chain. `scripts/verify_play_submit_chain.py`
+> mints a token from the service-account key and probes the Android Publisher API read-only —
+> key valid, API enabled on Cloud project `rtsh-ott`, and `eas-play-submit@…` authorized on
+> `al.rtsh.tani` (Active, never expires). `eas submit -p android` will authenticate. Nothing
+> was uploaded to prove it. **This retires the standing "`serviceAccountKeyPath` is still a
+> placeholder" claim** — the key is real, present, gitignored, and never committed.
+>
+> **Play's own gate now reads "Submit 9 changes for review" / "Your changes can now be sent
+> for review."** That means Play's *declarations* are complete. It is NOT a prediction that
+> review will pass, and it is not this audit's verdict.
+>
+> **NEW this run — one 🔴 and one promoted 🔴:**
+> - **#19 Hermes V1 memory regression (🔴, blocks the production build).** See below.
+> - **#7 foreground-service declaration promoted 🟠 → 🔴.** The console now shows it
+>   *"Declaration overdue"* (deadline was 2024-01-31) and states it blocks releasing updates.
+>   It is the **only** App content declaration still outstanding; the other 10 are actioned.
+>
+> **Net open blockers after the morning pass: 4** — #2, #3, #7, #19.
+>
+> ### Same-day evening update — **down to 1**
+> - **#19 Hermes → FIXED.** Root cause was the `react-native-tvos` npm alias, not `expo`; see the
+>   item for why `expo install --fix` could not do it. Verified: doctor **21/21**, tsc clean,
+>   **111/111** tests, lint clean, gate Q PASS. Closes **#18** too.
+> - **#3 geo half → CLOSED (user-confirmed):** the service is reachable from everywhere, so the
+>   review account needs no exemption. What remains of #3 is the empty Sign-in-details free-text
+>   box — drafted, ~2 minutes of typing, not an engineering task.
+> - **#2 deletion URL → DOWNGRADED 🔴→🟠.** The RTSH privacy page was **read for the first time**
+>   (every prior run was WAF-blocked). Two of Google's three criteria are met; only "steps to
+>   request deletion" is missing. It is also the **cheapest item to be wrong about** — a rejection
+>   costs a form edit and a resubmit, not a rebuild.
+> - **#7 foreground service → still open**, and now the only true blocker. ~5 minutes of console
+>   typing; answers drafted in `CONSOLE_TASKS.md §3.3`.
+>
+> **Remaining before an Android production build: the #7 declaration, the #3 free-text paste, and
+> a device smoke test of the new native binary.**
 
 ## Verdict
 
@@ -22,8 +89,54 @@ Two dated deadlines now sit inside the likely submission window and should gover
 
 ## 🔴 BLOCKERS — guaranteed or near-certain rejection / cannot submit
 
-### 2. [GOOGLE] Account-deletion route not discoverable as a URL
-- **⚠️ NOT re-verified this run.** The privacy page returned `HTTP 200` to a `HEAD` request, but its body could not be read (WebFetch 403; browser-UA `curl` blocked/timed out — WAF). The finding below is carried verbatim from **2026-07-29** and must be re-checked from a real browser before it is trusted or closed.
+### 19. [EXPO] Hermes V1 memory regression — ✅ **FIXED 2026-08-14 (same day)**
+- **Fixed, and the root cause was NOT what the advice said.** `expo-doctor` prescribes
+  `npx expo install expo@^57.0.9 --fix`. That was done — `expo` went 57.0.8 → **57.0.13** — and
+  the check **still failed**, because **Hermes ships inside React Native**, and this project's
+  `react-native` is an npm alias onto the tvOS fork (`react-native-tvos`), pinned at
+  `0.86.0-2`. `expo install --fix` will not move an aliased dependency, so the engine never
+  changed. **The fork had already shipped `0.86.2-0`** (matching mainline 0.86.2, the release
+  carrying Hermes `…0.16`); bumping the alias is what actually fixed it.
+- **Generalise this:** on this project, any "upgrade React Native to X" advice must be
+  translated into a `react-native-tvos` version by hand, and `--fix` silently cannot do it.
+  Check `npm view react-native-tvos versions` for the matching `X-N` build.
+- **Verified after the fix:** `expo-doctor` **21/21, no issues** · `tsc --noEmit` clean ·
+  `npm test` **111/111** · `expo lint` clean · publishing gate Q PASS. Two dev-only packages
+  (`eslint-config-expo`, `jest-expo`) were aligned in the same pass, which also closed item #18.
+- **Still owed before the production build: a device smoke test.** The RN bump is a native
+  change and this project has twice shipped a build that compiled and then died at launch.
+- ~~Original finding~~ (kept for the record):
+
+<details><summary>Original 2026-08-14 finding</summary>
+- **Evidence (T3, installed ground truth, this run):** `npx expo-doctor` → *"This project uses
+  Hermes V1 with expo@57.0.8, which is affected by a known memory regression. Detected Hermes
+  V1 250829098.0.14 from React Native. Hermes V1 250829098.0.15 and earlier are affected by
+  this regression; 250829098.0.16 is the first version that contains the fix."*
+- **Why this is a blocker and not drift housekeeping.** A memory regression in the JS engine
+  surfaces as OOM kills, ANRs and crashes **in the field**, which land in Android vitals and
+  can cost store visibility — and it cannot be patched by `eas update`, because Hermes is
+  native. It has to be right in the binary you submit. This project also has a **documented
+  history of exactly this failure class**: the 2026-07-29 `expo-modules-core` / `expo-video`
+  dyld `SIGABRT` (`rules/ARCHITECTURE.md → Upgrade log`) was a lagging `expo` patch too.
+- **It contaminates the artifact already on Play.** Internal-testing **version code 12**
+  (uploaded 2026-08-14 15:34) was built from this drifted tree, so **promoting that release to
+  production would ship the regression**. Build fresh; do not promote.
+- **Fix, in order:** `npx expo install expo@^57.0.9 --fix` (or `npm run deps:sync`) →
+  `npx expo-doctor` clean → `tsc --noEmit` + `npm test` → device smoke test → *then* the
+  production build. `expo-doctor` also reports **17 packages** off the pinned SDK 57 set
+  (was 16 on 2026-08-07 — the drift is growing, item #18).
+- Source: https://expo.dev/changelog/sdk-57#known-regressions
+</details>
+
+### 2. [GOOGLE] Account-deletion route not discoverable as a URL — 🟠 **DOWNGRADED 2026-08-14**
+- **STILL OPEN — and now confirmed from the console side (2026-08-14).** The Data safety
+  *Delete account URL* field **is filled**, but with the **same generic privacy-policy URL**,
+  not a deletion anchor. Google states the requirement on that very screen: the link must
+  *"prominently feature the steps that users should take to request that their account is
+  deleted"* and *"specify the types of data that are deleted or kept, and any additional
+  retention period."* A generic policy page does not do that, so the field being non-empty is
+  not the same as the field being compliant. Fix + exact anchor: `CONSOLE_TASKS.md §3.5`.
+- **⚠️ The page BODY still has not been re-read.** It returned `HTTP 200` to a `HEAD` request, but its body could not be read (WebFetch 403; browser-UA `curl` blocked/timed out — WAF). The finding below is carried verbatim from **2026-07-29**.
 - **The substance already exists (as of 2026-07-29).** §8 states that on a deletion request account data is *"fshihen menjëherë nga të gjitha bazat e të dhënave"* with a legal/financial retention carve-out; §9 lists data-subject rights under Ligji 124/2024; §14 gives `dpo@rtsh.al` as the route.
 - **What is missing is labelling, not policy.** No section is titled *account deletion*, there is no anchor to link to, and a reviewer must assemble the answer from §8 + §9 + §14. The Data safety field expects a URL landing on an unambiguous deletion route.
 - **Fix (~10 min, RTSH web):** add a titled section with an `id` — e.g. `<h2 id="fshirja-e-llogarise">Fshirja e llogarisë dhe e të dhënave</h2>` — naming the app, both routes (in-app `Profili → Fshi llogarinë`, and email `dpo@rtsh.al` from the registered address *even after uninstalling*), what is deleted, and the timeframe. Paste `…/#fshirja-e-llogarise` into Play Console → App content → Data safety.
@@ -31,6 +144,18 @@ Two dated deadlines now sit inside the likely submission window and should gover
 - **Policy:** Play User Data policy (enforced since 2024-04-15) — apps with in-app account creation must provide a **web link** to request account + data deletion without reinstalling. It is a required Data safety field; the form cannot be completed without it. https://support.google.com/googleplay/android-developer/answer/13327111
 
 ### 3. [BOTH] No review-account strategy — login wall + email OTP + geo-blocked streams
+- **PARTIALLY RESOLVED on the Play side (console read 2026-08-14).** Sign in details is
+  actioned and honest — *"All or some functionality is restricted"* — with a real credential
+  pair (`ott@rtsh.al` / `11111111`) attached. So part (a)'s **credential** exists.
+- **Still open, and precisely located:** the *"Any other information required to access your
+  app"* free-text box on that same form is **EMPTY**. Google's guidance panel on that screen
+  names both of this app's problems verbatim — reusable details that survive a one-time PIN,
+  and details valid *"regardless of user location"* for a geo-gate. Draft text ready to paste:
+  `CONSOLE_TASKS.md §3.2`.
+- **Part (b) — the backend geo exemption — remains the real blocker and is NOT built.** Until
+  the review account actually plays from a US IP, the app simply looks broken to a reviewer,
+  which fails Apple 2.1 and Play's pre-launch report regardless of whether the login works.
+  The drafted text is deliberately marked *do not paste the geo paragraph until this is true*.
 - **Evidence (source tier, re-verified):** registration requires an emailed OTP (`rules/ARCHITECTURE.md → Auth flow §6`); all content sits behind login; playback is geo-enforced at the CDN (`→ Real-time → Geo`). Apple App Review and Play's pre-launch report both run from **US IPs on fresh devices**.
 - **Policy:** Apple **Guideline 2.1 App Completeness** — a demo account is required for gated apps, and this is the single most common rejection cause. Play Console → App content → **App access** — test credentials mandatory for gated apps.
 - **Fix (all three parts needed, none optional):**
@@ -39,43 +164,113 @@ Two dated deadlines now sit inside the likely submission window and should gover
   c. Review notes explaining the service, the geo model, and the parental-PIN demo steps.
 - **Note:** the reviewer-notes text is already drafted in `store/store.config.json` → `apple.review.notes`; only the credentials and the geo exemption are outstanding.
 
-### 4. [BOTH] Publisher identity & content rights not settled
+### 4. [BOTH] Publisher identity & content rights not settled — ✅ **CLOSED FOR PLAY 2026-08-14**
+- **Play half CLOSED on console evidence.** Play Console → Android developer verification →
+  Identity reads **RADIO TELEVIZIONI SHQIPTAR, Ismail Qemali 11, Tirana 1000, Albania (AL)**,
+  on an **Organization** account (ID `6801667389174391983`). The national broadcaster is
+  publishing its own brand — which is what this blocker asked for. Account **Policy status:
+  *"No issues found with your developer account"***, so the two `sk.antik.*` apps showing
+  *Removed by Google* (the previous vendor's, last updated 2021/2023) carry no live
+  enforcement that could taint a new submission. Being an Organization account also avoids
+  Play's 12-testers/14-day closed-testing rule that applies to personal accounts.
+- **Still open on the Apple side** (not re-checked this run) and **content rights** generally:
+  keep RTSH's streaming-rights documentation reachable, since broadcaster/OTT reviewers
+  routinely ask. Apple's Content Rights question is also still unset (`CONSOLE_TASKS.md §1b`).
 - **Evidence:** bundle `al.rtsh.tani` carries the national broadcaster's brand. (The prior citation of `owner: 'anxheloo'` was **withdrawn on 2026-07-29** — per `@expo/config-types`, `owner` is *"The name of the Expo account that owns the project"* and has no store meaning. This item stands on the store-account and rights question alone.)
 - **Policy:** Apple **5.2.1 / 5.2.2** — apps must be submitted by the rights holder or with documented authorization; brand apps from unrelated personal accounts are rejected and put the developer account at risk. Play Impersonation policy is equivalent. Reviewers of broadcaster/OTT apps routinely request proof of streaming rights.
 - **Fix:** submit from RTSH's (or MCN's, with written RTSH authorization) **organization** developer accounts on both stores. This also avoids Play's 12-testers/14-day closed-testing rule that applies to personal accounts, and satisfies D-U-N-S verification. Keep rights documentation ready for a reviewer request.
 
-### 15. [GOOGLE] Play feature graphic does not exist — the listing cannot be completed *(NEW — promoted from POLISH)*
+### 15. [GOOGLE] Play feature graphic — ✅ **CLOSED IN THE CONSOLE 2026-08-14**, 🟡 repo divergence remains
+- **Closed as a blocker.** The default store listing carries a feature graphic (**1/1**),
+  read in the browser on 2026-08-14. The listing is not gated on it any more.
+- **Downgraded to 🟡, not deleted:** the **repo still has no source file**, so
+  `anxheloo-expo-store-assets` gate B keeps failing and the live asset exists only inside
+  Google's console — unversioned, unreviewable, and unreproducible if it ever needs an edit.
+  Export the 1024×500 (no alpha) source to
+  `assets/AppStore-PlayStore/play/feature-graphic.png` so the manifest and the store agree.
+- **Lesson recorded:** a manifest gate proves *the repo*, never *the store*. The two can
+  disagree in either direction, and only a console read tells you which.
+
+<details><summary>Original 2026-08-07 finding (superseded)</summary>
 - **Evidence (artifact tier, proven this run):** `anxheloo-expo-store-assets/scripts/verify.sh` **gate B FAILS** — `play-feature-graphic: ../assets/AppStore-PlayStore/play/feature-graphic.png does not exist`. Declared required in `store/store-assets.json` precisely so its absence fails loudly.
 - **Why this is now a blocker, not polish:** the feature graphic (1024×500, no alpha) is a **mandatory** Play Store listing field. Without it the listing cannot be submitted at all — this is not a quality bar, it is a hard gate.
 - **Fix:** a designer produces one 1024×500 PNG/JPEG with no alpha channel. Everything else in the art matrix passes — gate C confirms **48 assets** match their declared shape, format and alpha state.
 - **Owner:** `anxheloo-expo-store-assets` (#20).
+</details>
 
 ---
 
 ## 🟠 HIGH — likely rejection or a gate you cannot skip
 
-### 7. [GOOGLE] Foreground-service Console declaration (mediaPlayback) — *revised page effective 2026-08-26*
+### 7. [GOOGLE] Foreground-service Console declaration — 🔴 **PROMOTED TO BLOCKER 2026-08-14**
+- **Console state read 2026-08-14:** App content shows **"1 declaration needs attention"** and
+  it is this one, flagged **"Declaration overdue"** (compliance deadline 2024-01-31), stating
+  that completing it is required *"to keep releasing app updates."* It is the **only** one of
+  the 11 App content declarations still outstanding; the other 10 are actioned.
+- **The form is simpler than assumed here.** One question — *"What tasks require your app to
+  use the FOREGROUND_SERVICE_MEDIA_PLAYBACK permission?"* — with three checkboxes: *Media
+  playback*, *Show picture in picture*, *Other*. Both of the first two apply to this app and
+  both are Google-approved use cases. Answers + description drafted: `CONSOLE_TASKS.md §3.3`.
+- **This is yours to submit, not mine** — Play declaration forms stay tier 0 for typing.
+
+<details><summary>Original 2026-08-07 finding (still accurate on policy)</summary>
 - **Confirmed still required and still approved this run.** Play's foreground-service page was revised effective **2026-08-26**; `TYPE_MEDIA_PLAYBACK` retains both relevant use cases verbatim: *"Media Playback: Continue audio or video playback from the background, including streaming"* and *"Show Picture in Picture."* Only **geofencing** was removed as an approved use case — not applicable here.
 - **Evidence:** expo-audio's plugin adds `FOREGROUND_SERVICE` + `FOREGROUND_SERVICE_MEDIA_PLAYBACK` and the `AudioControlsService` declaration — the manifest side passes. The Console side is manual and unavoidable for an app targeting Android 14+.
 - **Fix (console):** record a ~30s screen capture of radio playing with the screen locked; complete App content → Foreground service permissions with a functional description, the user impact if deferred/interrupted, the demo-video link, and the use-case selection.
 - Source: https://support.google.com/googleplay/android-developer/answer/16965181
+</details>
 
 ### 8. [BOTH] Age-rating / content-rating questionnaires — now with a September 2026 Apple requirement
 - **NEW this run:** Apple's age-rating questionnaire gained **social-media capability questions** (defined as *"the ability to redistribute, amplify, or interact with user-generated content through a social feed or similar discovery method"*). Answers are **required from September 2026** for new apps and updates. RTSH TANI has no social feed and no user-generated content, so the answers are "no" — but an **unanswered questionnaire blocks submission**. https://developer.apple.com/news/?id=vf9pmwci
 - **Evidence:** adult-flagged programmes gated by the parental PIN (`rules/ARCHITECTURE.md → Parental control`); live broadcast content is inherently unrated.
 - **Fix (console):** answer for "unrestricted/live media access with parental controls" and **declare the parental PIN** in the in-app-controls questions; expect 16+/18+. Same for Play's IARC. A deliberately-argued rating with the PIN declared is defensible; a misrating is an enforcement risk on both stores.
 
-### 9. [GOOGLE] Data safety form — exact declarations required
+### 9. [GOOGLE] Data safety form — ✅ **COMPLETED 2026-08-13**, one judgment call settled 2026-08-14
+- **Completed and staged.** App content → Data safety is actioned (last edited 2026-08-13) and
+  reads *"Ready to send for review."* Declared (read 2026-08-14): encrypted in transit **Yes**;
+  account creation *"Username, password, and other authentication"*; Location → **Approximate
+  location ✓** (Precise ✗); Personal info → Email ✓, User IDs ✓, Other info ✓ (Name ✗,
+  Address ✗); App activity 2/5; App info and performance 2/3; Device or other IDs 1/1;
+  everything else zero.
+- **Approximate location: KEEP IT CHECKED — this reverses a pending recommendation to
+  uncheck it.** The argument for unchecking was that the backend evaluates the geo-blocking IP
+  per request and discards it. True, and it disposes of the *IP* source — but registration
+  independently **requires**, transmits and stores a city and country
+  (`src/features/auth/schemas.ts:61-62`, `src/api/services/auth.ts:89`,
+  `src/types/domain.ts:311-324`). Google defines Approximate location as *"the city a user is
+  in"*, and **Address is unchecked**, so nothing else carries it. Unchecking would leave a
+  mandatory stored field declared nowhere — an under-declaration, the direction that gets apps
+  pulled rather than merely rejected. It also matches the Coarse Location call already made for
+  Apple, so the two stores stay consistent.
+- **Knock-on: two follow-ups are now moot for this form** — obtaining the backend's
+  IP-retention answer in writing, and confirming whether the CDN/nginx edge logs client IPs.
+  Both only ever bore on the IP source. Worth chasing for GDPR / Ligji 124/2024 reasons; they
+  no longer gate the checkbox.
+- **Failure class worth remembering:** this is the *same* mistake as the Apple *Product
+  Interaction* correction on 2026-08-14 — a conclusion drawn from one transport (analytics /
+  IP) while a second live one (realtime STOMP / the registration field) went unexamined.
+  **Enumerate every transport before declaring a data type absent.**
+
+<details><summary>Original 2026-08-07 finding (superseded)</summary>
 - **Evidence (what the code actually collects, re-verified):** email, username, birthdate, gender, city/country at registration; device identifiers (`deviceKey` keychain UUID, now carried in the login/register-verify body); first-party ads with `deviceClass` attribution on impressions; **analytics currently disabled** (mounts commented out); all traffic TLS.
 - **New this run:** Play's 2026-07-15 clarification added **precise/approximate location disclosure guidance**. Server-side IP geo-blocking is *not* a client location disclosure — but the user-provided city/country profile field still is.
 - **Fix (console):** declare Personal info (email, name, DOB, gender), Approximate location (city/country), Device or other IDs, and App interactions **only if** analytics ships enabled. Declare in-transit encryption ✓ and the deletion mechanism (needs item 2's URL). If analytics is re-enabled, the form must be updated in the same release.
+</details>
 
-### 16. [GOOGLE] Play Console app registration — hard deadline 2026-09-30 *(NEW)*
+### 16. [GOOGLE] Play Console app registration — ✅ **CLOSED 2026-08-14**
+- Play Console → **Android developer verification → Package names** lists `al.rtsh.tani` as
+  **Registered**, 3 keys, last updated **Jul 30 2026**. The 2026-09-30 global-removal deadline
+  no longer applies to this app. (The two legacy `sk.antik.*` packages are registered too.)
+- The date conflict flagged below between Google's announcement page and the deadlines table
+  is now **moot for this app** — registration is done either way.
+
+<details><summary>Original 2026-08-07 finding (superseded)</summary>
 - **Policy (new this run):** developers must register their Play apps in Play Console for **Android developer verification** by **2026-09-30**, or face **global removal from Google Play**. Applies to every app.
 - **Why it matters here:** this app is not yet registered. For a new app, registration happens naturally when the Play listing is created — so this is a *scheduling* constraint rather than extra work, but it converts "we'll get to Play later" into a dated risk.
 - **Fix (console):** create the Play Console app record and complete developer verification before 2026-09-30.
 - Source: https://support.google.com/googleplay/android-developer/table/12921780
 - **Date caveat:** Google's own 2026-07-15 announcement page renders an "August 14, 2026" effective date for the same policy batch while the deadlines table states 2026-08-26 / 2026-09-30. The table was treated as authoritative. **The two pages disagree; verify in Play Console before relying on the later date.**
+</details>
 
 ### 17. [EXPO] `store/store.config.json` carries 11 unresolved placeholders *(NEW)*
 - **Evidence (source tier, proven this run):** 11 `TODO` markers in the file; `anxheloo-expo-publishing/scripts/verify.sh` **gate J** independently flags them, including one buried at character 326 of a 1641-character field.
@@ -92,7 +287,12 @@ Two dated deadlines now sit inside the likely submission window and should gover
 - **Fix (console):** declare trader status in App Store Connect under the publishing org; Play has an equivalent under DSA compliance settings. Depends on item 4 (which legal entity publishes).
 
 ### 18. [EXPO] 16 dependencies drift from the pinned SDK 57 set *(NEW)*
-- **Evidence:** `expo-doctor` reports 16 packages out of date against SDK 57's pinned versions (e.g. `expo` 57.0.8 vs `~57.0.11`).
+- **Re-run 2026-08-14: now 17 packages, and it has stopped being merely cosmetic.** The drift
+  grew (16 → 17) and one of the drifted packages is `expo` itself, which is what pins the
+  Hermes engine — so this item is now **subsumed by blocker #19** and inherits its severity.
+  Fixing #19 (`expo install expo@^57.0.9 --fix`) fixes this at the same time. `expo-doctor`
+  currently reports **19/21 checks passed, 2 failed** — these two.
+- **Evidence:** `expo-doctor` reports 17 packages out of date against SDK 57's pinned versions (e.g. `expo` 57.0.8 vs `~57.0.13`).
 - **Not a store finding** — no policy is violated and nothing blocks submission. It is listed because this project has a documented history of a **patch-level drift causing a launch crash** (the 2026-07-29 `expo-modules-core` / `expo-video` dyld `SIGABRT`, `rules/ARCHITECTURE.md → Upgrade log`). Shipping a release build on a drifted set is exactly the condition that produced that crash.
 - **Fix:** `npm run deps:sync` (`expo install --fix`), then a device smoke test, **before** the production build — not after.
 
