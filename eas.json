@@ -76,7 +76,7 @@
         "ascAppId": "6796258611",
         "appleTeamId": "KMS93Q3XB8",
         "language": "en-US",
-        "metadataPath": "store/store.config.json"
+        "metadataPath": "store/store.config.js"
       },
       "android": {
         "serviceAccountKeyPath": "TODO(anx 2026-08-06): Play service-account JSON path",

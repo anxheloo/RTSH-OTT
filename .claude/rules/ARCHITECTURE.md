@@ -173,6 +173,9 @@ Boot gates: `useCheckToken` (keychain check) + `useFonts` (Inter). `SplashScreen
 
 - **Single engine above the router.** `RadioAudioHost` (`components/Media/RadioAudioHost.tsx`) is mounted once in `(app)/_layout.tsx`, sibling to `RadioMiniPlayer`. It owns the only `expo-audio` player and renders nothing.
 - **Store-driven.** The host is purely reactive to `PlayerSlice`: `player.replace({uri})` when `radioStreamUrl` changes, `player.play()/pause()` when `radioIsPlaying` (or the stream) changes. It sets a background-capable audio session once (`setAudioModeAsync`).
+- **…but the loop is CLOSED, not one-way (fixed 2026-08-14).** The store is *intent*; the OS can move the engine without going through it. iOS's lock-screen / Control Center transport and the Android media notification are wired **natively inside expo-audio** (`MediaController.swift` → `player.ref.pause()`), so JS never hears about them. The host therefore also subscribes to `playbackStatusUpdate` and mirrors the engine back via `setRadioPlaying`. Without that mirror the intent went stale and produced a compounding bug: pausing from the lock screen left the UI showing a **pause icon over silence**, and because the intent never *changed*, the store→engine effect didn't re-run either — so the user's next in-app tap wrote the value the engine already had (a no-op) and playback took **two taps** to return. Same in reverse for lock-screen play.
+  - The verdict is a pure helper, `resolveExternalPlaybackChange` (`utils/audioSync.ts`, unit-tested), because "not playing" is **ambiguous**: a live stream is also not playing while it buffers, and adopting `false` there would pause a stream that was merely stalling. A paused verdict is trusted only on a **settled** frame (`isLoaded && !isBuffering && !error`); a playing frame short-circuits the guards, since the engine cannot play by accident. Both platforms support the distinction by different means — iOS sets `isBuffering` while `waitingToPlayAtSpecifiedRate`, Android reports `playing` as the *intended* state during `STATE_BUFFERING`.
+  - Intent is read with `useAppStore.getState()` inside the listener, so it subscribes once per player instead of re-attaching on every play/pause. **No feedback loop:** the write re-runs the sync effect, which then commands an engine that already agrees.
 - **Routes + mini-player never touch audio.** `radio/[id].tsx` selects a station via `setRadioChannel(...)`; the transport + mini-player flip `radioIsPlaying`. All audio is a downstream effect of the store. `clearRadio()` (mini-player close) pauses + tears down.
 - **`RadioPlayer` is now presentational** (art + name/sub + `Equalizer` + prev/play/next) — no playback logic.
 
@@ -185,6 +188,8 @@ Boot gates: `useCheckToken` (keychain check) + `useFonts` (Inter). `SplashScreen
 
 - **Background-while-locked + lock-screen controls wired (2026-06-26).** `RadioAudioHost` sets `shouldPlayInBackground: true` in `setAudioModeAsync` (keeps the session alive when the screen locks) and calls `player.setActiveForLockScreen(true, { title, artworkUrl })` on each station change (`clearLockScreenControls()` on teardown). Entitlements come from the `expo-audio` config plugin (`enableBackgroundPlayback: true` in `app.config.ts`) — **requires a native rebuild** to take effect. `doNotMix` interruption mode (already set) is required for the OS to bind the controls to the player.
 - **Lock-screen now-playing metadata IS supported** on `expo-audio@56.0.11` via `setActiveForLockScreen` / `updateLockScreenMetadata` — the earlier "SDK 56 doesn't expose `NowPlayingInfo`" note was for an older version and is no longer true. Currently we send `title` + `artworkUrl`; `artist`/`albumTitle` (e.g. ICY in-stream song titles) are unused — `expo-audio` doesn't parse ICY metadata, so a live song title would need the server-driven radio guide or a switch to `react-native-track-player`.
+- **Lock-screen NEXT / PREVIOUS station are impossible on `expo-audio` — not a wiring bug on our side (verified in native source, 2026-08-14).** `MediaController.swift` (expo-audio 57.0.3) enables exactly six remote commands — `play`, `pause`, `togglePlayPause`, `changePlaybackPosition`, `skipForward`, `skipBackward` — and `nextTrackCommand` / `previousTrackCommand` appear **nowhere** in its iOS *or* Android native code. iOS always draws those two buttons in the Now Playing widget and greys them out when the command isn't enabled, which is exactly the reported symptom (tinted, unresponsive); the buttons **cannot be hidden** either, since the OS owns that widget. The public option type confirms the ceiling — `AudioLockScreenOptions` is only `{ showSeekForward, showSeekBackward, isLiveStream }`. Android is the same shape: a bare `MediaSession.Builder(context, player)` over a single-item timeline, so no skip actions there either. `AudioPlaylist` (which *does* have `next()`/`previous()`) is **not** an escape hatch — it exposes no `setActiveForLockScreen` at all, and the remote commands still aren't wired. **Closing this needs one of:** a native fork of expo-audio (which also has to invent a native→JS event, since none exists), a switch to `react-native-track-player` (full remote-command support — the same library already named above for ICY metadata), or an upstream PR. **Not attempted; accepted as a platform-library limitation.** The App Store copy promises background playback + lock-screen controls, which play/pause + artwork deliver, so it does not overpromise.
+- ~~**Live radio offered a scrub bar on the lock screen.**~~ **Fixed 2026-08-14.** `setActiveForLockScreen` was called with no `options`, and expo-audio gates the scrubber on exactly that argument (`changePlaybackPositionCommand.isEnabled = !isLiveStream`, `MediaController.swift`) — so the lock screen advertised a duration and an **enabled seek** for a stream that has neither. The host now passes `{ isLiveStream: true }`; radio is always live. `showSeekForward`/`showSeekBackward` stay at their `false` default for the same reason.
 - ~~**No radio-EPG source.**~~ **Resolved, with a day strip (2026-07-27).** `radio/[id].tsx` reuses the SAME per-channel EPG endpoint/hook AND day-strip mechanism as the TV channel screen (`useChannelEpgQuery`, `GET /channels/{id}/epg?date=YYYY-MM-DD`, the 7-back/today/7-forward `DayStrip` + `CatchupBanner`) — a radio station is a `Channel` with `type: 'RADIO'` in the same id-space, so no new endpoint or param was needed. Browsing is **read-only**: radio is one continuous stream with no per-programme recording, so only the currently-airing row on TODAY is interactive (`state: 'now'`, toggles the live stream); every other row — past or future, on any day — renders `state: 'scheduled'` (info-only, non-pressable, still expandable to read its description). The list auto-centers on the now-airing row on entry and re-centers on programme rollover.
 
   **Layout + virtualization (reworked 2026-07-27).** The screen is a fixed two-pane body under a **floating frosted header** (the `BrandHeader` treatment — `position: absolute` + iOS `BlurView` / Android translucent solid — rather than the flat in-flow `TabHeader` that settings/account use; the favourites action was dropped). The top pane (now-playing core) and the day strip are both **fixed**; the schedule list is the only scroller. The top pane is sized to its own content rather than a `flex: 1` half — a forced 50/50 split squeezed `RadioPlayer` into overlapping the pane below, so its internals were also given a compact pass (art 160 / smaller transport). The schedule is a **`FlashList`**, not a `.map()` in a `ScrollView`: a `ProgramRow` is expensive to mount (reanimated layout + worklet, plus a native `BlurView` on Android — and on radio nearly every row is `scheduled`, so nearly all of them carry one), and building a whole day at once made switching dates visibly janky. Virtualizing also replaced the `onLayout` offset bookkeeping with a plain `scrollToIndex` for the auto-center — nothing to measure, nothing to invalidate on a day change.
@@ -881,13 +886,51 @@ write-only from our side; never round-trip it.
 `phasedRelease: true` — manual release with Apple's 7-day gradual rollout, the safe default for a
 first launch.
 
-**Listing language is Albanian in the `en-US` slot.** Apple ships **39** App Store localizations and
-Albanian is not among them (read from the installed schema, not assumed); `apple.info` is
-`additionalProperties: false`, so an `sq` key hard-fails `metadata:push` rather than degrading. Since
-the audience is Albanian, the listing copy (title, subtitle, description, keywords, promo text) is
-written in Albanian under `en-US`, which Apple permits. **`apple.review.notes` is deliberately the one
-exception and stays in ENGLISH** — App Review is US-based, and review instructions a reviewer cannot
-read are worse than none. Do not "fix" this inconsistency by translating the notes.
+**Listing prose is ENGLISH; keywords stay Albanian.** `en-US` is the only available slot — Apple ships
+**39** App Store localizations and Albanian is not among them (read from the installed schema, not
+assumed), and `apple.info` is `additionalProperties: false`, so an `sq` key hard-fails
+`metadata:push` rather than degrading. Albanian prose under `en-US` was written first and then
+**reverted to English on 2026-08-14** (user decision, matching how comparable broadcaster apps
+present themselves). **`keywords` deliberately stay Albanian** — they are invisible to users and exist
+only to match queries, and the audience searches `televizion`, not "television".
+
+**Never state exact channel or station counts in the listing** (decision 2026-08-14). "19 TV channels
+and 13 radio stations" is a fact that expires the moment RTSH adds or drops one, and correcting it
+then costs a metadata push. The copy says "RTSH television channels" / "RTSH radio stations". The
+seven-day EPG window is kept because it is an implementation property of the app, not an inventory
+count.
+
+**Two traps here that `metadata:lint` cannot catch**, both hit for real on 2026-08-14:
+- **`apple.version` is NOT in the schema's `required` list**, so a config missing it lints clean and
+  then fails at Apple's API with *"You must provide a value for the attribute 'versionString'"* —
+  after the screenshots have already uploaded. It names the App Store **version record** the metadata
+  is written to, and a value that matches no existing record makes eas *create a new one*, orphaning
+  whatever is already uploaded. ASC offers every build to a record regardless of version-string match
+  (verified in the Add Build picker: builds 7–10 all report `1.0.0` and were all offered to the `1.0`
+  record), so a mismatch is not fatal — it is just a second version number to maintain.
+
+  **This is why the config is `store/store.config.js`, not `.json` (2026-08-14).** The `.js` requires
+  the `.json` (which keeps all listing content, and its editor schema autocomplete) and injects
+  **`apple.version` from `app.config.ts`** via `@expo/config`'s `getConfig()`, throwing if it resolves
+  empty rather than pushing to an unknown record. `app.config.ts` → `version` is therefore the
+  **single source of truth**: bumping it moves the build, the `runtimeVersion` (policy `appVersion`),
+  the Sentry release and the App Store listing together. Never reintroduce a literal `version` into
+  the JSON — two copies is the bug this removes. Caveat: `eas metadata:pull` cannot round-trip a `.js`
+  config (it swaps the extension for `.json` and writes to the project root), so the file is
+  write-only — which was already true for a non-default `metadataPath`.
+
+  **One-time migration owed:** ASC's existing record was created as `1.0` while `app.config.ts` says
+  `1.0.0`. The record must be renamed `1.0` → `1.0.0` in App Store Connect **before** the next push,
+  or eas will look for a `1.0.0` record that does not exist. Renaming edits the record in place, so
+  the 19 already-uploaded screenshots stay on it.
+- **`screenshots` is typed `additionalProperties`**, so any display-type key lints clean and only
+  Apple's API rejects a wrong one. `APP_IPHONE_67` accepted 1320×2868 (6.9") and
+  `APP_IPAD_PRO_3GEN_129` accepted 2064×2752 — **proven by a successful upload**, not inferred. Note
+  ASC's UI showed the 6.5" slot expecting 1242×2688, which is a different slot and not the one these
+  went to.
+
+**`apple.review.notes` stays in ENGLISH regardless of what the listing prose does** — App Review is
+US-based, and review instructions a reviewer cannot read are worse than none.
 
 **Age rating: computed from honest answers, not set by override.** Apple's current bands are
 **4+ / 9+ / 13+ / 16+ / 18+** — there is no 12+ and no 17+ any more (proof: the
