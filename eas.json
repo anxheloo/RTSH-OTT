@@ -79,8 +79,8 @@
         "metadataPath": "store/store.config.js"
       },
       "android": {
-        "serviceAccountKeyPath": "TODO(anx 2026-08-06): Play service-account JSON path",
-        "track": "internal"
+        "serviceAccountKeyPath": "./rtsh-ott-5016e1d0e915.json",
+        "track": "production"
       }
     }
   }
