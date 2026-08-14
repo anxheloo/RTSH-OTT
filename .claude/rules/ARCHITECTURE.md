@@ -953,6 +953,15 @@ The consistency argument that settled sexual content: the app **ships a parental
 adult-flagged programmes and says so in the review notes** — declaring `NONE` across every sexual
 content field while shipping that gate is self-contradictory in a document a reviewer reads.
 
+**The questionnaire arrives PRE-ANSWERED from `metadata:push`, and that is the alignment trap.**
+Verified 2026-08-14: on opening Age Rating → Edit, only two questions were blank — *Social Media* and
+*Social Media Disabled for Users Under 13* — which are exactly the two with **no key in eas-cli
+21.6.0's `AppleAdvisory` schema**. Everything else was already filled by the earlier push. So the
+console and the config are two views of one record, the config wins on every field it names, and any
+answer changed in the console must be mirrored back into `store.config.json` or the next push
+silently reverts it — re-rating the app with no error anywhere. All 21 questionnaire answers plus the
+six Step-1 capability toggles were diffed against the file on 2026-08-14: zero mismatches.
+
 **Chance-based activities are app-capability questions, not content questions** ("allow *users* to
 compete", "for purchase", "your app has") — all `NONE`/`false`, correctly.
 
