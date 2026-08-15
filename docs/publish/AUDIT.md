@@ -9,7 +9,7 @@
 > **Artifact inspected:** NONE this run — all artifact-tier items are UNPROVEN. The prior run's `aapt2`/Info.plist findings (2026-07-29) are carried as history, not re-proven.
 > **Live URLs read:** `HEAD` 200 + `text/html` confirmed on **both** legal URLs. **Neither body was read this run** — WebFetch returned HTTP 403 and a browser-UA `curl` was blocked/timed out (WAF). Item 2's content finding below is therefore **carried from 2026-07-29, explicitly NOT re-verified**.
 > **Console pages read:** none — no browser attached this run (tier 0).
-> **Open blockers:** 4
+> **Open blockers:** 0
 > **Audit date:** 2026-08-14
 >
 > ---
@@ -81,7 +81,17 @@
 
 ## Verdict
 
+**ANDROID: submit-ready as of 2026-08-14 — 0 open blockers.** (This verdict line was written on
+2026-08-07 and is superseded; see the dated update in the header. Kept below for the reasoning.)
+All four original blockers are closed: #4 publisher identity (RTSH org account), #15 feature graphic
+(present in console), #16 registration (done), #7 foreground service (declared with demo videos), and
+#19 Hermes (fixed + device-verified on a Galaxy A25 / Android 16). #2 remains as 🟠, not a blocker.
+**iOS was NOT re-verified this run** — the RN/Hermes bump is untested on Apple hardware.
+
+<details><summary>Superseded 2026-08-07 verdict</summary>
+
 **Not submit-ready — 4 blockers, and the engineering surface is now essentially clean.** Since the last pass, submit profiles, crash reporting, store metadata-as-code, both icon variant sets and the full screenshot matrix all landed and are verified below. Every remaining blocker is **external**: two need RTSH/business action (review credentials + geo allowlist, publisher account + rights), one needs a ~10-minute edit on the RTSH website, and one needs a designer to produce a single 1024×500 image. Estimated engineering effort to clear: **near zero**. Estimated calendar effort: **weeks**, because the publisher-account and rights path is the long pole.
+</details>
 
 Two dated deadlines now sit inside the likely submission window and should govern scheduling: **Play target API 36 on 2026-08-31** (already satisfied — SDK 57 targets 36) and **Play Console app registration on 2026-09-30** (not yet done, global-removal consequence).
 

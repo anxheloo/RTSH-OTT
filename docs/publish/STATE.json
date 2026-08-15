@@ -2,23 +2,22 @@
   "$comment": "Resumable state for anxheloo-expo-publishing. A CACHE of reality, never a substitute for it: re-verify the cheap facts before trusting the recorded phase, and when a re-check disagrees, reality wins.",
   "schemaVersion": 1,
   "app": "RTSH TANI",
-  "phase": "audit",
-  "phaseNote": "Android half is submit-ready except for 4 open blockers. Holding at 'audit' deliberately: the skill forbids finalizing submit config over an open blocker, and #19 (Hermes) must be fixed in a fresh binary before any production build.",
+  "phase": "submitted",
+  "phaseNote": "BOTH STORES SUBMITTED 2026-08-15. Android: versionCode 15 (commit 1e31873, the Hermes-fix commit) uploaded via eas submit as a draft, then released to Production + Open/Closed/Internal testing and sent for review. iOS: build auto-submitted, VERIFIED WORKING via TestFlight, submitted for App Store review. Nothing further to do until the stores respond.",
   "audit": {
     "ranAt": "2026-08-14",
     "scope": "PARTIAL - Google Play console + shared engineering only. Apple items 3(a)/(c), 12, 17 carry their 2026-08-07 state and were NOT re-verified.",
-    "blockers": 1,
-    "openBlockerIds": [
-      7
-    ],
+    "blockers": 0,
+    "openBlockerIds": [],
     "closedThisRun": [
       4,
+      7,
       15,
       16,
       18,
       19
     ],
-    "artifactSha256": "2607985d633317b0d7c0934fd577030b3b418c72d90ced04cb19161d9f31266a",
+    "artifactSha256": "e17cced5e294d15cefea54274b1c388706705a99709d44f2c6fc4ffdacb16613",
     "policyChecklistsReVerified": false,
     "downgradedThisRun": {
       "2": "blocker -> HIGH; privacy page finally read, 2 of 3 Google criteria met, cheapest item to be wrong about"
@@ -48,9 +47,9 @@
     "easRemoteVersionCode": 14,
     "stagedChangesAwaitingSubmit": 9,
     "appContentDeclarations": {
-      "actioned": 10,
-      "needsAttention": 1,
-      "outstanding": "foreground service permissions"
+      "actioned": 11,
+      "needsAttention": 0,
+      "outstanding": null
     },
     "formFactors": [
       "phone",
@@ -58,7 +57,10 @@
       "chromeos",
       "androidxr"
     ],
-    "formFactorsNote": "Android TV is NOT an included form factor. The single artifact runs on TV, but Play TV distribution needs a separate opt-in with TV screenshots + a 1280x720 banner and its own review. In contract scope, not in this submission."
+    "formFactorsNote": "Android TV is NOT an included form factor. The single artifact runs on TV, but Play TV distribution needs a separate opt-in with TV screenshots + a 1280x720 banner and its own review. In contract scope, not in this submission.",
+    "productionCountries": "Targeted (177) - all countries, set 2026-08-14, matches the Apple 175-country listing",
+    "signInDetailsFreeText": "FILLED + SAVED 2026-08-14 (494/500 chars). Staged in Publishing overview, NOT sent for review.",
+    "foregroundServiceDeclaration": "DONE 2026-08-14 - both tasks declared with demo video links; App content Need-attention is empty."
   },
   "submitChain": {
     "verifiedAt": "2026-08-14",
@@ -74,31 +76,60 @@
     {
       "at": "2026-08-07",
       "step": "audit",
-      "result": "4 blockers (2, 3, 4, 15)"
+      "result": "4 blockers (2, 3, 4, 15)",
+      "id": "audit-1",
+      "status": "completed"
     },
     {
       "at": "2026-08-14",
       "step": "audit",
-      "result": "partial re-audit; closed 4/15/16, opened 7/19; still 4 open"
+      "result": "partial re-audit; closed 4/15/16, opened 7/19; still 4 open",
+      "id": "audit-2",
+      "status": "completed"
     },
     {
       "at": "2026-08-14",
       "step": "verify",
-      "result": "submit chain PASS; expo-doctor 19/21, 2 failed"
+      "result": "submit chain PASS; expo-doctor 19/21, 2 failed",
+      "id": "verify-3",
+      "status": "completed"
     },
     {
       "at": "2026-08-14",
       "step": "fix",
-      "result": "Hermes regression cleared via RN tvos alias bump; doctor 21/21, 111/111 tests; blockers 4 -> 1"
+      "result": "Hermes regression cleared via RN tvos alias bump; doctor 21/21, 111/111 tests; blockers 4 -> 1",
+      "id": "fix-4",
+      "status": "completed"
+    },
+    {
+      "at": "2026-08-14",
+      "step": "console",
+      "result": "Step 2 sign-in details saved; Step 3 countries set to 177 (all). Step 1 blocked on demo video.",
+      "id": "console-5",
+      "status": "completed"
+    },
+    {
+      "at": "2026-08-14",
+      "step": "console",
+      "result": "Foreground service declaration completed with demo videos; App content clean; 0 blockers",
+      "id": "console-6",
+      "status": "completed"
+    },
+    {
+      "id": "submit-7",
+      "step": "submit",
+      "status": "completed",
+      "at": "2026-08-15",
+      "result": "Android vc15 + iOS submitted for review; iOS TestFlight-verified"
     }
   ],
   "nextActions": [
-    "USER: complete the foreground-service declaration (#7) - the ONLY remaining blocker. Answers drafted in CONSOLE_TASKS.md 3.3",
-    "USER: paste the sign-in details free text - CONSOLE_TASKS.md 3.2 (geo paragraph now safe to include)",
-    "USER: device smoke test - npx expo run:android --variant release (native RN bump, unproven on hardware)",
-    "USER: eas build -p android --profile production, then eas submit -p android (both metered, both yours)",
-    "OPTIONAL/PARALLEL: RTSH web adds the ~4-line deletion steps + anchor (#2), then repoint the Data safety URL",
-    "AFTER LAUNCH: drop the '19 channels' count from the Play description; export the feature-graphic source into the repo"
+    "WAIT: Apple review 24-48h typical; Play first review often 3-7 days for a new app",
+    "CHECK: Play pre-launch report (Test and release > Pre-launch report) - Google runs the AAB on real devices, free crash/ANR verification",
+    "CHECK: EU DSA trader status on the developer account - now live-relevant since you distribute to the EU; non-declaration means removal from EU storefronts (audit #12)",
+    "WATCH: Sentry production stream - environment derives from applicationId, and the two alert rules start evaluating once there is traffic",
+    "IF PLAY REJECTS on the account-deletion URL (audit #2, the one open HIGH): form edit + resubmit, no rebuild",
+    "AFTER LAUNCH: drop the '19 channels' count from the Play description; export the feature-graphic source into the repo; least-privilege the service account"
   ],
   "engineering": {
     "expo": "57.0.13",
@@ -110,5 +141,27 @@
     "hermesRegression": "cleared 2026-08-14",
     "rootCause": "react-native-tvos npm alias - expo install --fix cannot retarget an alias; version bumped by hand",
     "owed": "device smoke test of the new native binary before the production build"
+  },
+  "submission": {
+    "android": {
+      "versionCode": 15,
+      "commit": "1e31873",
+      "tracks": [
+        "production",
+        "open testing",
+        "closed testing",
+        "internal testing"
+      ],
+      "rollout": "Start full rollout",
+      "countries": 177,
+      "status": "in review",
+      "submittedAt": "2026-08-15"
+    },
+    "ios": {
+      "status": "in review",
+      "testflightVerified": true,
+      "verifiedAt": "2026-08-15",
+      "note": "launch + playback confirmed on TestFlight before review - closes the untested-Hermes-on-iOS risk"
+    }
   }
 }

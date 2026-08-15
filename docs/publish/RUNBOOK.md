@@ -78,8 +78,35 @@ straightforward choice; restrict only if RTSH legal says otherwise.
 ## Step 4 — 🟠 Device smoke test (15 min) — do NOT skip
 
 ```bash
-npx expo run:android --variant release
+# 1. regenerate native against the CURRENT react-native (see note A)
+APP_VARIANT=production npx expo prebuild --clean --platform android
+
+# 2. build + install (see note B for the SENTRY_ flag)
+SENTRY_DISABLE_AUTO_UPLOAD=true APP_VARIANT=production npx expo run:android --variant release
 ```
+
+> **Note A — always `prebuild --clean` after a native dependency change.** `android/` is gitignored
+> pure CNG, so regenerating is free. Building on a stale `android/` generated against the *previous*
+> React Native risks linking the old Hermes and silently undoing the fix this build exists to ship.
+> The prebuild log confirms the right one: *"Using react-native@npm:react-native-tvos@0.86.2-0"*.
+>
+> **Note B — a local RELEASE build FAILS without `SENTRY_DISABLE_AUTO_UPLOAD=true`.** Hit for real
+> on 2026-08-14:
+> `Execution failed for task ':app:createBundleReleaseJsAndAssets_SentryUpload_al.rtsh.tani@1.0+1_1'`
+> → `sentry-cli ... finished with non-zero exit value 1`.
+> This is **by design, not a regression**: `disableAutoUpload: IS_DEV` means release builds attempt
+> the source-map upload, and `SENTRY_AUTH_TOKEN` lives only in `eas env` at `sensitive` visibility —
+> EAS Build injects it, a local machine has none. Two valid fixes:
+> - **Smoke test (preferred):** `SENTRY_DISABLE_AUTO_UPLOAD=true` — honoured at
+>   `node_modules/@sentry/react-native/sentry.gradle:11`. Skips the upload, so no junk Sentry
+>   release is created for a binary that will never ship.
+> - **Faithful reproduction:** `eas env:exec production '<build command>'` — pulls the real token
+>   and uploads maps, exactly as EAS Build does.
+>
+> Neither applies to `eas build`, which has the token injected automatically.
+>
+> **Also expect `versionCode 1` locally.** `appVersionSource: remote` means EAS owns the counter,
+> so a local `run:android` stamps `1.0+1`. Irrelevant for a smoke test; the real build gets 15.
 
 The RN bump is a **native** change. This project has twice shipped a build that compiled cleanly
 and then died at launch (the 2026-07-29 dyld `SIGABRT`, and the regression just fixed). A release
