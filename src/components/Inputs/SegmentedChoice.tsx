@@ -10,6 +10,7 @@ import { BORDERRADIUS } from '@/theme/borders';
 import { SPACING } from '@/theme/spacing';
 import { useAppStore } from '@/store/useAppStore';
 import { useHaptic } from '@/hooks/useHaptic';
+import { tvFocusHighlight, useTVFocus } from '@/tv';
 
 import ReusableText from './ReusableText';
 
@@ -28,13 +29,64 @@ export interface SegmentedChoiceProps<T extends string> {
   testID?: string;
 }
 
+/**
+ * One pill. Extracted so each can own a `useTVFocus` subscription (a hook can't
+ * live inside the parent's `.map`). Off-TV `tvFocusHighlight` returns undefined,
+ * so the rendered output is byte-identical to the pre-TV version.
+ */
+function Segment<T extends string>({
+  option,
+  isActive,
+  onSelect,
+  testID,
+}: {
+  option: SegmentedChoiceOption<T>;
+  isActive: boolean;
+  onSelect: (value: T) => void;
+  testID?: string;
+}) {
+  const colors = useAppStore((s) => s.colors);
+  const { focused, focusProps } = useTVFocus();
+
+  return (
+    <TouchableOpacity
+      {...focusProps}
+      onPress={() => onSelect(option.value)}
+      activeOpacity={0.8}
+      accessibilityRole="button"
+      accessibilityState={{ selected: isActive }}
+      testID={testID}
+      style={[
+        styles.option,
+        {
+          backgroundColor: isActive ? PRIMARY_TINT : colors.surface,
+          borderColor: isActive ? colors.primary : colors.border,
+        },
+        // Last: the ring must win over the selected-state border, otherwise the
+        // focused pill is indistinguishable from the selected one. `scale: false`
+        // because the pills are `flex: 1` across the full row — a 1.05 pop on the
+        // outer ones pushes past the screen edge.
+        tvFocusHighlight(colors.focus, focused, { scale: false }),
+      ]}
+    >
+      <ReusableText
+        variant="label"
+        themeColor={isActive ? 'text' : 'textMuted'}
+        textAlign="center"
+        numberOfLines={1}
+      >
+        {option.label}
+      </ReusableText>
+    </TouchableOpacity>
+  );
+}
+
 function SegmentedChoice<T extends string>({
   options,
   value,
   onChange,
   testID,
 }: SegmentedChoiceProps<T>) {
-  const colors = useAppStore((s) => s.colors);
   const haptics = useHaptic();
 
   const handleSelect = (next: T) => {
@@ -45,35 +97,15 @@ function SegmentedChoice<T extends string>({
 
   return (
     <View style={styles.row} testID={testID}>
-      {options.map((opt) => {
-        const isActive = opt.value === value;
-        return (
-          <TouchableOpacity
-            key={opt.value}
-            onPress={() => handleSelect(opt.value)}
-            activeOpacity={0.8}
-            accessibilityRole="button"
-            accessibilityState={{ selected: isActive }}
-            testID={testID ? `${testID}-${opt.value}` : undefined}
-            style={[
-              styles.option,
-              {
-                backgroundColor: isActive ? PRIMARY_TINT : colors.surface,
-                borderColor: isActive ? colors.primary : colors.border,
-              },
-            ]}
-          >
-            <ReusableText
-              variant="label"
-              themeColor={isActive ? 'text' : 'textMuted'}
-              textAlign="center"
-              numberOfLines={1}
-            >
-              {opt.label}
-            </ReusableText>
-          </TouchableOpacity>
-        );
-      })}
+      {options.map((opt) => (
+        <Segment
+          key={opt.value}
+          option={opt}
+          isActive={opt.value === value}
+          onSelect={handleSelect}
+          testID={testID ? `${testID}-${opt.value}` : undefined}
+        />
+      ))}
     </View>
   );
 }

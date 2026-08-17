@@ -14,8 +14,10 @@ import { BORDERRADIUS } from '@/theme/borders';
 import { darkTheme } from '@/theme/colors';
 import { SPACING } from '@/theme/spacing';
 import { useAppStore } from '@/store/useAppStore';
+import { isTV } from '@/tv';
 
 import ReusableText from './ReusableText';
+import SegmentedChoice from './SegmentedChoice';
 
 export interface SelectOption<T extends string> {
   label: string;
@@ -60,21 +62,39 @@ function SelectInput<T extends string>({
         </ReusableText>
       ) : null}
 
-      <View style={[styles.field, { backgroundColor: colors.inputBackground, borderColor }]}>
-        <Host matchContents style={styles.host} colorScheme={resolvedScheme} seedColor={colors.primary}>
-          <Picker
-            selectedValue={value}
-            onValueChange={(next) => onChange(next as T)}
-            appearance="menu"
-            testID={testID}
-          >
-            {placeholder !== undefined ? <Picker.Item label={placeholder} value="" /> : null}
-            {options.map((opt) => (
-              <Picker.Item key={opt.value} label={opt.label} value={opt.value} />
-            ))}
-          </Picker>
-        </Host>
-      </View>
+      {isTV ? (
+        // `@expo/ui`'s Picker is a native Jetpack Compose view hosted inside the
+        // RN tree. Compose owns its own focus system and does NOT hand the D-pad
+        // back to React Native, so on Android TV focus enters the picker and can
+        // never leave — on the register form that stranded the terms checkbox and
+        // the submit button, making signup impossible (device-verified
+        // 2026-08-17; pre-registered as a risk in plan.md 22.18-TV).
+        // The pill row is plain RN, so focus traverses it normally, and this form
+        // already uses it one field above for gender. Touch platforms keep the
+        // native menu — this branch is inert off-TV.
+        <SegmentedChoice
+          options={options}
+          value={value as T}
+          onChange={onChange}
+          testID={testID}
+        />
+      ) : (
+        <View style={[styles.field, { backgroundColor: colors.inputBackground, borderColor }]}>
+          <Host matchContents style={styles.host} colorScheme={resolvedScheme} seedColor={colors.primary}>
+            <Picker
+              selectedValue={value}
+              onValueChange={(next) => onChange(next as T)}
+              appearance="menu"
+              testID={testID}
+            >
+              {placeholder !== undefined ? <Picker.Item label={placeholder} value="" /> : null}
+              {options.map((opt) => (
+                <Picker.Item key={opt.value} label={opt.label} value={opt.value} />
+              ))}
+            </Picker>
+          </Host>
+        </View>
+      )}
 
       {hasError ? (
         <ReusableText variant="caption" themeColor="error" style={styles.subtext}>

@@ -14,6 +14,7 @@ import { useTranslation } from 'react-i18next';
 import { BORDERRADIUS, SPACING } from '@/theme';
 import { useAppStore } from '@/store/useAppStore';
 import { openStoreListing } from '@/utils/device';
+import { isTV } from '@/tv';
 
 import ReusableBtn from './Buttons/ReusableBtn';
 import ReusableText from './Inputs/ReusableText';
@@ -78,14 +79,31 @@ const ModalWrapper: React.FC = () => {
       onRequestClose={blocking ? () => {} : close}
       statusBarTranslucent
     >
+      {/*
+        `focusable={!isTV}`: these two wrappers exist only to catch backdrop taps
+        and to swallow taps on the sheet. On TV they are focusable ancestors of
+        the buttons, which traps the D-pad on the wrapper and leaves every action
+        unreachable — the app-wide failure device-verified 2026-08-17 (logout,
+        delete account, retry, and the force-update CTA could all be SEEN but
+        never pressed). Same trap and same fix already documented in
+        STYLE_GUIDE.md → "Nested focusables trap the D-pad" and applied to
+        RadioMiniPlayer / PlayerControls; this component was missed.
+        Touch is unaffected — `focusable` is Android-focus only and both keep
+        their onPress.
+      */}
       <TouchableOpacity
         style={[styles.backdrop, { backgroundColor: colors.overlay }]}
         activeOpacity={1}
+        focusable={isTV ? false : undefined}
         onPress={dismissable ? close : undefined}
         accessibilityRole={dismissable ? 'button' : undefined}
         accessibilityLabel={dismissable ? t('common.close') : undefined}
       >
-        <TouchableOpacity activeOpacity={1} style={[styles.sheet, { backgroundColor: colors.surface }]}>
+        <TouchableOpacity
+          activeOpacity={1}
+          focusable={isTV ? false : undefined}
+          style={[styles.sheet, { backgroundColor: colors.surface }]}
+        >
           {showIconStrip && <View style={[styles.iconStrip, { backgroundColor: colors.error }]} />}
 
           <View style={styles.body}>
@@ -107,6 +125,12 @@ const ModalWrapper: React.FC = () => {
                 variant={currentModal === 'confirmation' ? 'destructive' : 'primary'}
                 size="medium"
                 isFullWidth
+                // The modal is a separate RN <Modal> window: unfocusing the
+                // wrappers above is necessary but not sufficient — without an
+                // explicit initial target nothing inside is focused at all and
+                // the D-pad has no entry point. Gated so no focus is requested
+                // on touch builds.
+                hasTVPreferredFocus={isTV ? true : undefined}
                 onPress={run(primaryAction)}
               />
               {secondaries.map((b) => (

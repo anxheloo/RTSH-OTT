@@ -12,6 +12,7 @@ import { useAppStore } from '@/store/useAppStore';
 import { useHaptic } from '@/hooks/useHaptic';
 import { Icon } from '@/components/Icons';
 import { CheckIcon } from '@/assets/icons';
+import { tvFocusHighlight, useTVFocus } from '@/tv';
 
 import ReusableText from './ReusableText';
 
@@ -35,15 +36,22 @@ const Checkbox: React.FC<CheckboxProps> = ({
 }) => {
   const colors = useAppStore((s) => s.colors);
   const haptics = useHaptic();
+  const { focused, focusProps } = useTVFocus();
 
   return (
     <TouchableOpacity
+      {...focusProps}
       activeOpacity={0.7}
       disabled={isDisabled}
       onPress={() => { haptics.selection(); onValueChange(!value); }}
       accessibilityRole="checkbox"
       accessibilityState={{ checked: value, disabled: isDisabled }}
-      style={[styles.row, isDisabled && styles.disabled]}
+      // Ring last so it wins over the row style. `scale: false` — the row spans
+      // the full form width (the label flexes), so a 1.05 pop would overflow.
+      // Off-TV `tvFocusHighlight` returns undefined ⇒ output unchanged.
+      // Without this the register terms checkbox is reachable but INVISIBLE on
+      // TV, and it is a required field — device-verified 2026-08-17.
+      style={[styles.row, isDisabled && styles.disabled, tvFocusHighlight(colors.focus, focused, { scale: false })]}
       testID={testID}
     >
       <View
