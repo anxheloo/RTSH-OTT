@@ -2,7 +2,14 @@ import { StateCreator } from 'zustand';
 
 import type { AppStore } from './useAppStore';
 
-export type ModalType = 'apiError' | 'noInternet' | 'notify' | 'confirmation' | 'forceUpdate';
+export type ModalType =
+  | 'apiError'
+  | 'noInternet'
+  | 'notify'
+  | 'confirmation'
+  /** Guest tapped something that needs an account (18+, catch-up). Copy + CTA live in `ModalWrapper`. */
+  | 'signInRequired'
+  | 'forceUpdate';
 
 /**
  * Modal copy + actions. Up to three buttons (SOLITAR shape). `button` defaults

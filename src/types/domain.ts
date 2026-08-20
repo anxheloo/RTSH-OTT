@@ -356,6 +356,17 @@ export const refreshResponseSchema = z.looseObject({
   accessToken: z.string().min(1),
 });
 
+/**
+ * Guest mint response. Access token ONLY — deliberately no `user` (not even a
+ * placeholder) and no refresh token: a synthetic user would make `user != null`
+ * true for guests, land a fake identity in the persisted MMKV blob, and attach a
+ * fake id to Sentry, while removing no branching at all. Loose so an added
+ * `tokenType`/`expiresIn` cannot break the parse.
+ */
+export const guestResponseSchema = z.looseObject({
+  accessToken: z.string().min(1),
+});
+
 /** Reset step 2 — the one-time token that authorizes the new-password POST. */
 export const resetVerifyResponseSchema = z.object({
   resetToken: z.string().min(1),

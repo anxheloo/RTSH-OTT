@@ -25,6 +25,7 @@
       "remember_me": "Më mbaj mend",
       "forgot_password": "Harruat fjalëkalimin?",
       "submit": "Hyr",
+      "continue_as_guest": "Vazhdo pa llogari",
       "no_account": "Nuk keni llogari?",
       "sign_up": "Regjistrohuni",
       "failed": "Identifikimi dështoi. Provoni përsëri."
@@ -113,6 +114,11 @@
       "terms_link": "Kushtet e Shërbimit",
       "and": "dhe",
       "privacy_link": "Politikën e Privatësisë"
+    },
+    "sign_in_required": {
+      "title": "Nevojitet llogari",
+      "message": "Hyni në llogarinë tuaj për të vazhduar.",
+      "cta": "Hyr"
     }
   },
   "home": {
@@ -204,7 +210,12 @@
     "delete_account": "Fshi llogarinë",
     "delete_confirm_title": "Fshi llogarinë",
     "delete_confirm_message": "Kjo fshin përgjithmonë llogarinë tuaj dhe nuk mund të zhbëhet. Jeni i sigurt?",
-    "deleting_account": "Duke fshirë llogarinë..."
+    "deleting_account": "Duke fshirë llogarinë...",
+    "guest": {
+      "title": "Vizitor",
+      "subtitle": "Hyni në llogari për të parë programet e kaluara, përmbajtjen 18+ dhe për të aktivizuar kontrollin prindëror.",
+      "sign_in": "Hyr ose regjistrohu"
+    }
   },
   "settings": {
     "title": "Cilësimet",
@@ -334,6 +345,7 @@
     "locked": "Shumë përpjekje. Provo pas {{seconds}}s.",
     "error": "Diçka shkoi keq. Provoni sërish.",
     "live_blocked": "Ky program është i kufizuar (18+). Vendos PIN-in për të vazhduar.",
+    "live_blocked_guest": "Ky program është i kufizuar (18+). Hyni në llogari për të vazhduar.",
     "unlock": "Vendos PIN-in",
     "change_verify_current": "Vendos PIN-in aktual për të vazhduar."
   },

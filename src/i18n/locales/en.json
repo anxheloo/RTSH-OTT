@@ -25,6 +25,7 @@
       "remember_me": "Remember me",
       "forgot_password": "Forgot password?",
       "submit": "Login",
+      "continue_as_guest": "Continue without an account",
       "no_account": "Don't have an account?",
       "sign_up": "Sign up now",
       "failed": "Login failed. Please try again."
@@ -113,6 +114,11 @@
       "terms_link": "Terms & Conditions",
       "and": "and",
       "privacy_link": "Privacy Policy"
+    },
+    "sign_in_required": {
+      "title": "Account required",
+      "message": "Sign in to your account to continue.",
+      "cta": "Sign in"
     }
   },
   "home": {
@@ -204,7 +210,12 @@
     "delete_account": "Delete account",
     "delete_confirm_title": "Delete account",
     "delete_confirm_message": "This permanently deletes your account and cannot be undone. Are you sure?",
-    "deleting_account": "Deleting account..."
+    "deleting_account": "Deleting account...",
+    "guest": {
+      "title": "Guest",
+      "subtitle": "Sign in to watch past programmes and 18+ content, and to turn on parental control.",
+      "sign_in": "Sign in or register"
+    }
   },
   "settings": {
     "title": "Settings",
@@ -334,6 +345,7 @@
     "locked": "Too many attempts. Try again in {{seconds}}s.",
     "error": "Something went wrong. Please try again.",
     "live_blocked": "This programme is restricted (18+). Enter your PIN to keep watching.",
+    "live_blocked_guest": "This programme is restricted (18+). Sign in to continue.",
     "unlock": "Enter PIN",
     "change_verify_current": "Enter your current PIN to continue."
   },

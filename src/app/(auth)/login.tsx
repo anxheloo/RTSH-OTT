@@ -6,6 +6,12 @@
  * Form state via react-hook-form + zodResolver(loginSchema). On valid submit →
  * useLoginMutation (refresh token → keychain, access token → store; the
  * Stack.Protected guard handles the redirect). Chrome from shared `AuthScreen`.
+ *
+ * This screen doubles as the WELCOME GATE: when guest mode is available it also
+ * offers "continue without an account", which is what keeps the app compliant
+ * with App Store Guideline 5.1.1(v) (no registration wall over non-account
+ * content). The gate is self-limiting — choosing guest creates a session, so the
+ * screen is not seen again until the user signs out. See `constants/auth.ts`.
  */
 import React from 'react';
 import { StyleSheet, TouchableOpacity, View } from 'react-native';
@@ -17,13 +23,16 @@ import { router } from 'expo-router';
 
 import { SPACING } from '@/theme/spacing';
 import { useAppStore } from '@/store/useAppStore';
+import { useGuestLoginMutation } from '@/api/mutations/useGuestLoginMutation';
 import { useLoginMutation } from '@/api/mutations/useLoginMutation';
 import { AuthFooterLink, AuthScreen } from '@/components/auth';
+import { BrandHeader } from '@/components/Brand';
 import ReusableBtn from '@/components/Buttons/ReusableBtn';
-import { Icon } from '@/components/Icons';
+import { Icon, IconButton } from '@/components/Icons';
 import { Checkbox, ReusableInput, ReusableText } from '@/components/Inputs';
 import { buildDeviceRegistration } from '@/utils/device';
-import { KeyIcon, MailIcon } from '@/assets/icons';
+import { CloseIcon, KeyIcon, MailIcon } from '@/assets/icons';
+import { GUEST_MODE_ENABLED } from '@/constants/auth';
 import { authErrorMessage } from '@/features/auth/errors';
 import { type LoginFormData, loginSchema } from '@/features/auth/schemas';
 
@@ -33,6 +42,7 @@ const LoginScreen: React.FC = () => {
   const rememberMeDefault = useAppStore((s) => s.rememberMe);
   const setRememberMe = useAppStore((s) => s.setRememberMe);
   const { mutate: login, isPending, error } = useLoginMutation();
+  const { mutate: continueAsGuest, isPending: isGuestPending } = useGuestLoginMutation();
 
   const { control, handleSubmit } = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
@@ -52,12 +62,44 @@ const LoginScreen: React.FC = () => {
     login({ email, password, rememberMe, device });
   });
 
+  // A guest reaches this screen as a PUSH (from Profile, or the sign-in prompt
+  // raised by a gated tap), and must be able to back out of it — declining an
+  // account has to leave them exactly where they were. The iOS edge-swipe works
+  // but is not discoverable, so show an explicit close. Absent when login is the
+  // stack root (no session), where there is nothing to go back to.
+  const canDismiss = router.canGoBack();
+
+  // Guest needs an EXPLICIT navigation, unlike login. `Stack.Protected` only
+  // redirects when the route you are on becomes forbidden: signing in flips
+  // `isAuthenticated`, which makes `(auth)` illegal and forces the move. A guest
+  // is still un-authenticated, so `(auth)` stays legal and the router has no
+  // reason to leave this screen even though `(app)` just became available.
+  // `replace`, not `push` — the welcome gate must not sit in the back stack.
+  const onContinueAsGuest = () =>
+    continueAsGuest(undefined, {
+      onSuccess: () => router.replace('/(app)/(tabs)'),
+    });
+
   // Inline only for client (4xx) errors; 5xx/network resolves to undefined and
   // the global apiError modal owns it (authErrorMessage gates the boundary).
   const errorMessage = authErrorMessage(error, { 401: t('auth.login.failed') });
 
   return (
-    <AuthScreen testID="login-screen">
+    <AuthScreen
+      testID="login-screen"
+      header={
+        <BrandHeader
+          testID="login-screen-header"
+          rightSlot={
+            canDismiss ? (
+              <IconButton onPress={() => router.back()} testID="login-close">
+                <Icon as={CloseIcon} size={22} color={colors.text} />
+              </IconButton>
+            ) : undefined
+          }
+        />
+      }
+    >
       <View style={styles.welcome}>
         <ReusableText variant="heading1">{t('auth.login.welcome')}</ReusableText>
         <ReusableText variant="bodySmall" themeColor="textMuted">
@@ -144,6 +186,25 @@ const LoginScreen: React.FC = () => {
         isFullWidth
         testID="login-submit-btn"
       />
+
+      {/* Apple requires this to be a REAL control at the same size and weight
+          tier as the primary CTA — a disguised skip (small grey text, below the
+          fold) is itself a 5.1.1(v) rejection, and reviewers test for it. Hence
+          `size="large"` + `isFullWidth`, matching "Hyr" exactly; only the fill
+          differs, so the hierarchy still reads. iOS-only: Android keeps the
+          login wall, which Play permits. */}
+      {GUEST_MODE_ENABLED ? (
+        <ReusableBtn
+          label={t('auth.login.continue_as_guest')}
+          onPress={onContinueAsGuest}
+          variant="secondary"
+          size="large"
+          isLoading={isGuestPending}
+          isDisabled={isPending}
+          isFullWidth
+          testID="login-continue-as-guest-btn"
+        />
+      ) : null}
 
       <AuthFooterLink
         prefix={t('auth.login.no_account')}

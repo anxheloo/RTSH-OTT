@@ -3,7 +3,7 @@ import { useMutation } from '@tanstack/react-query';
 import { useAppStore } from '@/store/useAppStore';
 import { setRefreshToken } from '@/lib/tokenVault';
 
-import { INLINE_CLIENT_ERROR } from '../client';
+import { INLINE_CLIENT_ERROR, queryClient } from '../client';
 import type { LoginPayload } from '../services/auth';
 import * as authService from '../services/auth';
 
@@ -21,6 +21,12 @@ export function useLoginMutation() {
 
     onSuccess: async ({ user, accessToken, refreshToken }, { rememberMe }) => {
       await setRefreshToken(refreshToken, { remember: rememberMe });
+      // Drop everything fetched under the previous session BEFORE adopting the
+      // new one. A guest upgrading to a member is the case that needs it: the
+      // two can get different playback decisions and entitlements for the same
+      // ids, so a cached guest response must not survive the sign-in. (`logout`
+      // clears the cache on the way out too — this covers the way in.)
+      queryClient.clear();
       useAppStore.getState().login(user, accessToken);
     },
   });

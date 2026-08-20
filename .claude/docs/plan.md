@@ -8,6 +8,7 @@
 
 ## Status snapshot — 2026-07-08
 
+- **🔴 TOP PRIORITY (2026-08-19) — Phase 25, Guest mode.** iOS rejected **twice** under App Store Guideline 5.1.1(v) (login wall over non-account content). Blocks the App Store release. Itself blocked on backend `POST /auth/guest` — spec handed to Henri 2026-08-19 (`~/Desktop/backendspec-henri.md`). Full step plan: **Phase 25** at the bottom of this file.
 - **Done:** Phases 0–13, 18.2 (mock server, still used for `EXPO_PUBLIC_API_MODE=mock` dev/CI), the auth wizard (11.X) incl. account self-service/cross-device sync/delete account, review fixes (11.Y), all of **Phase 22.1–22.16** (design implementation, every screen), the SDK 56→57 upgrade, the real-time STOMP layer (presence/watch-time/mid-roll/geo, ads infra Phase 16), and the **Android TV/STB 10-foot UX pass** (22.18-TV — focus/D-pad nav, guide drawer, header route menu; `Platform.isTV`-gated, mobile untouched). **11.X.9 backend wiring is DONE** — the app now runs against the real backend with real endpoints and real data (not mocks) for auth, channels, EPG, guide, catch-up, radio, ads, and realtime.
 - **Tested to date:** physical Android device, iOS simulator, Android TV emulator — "seems to work fine" per manual pass (2026-07-08). Not yet tested: real physical iOS device, Android tablet, iPad, Android TV box, Android STB unit.
 - **Active / remaining:** Sentry (14.1/5.X.12, deferred by user), store-readiness compliance work (24) + the EAS/store submission pipeline (21), physical-device coverage above, and the formal QA/audit sign-off passes (22.17, 23).
@@ -183,7 +184,66 @@ Phase 8 (5 tabs) → 22.4 (4 tabs). · 5.X.6/5.X.7/5.X.8 (design tokens) → 22.
 
 > Build order foundation-first (tokens → type → logo → nav → primitives) then per-screen. A screen step is "done" when it matches the HTML on a notched device. Albanian copy verbatim from the mockup (22.16). Keep STYLE_GUIDE throughout.
 
-### Build log — 22.1–22.16, 22.19 (done; condensed)
+### Build log
+
+#### 2026-08-20 — 25.12 done; guest token PERSISTED; backend verified live
+
+**Backend is live and its contract was verified against the real API**, not taken on
+trust: `POST /auth/guest` → `200 {accessToken}` with `type:"guest"`, `dt`/`dc`, no
+`did`, **30-day TTL**; `GET /channels` + `/guide` → `200`; `/users/me` + `/packages`
+→ `403`; `/auth/refresh` → `401`. All four match the client with no code change.
+
+**Design change from the earlier steps: the guest access token is now PERSISTED**
+(MMKV, `guestToken` in `partialize`) instead of minted every launch. Prompted by
+Henri's response — the mint is rate-limited to **60/min per IP** and carrier NAT puts
+a whole city behind one address, so per-launch minting risks a `429` on the app-open
+path, where our boot handler would have bounced the user to the login screen: the
+exact registration-wall shape Apple rejected. Persisting removes the mint from boot
+entirely (a guest now boots with **zero** network, like a member).
+
+MMKV, not the keychain, on two counts: an anonymous token that opens only free
+broadcast content is a weaker secret than the `parentalPin` hash already there, and
+MMKV is **synchronous**, so the boot read adds no async step. The keychain version
+would also have needed an `await` inside `logout()` — which has no try/catch, so a
+throw there would leave the user signed IN, on a path every Android member walks.
+
+**Two defects caught before they shipped**, neither visible to tsc/lint/tests:
+(a) a leftover `guestToken` after a member logs out would be found by the boot
+rehydrate and silently sign a signed-OUT user back in as a guest — `login` and
+`logout` now null it, locked by a test and device-verified; (b) the boot token read
+had to sit BELOW the `!GUEST_MODE_ENABLED` return, or every Android launch would gain
+an async read for a token that can never exist there.
+
+`mintGuestSession` (`features/auth/guestSession.ts`) is now the single minting path
+for all three call sites, with bounded retry on transient failures only (`429`,
+network, `5xx` — never `400`/`403`). Short backoff (0.5s/2s) deliberately ignores
+`Retry-After: 60`: a 60s hang on boot is worse than the welcome gate, which carries
+its own guest button.
+
+Also found: the pre-existing "transient failure" test threw a plain `Error`, but axios
+throws an `AxiosError` — so `isAxiosError` was false, the retry never ran, and the
+test passed for the wrong reason. Replaced with the real shape.
+
+**Gates:** `tsc` clean · `expo lint` clean · **134/134 tests** (122 → 134; +8 retry
+policy, +4 boot branches incl. "Android does not even read the token").
+
+**Device-verified on iPhone 17 Pro / iOS 26.1 against the LIVE backend** (9/9): fresh
+install → welcome gate; guest mint → Home with live channels; cold boot → straight to
+Home; guest Profile ("Vizitor", Settings kept, CTA below the rows, no logout/delete);
+sign-in pushed with a close X; member login → full member Profile with real package
+data; logout → welcome gate; **cold boot after logout → welcome gate, no guest
+resurrection**; and a guest playing live TV with EPG + day strip.
+
+Not re-exercised: the guest catch-up gate (no recordings on the test channel that day;
+verified earlier and untouched by this change).
+
+**Diagnosed and discarded on the way:** an app crash that reproduced with ALL of this
+work stashed — `react-native-worklets`'s `toOptimizedObject` asserting via the
+inspector's `consoleCreateTask`. A stale dev-client binary vs current `node_modules`;
+fixed by a rebuild. Not our code, and worth remembering as a symptom.
+
+**Still open:** 25.11 (store metadata — review notes rewrite; the demo password is the
+real one in use). — 22.1–22.16, 22.19 (done; condensed)
 
 - [x] **22.1** Token reconciliation — `darkTheme` re-valued to the design; new tokens `surfaceHigh`/`primaryBright`/`mutedDim`/`tabBarBorder` (+ later `primarySoft`/`primaryBorder`), `pill_input:24`/`button:27` radii, `space_18`; light values too. Legacy `pill`/`pill_sm`/`space_15` kept until screens migrate.
 - [x] **22.2** Typography → **Inter** — `Fonts` remapped (400–900), `useFonts` loads Inter only, `ReusableText` variants re-scaled. Anton/Outfit retired (unused-dep removal → 23.4).
@@ -398,6 +458,554 @@ Driven end-to-end on `RTSH_TV_API34` (960×540dp, `mCurUiMode=0x24`) against the
 - [ ] **OPEN — Home grid renders blank cells in columns 1–2** after returning from a channel, painting only once focused. Reproduced 3×, self-heals on further scrolling; not attributed between TV and the emulator's software renderer (`hw.gpu.enabled=no`).
 
 Full mechanism + rationale: `rules/ARCHITECTURE.md → Android TV / STB → Known gaps`.
+
+---
+
+## Phase 25 — Guest mode (App Store 5.1.1(v) fix) — 2026-08-19
+
+> **Why.** Apple rejected the app **twice** under Guideline 5.1.1(v) — "requires
+> users to register or log in to access features that are not account based."
+> An audit confirmed the rejection is correct and unappealable: the ONLY
+> account-based surfaces in the app are `GET/PATCH/DELETE /users/me` and
+> change-password, i.e. the account managing itself. Channels, EPG, guide,
+> catch-up, radio and search are free RTSH broadcast content behind a login wall.
+>
+> **Every exemption was checked and closed (2026-08-19):** no Albanian law
+> requires identifying the end user (confirmed with RTSH); no paywall exists
+> (`subscription` is unused); the core is not account-based and cannot be made so
+> — adding account features does not license gating the free ones.
+> **Geo-conditional login was evaluated and REJECTED:** App Review is US-based, so
+> a "login required outside Albania" rule means the reviewer always hits the wall,
+> and IP-whitelisting Apple to dodge that is Guideline **2.3.1** (different
+> behavior for App Review) — a removal-tier violation, strictly worse than 5.1.1.
+> Login also cannot verify location; IP does, and the CDN already enforces it.
+>
+> **BLOCKING DEPENDENCY:** `POST /auth/guest` — spec handed to Henri 2026-08-19
+> (`~/Desktop/backendspec-henri.md`). Nothing below can be device-verified until
+> it exists. Steps 1–2 and the tests can be written against the mock adapter first.
+
+### Session model (read this before touching anything)
+
+`isAuthenticated` **keeps its exact current meaning — a signed-in user** — so no
+existing consumer silently changes semantics. A new `isGuest` sits beside it, and
+a derived `hasSession = isAuthenticated || isGuest` replaces `isAuthenticated` in
+exactly **two** places: the root route guard and `useRealtimeConnection`.
+
+**SCOPE — iOS ONLY (user, 2026-08-20). Android mobile / tablet / TV keep today's
+hard login wall, logic untouched.** One constant governs it:
+`GUEST_MODE_ENABLED = Platform.OS === 'ios'` (`constants/auth.ts`), read in
+exactly TWO places — whether the "Continue as guest" button renders (25.6), and
+the boot mint branch (25.3, belt-and-braces; unreachable on Android anyway since
+the preference can never be set there).
+
+Everything else is shared code that **evaluates identically on Android by
+construction**: `isGuest` can never become true there, so `hasSession ≡
+isAuthenticated` on every Android path. That is what makes "don't touch Android"
+true — not a platform branch at each call site, but an unreachable state.
+
+**Therefore OUT of scope:** the `TVNavButton` fix (see 25.7 — it stays
+`isAuthenticated`, which is correct while `isGuest` is unreachable on TV).
+**If guest mode is ever enabled on Android, that fix becomes mandatory again** —
+Android and Android TV are one artifact, the tab bar is hidden on TV, and that
+button is the only way to change section.
+
+**Persistence — decided 2026-08-20. Nothing new goes to disk.** The guest access
+token is **memory only**, exactly like a member's (`token` is already absent from
+`partialize`, `useAppStore.ts:68-82`), and **`isGuest` is never stored** — it is
+derived at boot. The ONE persisted bit is a settings boolean meaning *"the user
+already made this choice"*, so the welcome screen is never shown twice.
+
+Rejected alternative — persisting the access token in MMKV: (a) at a ~24h
+lifetime it is usually already expired on the next launch, so the call happens
+anyway; (b) worse, it happens *after* a 401 on the first real request — a failed
+request plus two round-trips, versus one clean mint during the splash; (c) it
+would put a bearer token in the plaintext MMKV blob, breaking the written
+invariant in ARCHITECTURE.md → Persistence boundaries (the parental PIN is the
+single documented exception); (d) it forces an "is this still valid?" question on
+every boot that can only be answered by decoding the JWT or by (b). Offline is
+not an argument either — the query cache is not persisted, so a saved-but-valid
+token would still show no data.
+
+**Two different facts, kept apart:** *"I already chose guest"* is a persisted
+preference (MMKV); *`isGuest`* is runtime state, derived. Storing both would
+create a second source of truth that can drift from the keychain.
+
+**Mint LAZILY**, when the user presses "Continue as guest" — not eagerly at boot
+— so no token is minted for someone who signs in. On later launches the boot
+branch below re-mints from the persisted preference.
+
+Guests hold an **access token only, no refresh token** — deliberate: a guest
+refresh token in the keychain is indistinguishable from a real one at boot. On a
+401 the registered refresh handler **re-mints via `/auth/guest`** instead of
+calling `/auth/refresh`. Logout therefore returns the user to **guest**, not to a
+login screen.
+
+### Steps
+
+- [x] **25.1 Session state.** `store/createUserSlice.ts` + `store/useAppStore.ts`.
+  Add `isGuest: boolean` (default `false`), `setGuestSession(token: string)`
+  (sets `token`, `isGuest: true`, `user: null`, `isAuthenticated: false`), and a
+  `hasSession` selector. `login()` additionally sets `isGuest: false`. **Not
+  persisted** — derived at boot from the presence of a refresh token.
+  → **verify:** `tsc --noEmit` clean; existing store tests pass.
+
+- [x] **25.2 Guest mint service.** `api/endpoints.ts` (`AUTH_ROUTES.GUEST =
+  '/auth/guest'`), `api/services/auth.ts` (`guestLogin(device)`),
+  `types/domain.ts` (`guestResponseSchema` — `{ accessToken, expiresIn? }`,
+  Zod-parsed at the boundary like every other auth response).
+  **No `user` object, not even a dummy one** (decided 2026-08-20). A synthetic
+  guest user would make `user != null` true for guests, land a fake identity in
+  the persisted MMKV blob via `persistUser()`, and attach a fake id to Sentry —
+  while removing zero branching, since every guest surface still has to key on
+  `isGuest`. Guest/member uniformity lives in the **token claims** (`did`/`dc`
+  identical), which is what the API, player, socket and ad layer actually read. Add a mock handler in
+  `api/mocks/` so the flow is exercisable with `EXPO_PUBLIC_API_MODE=mock`.
+  → **verify:** unit test — valid response parses, malformed rejects.
+
+- [x] **25.3 Boot establishes a session.** `hooks/useCheckToken.ts` (rename to
+  `useEstablishSession`, update the `hooks/index.ts` barrel + `app/_layout.tsx`).
+  1. `getRefreshToken()` present → `isAuthenticated: true`, **no network** (the
+     existing offline-first fast path, unchanged).
+  2. Absent **and the user already chose guest** → `buildDeviceRegistration()` →
+     `POST /auth/guest` → `setGuestSession(token)` → lands on Home, never asked
+     again.
+  3. Absent **and never chose** → welcome screen (25.6). No token minted yet.
+  4. Mint fails (offline, or `403 auth.guest_disabled`) → `hasSession` stays
+     false → `(auth)` renders as the fallback; retry on reconnect.
+  **Note this is the one boot path that is no longer zero-network** — a returning
+  guest makes one call during the splash. A member's boot is unchanged.
+  **Keep the existing `try/finally`** so `tokenChecked` always flips — it is the
+  only thing stopping the splash hanging forever (it hides on
+  `fontsSettled && tokenChecked`).
+  → **verify:** tests — (a) refresh token present ⇒ `/auth/guest` never called;
+  (b) absent ⇒ minted once, `isGuest` true; (c) mint throws ⇒ `tokenChecked`
+  still true, `hasSession` false, no unhandled rejection.
+
+- [x] **25.4 401 re-mints for guests.** `api/mutations/authRefresh.ts`,
+  `api/client.ts`. In the registered refresh handler: `isGuest` → re-mint via
+  `/auth/guest` and return the new access token; on failure clear the session
+  **without** `forceSessionExpired()` (a guest has no session to have "expired" —
+  that modal would be a lie). The user path — single-flight, 401/403-only logout,
+  transient failures never wiping the keychain — is **unchanged**.
+  Also: the `playback.device_class_required` 400 branch calls
+  `forceSessionExpired()` unconditionally, which shows *"session expired"* and
+  leaves no session — wrong on both counts for a guest (it should re-mint, and a
+  guest has no session to expire). Should never fire, since a guest token always
+  carries `did`/`dc`, but branch it on `isGuest` rather than assume a member.
+  → **verify:** tests — guest 401 hits `/auth/guest` and never `/auth/refresh`;
+  user 401 behaviour byte-identical; single-flight still dedupes.
+
+- [x] **25.5 Routing — ONE word, not a restructure.** `app/_layout.tsx`.
+  Change the `(app)` block's guard from `isAuthenticated` to `hasSession`, and
+  **leave `(auth)`'s `guard={!isAuthenticated}` exactly as it is**. That already
+  does everything needed: a guest is not authenticated, so `(auth)` stays
+  reachable and pushable for sign-in, while `(app)` renders because it has a
+  session. A member: `(auth)` false, `(app)` true — identical to today. Android
+  with no session: `(auth)` true, `(app)` false — identical to today.
+  **Supersedes the earlier draft of this step**, which made `(auth)` unprotected
+  — a structural change to a path Android also walks, for no gain.
+  One thing to get right: for a guest BOTH blocks are present, so **reorder them
+  so `(app)` comes first** and Home is the initial route rather than login. In
+  both Android states only one block is ever active, so the reorder is inert
+  there. **Verify the initial route on device rather than assuming expo-router's
+  resolution order** — this is the only part of the step that is not obvious from
+  the source.
+  Login/register still need a close affordance when there is something to return
+  to (guest already in `(app)`), and none when there is not.
+  → **verify:** device — iOS guest boots to Home, Profile → Sign in pushes and
+  dismisses back; **Android regression: signed-out lands on login, signed-in
+  lands on Home, both unchanged.**
+
+- [x] **25.6 Welcome gate — the existing login screen + a "Continue as guest" button.**
+  `store/createSettingsSlice.ts` (`hasSeenWelcome`, persisted), `app/(auth)/login.tsx`.
+  **iOS only — rendered behind `GUEST_MODE_ENABLED`; on Android the login screen
+  is unchanged, with no guest button and no welcome gate.**
+  Keep the login screen **exactly as designed today** and add one button:
+  **"Vazhdo pa llogari"**, directly under the primary CTA, at the **same size and
+  weight tier** — a real button, never grey link text and never below the fold.
+  **Apple rejects disguised skips and actively tests for them; this is the single
+  most rejection-sensitive item in the phase.** Either choice sets `hasSeenWelcome`.
+  **Shown on first launch and after logout only — NOT on every cold start**
+  (user decision 2026-08-19): a login screen a guest must dismiss every launch
+  reads as the wall we are removing, and costs retention for pressure that soft
+  prompts deliver better.
+  → **verify:** device — fresh install shows it exactly once, skip lands on Home,
+  relaunch goes straight to Home, logout shows it again.
+
+- [x] **25.7 Guest UI surfaces.**
+  - `app/(app)/(tabs)/profile.tsx` — guest renders a sign-in/register CTA card
+    **plus the Settings row** (theme/language/cellular are device-local and useful
+    to a guest). No avatar, package badge, account row, logout, or delete.
+  - `app/(app)/settings.tsx` — hide the **change-password** row. The
+    **parental row stays visible and unchanged**, but every interaction routes to
+    the sign-in prompt instead of the PIN modal (`onParentalPress`). **Superseded
+    twice, settled 2026-08-20 (user):** first "keep it for guests" (wrong —
+    assumed guests could reach adult content), then "hide it entirely" (built,
+    then reverted). Final answer shows the feature and asks for an account, which
+    advertises it and gives a concrete reason to register rather than silently
+    removing a control members have. A guest's `parentalEnabled` therefore stays
+    false — which is exactly why `channel/[id]` must pass
+    `enabled: parentalEnabled || isGuest`. The stored config is **not cleared** on
+    logout (device-level by design) — it goes inert and reactivates on sign-in.
+  - **Stays open to guests — do not gate these:** cellular-data toggle (a
+    data-cost protection), language, haptics, theme, quality picker, and the
+    **analytics opt-out** (gating a privacy control behind registration is an App
+    Privacy / GDPR problem, not a funnel win).
+  - `hooks/useRealtimeConnection.ts:22` — gate on `hasSession && hasToken`.
+    **This ENABLES, it does not restrict.** Ads, geo and analytics all stay fully
+    on for guests (user, 2026-08-20). Their REST halves already work with a guest
+    token — `GET /ads`, and geo via `PlaybackDecision: GEO_BLOCKED` on
+    `GET /channels/{id}` plus the per-programme `decision` flag, both evaluated
+    by the backend from request IP, which is auth-independent. Only the
+    **real-time** halves depend on the socket: mid-roll delivery and mid-session
+    `GEO_BLOCK`/`GEO_LIFT`. Left on `isAuthenticated`, a guest gets no socket and
+    therefore no mid-roll ads and no live geo — e.g. a guest in France would not
+    be cut off mid-match when an Albania-only right is enforced after they
+    started watching. Analytics is disabled app-wide (Phase 14) and is not
+    guest-specific; when re-enabled it works unchanged (a missing `userId` is
+    already anonymous, `docs/API.md:291`).
+  - **`components/Brand/TVNavButton.tsx:90` — leave as `isAuthenticated`. OUT OF
+    SCOPE while guest mode is iOS-only.** Recorded because it is a live trap the
+    moment that changes: on TV the bottom tab bar is hidden
+    (`(tabs)/_layout.tsx:45`) and this button is the ONLY way to change section,
+    so a guest on TV would be stranded on Home with no route to sign in — and
+    Android + Android TV are ONE artifact (`Platform.isTV` is runtime, see
+    22.18-TV.b), so enabling guest on Android enables it on TV. Found by a
+    consumer audit 2026-08-20. **If `GUEST_MODE_ENABLED` ever includes Android,
+    this becomes `hasSession` and needs a TV-emulator pass — it is invisible on a
+    phone.**
+  - **`app/(app)/account.tsx:24`** — reads `user` from the store. Profile hides
+    the row for guests, but the route stays reachable by deep link / a stray
+    `router.push`. No crash (all reads are `user?.`), but it renders a blank
+    form. Redirect to the `signInRequired` modal (or `router.replace` to Profile)
+    when `isGuest`.
+  - **`useMeQuery.ts:29` needs NO change** — it is already `enabled:
+    isAuthenticated`, which stays false for a guest. Listed here so nobody
+    "fixes" it into something else.
+  → **verify:** RNTL — guest profile renders the CTA and no logout/delete row;
+  guest settings render no parental and no change-password row; `useMeQuery` not
+  called for a guest.
+
+- [x] **25.8 `signInRequired` modal — a new modal TYPE, not a new component.**
+  `store/createModalSlice.ts` (add the type), `components/ModalWrapper.tsx` (own
+  the default i18n copy per type, exactly as `noInternet` already does),
+  `i18n/` keys. Buttons: **Hyr** → `router.push('/(auth)/login')` · **Anulo** →
+  dismiss. One modal serves every gated surface (catch-up, 18+, parental).
+  Because login is a **pushed** route (25.5), hardware back / the header back
+  button / the iOS edge-swipe all return the user exactly where they were, and a
+  successful sign-in dismisses the auth stack back to the same screen.
+  **No auto-resume in v1** — after signing in the user taps the programme again;
+  auto-playing something at the end of a login flow is surprising, and
+  `queryClient.clear()` (25.9) refetches that screen anyway.
+  → **verify:** RNTL — modal opens, Hyr navigates, back returns to origin,
+  dismiss leaves no stranded `currentModal` (STYLE_GUIDE: a route-owned modal
+  must clear on unmount).
+
+- [x] **25.9 Account-gated surfaces.** `hooks/useParentalGuard.ts`,
+  `app/(app)/channel/[id].tsx`, `constants/auth.ts`.
+
+  **Requires sign-in:** **catch-up / replay of a past programme**, **18+
+  content**, **parental control** (25.7), **profile / account details**,
+  **change password**, **delete account**, **logout**. When built later,
+  **favourites**, **continue-watching across devices** and **EPG reminders**
+  join this list — genuinely account-based, and the real registration bait.
+
+  **Stays open to guests:** live TV, radio, the **full 7-day guide** (browsing a
+  past programme is fine — only *playing* it is gated), search.
+
+  Implementation — both gates fire at the same place, before the PIN branch in
+  `useParentalGuard` / at `guardPlay`, so the stream URL is never fetched:
+  - `isGuest && isAdult` → `signInRequired` modal.
+  - `isGuest && !GUEST_CATCHUP_ALLOWED && programme is past` → same modal.
+  Covers the live-boundary re-gate and the recorded selection path.
+
+  **The `isGuest` flag is the ONLY client-side trigger — do NOT add a `403`
+  branch to the interceptor** (user decision, 2026-08-20). The gate fires before
+  any request, which is what keeps the stream URL from ever being fetched, and
+  it is instant + works offline. The server still refuses independently
+  (spec §4) — that boundary is unchanged and is what actually protects the
+  content; the client simply does not react to it.
+  **Accepted consequence:** `isHandledByInterceptor` (`client.ts:167`, pre-existing
+  since commit `6c1e040`, 2026-06-17 — not added for guest mode) already excludes
+  401/403/426 from the global `apiError` modal, so if a `403` ever does arrive — a
+  tampered client, or our "is this in the past" disagreeing with the backend's
+  across clock skew / a programme that ended seconds ago — the tap fails
+  **silently** instead of prompting. The drift window is a few seconds wide and
+  only opens when the client gate is already wrong. If a dead-tap report or a
+  Sentry entry ever points here, this is the cause.
+
+  **`GUEST_CATCHUP_ALLOWED` (`constants/auth.ts`, default `false`) is the whole
+  switch.** Catch-up gating is a **product decision (user, 2026-08-20) taken
+  against a recorded frontend objection**: catch-up is replay of free broadcast
+  and is not account-based, so "watchable live, but not two hours later unless
+  you register" is the exact shape Guideline 5.1.1(v) describes — it is the most
+  likely cause of a third rejection. Rights for replay genuinely can differ from
+  live, but that is a *territory* argument which IP already enforces; login adds
+  nothing to it. Isolated behind one constant so a rejection costs one line plus
+  a resubmit, not a redesign. **Do not wire it to `/config` or flip it after
+  approval** — changing gated behaviour post-review is Guideline 2.3.1.
+  → **verify:** tests — guest + `isAdult` and guest + past programme each open
+  the modal, never mount the player, never fetch the stream URL; guest + live
+  plays normally; signed-in behaviour unchanged; flipping the constant to `true`
+  re-opens catch-up with no other edit.
+
+- [x] **25.10 Upgrade / downgrade transitions.**
+  - `api/mutations/useLoginMutation.ts` + register-verify (`app/(auth)/register.tsx`):
+    `setRefreshToken` → `login(user, accessToken)` (clears `isGuest`) →
+    **`queryClient.clear()`** — guest and user get different entitlement/geo
+    decisions, so the guest cache must not leak into the session.
+  - `api/mutations/useLogoutMutation.ts`, `useDeleteAccountMutation.ts`:
+    **unchanged from today — wipe, `isAuthenticated: false`, the guard routes to
+    `(auth)`** (user decision, 2026-08-20; supersedes the earlier "mint a guest
+    and stay in `(app)`" draft, which is now removed, not deferred). Add ONE
+    line: reset `guestChosen` to `false`. Without it the user lands on login now
+    but silently boots into guest Home on the next launch — two different answers
+    to the same question.
+  - Sentry: `clearMonitoringUser()` on downgrade; identify a guest as
+    `guest:<deviceKey>` — the same non-PII device key already sent at login, and
+    what separates "one device, 400 errors" from "400 devices, 1 each".
+  → **verify:** tests — login clears guest + cache; logout lands on guest, not
+  `(auth)`; delete-account still clears the parental config (unchanged).
+
+- [ ] **25.11 Store metadata.** `store/store.config.json`. Rewrite
+  `apple.review.notes`: the app opens without an account; **live TV, radio, the
+  7-day guide and search are free**; an account is required for profile, password
+  change, deletion, **18+ content** (age verification) and **catch-up replay**.
+  State the 18+ reason explicitly — age verification is the defensible one, and
+  a reviewer who understands why is less likely to probe the rest. Keep `demoRequired: true` + credentials —
+  the reviewer needs them for the 18+ surface. **Rotate the demo password before
+  submitting; `11111111` is committed in the repo.**
+  → **verify:** `npm run eas:metadata:lint`.
+
+- [x] **25.12 Doc sync.** `rules/ARCHITECTURE.md → Auth flow` gains a **Guest
+  session** subsection (model, mint, re-mint on 401, upgrade/downgrade, what a
+  guest may not do); `CLAUDE.md` mandatory-features list records that free content
+  is un-gated and 18+ is account-gated. Mark this phase done here.
+
+### Build log
+
+- **2026-08-20 — 25.1–25.5 done** (branch `feat/guest-mode`, against the mock
+  adapter; not device-verified — Henri's endpoint does not exist yet).
+  `constants/auth.ts` gains `GUEST_MODE_ENABLED` + `GUEST_CATCHUP_ALLOWED`;
+  `createUserSlice` gains `isGuest` + `setGuestSession(token, deviceKey)` +
+  `selectHasSession`; `createSettingsSlice` gains the persisted `guestChosen`;
+  `useCheckToken` → **`useEstablishSession`** (rename, 4 branches);
+  `authRefresh` re-mints for guests; `_layout` guard → `hasSession` with `(app)`
+  moved first; `/auth/guest` mock handler added.
+  **Gates:** `tsc` clean · `expo lint` clean · **122/122 tests** (111 → 122; +4
+  guest re-mint, +7 boot-branch incl. the Android never-mints assertion).
+  **Deviations from the plan, both deliberate:** (a) no standalone
+  `guestResponseSchema` test — no schema test exists anywhere in this codebase
+  (`refreshResponseSchema`, its identical sibling, has none), and it is covered
+  through `guestLogin` with the mock returning an extra `expiresIn` to prove the
+  loose parse; (b) a **transient** guest-mint failure now returns null WITHOUT
+  tearing down, mirroring the member path — only a confirmed 401/403 (the
+  `auth.guest_disabled` kill switch) ejects. This closes the "mid-session mint
+  failure is unspecified" open item: a flaky network no longer bounces a guest
+  out mid-programme.
+
+#### 2026-08-20 — 25.6 done + a routing flaw the device test caught
+
+`useGuestLoginMutation` (mints, then `setGuestSession` + `setGuestChosen(true)`);
+the **"Vazhdo pa llogari"** button on `login.tsx` behind `GUEST_MODE_ENABLED`,
+`variant="secondary"` at `size="large"` + `isFullWidth` so its box is byte-identical
+to "Hyr" (device-confirmed: both `0.925 x 0.062`); i18n `auth.login.continue_as_guest`
+in sq + en; `logout()` also resets `guestChosen`.
+
+**FLAW FOUND ON DEVICE — `Stack.Protected` does not redirect a guest, and 25.5
+alone left the button doing nothing visible.** The mint succeeded every time, but
+the screen never changed. `Stack.Protected` only moves you when the route you are
+**on** becomes forbidden: signing in flips `isAuthenticated`, which makes `(auth)`
+illegal and forces the move. A guest is still un-authenticated, so `(auth)` stays
+legal and the router has no reason to leave the login screen even though `(app)`
+just became available. Fixed with an explicit `router.replace('/(app)/(tabs)')` in
+the button's `onSuccess` (`replace`, not `push` — the gate must not sit in the back
+stack). **The `(app)`-first reorder from 25.5 is still required and still correct**
+— it governs which group a *fresh boot* lands on for a returning guest (branch 2),
+where both guards are true at mount. The two solve different halves; neither
+replaces the other.
+
+This was invisible to `tsc`, lint and all 122 tests, and would have shipped as a
+dead button. It is the case for device-testing every state transition, not just
+the end states.
+
+**Device-verified on iPhone 17 Pro / iOS 26.1 (mock adapter):** welcome gate →
+"Vazhdo pa llogari" → Home as guest → channel grid loads → **app-open ad fires on
+a guest token** → Profile reachable. Member regression re-checked in the same
+session: cold boot with no token → login; login → Home; restart with keychain
+token → straight to Home (branch 1, no login flash); logout → back to the gate.
+`tsc` clean · `expo lint` clean · **122/122**.
+
+**Confirms 25.7 is needed next:** a guest's Profile currently renders the member
+layout with fallbacks ("Përdorues", no email, default package badge) and still
+offers logout + delete-account.
+
+#### 2026-08-20 — 25.7–25.10 done; three more defects only the device found
+
+Built: guest Profile (sign-in card + Settings row only); Settings drops the
+parental rows and the whole "Llogaria" section for guests; `signInRequired` as a
+modal TYPE owning its own copy, CTA label and navigation in `ModalWrapper` (the
+pattern `forceUpdate` already used for `openStoreListing`), with a default
+"Anulo" so declining is a visible choice; `promptSignIn`/`dismissSignInPrompt` in
+`features/auth/signInPrompt.ts`; catch-up gated at `handleSelectProgram`; the 18+
+guest branch inside `useParentalGuard`; `account.tsx` redirects a guest;
+`useRealtimeConnection` moved to `hasSession`; `useLoginMutation` clears the query
+cache before adopting the new session.
+
+**DEFECT 1 (safety) — 18+ live content was completely ungated for guests.** The
+channel screen passed `enabled: parentalEnabled` to `useParentalGuard`, and a
+guest's `parentalEnabled` is *always* false (25.7 hides the setting, correctly).
+So the guard was disabled for exactly the users who cannot enter a PIN. Fixed with
+`enabled: parentalEnabled || isGuest`. **This was created by 25.7 and would have
+shipped with it** — hiding the parental setting is only safe *because* the guest
+is blocked from adult content, and that blocking has to actually exist. Caught
+while wiring 25.9, not by a test.
+
+**DEFECT 2 (dead end) — the 18+ blocked overlay told guests to enter a PIN.**
+Device-verified when a real 18+ programme rolled live mid-session: the player
+correctly unmounted (no A/V leak), but the overlay read *"Vendos PIN-in"* with a
+"set PIN" CTA — an instruction a guest cannot follow. Overlay copy and CTA now
+branch on `isGuest` (`parental.live_blocked_guest`), and `requestUnlock` routes
+them to the sign-in prompt instead of the PIN modal.
+
+**DEFECT 3 (dead end) — pushed login had no visible way back.** A guest who taps
+"Hyr" on the prompt lands on login with no close control; the iOS edge-swipe works
+but is not discoverable. Added a close (X) in the header, rendered only when
+`router.canGoBack()` — so it is absent when login is the stack root.
+
+**Device-verified end to end** (iPhone 17 Pro / iOS 26.1, mock adapter): guest
+Profile shows "Vizitor" + sign-in CTA + Settings only; guest Settings shows one
+Luajtja row and no Llogaria section; tapping a past programme raises the prompt
+while live keeps playing; "Anulo" leaves the user exactly in place; "Hyr" pushes
+login and the close button returns to the same channel screen; a real 18+
+programme going live blocked the player and offered sign-in.
+
+**The guest → member upgrade needs NO explicit navigation** — verified, not
+assumed, precisely because the guest direction did. Signing in flips
+`isAuthenticated`, which makes `(auth)` forbidden, and `Stack.Protected` returns
+the user to the screen they came from on its own.
+
+`tsc` clean · `expo lint` clean · **122/122**.
+
+#### 2026-08-20 — playback pause when covered, and a SEVERE bug found on the way
+
+Reported by the user: tapping "Hyr" on the catch-up prompt pushed login over a
+playing channel and **the audio kept going** — sound with no picture, no controls
+and no way to stop it. The screen stays MOUNTED under a push, which is why.
+
+- [x] **Pause while covered.** `useFocusEffect` in `channel/[id]` drives a
+  `screenFocused` flag into the existing `paused` prop (built for mid-roll ads →
+  no remount, live re-syncs to the edge on resume). Chosen over matching the
+  covering route's name because it states the real condition and covers any
+  full-screen route added later.
+- [x] **`(modals)` carve-out — required, and proven necessary on device.** React
+  Navigation blurs the screen for **any** push, `formSheet` included, so the
+  plain version froze the picture the moment the user opened player-options — a
+  player control that must not stop playback. Measured: counter stuck at
+  `00:00:15.21` across 11s. With `!segments.includes('(modals)')` it advances
+  (`06.23 → 14.29`). `(modals)` already means "renders over its parent, parent
+  stays visible", so this uses an existing convention rather than a route list.
+  (`useSegments() as string[]` — typed routes narrow the tuple and reject
+  `.includes`.)
+
+- [x] **SEVERE — an invisible modal made the app completely unusable.** Found
+  while testing the above. `useParentalGuard` auto-raised `signInRequired` from
+  an EFFECT when a live 18+ programme rolled in; the player-options sheet
+  happened to be open, so a global RN `<Modal>` was raised over a native
+  `formSheet` — exactly the race `STYLE_GUIDE` documents. The modal mounted
+  **invisibly**: present in the component tree ("Nevojitet llogari", Hyr, Anulo)
+  and absent from the screenshot, swallowing every touch. Back button, horizontal
+  swipe and vertical swipe all dead; recovered only by tapping the invisible
+  modal's own Anulo at its tree coordinates.
+  **Fix: the effect is deleted.** It was redundant anyway — the blocked overlay
+  already renders a visible "Hyr" button — so the modal added nothing and cost
+  the app's usability. The overlay's CTA now navigates to the auth stack
+  directly. `promptSignIn` survives only on the two USER-TAP paths (catch-up
+  selection, `guardPlay`), where no sheet can be open.
+  **Rule recorded in `STYLE_GUIDE`: raise a global modal only from a user
+  gesture, never from an effect** — a tap implies no sheet is presented; a timer,
+  socket push or programme boundary implies nothing.
+
+Device-verified after the fix: **audio stops when login covers the player
+(confirmed audibly by the user, 2026-08-20)**; the sheet keeps playing; the login
+push round-trips and playback resumes; back button and swipes work from the
+blocked overlay.
+`tsc` clean · `expo lint` clean · **122/122**.
+
+#### 2026-08-20 — two product corrections after the verification pass (user)
+
+1. **Guest Profile CTA moved BELOW the rows.** "Hyr ose regjistrohu" now sits
+   under the Settings card, mirroring where the member layout puts its account
+   actions — the CTA is the destination, not the header.
+2. **The parental row is shown to guests again, gated rather than hidden.**
+   `onParentalPress = isGuest ? promptSignIn : handleToggleParental` drives both
+   the row and its Switch; the change-PIN row stays naturally absent (a guest can
+   never satisfy `parentalEnabled && hasPin`). The cellular row's divider default
+   is restored. **No safety change:** 18+ blocking never depended on this row —
+   it rides `enabled: parentalEnabled || isGuest` in `channel/[id]`.
+
+Device-verified: CTA renders below Settings; "Kontrolli prindëror / Joaktiv"
+appears in Luajtja exactly as for a member; tapping it raises "Nevojitet llogari"
+and leaves the toggle off. `tsc` clean · `expo lint` clean · **122/122**.
+
+#### 2026-08-20 — clean-slate verification pass, all 8 steps green
+
+Run on a genuinely fresh state (the session had just been wiped, and `logout()`
+resets `guestChosen`, so the app started exactly as a new install would).
+iPhone 17 Pro / iOS 26.1, mock adapter, force-kill between the cold-boot checks.
+
+1. Launch → login + guest button, **no close X** (correct: stack root, nothing to
+   go back to). ✅
+2. "Vazhdo pa llogari" → Home as guest. ✅
+3. **Force-kill → relaunch → straight to Home.** ✅ **Closes the last unverified
+   item — boot branch 2.** The persisted `guestChosen` drove the re-mint with no
+   welcome gate and no login flash.
+4. Profile → "Vizitor" + sign-in CTA + Settings row only. ✅
+5. Settings → one Luajtja row (parental gone), no Llogaria section. ✅
+6. Past programme → `signInRequired`, live still playing behind it. ✅
+7. "Hyr" → pushed login (close X present) → sign in → **auto-returned to the exact
+   channel screen**, stream restarted after the cache clear. ✅
+8. Logout → login (close X correctly gone), and **force-kill → relaunch → login,
+   NOT guest** — `guestChosen` reset holds across a cold boot. ✅
+
+`tsc` clean · `expo lint` clean · **122/122**.
+
+**Bonus finding from a brief real-backend run** (`.env=real`, before switching
+back): the stale mock refresh token was rejected by the live API with 401,
+`forceSessionExpired()` fired, wiped the session and bounced to login with
+"Sesioni skadoi". The real-API teardown path is therefore verified too, though
+guest mode itself remains unexercised against the real backend until
+`POST /auth/guest` exists.
+
+### Submit gate
+
+`tsc --noEmit` · `npm run lint` · `npm test` (expect ~125, up from 111) · device
+pass on **iOS** (the whole guest flow) plus an **Android regression check** — the
+shared routing edit in 25.5 is the one thing that touches a path Android walks,
+so confirm signed-out→login and signed-in→Home are unchanged there. TV needs no
+guest pass while `GUEST_MODE_ENABLED` is iOS-only. iOS flow covers: fresh install → skip the welcome
+→ watch a channel → radio → guide → tap a past programme (sign-in prompt, back returns to the guide) → hit an 18+
+programme → sign in → watch both →
+logout → land on the login screen (unchanged), relaunch → still login.
+
+### Open decisions
+
+- [ ] **Henri’s two answers** (spec §7): guest on STOMP `/app/watch` + presence
+  (accept/ignore/reject), and guest token lifetime (want ≥ 24h).
+- [x] **Catch-up gated behind sign-in — DECIDED (user, 2026-08-20)**, against a
+  recorded frontend objection (see 25.9). Highest residual rejection risk in the
+  phase; isolated behind `GUEST_CATCHUP_ALLOWED` so reversal is one line.
+- [x] **No dummy guest user object — DECIDED (2026-08-20).** `/auth/guest`
+  returns the token only; guest state is the `isGuest` flag, never a synthetic
+  `user`. Rationale in 25.2.
+- [x] **25.6 sign-off — DONE (user, 2026-08-19).** Keep the current login screen,
+  add a "Continue as guest" button at equal prominence; show it on first launch
+  and after logout only. Parental control moved behind sign-in in the same call.
+- [x] **Logout stays as it is today — DECIDED (user, 2026-08-20).** Routes to
+  `(auth)`, does NOT drop to guest; `guestChosen` resets so the next launch
+  agrees with it.
+- [ ] **Android/Play** needs no equivalent change, but ships from the same build
+  — no separate track.
 
 ---
 

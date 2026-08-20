@@ -194,6 +194,14 @@ All deliverable files go inside this repo (`RTSH-OTT/`). Source spec lives in `.
 Beyond the architecture scaffold, these features are spec-mandated for v1 — do not treat as optional:
 
 - **T&C acceptance** — enforced once at registration: the `acceptTerms` checkbox (zod-required) on the register form, with an inline link that opens the T&C URL in `expo-web-browser`. Acceptance is account-level (sent to backend as `termsAccepted`), not re-prompted on login — no client gate, no `tcAcceptedAt` flag (removed 2026-06-17).
+- **Guest mode — the app opens WITHOUT an account (iOS only)** — live TV, radio, the
+  7-day guide and search are free to browse and watch. An account is required only for
+  catch-up replay, 18+ programmes, enabling the parental PIN, and anything
+  account-shaped (profile, change password, delete). Fixes two App Store rejections
+  under **Guideline 5.1.1(v)**; Android (phone/tablet/TV/STB) keeps its login wall,
+  since Play has no equivalent rule. `isAuthenticated` still means "a real, identified
+  user" — app access is gated on `selectHasSession`. Full mechanism:
+  `rules/ARCHITECTURE.md → Auth flow → Guest session`.
 - **Geoblocking** — channel-level (CDN / `PlaybackDecision`) + per-programme (EPG `decision` flag, live-boundary stop). Full mechanism: `rules/ARCHITECTURE.md → Real-time → Geo`.
 - **Cellular-data gate** — confirmation modal before playback over cellular when `settings.cellularPlaybackAllowed === false`. `useCellularGate()` mounts on both player routes and returns `{ pending }`; while pending the player stays unmounted (channel) / the station isn't selected (radio), so nothing streams behind the modal. Requires `channel/[id]` to stay a **card push, not `fullScreenModal`** — see `rules/ARCHITECTURE.md → Network state`.
 - ~~**Mosaic view**~~ — **cut from v1 by user decision (2026-06-11, plan 22.14f)**; route + components removed.

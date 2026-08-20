@@ -60,6 +60,15 @@ export const handlers: Handler[] = [
     respond: () => ({ data: { ...mockTokens, user: mockUserDto } }),
   },
   {
+    // Guest mint: access token ONLY — no user, no refresh token. The extra
+    // `expiresIn` proves the loose schema ignores unknown wire fields.
+    method: 'post',
+    test: (u) => u.endsWith('/auth/guest'),
+    respond: () => ({
+      data: { accessToken: mockTokens.accessToken, expiresIn: 86_400 },
+    }),
+  },
+  {
     // Wire shape mirrors `RefreshTokenResponseDTO` — the client only reads
     // `accessToken`; the extra fields prove the loose schema ignores them.
     method: 'post',

@@ -1,6 +1,7 @@
 import axios from 'axios';
 
 import { useAppStore } from '@/store/useAppStore';
+import { mintGuestSession } from '@/features/auth/guestSession';
 import { getRefreshToken } from '@/lib/tokenVault';
 
 import { forceSessionExpired, registerRefreshHandler } from '../client';
@@ -39,6 +40,11 @@ export function refreshAccessToken(): Promise<string | null> {
 }
 
 async function doRefresh(): Promise<string | null> {
+  // A guest holds no refresh token by design, so there is nothing to exchange —
+  // mint a replacement instead. Same single-flight, same retry-once contract in
+  // the interceptor; only the source of the new token differs.
+  if (useAppStore.getState().isGuest) return remintGuest();
+
   const refreshToken = await getRefreshToken();
   if (!refreshToken) return null;
 
@@ -60,6 +66,39 @@ async function doRefresh(): Promise<string | null> {
     }
     // Transient (network/timeout/5xx): caller treats as unauthenticated this
     // attempt, but token stays so the next attempt can succeed.
+    return null;
+  }
+}
+
+/**
+ * Re-mint a guest access token after a 401.
+ *
+ * Failure semantics mirror the member path deliberately: a confirmed auth
+ * failure (401/403 — the backend's `auth.guest_disabled` kill switch, or a
+ * rejected device) means the guest path is closed and cannot recover, so the
+ * session is torn down and the root guard routes to the auth stack. Anything
+ * else (offline, timeout, 5xx, or a `429` from the shared-IP mint limit) is
+ * transient: `mintGuestSession` has already retried with backoff, and this
+ * returns null WITHOUT tearing down — a flaky network, or a crowd behind one
+ * carrier NAT, must not eject someone mid-programme. The next request retries.
+ *
+ * No `forceSessionExpired()` here: that clears the query cache and raises a
+ * "your session expired" notice, both of which are wrong for a guest who never
+ * had a session to expire.
+ */
+async function remintGuest(): Promise<string | null> {
+  try {
+    const { accessToken, deviceKey } = await mintGuestSession();
+    useAppStore.getState().setGuestSession(accessToken, deviceKey);
+    return accessToken;
+  } catch (error) {
+    if (axios.isAxiosError(error)) {
+      const status = error.response?.status;
+      if (status === 401 || status === 403) {
+        await useAppStore.getState().logout();
+        return null;
+      }
+    }
     return null;
   }
 }

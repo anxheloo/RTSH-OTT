@@ -75,6 +75,8 @@ export const useAppStore = create<AppStore>()(
         hapticsEnabled: state.hapticsEnabled,
         analyticsEnabled: state.analyticsEnabled,
         rememberMe: state.rememberMe,
+        guestChosen: state.guestChosen,
+        guestToken: state.guestToken,
         parentalEnabled: state.parentalEnabled,
         parentalPin: state.parentalPin,
         failedAttempts: state.failedAttempts,

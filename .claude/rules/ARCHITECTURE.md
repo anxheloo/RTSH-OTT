@@ -38,6 +38,107 @@ The **choice** (not the token) is persisted to MMKV via `SettingsSlice.rememberM
 
 **Known gaps:** the OS may reclaim the JS context under memory pressure while backgrounded → a non-remembered session ends early (acceptable, matches "you closed the app").
 
+### Guest session — browse without an account (built 2026-08-20; **iOS only**)
+
+Apple rejected the app **twice** under **Guideline 5.1.1(v)** ("requires users to
+register to access features that are not account based"). Nothing here is
+account-based except the account itself, and every escape was closed: no Albanian law
+requires identifying a viewer, the app is free (so no paid-entitlement carve-out), and
+a geo-conditional wall fails because App Review sits in the US — IP-whitelisting Apple
+would itself be Guideline **2.3.1**, which gets apps *removed*, not rejected. So the
+app must open into content, which it can only do if the backend issues a token to an
+unidentified device.
+
+**iOS only.** `GUEST_MODE_ENABLED = Platform.OS === 'ios'` (`constants/auth.ts`).
+Google Play has no equivalent rule, so Android — phone, tablet, TV and STB, one
+artifact — keeps its login wall byte-identical. Everything guest-shaped is gated on
+that constant or on `isGuest`, which is unreachable off-iOS.
+
+**`isAuthenticated` keeps its narrow meaning** — a real, identified user — so all 17
+existing consumers stayed correct with no review. "There is a usable session" is the
+separate `selectHasSession` (`isAuthenticated || isGuest`), and it is the ONLY
+predicate gating app access. That is why `useMeQuery` (`enabled: isAuthenticated`)
+never fires for a guest and never meets the backend's `403`.
+
+1. **Mint** — `POST /auth/guest { device }` (`services/auth.ts → guestLogin`), the
+   SAME `DeviceRegistration` login sends, so the token carries the same `dt`/`dc`
+   claims and every downstream endpoint, the player, the socket and the ad layer treat
+   a guest byte-identically. Returns an access token ONLY: no `user`, and deliberately
+   **no refresh token** — one in the keychain would be indistinguishable from a
+   member's at boot.
+2. **Persistence — the token, in MMKV, NOT the keychain.** `guestToken` on
+   `UserSlice`, in `partialize`. An anonymous token that opens only free broadcast
+   content is a weaker secret than the `parentalPin` hash already there (`/users/me`,
+   `/packages` and `/auth/logout` all `403` for it), and MMKV is **synchronous** — so
+   the boot read adds no async step and no new throw surface. `token` itself stays
+   memory-only for members; this is the only token that ever reaches disk.
+   **`login` and `logout` MUST null it** (plain `set` — synchronous, cannot throw). A
+   leftover copy is found by the boot rehydrate and silently signs a signed-OUT user
+   back in as a guest — the same trap `tokenVault` documents for a non-remembered
+   session. Locked by a test, and device-verified.
+3. **Boot** (`useEstablishSession`, renamed from `useCheckToken`) — five ordered
+   outcomes, only one of which touches the network: refresh token → member (no
+   network) · not iOS → auth stack · **persisted `guestToken` → guest (no network)** ·
+   `guestChosen` → mint (rare: the token was lost) · else / mint failed → auth stack.
+   The `!GUEST_MODE_ENABLED` return sits ABOVE the token read, so Android boot stays
+   one keychain read and the same early return it always was.
+4. **Re-mint on 401, never refresh.** `doRefresh` early-returns `remintGuest()` when
+   `isGuest`, so a guest never calls `/auth/refresh` (which `401`s for them by design).
+   Same single-flight and retry-once contract as the member path; only the source of
+   the new token differs. A confirmed **401/403** — the backend's `auth.guest_disabled`
+   kill switch — tears the session down to the auth stack; anything else returns null
+   **without** teardown, so a flaky network cannot eject someone mid-programme.
+   Deliberately NOT `forceSessionExpired()`: that clears the query cache and raises
+   "your session expired", both wrong for someone who never had a session.
+5. **The rate limit is a first-class case.** `POST /auth/guest` is capped at **60
+   mints/min per IP**, and carrier NAT puts a whole city behind one address — so a
+   `429` is a crowd, not a client fault. `mintGuestSession` (`features/auth/`) is the
+   single minting path for all three call sites and retries transient failures only
+   (`429`, network, `5xx`; never `400`/`403`, which cannot succeed). Backoff is short
+   (0.5s, 2s) and deliberately ignores the server's `Retry-After: 60`: this can run on
+   the boot path, where a 60s hang is worse than falling back to the welcome gate — and
+   that gate carries its own "continue without an account" button, so it is an entry
+   screen with a one-tap retry, **not** a registration wall. Persisting the token is
+   what makes this rare: a guest mints roughly once per install, not once per launch.
+
+**What an account is required for** — gated client-side on `isGuest`, never by parsing
+a `403`: **catch-up replay** (`GUEST_CATCHUP_ALLOWED`, checked before `guardPlay` so
+the signed stream URL is never fetched), **18+ programmes** (`useParentalGuard` with
+`enabled: parentalEnabled || isGuest` — the `|| isGuest` is load-bearing, since a
+guest's `parentalEnabled` is always false), **enabling the parental PIN** (the Settings
+row is shown but routed to the sign-in prompt), and everything account-shaped on
+Profile. The `signInRequired` modal owns its own copy and its navigation in
+`ModalWrapper`, so no gate can drift from another.
+
+**Deliberately still ON for guests:** ads, geo-blocking and the STOMP socket
+(`useRealtimeConnection` gates on `hasSession`, not `isAuthenticated`). Without the
+socket a guest could start a match legally and never be cut off when an Albania-only
+right is enforced mid-stream.
+
+**Backend contract — verified against the live API 2026-08-20**, not taken on trust:
+`type: "guest"`, `dt`/`dc` present, no `did`, **30-day TTL**, bare `{accessToken}`;
+`GET /channels` + `/guide` → `200`, `/users/me` + `/packages` → `403`,
+`/auth/refresh` → `401`. `PlaybackDecision` gained **`LOGIN_REQUIRED`** for catch-up,
+which costs us nothing because `decision` is typed as an open `z.string()`, not a
+closed enum. **The constraint that matters:** `LOGIN_REQUIRED` must NEVER appear on a
+LIVE path for a guest — both `channel/[id]`'s `decisionBlocked` and
+`useLiveProgramBlock` treat *anything* not `ALLOWED` as "stop the player", so it would
+make live TV unwatchable for every guest.
+
+**Known gaps:**
+- **18+ is client-enforced only.** The backend gates adult content for neither guests
+  nor members — `birthDate` is checked nowhere — so signing in provides no real age
+  assurance. Acceptable while RTSH's adult-flagged slots are post-watershed material;
+  it must change if genuinely 18+ content ships.
+- **Catch-up behind login is the residual rejection risk.** Replay of free broadcast is
+  not account-based, which is the exact shape 5.1.1(v) describes. A product decision,
+  isolated behind `GUEST_CATCHUP_ALLOWED` so it reverses in one line.
+- **A guest is anonymous per mint server-side** — the backend validates then discards
+  `deviceKey`, so there is no `did` and no cross-launch identity. Monitoring uses our
+  own keychain UUID (`guest:<deviceKey>`), which is stable across mints.
+- **"No network at boot" is proven by unit test, not on device.** JS network
+  interception captures `fetch` only and this app uses axios/XHR.
+
 ### Why these choices
 
 - **Offline-first boot.** OTT users open the app on subways, planes, hotel WiFi captives. Blocking the splash on a network round-trip is unacceptable. Keychain-only check resolves in ~0ms.

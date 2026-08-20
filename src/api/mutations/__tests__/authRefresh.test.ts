@@ -5,6 +5,8 @@
  *   • transient failure (network/5xx) → null, NO teardown, token survives
  *   • confirmed 401/403 → delegates to the shared `forceSessionExpired()` teardown
  *   • no refresh token → null without a network call
+ *   • GUEST sessions re-mint via `/auth/guest` instead of `/auth/refresh`, and
+ *     only a confirmed 401/403 on that mint tears the session down
  *
  * `forceSessionExpired`'s own behavior (logout + query-cache wipe + notify) is
  * covered by `api/__tests__/client.test.ts` — extracted there 2026-07-14
@@ -18,14 +20,23 @@
 import { AxiosError, AxiosHeaders } from 'axios';
 
 import { useAppStore } from '@/store/useAppStore';
+import { mintGuestSession } from '@/features/auth/guestSession';
 import { getRefreshToken } from '@/lib/tokenVault';
 
 import { forceSessionExpired } from '../../client';
 import * as authService from '../../services/auth';
 import { refreshAccessToken } from '../authRefresh';
 
+const mockLogout = jest.fn(async () => {});
+const mockSetGuestSession = jest.fn();
+let mockStoreState: Record<string, unknown> = {};
+
 jest.mock('@/store/useAppStore', () => ({
-  useAppStore: { getState: () => ({}), setState: jest.fn() },
+  useAppStore: { getState: () => mockStoreState, setState: jest.fn() },
+}));
+
+jest.mock('@/utils/device', () => ({
+  buildDeviceRegistration: jest.fn(async () => ({ deviceKey: 'device-key-1' })),
 }));
 
 jest.mock('@/i18n', () => ({ __esModule: true, default: { t: (k: string) => k } }));
@@ -39,11 +50,15 @@ jest.mock('../../client', () => ({
   registerRefreshHandler: jest.fn(),
 }));
 
-jest.mock('../../services/auth', () => ({
-  refresh: jest.fn(),
-}));
+jest.mock('../../services/auth', () => ({ refresh: jest.fn() }));
+
+// Mocked at the module boundary: the mint's RETRY policy (which failures are
+// worth another attempt) is covered in `features/auth/__tests__/guestSession`.
+// This file asserts only what this module decides once a mint has settled.
+jest.mock('@/features/auth/guestSession', () => ({ mintGuestSession: jest.fn() }));
 
 const mockRefresh = authService.refresh as jest.Mock;
+const mockMint = mintGuestSession as jest.Mock;
 const mockGetRefreshToken = getRefreshToken as jest.Mock;
 const mockForceSessionExpired = forceSessionExpired as jest.Mock;
 
@@ -59,7 +74,22 @@ const axios401 = () =>
 beforeEach(() => {
   jest.clearAllMocks();
   mockGetRefreshToken.mockResolvedValue('refresh-token');
+  // Default: a signed-in member. Guest tests opt in explicitly.
+  mockStoreState = { isGuest: false, logout: mockLogout, setGuestSession: mockSetGuestSession };
 });
+
+const asGuest = () => {
+  mockStoreState = { isGuest: true, logout: mockLogout, setGuestSession: mockSetGuestSession };
+};
+
+const axios403 = () =>
+  new AxiosError('Forbidden', '403', undefined, undefined, {
+    status: 403,
+    statusText: 'Forbidden',
+    data: {},
+    headers: {},
+    config: { headers: new AxiosHeaders() },
+  });
 
 describe('refreshAccessToken', () => {
   it('returns the new access token and writes it to the store', async () => {
@@ -105,5 +135,54 @@ describe('refreshAccessToken', () => {
     mockGetRefreshToken.mockResolvedValue(null);
     await expect(refreshAccessToken()).resolves.toBeNull();
     expect(mockRefresh).not.toHaveBeenCalled();
+  });
+
+  /* ------------------------------- guest ---------------------------------- */
+
+  it('guest session re-mints via /auth/guest and never calls /auth/refresh', async () => {
+    asGuest();
+    mockMint.mockResolvedValue({ accessToken: 'fresh-guest-token', deviceKey: 'device-key-1' });
+
+    await expect(refreshAccessToken()).resolves.toBe('fresh-guest-token');
+
+    expect(mockMint).toHaveBeenCalledTimes(1);
+    expect(mockRefresh).not.toHaveBeenCalled();
+    // A guest holds no refresh token, so the vault must not even be consulted.
+    expect(mockGetRefreshToken).not.toHaveBeenCalled();
+    expect(mockSetGuestSession).toHaveBeenCalledWith('fresh-guest-token', 'device-key-1');
+  });
+
+  it('guest mint refused (403) → tears the session down so the guard routes to auth', async () => {
+    asGuest();
+    mockMint.mockRejectedValue(axios403());
+
+    await expect(refreshAccessToken()).resolves.toBeNull();
+
+    expect(mockLogout).toHaveBeenCalledTimes(1);
+    // Wrong for a guest: they never had a session to "expire".
+    expect(mockForceSessionExpired).not.toHaveBeenCalled();
+  });
+
+  it('guest mint fails transiently → null, but NO teardown (must not eject mid-programme)', async () => {
+    asGuest();
+    // Already past `mintGuestSession`'s own retries — offline, or a `429` from
+    // the shared-IP mint limit that outlasted the backoff.
+    mockMint.mockRejectedValue(new AxiosError('Network Error', 'ERR_NETWORK'));
+
+    await expect(refreshAccessToken()).resolves.toBeNull();
+
+    expect(mockLogout).not.toHaveBeenCalled();
+    expect(mockForceSessionExpired).not.toHaveBeenCalled();
+  });
+
+  it('guest re-mint is single-flighted like the member path', async () => {
+    asGuest();
+    mockMint.mockResolvedValue({ accessToken: 'fresh-guest-token', deviceKey: 'device-key-1' });
+
+    const [a, b] = await Promise.all([refreshAccessToken(), refreshAccessToken()]);
+
+    expect(a).toBe('fresh-guest-token');
+    expect(b).toBe('fresh-guest-token');
+    expect(mockMint).toHaveBeenCalledTimes(1);
   });
 });

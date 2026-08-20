@@ -3,6 +3,11 @@
  * avatar, package badge, and navigation rows to account details / settings +
  * a logout confirmation. Parental control lives inside Settings (no separate
  * Profile row). All toggles live in Settings.
+ *
+ * For a GUEST this tab is the sign-in entry point instead — the only place in
+ * the app that offers an account. It keeps the Settings row (device preferences
+ * are theirs) and drops everything account-shaped: avatar, package badge,
+ * account details, logout, delete. There is nothing to log out OF.
  */
 import React from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
@@ -18,6 +23,7 @@ import { useDeleteAccountMutation, useLogoutMutation } from '@/api/mutations';
 import { useBrandHeaderHeight } from '@/hooks/useBrandHeaderHeight';
 import { useTabBarHeight } from '@/hooks/useTabBarHeight';
 import { BrandHeader } from '@/components/Brand';
+import ReusableBtn from '@/components/Buttons/ReusableBtn';
 import { Icon } from '@/components/Icons';
 import ReusableText from '@/components/Inputs/ReusableText';
 import { FullScreenLoader, ListRow, ScreenLayout } from '@/components/Layout';
@@ -30,6 +36,7 @@ const ProfileScreen: React.FC = () => {
   const tabBarHeight = useTabBarHeight();
   const headerHeight = useBrandHeaderHeight();
   const user = useAppStore((s) => s.user);
+  const isGuest = useAppStore((s) => s.isGuest);
   // Center the profile column on tablet/TV; no-op on phone.
   const contentWidth = useContentWidth('content');
   const updateModalSlice = useAppStore((s) => s.updateModalSlice);
@@ -82,10 +89,7 @@ const ProfileScreen: React.FC = () => {
 
   return (
     <ScreenLayout>
-      <BrandHeader
-        testID="profile-header"
-        onLogoPress={() => router.navigate('/(app)/(tabs)')}
-      />
+      <BrandHeader testID="profile-header" onLogoPress={() => router.navigate('/(app)/(tabs)')} />
 
       <ScrollView
         contentContainerStyle={[
@@ -95,73 +99,123 @@ const ProfileScreen: React.FC = () => {
         ]}
         showsVerticalScrollIndicator={false}
       >
-        {/* Avatar + user info */}
-        <View style={styles.avatarBlock}>
-          <View style={[styles.avatar, { backgroundColor: colors.primary }]}>
-            <ReusableText fontSize={28} fontWeight="extraBold" themeColor="onPrimary">
-              {initials}
-            </ReusableText>
-          </View>
-          <ReusableText
-            variant="heading2"
-            themeColor="text"
-            style={styles.displayName}
-            numberOfLines={1}
-          >
-            {user?.displayName ?? t('profile.user_default')}
-          </ReusableText>
-          <ReusableText
-            fontSize={FONTSIZE.regular}
-            themeColor="textMuted"
-            style={styles.email}
-            numberOfLines={1}
-          >
-            {user?.email ?? ''}
-          </ReusableText>
-          <View style={[styles.badge, { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}>
-            <ReusableText fontSize={FONTSIZE.sm} fontWeight="semiBold" themeColor="textMuted">
-              {packageBadge}
-            </ReusableText>
-          </View>
-        </View>
+        {isGuest ? (
+          <>
+            <View style={styles.avatarBlock}>
+              <View style={[styles.avatar, { backgroundColor: colors.surfaceElevated }]}>
+                <Icon as={UserIcon} size={34} color={colors.textMuted} />
+              </View>
+              <ReusableText variant="heading2" themeColor="text" style={styles.displayName}>
+                {t('profile.guest.title')}
+              </ReusableText>
+              <ReusableText
+                fontSize={FONTSIZE.regular}
+                themeColor="textMuted"
+                textAlign="center"
+                style={styles.email}
+              >
+                {t('profile.guest.subtitle')}
+              </ReusableText>
+            </View>
 
-        {/* Navigation rows */}
-        <View style={[styles.card, { backgroundColor: colors.surface }]}>
-          <ListRow
-            title={t('profile.account.title')}
-            subtitle={t('profile.account.subtitle')}
-            leading={<Icon as={UserIcon} size={20} color={colors.text} />}
-            onPress={() => router.push('/(app)/account')}
-            testID="profile-account-row"
-          />
-          <ListRow
-            title={t('profile.settings_row.title')}
-            subtitle={t('profile.settings_row.subtitle')}
-            leading={<Icon as={SettingsIcon} size={20} color={colors.text} />}
-            onPress={() => router.push('/(app)/settings')}
-            showDivider={false}
-            testID="profile-settings-row"
-          />
-        </View>
+            <View style={[styles.card, { backgroundColor: colors.surface }]}>
+              <ListRow
+                title={t('profile.settings_row.title')}
+                subtitle={t('profile.settings_row.subtitle')}
+                leading={<Icon as={SettingsIcon} size={20} color={colors.text} />}
+                onPress={() => router.push('/(app)/settings')}
+                showDivider={false}
+                testID="profile-settings-row"
+              />
+            </View>
 
-        {/* Logout + delete account */}
-        <View style={[styles.card, styles.cardLast, { backgroundColor: colors.surface }]}>
-          <ListRow
-            title={t('profile.logout')}
-            leading={<Icon as={OutIcon} size={20} color={colors.error} />}
-            titleColor="error"
-            onPress={handleLogout}
-            testID="profile-logout-row"
-          />
-          <ListRow
-            title={t('profile.delete_account')}
-            leading={<Icon as={WarningIcon} size={20} color={colors.error} />}
-            titleColor="error"
-            onPress={handleDeleteAccount}
-            showDivider={false}
-            testID="profile-delete-account-row"
-          />
-        </View>
+            {/* Below the rows, mirroring where the member layout puts its
+                account actions — the CTA is the destination, not the header. */}
+            <ReusableBtn
+              label={t('profile.guest.sign_in')}
+              onPress={() => router.push('/(auth)/login')}
+              variant="primary"
+              size="large"
+              isFullWidth
+              testID="profile-guest-sign-in-btn"
+            />
+          </>
+        ) : (
+          <>
+            {/* Avatar + user info */}
+            <View style={styles.avatarBlock}>
+              <View style={[styles.avatar, { backgroundColor: colors.primary }]}>
+                <ReusableText fontSize={28} fontWeight="extraBold" themeColor="onPrimary">
+                  {initials}
+                </ReusableText>
+              </View>
+              <ReusableText
+                variant="heading2"
+                themeColor="text"
+                style={styles.displayName}
+                numberOfLines={1}
+              >
+                {user?.displayName ?? t('profile.user_default')}
+              </ReusableText>
+              <ReusableText
+                fontSize={FONTSIZE.regular}
+                themeColor="textMuted"
+                style={styles.email}
+                numberOfLines={1}
+              >
+                {user?.email ?? ''}
+              </ReusableText>
+              <View
+                style={[
+                  styles.badge,
+                  { backgroundColor: colors.surfaceElevated, borderColor: colors.border },
+                ]}
+              >
+                <ReusableText fontSize={FONTSIZE.sm} fontWeight="semiBold" themeColor="textMuted">
+                  {packageBadge}
+                </ReusableText>
+              </View>
+            </View>
+
+            {/* Navigation rows */}
+            <View style={[styles.card, { backgroundColor: colors.surface }]}>
+              <ListRow
+                title={t('profile.account.title')}
+                subtitle={t('profile.account.subtitle')}
+                leading={<Icon as={UserIcon} size={20} color={colors.text} />}
+                onPress={() => router.push('/(app)/account')}
+                testID="profile-account-row"
+              />
+              <ListRow
+                title={t('profile.settings_row.title')}
+                subtitle={t('profile.settings_row.subtitle')}
+                leading={<Icon as={SettingsIcon} size={20} color={colors.text} />}
+                onPress={() => router.push('/(app)/settings')}
+                showDivider={false}
+                testID="profile-settings-row"
+              />
+            </View>
+
+            {/* Logout + delete account */}
+            <View style={[styles.card, styles.cardLast, { backgroundColor: colors.surface }]}>
+              <ListRow
+                title={t('profile.logout')}
+                leading={<Icon as={OutIcon} size={20} color={colors.error} />}
+                titleColor="error"
+                onPress={handleLogout}
+                testID="profile-logout-row"
+              />
+              <ListRow
+                title={t('profile.delete_account')}
+                leading={<Icon as={WarningIcon} size={20} color={colors.error} />}
+                titleColor="error"
+                onPress={handleDeleteAccount}
+                showDivider={false}
+                testID="profile-delete-account-row"
+              />
+            </View>
+          </>
+        )}
       </ScrollView>
 
       {/* Blocking overlay while the DELETE request is in flight — the local

@@ -9,6 +9,14 @@ export const AUTH_ROUTES = {
   REFRESH: '/auth/refresh',
   LOGOUT: '/auth/logout',
 
+  /**
+   * Mints a device-scoped access token with no identity behind it — the
+   * "browse without an account" path (iOS only, see `GUEST_MODE_ENABLED`).
+   * Returns an access token ONLY: a guest has no refresh token and is
+   * re-minted here on 401 instead.
+   */
+  GUEST: '/auth/guest',
+
   // Registration: single-shot submit (all profile data) → OTP verify (returns
   // tokens — auto-login). No separate details step on the backend.
   REGISTER: '/auth/register',

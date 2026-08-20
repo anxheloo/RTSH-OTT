@@ -20,11 +20,21 @@
  * boundary or per tap. Binary `isAdult` for v1 (age tiers later). A programme
  * stays unlocked once verified (kept in a per-id set), so re-tapping a recorded
  * item — or a live programme that briefly re-derives — never re-prompts.
+ *
+ * GUESTS take the same block with a different key. A guest cannot hold a PIN (the
+ * setting is hidden for them, since it would gate content they can't reach), so
+ * for them 18+ content is unlocked by SIGNING IN, not by entering digits: the PIN
+ * modal never opens and `signInRequired` is raised instead. The caller must
+ * therefore pass `enabled: parentalEnabled || isGuest` — gating on
+ * `parentalEnabled` alone would leave a guest watching 18+ live content
+ * completely ungated, because their `parentalEnabled` is always false.
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
+import { useAppStore } from '@/store/useAppStore';
 import { useChannelEpgQuery } from '@/api/queries';
 import type { EpgItem } from '@/types/domain';
+import { promptSignIn } from '@/features/auth/signInPrompt';
 
 import { useAppState } from './useAppState';
 
@@ -63,6 +73,7 @@ export function useParentalGuard(
 ): ParentalGuard {
   const enabled = opts.enabled ?? true;
   const { isLive } = opts;
+  const isGuest = useAppStore((s) => s.isGuest);
 
   // Programmes unlocked this session, keyed by id. A verified programme stays
   // open; a *different* airing programme (new id) is absent → naturally re-locks.
@@ -112,8 +123,21 @@ export function useParentalGuard(
   const [liveDismissedId, setLiveDismissedId] = useState<string | null>(null);
   const liveUnlocked = liveCurrentId !== null && verifiedIds.has(liveCurrentId);
   const isBlocked = liveCurrentId !== null && !liveUnlocked;
-  const liveShowPrompt = isBlocked && liveDismissedId !== liveCurrentId;
+  // A guest never sees the PIN modal — there is no PIN for them to enter.
+  const liveShowPrompt = isBlocked && !isGuest && liveDismissedId !== liveCurrentId;
   const blockedDismissed = isBlocked && !liveShowPrompt;
+
+  // NOTE: there is deliberately NO effect here raising the sign-in modal for a
+  // blocked guest. `isBlocked` already unmounts the player (no A/V leak) and the
+  // screen renders a blocked overlay with its own visible "Hyr" button, so a
+  // modal on top was redundant — and actively harmful: this branch is driven by
+  // a programme-boundary TIMER, so it could fire while a `(modals)` sheet was
+  // presented. A global RN `<Modal>` raised over a native sheet is the race
+  // `STYLE_GUIDE` warns about, and it reproduced: the modal mounted INVISIBLY
+  // and swallowed every touch, leaving the app unusable (device, 2026-08-20).
+  // Rule: raise a global modal only from a user gesture, never from an effect.
+  // The overlay's CTA navigates to the auth stack directly instead.
+
   // Plain functions (not useCallback): React Compiler memoizes them, and they're
   // only passed as JSX props — no effect/hook needs a stable identity.
   const requestUnlock = () => setLiveDismissedId(null);
@@ -123,12 +147,19 @@ export function useParentalGuard(
   const guardPlay = useCallback(
     (program: EpgItem, onAllowed: () => void) => {
       if (enabled && program.isAdult && !verifiedIds.has(program.id)) {
+        // Defensive: the channel screen already blocks every recorded tap for a
+        // guest (catch-up needs an account), so this should be unreachable — but
+        // a guest must never be shown a PIN modal they cannot satisfy.
+        if (isGuest) {
+          promptSignIn();
+          return;
+        }
         setPending({ id: program.id, onAllowed });
         return;
       }
       onAllowed();
     },
-    [enabled, verifiedIds],
+    [enabled, verifiedIds, isGuest],
   );
 
   // ---- shared modal — a pending recorded gate takes precedence over live ----

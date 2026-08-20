@@ -11,6 +11,8 @@ import React from 'react';
 import { Modal, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
+import { router } from 'expo-router';
+
 import { BORDERRADIUS, SPACING } from '@/theme';
 import { useAppStore } from '@/store/useAppStore';
 import { openStoreListing } from '@/utils/device';
@@ -30,7 +32,12 @@ const ModalWrapper: React.FC = () => {
 
   const close = () => updateModalSlice({ currentModal: null });
   // Force a choice on confirmation/notify; alerts dismiss on backdrop tap.
-  const dismissable = currentModal === 'apiError' || currentModal === 'noInternet';
+  // `signInRequired` is dismissable: declining an account must always leave the
+  // user where they were, never trap them. It is a prompt, not a wall.
+  const dismissable =
+    currentModal === 'apiError' ||
+    currentModal === 'noInternet' ||
+    currentModal === 'signInRequired';
   // 426 force-update is the one modal the user can never leave — the CTA opens
   // the store listing and the modal stays up until the app is updated.
   const blocking = currentModal === 'forceUpdate';
@@ -41,9 +48,11 @@ const ModalWrapper: React.FC = () => {
       ? t('common.error')
       : currentModal === 'noInternet'
         ? t('offline.title')
-        : currentModal === 'forceUpdate'
-          ? t('update.title')
-          : '');
+        : currentModal === 'signInRequired'
+          ? t('auth.sign_in_required.title')
+          : currentModal === 'forceUpdate'
+            ? t('update.title')
+            : '');
 
   const description =
     modalData.description ||
@@ -51,9 +60,11 @@ const ModalWrapper: React.FC = () => {
       ? t('errors.api_default')
       : currentModal === 'noInternet'
         ? t('offline.message')
-        : currentModal === 'forceUpdate'
-          ? t('update.message')
-          : '');
+        : currentModal === 'signInRequired'
+          ? t('auth.sign_in_required.message')
+          : currentModal === 'forceUpdate'
+            ? t('update.message')
+            : '');
 
   const run = (action?: () => void | Promise<void>) => async () => {
     await action?.();
@@ -66,9 +77,29 @@ const ModalWrapper: React.FC = () => {
   const secondaries: Btn[] = [];
   if (modalData.button2) secondaries.push({ label: modalData.button2, action: modalData.action2 });
   if (modalData.button3) secondaries.push({ label: modalData.button3, action: modalData.action3 });
+  // Declining must be an explicit, visible choice — a backdrop tap is not
+  // discoverable enough for a prompt the user may well want to refuse.
+  if (currentModal === 'signInRequired' && !modalData.button2) {
+    secondaries.push({ label: t('common.cancel') });
+  }
 
-  const primaryLabel = modalData.button ?? (blocking ? t('update.cta') : t('common.ok'));
-  const primaryAction = modalData.action ?? (blocking ? openStoreListing : undefined);
+  // `signInRequired` owns its label AND its action here, the same way
+  // `forceUpdate` owns `openStoreListing` — so every gate that raises it passes
+  // no copy and no handler, and they cannot drift apart.
+  const primaryLabel =
+    modalData.button ??
+    (blocking
+      ? t('update.cta')
+      : currentModal === 'signInRequired'
+        ? t('auth.sign_in_required.cta')
+        : t('common.ok'));
+  const primaryAction =
+    modalData.action ??
+    (blocking
+      ? openStoreListing
+      : currentModal === 'signInRequired'
+        ? () => router.push('/(auth)/login')
+        : undefined);
   const showIconStrip = currentModal === 'apiError' || currentModal === 'noInternet';
 
   return (
