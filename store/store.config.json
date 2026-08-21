@@ -39,9 +39,7 @@
             "../assets/AppStore-PlayStore/App Screenshots/ios/mobile/09-radio-player.png",
             "../assets/AppStore-PlayStore/App Screenshots/ios/mobile/06-search.png",
             "../assets/AppStore-PlayStore/App Screenshots/ios/mobile/08-player-options.png",
-            "../assets/AppStore-PlayStore/App Screenshots/ios/mobile/10-settings.png",
-            "../assets/AppStore-PlayStore/App Screenshots/ios/mobile/01-login.png",
-            "../assets/AppStore-PlayStore/App Screenshots/ios/mobile/02-register.png"
+            "../assets/AppStore-PlayStore/App Screenshots/ios/mobile/10-settings.png"
           ],
           "APP_IPAD_PRO_3GEN_129": [
             "../assets/AppStore-PlayStore/App Screenshots/ios/ipad/01-home-live.png",
