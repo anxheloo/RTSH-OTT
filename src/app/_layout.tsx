@@ -22,12 +22,13 @@ import { type ErrorBoundaryProps, Stack, useNavigationContainerRef } from 'expo-
 import * as SplashScreen from 'expo-splash-screen';
 
 import { useAppStore } from '@/store/useAppStore';
+import { selectHasSession } from '@/store/createUserSlice';
 import { initMonitoring, navigationIntegration } from '@/lib/monitoring';
 import { setupAuthRefresh } from '@/api';
 import { queryClient } from '@/api/client';
 import { setupFocusManager } from '@/api/focusManager';
 import { useNetworkMonitor, useOTA } from '@/hooks';
-import { useCheckToken } from '@/hooks/useCheckToken';
+import { useEstablishSession } from '@/hooks/useEstablishSession';
 import { useLockPortrait } from '@/hooks/useOrientation';
 import { useSystemTheme } from '@/hooks/useSystemTheme';
 import { ToastHost } from '@/components/Layout';
@@ -84,6 +85,7 @@ const RootLayoutNav = () => {
   const colors = useAppStore((s) => s.colors);
   const mode = useAppStore((s) => s.mode);
   const isAuthenticated = useAppStore((s) => s.isAuthenticated);
+  const hasSession = useAppStore(selectHasSession);
 
   const [fontsLoaded, fontError] = useFonts({
     Inter_400Regular,
@@ -97,7 +99,7 @@ const RootLayoutNav = () => {
   // font can never wedge the splash — the canonical Expo useFonts + SplashScreen
   // pattern. The boot gate below is fonts-settled AND token-checked.
   const fontsSettled = fontsLoaded || !!fontError;
-  const { tokenChecked } = useCheckToken();
+  const { tokenChecked } = useEstablishSession();
   useNetworkMonitor();
   useSystemTheme();
   useLockPortrait(); // Portrait-only app; only the player rotates to landscape (non-TV).
@@ -133,11 +135,21 @@ const RootLayoutNav = () => {
           contentStyle: { backgroundColor: colors.background },
         }}
       >
+        {/* `(app)` is FIRST on purpose: a guest satisfies both guards at once
+            (they have a session but are not authenticated), and the first
+            matching screen is the one the stack lands on — Home, not login.
+            In every other state exactly one guard is true, so the order is
+            inert; on Android `isGuest` is unreachable, making these two
+            expressions identical to the pre-guest ones.
+
+            `(auth)` stays on `!isAuthenticated` — unchanged, and already
+            correct: a guest is not authenticated, so the auth stack remains
+            reachable for them to sign in from Profile. */}
+        <Stack.Protected guard={hasSession}>
+          <Stack.Screen name="(app)" />
+        </Stack.Protected>
         <Stack.Protected guard={!isAuthenticated}>
           <Stack.Screen name="(auth)" />
-        </Stack.Protected>
-        <Stack.Protected guard={isAuthenticated}>
-          <Stack.Screen name="(app)" />
         </Stack.Protected>
       </Stack>
       <ModalWrapper />

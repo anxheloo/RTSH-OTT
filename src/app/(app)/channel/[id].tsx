@@ -38,7 +38,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { FlashList, type FlashListRef } from '@shopify/flash-list';
 import { useQueryClient } from '@tanstack/react-query';
-import { router, useLocalSearchParams } from 'expo-router';
+import { router, useFocusEffect, useLocalSearchParams, useSegments } from 'expo-router';
 
 import { BORDERRADIUS } from '@/theme/borders';
 import { PLAYER_COLORS } from '@/theme/playerColors';
@@ -75,7 +75,9 @@ import { formatDayMonth, toDateKey } from '@/utils/datetime';
 import type { CatchupDay, EpgItem } from '@/types/domain';
 import { ChevronLeftIcon, CloseIcon, GuideIcon, InfoIcon, LockIcon } from '@/assets/icons';
 import { AD_REVEAL_DELAY_MS } from '@/constants/ads';
+import { GUEST_CATCHUP_ALLOWED } from '@/constants/auth';
 import { DEFAULT_QUALITY } from '@/constants/player';
+import { promptSignIn } from '@/features/auth/signInPrompt';
 import { useContentWidth, useResponsive } from '@/responsive';
 import { isTV, tvFocusHighlight, TVFocusZone, useTVFocus } from '@/tv';
 
@@ -261,7 +263,11 @@ const ChannelScreen: React.FC = () => {
   // Recorded: gated at tap via `guard.guardPlay`. Channel-level gate stays off
   // (no `isAdult` on the channel list / PlaybackDecision) — per-program covers it.
   const parentalEnabled = useAppStore((s) => s.parentalEnabled);
-  const guard = useParentalGuard(channelId, { isLive, enabled: parentalEnabled });
+  const isGuest = useAppStore((s) => s.isGuest);
+  // `|| isGuest` is load-bearing: a guest's `parentalEnabled` is always false
+  // (the setting is hidden for them), so gating on it alone would leave 18+ live
+  // content completely ungated for guests. Their unlock is signing in, not a PIN.
+  const guard = useParentalGuard(channelId, { isLive, enabled: parentalEnabled || isGuest });
   // Pulled out so the list's memoized callbacks can depend on this stable
   // reference rather than `guard`, which is a fresh object every render.
   const { guardPlay } = guard;
@@ -372,6 +378,40 @@ const ChannelScreen: React.FC = () => {
   // (handled in VideoPlayer); recorded resumes in place.
   const adActive = canShowMidrollAd;
 
+  // Pause the stream while another screen covers this one — introduced with
+  // guest mode, where tapping "Hyr" on a gated programme pushes the auth stack
+  // full-screen over a playing channel. The screen stays MOUNTED underneath (it
+  // is a push, not a replace), which is exactly why the audio kept running: the
+  // user got sound with no picture, no controls and no way to stop it.
+  //
+  // Keyed on FOCUS rather than on the covering route's name: it describes the
+  // real condition ("I am not the visible screen") and so covers any full-screen
+  // route pushed here later, without anyone remembering to extend a list.
+  //
+  // The `(modals)` carve-out is required, and was proven on device: React
+  // Navigation blurs this screen for ANY push — including a `formSheet` — so
+  // focus alone froze the picture the moment the user opened the player-options
+  // sheet, which is a PLAYER CONTROL and must not stop playback. A sheet is
+  // inset, so the player stays visible behind it; `(modals)` already exists in
+  // this codebase to mark exactly that ("renders over its parent, parent stays
+  // visible"), so keying on it uses an established convention rather than an
+  // ad-hoc route list.
+  //
+  // Reuses the `paused` prop built for mid-roll ads — no remount, and a live
+  // stream re-syncs to the edge on resume (see VideoPlayer).
+  // `as string[]` because typed routes narrow the segment tuple to the literals
+  // valid at each position, which rejects a plain `.includes` membership test.
+  const segments = useSegments() as string[];
+  const sheetOnTop = segments.includes('(modals)');
+  const [screenFocused, setScreenFocused] = useState(true);
+  useFocusEffect(
+    useCallback(() => {
+      setScreenFocused(true);
+      return () => setScreenFocused(false);
+    }, []),
+  );
+  const coveredByFullScreen = !screenFocused && !sheetOnTop;
+
   // Which programme is airing now in this channel's schedule — drives the "now"
   // play-icon row and rolls it to the next programme at the boundary (client
   // timer, no network: the EPG is already in memory). Only TODAY's list has a
@@ -430,6 +470,14 @@ const ChannelScreen: React.FC = () => {
         return;
       }
       if (state === 'recorded') {
+        // Catch-up needs an account (product decision 2026-08-20 — the whole
+        // switch is `GUEST_CATCHUP_ALLOWED`). Checked before `guardPlay` so the
+        // signed stream URL is never fetched, and so a guest is never shown a PIN
+        // modal instead of the sign-in prompt they can actually act on.
+        if (isGuest && !GUEST_CATCHUP_ALLOWED) {
+          promptSignIn();
+          return;
+        }
         // Gate adult recordings before the swap so the signed stream URL is never
         // fetched pre-PIN; clean items play immediately.
         guardPlay(p, () => {
@@ -441,7 +489,7 @@ const ChannelScreen: React.FC = () => {
     // `guard` itself is a fresh object every render (the hook returns a literal),
     // so depend on the stable callback it exposes — otherwise this, and the
     // list's memoized `renderItem` below, churn on every render.
-    [queryClient, channelId, guardPlay],
+    [queryClient, channelId, guardPlay, isGuest],
   );
 
   // Auto-center the active programme — whatever is on the player (the recorded
@@ -505,13 +553,16 @@ const ChannelScreen: React.FC = () => {
         testID="playback-blocked"
       />
     ) : blockPlayer ? (
+      // A guest has no PIN and cannot create one, so the default "enter your
+      // PIN" copy is a dead end for them — their unlock is signing in, and the
+      // guard routes `requestUnlock` to the sign-in prompt accordingly.
       guard.blockedDismissed ? (
         <CenteredMessage
           icon={<Icon as={LockIcon} size={34} color={colors.textMuted} />}
           title={t('parental.title')}
-          body={t('parental.live_blocked')}
-          actionLabel={t('parental.unlock')}
-          onAction={guard.requestUnlock}
+          body={t(isGuest ? 'parental.live_blocked_guest' : 'parental.live_blocked')}
+          actionLabel={t(isGuest ? 'auth.sign_in_required.cta' : 'parental.unlock')}
+          onAction={isGuest ? () => router.push('/(auth)/login') : guard.requestUnlock}
           testID="live-parental-blocked"
         />
       ) : (
@@ -528,7 +579,7 @@ const ChannelScreen: React.FC = () => {
             : (selectedProgramTitle ?? channelMeta?.name ?? channelId)
         }
         isLive={isLive}
-        paused={adActive}
+        paused={adActive || coveredByFullScreen}
         isFullscreen={isFullscreen}
         onToggleFullscreen={toggleFullscreen}
         onOpenOptions={() => router.push('/(app)/(modals)/player-options')}

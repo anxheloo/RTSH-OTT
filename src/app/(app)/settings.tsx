@@ -6,6 +6,15 @@
  * toggle drives the device-level `ParentalSlice` (client-only — no network;
  * verify-then-disable). Opened from Profile. (Quality is player-only — picked
  * per session in the player options sheet.)
+ *
+ * A GUEST sees this screen too — device preferences are theirs — minus the
+ * "Llogaria" section, since they have no account. The parental row IS shown to
+ * them, unchanged, but every interaction routes to the sign-in prompt instead of
+ * the PIN modal: showing the feature and asking for an account is a better
+ * answer than hiding it, and it gives a concrete reason to register. Their
+ * `parentalEnabled` therefore stays false, which is why `channel/[id]` passes
+ * `enabled: parentalEnabled || isGuest` — the 18+ gate must not depend on a flag
+ * a guest can never set.
  */
 import React, { useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
@@ -37,6 +46,7 @@ import {
   WifiIcon,
 } from '@/assets/icons';
 import { LINKS } from '@/constants/links';
+import { promptSignIn } from '@/features/auth/signInPrompt';
 import { useContentWidth } from '@/responsive';
 
 const SettingsScreen: React.FC = () => {
@@ -54,6 +64,7 @@ const SettingsScreen: React.FC = () => {
   // const setAnalyticsEnabled = useAppStore((s) => s.setAnalyticsEnabled);
   const locale = useAppStore((s) => s.locale);
   const mode = useAppStore((s) => s.mode);
+  const isGuest = useAppStore((s) => s.isGuest);
   const parentalEnabled = useAppStore((s) => s.parentalEnabled);
   const hasPin = useAppStore((s) => !!s.parentalPin);
   const setParentalConfig = useAppStore((s) => s.setParentalConfig);
@@ -76,6 +87,13 @@ const SettingsScreen: React.FC = () => {
       setPinMode('disable');
     }
   };
+
+  // The parental row is shown to guests exactly as it is to members, but every
+  // interaction routes to sign-in rather than the PIN modal: a PIN is device
+  // state tied to an account here, and a guest who set one would be configuring
+  // a gate for content they cannot reach anyway. Showing it and asking for an
+  // account beats hiding the feature.
+  const onParentalPress = isGuest ? promptSignIn : handleToggleParental;
 
   // Modal resolved: 'set'/'change' stored the new PIN inside the modal;
   // 'disable' verified locally → turn the gate off.
@@ -147,11 +165,11 @@ const SettingsScreen: React.FC = () => {
                 : t('settings.parental.subtitle_inactive')
             }
             leading={<Icon as={ShieldIcon} size={20} color={colors.text} />}
-            onPress={handleToggleParental}
+            onPress={onParentalPress}
             right={
               <Switch
                 value={parentalEnabled}
-                onValueChange={handleToggleParental}
+                onValueChange={onParentalPress}
                 testID="settings-parental-switch"
               />
             }
@@ -169,25 +187,29 @@ const SettingsScreen: React.FC = () => {
           ) : null}
         </View>
 
-        {/* Account */}
-        <ReusableText
-          fontSize={FONTSIZE.sm}
-          fontWeight="semiBold"
-          themeColor="textMuted"
-          style={styles.sectionLabel}
-        >
-          {t('settings.section_account')}
-        </ReusableText>
-        <View style={[styles.card, { backgroundColor: colors.surface }]}>
-          <ListRow
-            title={t('settings.change_password.title')}
-            subtitle={t('settings.change_password.subtitle')}
-            leading={<Icon as={KeyIcon} size={20} color={colors.text} />}
-            onPress={() => router.push('/(app)/change-password')}
-            showDivider={false}
-            testID="settings-change-password-row"
-          />
-        </View>
+        {/* Account — nothing here applies without one. */}
+        {!isGuest ? (
+          <>
+            <ReusableText
+              fontSize={FONTSIZE.sm}
+              fontWeight="semiBold"
+              themeColor="textMuted"
+              style={styles.sectionLabel}
+            >
+              {t('settings.section_account')}
+            </ReusableText>
+            <View style={[styles.card, { backgroundColor: colors.surface }]}>
+              <ListRow
+                title={t('settings.change_password.title')}
+                subtitle={t('settings.change_password.subtitle')}
+                leading={<Icon as={KeyIcon} size={20} color={colors.text} />}
+                onPress={() => router.push('/(app)/change-password')}
+                showDivider={false}
+                testID="settings-change-password-row"
+              />
+            </View>
+          </>
+        ) : null}
 
         {/* Application */}
         <ReusableText

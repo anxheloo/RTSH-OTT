@@ -3,8 +3,13 @@
  * registration (username, email, age, location, gender). Values come from the
  * persisted `user`; missing fields render a placeholder. Editing lands with
  * the real backend contract. Opened from Profile.
+ *
+ * Guests have no `user`, so every row would render the placeholder. Profile
+ * already hides the entry point for them; this redirect covers the paths that
+ * bypass it (a deep link, a stray `router.push`) — an empty form is a worse
+ * answer than being sent back.
  */
-import React from 'react';
+import React, { useEffect } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
@@ -22,8 +27,13 @@ const AccountScreen: React.FC = () => {
   const { t } = useTranslation();
   const colors = useAppStore((s) => s.colors);
   const user = useAppStore((s) => s.user);
+  const isGuest = useAppStore((s) => s.isGuest);
   // Center the account column on tablet/TV; no-op on phone.
   const contentWidth = useContentWidth('content');
+
+  useEffect(() => {
+    if (isGuest) router.replace('/(app)/(tabs)/profile');
+  }, [isGuest]);
 
   const empty = t('profile.account.empty');
   const rows: { key: string; value?: string }[] = [

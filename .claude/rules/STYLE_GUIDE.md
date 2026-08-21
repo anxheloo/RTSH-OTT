@@ -464,6 +464,18 @@ Single-modal slice (`currentModal` + `modalData`), one modal at a time — match
 
 **Sheet routes live in a `(modals)/` route group.** A push and a sheet are indistinguishable in a flat file tree; the group makes presentation legible from the structure alone. The group is **not** elided from typed-route hrefs — push `/(app)/(modals)/language`, not `/(app)/language`.
 
+**Raise a global modal only from a USER GESTURE — never from an effect.** A tap
+can only happen when no native sheet is presented, but an effect driven by a
+timer, a socket push or a programme boundary can fire at any moment — including
+while a `(modals)` `formSheet` is on screen. An RN `<Modal>` raised over a native
+presentation is the race described above, and it reproduced on device
+(2026-08-20): `useParentalGuard` auto-raised `signInRequired` when a live 18+
+programme rolled in while the player-options sheet was open. The modal mounted
+**invisibly** (present in the component tree, absent from the screen) and
+swallowed every touch — back button, both swipe directions, everything — leaving
+the app unusable. If a background condition needs to prompt, render it as
+in-screen UI (the blocked overlay's own CTA) and let the user tap.
+
 **A route-owned modal must clear itself on unmount.** Anything that opens `currentModal` from a screen's effect must clear it in that effect's cleanup — see `useCellularGate`. Otherwise leaving the screen strands an undismissable overlay over whatever comes next.
 
 ```ts

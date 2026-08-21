@@ -23,6 +23,7 @@ import axios from 'axios';
 import type { DeviceRegistration, User } from '@/types';
 import {
   authResponseSchema,
+  guestResponseSchema,
   refreshResponseSchema,
   resetVerifyResponseSchema,
   toEducationDto,
@@ -60,6 +61,23 @@ export async function login(payload: LoginPayload): Promise<AuthResponse> {
   const { data } = await apiClient.post(AUTH_ROUTES.LOGIN, payload);
   // Validate before the caller persists the refresh token / logs in (5.X.2).
   return authResponseSchema.parse(data);
+}
+
+/**
+ * Mints a guest access token — a session with a device but no identity.
+ *
+ * Sends the SAME `DeviceRegistration` as login/register-verify, so the backend
+ * bakes the same `did`/`dc` claims into the token and every downstream endpoint,
+ * the player, the socket and the ad layer treat a guest byte-identically to a
+ * member. The only difference on the wire is the absent user claim.
+ *
+ * Returns an access token only. There is deliberately no refresh token: one
+ * sitting in the keychain would be indistinguishable from a member's at boot,
+ * so expiry is handled by re-minting here (see `authRefresh.ts`).
+ */
+export async function guestLogin(device: DeviceRegistration): Promise<{ accessToken: string }> {
+  const { data } = await apiClient.post(AUTH_ROUTES.GUEST, { device });
+  return guestResponseSchema.parse(data);
 }
 
 /** Exchanges the (static) refresh token for a fresh access token. */

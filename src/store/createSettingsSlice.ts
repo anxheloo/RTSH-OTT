@@ -16,6 +16,15 @@ export interface SettingsSlice {
   analyticsEnabled: boolean;
   /** Last "remember me" choice — pre-fills the login/register checkbox (UI only; token persistence lives in the vault). */
   rememberMe: boolean;
+  /**
+   * The user has already chosen to continue without an account, so the welcome
+   * gate must not ask again — they boot straight into the app (iOS only).
+   *
+   * This is the CHOICE, not the session: `isGuest` is runtime state derived at
+   * boot, never stored, so the two cannot drift. Reset to false on logout, so
+   * "signed out" means the same thing now and on the next launch.
+   */
+  guestChosen: boolean;
 
   // Universal batch setter (for composed multi-field updates)
   updateSettingsSlice: (state: Partial<SettingsSlice>) => void;
@@ -27,6 +36,7 @@ export interface SettingsSlice {
   setHapticsEnabled: (v: boolean) => void;
   setAnalyticsEnabled: (v: boolean) => void;
   setRememberMe: (v: boolean) => void;
+  setGuestChosen: (v: boolean) => void;
 }
 
 export const createSettingsSlice: StateCreator<AppStore, [], [], SettingsSlice> = (set) => ({
@@ -38,6 +48,7 @@ export const createSettingsSlice: StateCreator<AppStore, [], [], SettingsSlice> 
   hapticsEnabled: true,
   analyticsEnabled: true,
   rememberMe: true,
+  guestChosen: false,
 
   updateSettingsSlice: (state) => set(state),
   setLocale: (locale) => set({ locale }),
@@ -47,4 +58,5 @@ export const createSettingsSlice: StateCreator<AppStore, [], [], SettingsSlice> 
   setHapticsEnabled: (hapticsEnabled) => set({ hapticsEnabled }),
   setAnalyticsEnabled: (analyticsEnabled) => set({ analyticsEnabled }),
   setRememberMe: (rememberMe) => set({ rememberMe }),
+  setGuestChosen: (guestChosen) => set({ guestChosen }),
 });

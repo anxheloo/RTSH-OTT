@@ -86,10 +86,21 @@ MMKV is intentionally unencrypted, so there is no `MMKV_ENCRYPTION_KEY`.
 
 ## App variants
 
-`app.config.ts` reads `APP_VARIANT` (`development | preview | production`) → different bundle IDs:
-- prod: `al.rtsh.tani`
-- preview: `al.rtsh.tani.preview`
-- dev: `al.rtsh.tani.dev`
+`app.config.ts` reads `APP_VARIANT` (`development | preview | production`) → different bundle IDs.
+**iOS and Android diverged 2026-08-20** with the move to RTSH's own Apple org account (team
+`65K2L4RTV3`, ASC app `6803853740`): the old iOS ids belonged to an individual account and a bundle
+id cannot be reused across accounts, so iOS gained an `.ott` segment. Android is untouched — Play
+has no equivalent constraint and reusing the package keeps the existing listing.
+
+| Variant | iOS `bundleIdentifier` | Android `package` |
+|---|---|---|
+| prod | `al.rtsh.tani.ott` | `al.rtsh.tani` |
+| preview | `al.rtsh.tani.ott.preview` | `al.rtsh.tani.preview` |
+| dev | `al.rtsh.tani.ott.dev` | `al.rtsh.tani.dev` |
+
+The `.dev` / `.preview` **suffixes are unchanged**, which is load-bearing: `lib/monitoring.ts` derives
+Sentry's `environment` from `Application.applicationId.endsWith(...)`. Verified still correct after the
+rename — but any future id change must re-check it (see `rules/ARCHITECTURE.md → Observability`).
 
 It also reads `APP_PLATFORM` (optional; `androidstb`) → `extra.devicePlatform`, the build-time platform override for operator STB builds (runtime can't distinguish an STB from retail Android TV). Consumed by `getDeviceType()` / `getDeviceClass()` in `utils/device.ts` (the `buildTimePlatform` const — STB build-flag wins first).
 
@@ -194,6 +205,14 @@ All deliverable files go inside this repo (`RTSH-OTT/`). Source spec lives in `.
 Beyond the architecture scaffold, these features are spec-mandated for v1 — do not treat as optional:
 
 - **T&C acceptance** — enforced once at registration: the `acceptTerms` checkbox (zod-required) on the register form, with an inline link that opens the T&C URL in `expo-web-browser`. Acceptance is account-level (sent to backend as `termsAccepted`), not re-prompted on login — no client gate, no `tcAcceptedAt` flag (removed 2026-06-17).
+- **Guest mode — the app opens WITHOUT an account (iOS only)** — live TV, radio, the
+  7-day guide and search are free to browse and watch. An account is required only for
+  catch-up replay, 18+ programmes, enabling the parental PIN, and anything
+  account-shaped (profile, change password, delete). Fixes two App Store rejections
+  under **Guideline 5.1.1(v)**; Android (phone/tablet/TV/STB) keeps its login wall,
+  since Play has no equivalent rule. `isAuthenticated` still means "a real, identified
+  user" — app access is gated on `selectHasSession`. Full mechanism:
+  `rules/ARCHITECTURE.md → Auth flow → Guest session`.
 - **Geoblocking** — channel-level (CDN / `PlaybackDecision`) + per-programme (EPG `decision` flag, live-boundary stop). Full mechanism: `rules/ARCHITECTURE.md → Real-time → Geo`.
 - **Cellular-data gate** — confirmation modal before playback over cellular when `settings.cellularPlaybackAllowed === false`. `useCellularGate()` mounts on both player routes and returns `{ pending }`; while pending the player stays unmounted (channel) / the station isn't selected (radio), so nothing streams behind the modal. Requires `channel/[id]` to stay a **card push, not `fullScreenModal`** — see `rules/ARCHITECTURE.md → Network state`.
 - ~~**Mosaic view**~~ — **cut from v1 by user decision (2026-06-11, plan 22.14f)**; route + components removed.
