@@ -1111,7 +1111,49 @@ September-2026 social-media/age-assurance questions, already answerable today.
   eighth gate-J hit is the geo-exemption `TODO` embedded inside `apple.review.notes`.
 - **App Privacy is not in the metadata schema.** The listing carries `privacyPolicyUrl` and
   `privacyChoicesUrl`, but the App Privacy questionnaire itself is console-only — the single Apple
-  surface `metadata:push` cannot reach.
+  surface `metadata:push` cannot reach. **Answered and published 2026-08-21**; because it lives only
+  in the console, the declaration is recorded here or it is recorded nowhere. Ten types, all
+  **Linked = Yes**, all **Tracking = No**:
+
+  | Type | Purpose | Source |
+  |---|---|---|
+  | Contact Info → Name (`username`) | App Functionality | `services/auth.ts:104` |
+  | Contact Info → Email Address | App Functionality | `services/auth.ts:38,103,159` |
+  | Identifiers → User ID | App Functionality, Analytics | `createUserSlice.ts:70` |
+  | Identifiers → Device ID (`deviceKey` UUID) | App Functionality | `utils/device.ts:57,201` |
+  | Usage Data → Product Interaction | App Functionality, Developer Advertising | `realtime/events.ts:19-21` |
+  | Usage Data → Advertising Data | Developer Advertising | `services/ads.ts:51-63` |
+  | Diagnostics → Crash Data | App Functionality | `lib/monitoring.ts:203` |
+  | Diagnostics → Performance Data | App Functionality | `lib/monitoring.ts:112,223` |
+  | Diagnostics → Other Diagnostic Data | App Functionality | `lib/monitoring.ts:277-279` |
+  | Other Data → Other Data Types | App Functionality | DOB/gender/education `services/auth.ts:106,109`; city/country `:107-108` |
+
+  Three rulings worth not re-litigating:
+  - **Contact Info → Physical Address was declared, then removed.** `city` is free text and `country`
+    a picker (`RegisterForm.tsx:162-185`) — self-declared locality, not a mailing address, and not
+    Location either (the app has no location API at all, so declaring Location would invite the
+    question of which permission produces it). It rides under **Other Data Types**.
+  - **Gender + education are Other Data, not Sensitive Info** — neither appears in Apple's enumerated
+    Sensitive Info list.
+  - **Performance + Other Diagnostic Data are genuinely collected**, despite no code of ours measuring
+    anything. `tracesSampleRate` being a *number* (`monitoring.ts:223`) is the whole switch: in
+    `@sentry/react-native` 7.11.0 that gate installs `appStartIntegration` (launch time),
+    `stallTrackingIntegration` (hang rate), `nativeFramesIntegration`, `reactNativeTracingIntegration`
+    and `timeToDisplayIntegration`, and every one of those `enable*` flags defaults `true`
+    (`dist/js/integrations/default.js`). Diagnostics context (device, modules, breadcrumbs) rides
+    along unconditionally. Sentry's own shipped manifest declares the same three types.
+- **The app's own `PrivacyInfo.xcprivacy` declares `NSPrivacyCollectedDataTypes` as an empty array**,
+  which contradicts those ten rows. Closing it means adding `ios.privacyManifests` to `app.config.ts`
+  (the plugin **merges** — `@expo/config-plugins/build/ios/PrivacyInfo.js:91-121` — so the three
+  generated required-reason entries survive). **Deliberately not done, and not a blocker:** Apple
+  enforces the required-reason API entries and third-party SDK manifests, both already correct; the
+  collected-types list feeds the Xcode Privacy Report, a tool for filling in the console form that is
+  itself authoritative. Builds 7–12 all shipped with the empty array and Apple never raised it.
+- **`hermes` ships with no privacy manifest and IS on Apple's commonly-used-SDK list.** Verified: no
+  `.xcprivacy` anywhere under `ios/Pods/hermes-engine`, including inside `hermesvm.xcframework`. RN
+  0.86 renamed the binary `hermes` → `hermesvm`, so whether Apple's matcher fires is unknown; the only
+  test is an upload (watch for ITMS-91061). Upstream — not fixable here. Distinct from AUDIT.md #19,
+  which was the Hermes *memory* regression.
 - **EAS Metadata is Apple-scoped.** The Play listing, Data Safety, App Content and IARC are all
   console work; nothing in `store/store.config.json` reaches Google.
 - **`privacyChoicesUrl` is unset**, pending audit blocker #2 — the RTSH privacy page has no titled
