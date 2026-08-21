@@ -5,7 +5,7 @@ repo's code so you transcribe rather than decide. Drafted 2026-08-10.
 
 ---
 
-## 1. Apple — App Privacy  ✅ COMPLETED + VERIFIED 2026-08-14
+## 1. Apple — App Privacy  ✅ COMPLETED + RE-VERIFIED 2026-08-21 (new ASC app `6803853740`)
 
 App Store Connect → your app → **App Privacy** → Get Started.
 
@@ -22,14 +22,13 @@ account id). Nothing is "Not Linked to You".
 |---|---|---|---|
 | Contact Info → **Email Address** | Yes | App Functionality | registration + login |
 | Contact Info → **Name** | Yes | App Functionality | `username` at registration |
-| Location → **Coarse Location** | Yes | App Functionality | user-typed `city` / `country` profile field |
 | Identifiers → **User ID** | Yes | App Functionality | account id |
 | Identifiers → **Device ID** | Yes | App Functionality | `deviceKey` keychain UUID, sent in login/register-verify |
 | Usage Data → **Product Interaction** | Yes | App Functionality, **Analytics** | STOMP `/app/watch` — `{ channelId, programId, kind }`, i.e. what you are watching |
 | Usage Data → **Advertising Data** | Yes | **Developer's Advertising or Marketing**, Analytics | `POST /ads/{id}/impression` — which ad was seen + `watchedSeconds` |
 | Diagnostics → **Crash Data** | Yes | App Functionality | Sentry |
 | Diagnostics → **Performance Data** | Yes | App Functionality | Sentry tracing, 0.2 sample in production |
-| Other Data → **Other Data** | Yes | App Functionality | birth date, gender **and education level** at registration (`RegisterPayload`) |
+| Other Data → **Other Data** | Yes | App Functionality | birth date, gender, education level **and the self-typed `city` / `country`** at registration (`RegisterPayload`) |
 
 **Answer No to everything else** — no health/fitness, financial info, precise location,
 sensitive info, contacts, photos, audio, user content, browsing history, search history,
@@ -37,11 +36,17 @@ purchases, payment info, or credit info.
 
 ### Three judgment calls, with reasoning — so you can defend them
 
-- **Coarse Location = Yes, even though the app requests no location permission.** Apple's
-  definition is *information that describes the approximate location of a user or device* —
-  it does not require the data to come from the device sensor. A self-declared city/country
-  qualifies. Server-side IP geo-blocking is **not** a client location collection and is not
-  what this declares.
+- **Coarse Location = NO — reversed 2026-08-21 (user decision), and the console reflects the
+  new answer.** The earlier reading leaned on Apple's *"approximate location of a user or
+  device"* wording to argue a self-declared city/country qualifies. It does not, and the code
+  settles it: there is **no location package and no location permission in the project** — no
+  `expo-location`, no `NSLocationWhenInUse*`, no `ACCESS_COARSE/FINE_LOCATION` (grepped
+  2026-08-21). Nothing ever reads where the device is. `city` / `country` are optional free
+  text a user types about themselves at registration (`services/auth.ts:107-108`), which is
+  profile data, so they are declared under **Other Data** alongside birth date, gender and
+  education. Declaring Location would have implied a sensor capability the binary does not
+  have — a *less* accurate label, not a safer one. Server-side IP geo-blocking remains out of
+  scope here: it is a backend decision, never a client location collection.
 - **Search History = No.** The search screen filters data already loaded on the client; no
   query string is sent to the backend.
 - **Product Interaction = YES — corrected 2026-08-14, the original draft here was WRONG.** The
@@ -238,8 +243,16 @@ Google defines Approximate location as location to an area ≥3 km², *"such as 
 is in."* A user-declared city is exactly that, and since **Address is unchecked** there is no
 other box carrying it. Unchecking Location would leave a required, transmitted, stored field
 declared nowhere — an **under**-declaration, which is the direction that gets apps pulled
-rather than merely rejected. It is also the same call already made for Apple's Coarse Location
-(§1), so the two stores stay consistent.
+rather than merely rejected.
+
+**The two stores deliberately DIVERGE here — corrected 2026-08-21.** This used to say the call
+matched Apple's Coarse Location; it no longer does, because Apple's was reversed to **No** (§1).
+That is not an inconsistency to fix, it is the two rulebooks differing: Google **names the city**
+in its own definition of Approximate location, and Play offers no better-fitting box once
+`Address` is unchecked — whereas Apple's Location types read as device-sensed position, and Apple
+provides **Other Data**, which is where `city` / `country` are declared instead. Same field, same
+honesty, different taxonomy. Re-derive each store from its own definitions; never propagate one
+store's answer to the other on consistency grounds alone.
 
 **Consequence: two follow-ups from that session are now moot.** Getting the backend's
 IP-retention answer in writing, and confirming whether the CDN edge logs IPs, only ever

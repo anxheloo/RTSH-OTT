@@ -250,8 +250,12 @@ Two dated deadlines now sit inside the likely submission window and should gover
   `src/types/domain.ts:311-324`). Google defines Approximate location as *"the city a user is
   in"*, and **Address is unchecked**, so nothing else carries it. Unchecking would leave a
   mandatory stored field declared nowhere — an under-declaration, the direction that gets apps
-  pulled rather than merely rejected. It also matches the Coarse Location call already made for
-  Apple, so the two stores stay consistent.
+  pulled rather than merely rejected. **The clause claiming this matches Apple's Coarse Location
+  call was removed 2026-08-21** — Apple's was reversed to **No**, and `city` / `country` are
+  declared there under **Other Data** instead. The stores diverge on purpose: Google names the
+  city in its definition and has no better box once `Address` is unchecked; Apple's Location types
+  read as device-sensed position and Apple offers Other Data. This Play answer stands on Google's
+  definition alone and does not depend on Apple's.
 - **Knock-on: two follow-ups are now moot for this form** — obtaining the backend's
   IP-retention answer in writing, and confirming whether the CDN/nginx edge logs client IPs.
   Both only ever bore on the IP source. Worth chasing for GDPR / Ligji 124/2024 reasons; they
