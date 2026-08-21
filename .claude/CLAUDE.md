@@ -86,10 +86,21 @@ MMKV is intentionally unencrypted, so there is no `MMKV_ENCRYPTION_KEY`.
 
 ## App variants
 
-`app.config.ts` reads `APP_VARIANT` (`development | preview | production`) → different bundle IDs:
-- prod: `al.rtsh.tani`
-- preview: `al.rtsh.tani.preview`
-- dev: `al.rtsh.tani.dev`
+`app.config.ts` reads `APP_VARIANT` (`development | preview | production`) → different bundle IDs.
+**iOS and Android diverged 2026-08-20** with the move to RTSH's own Apple org account (team
+`65K2L4RTV3`, ASC app `6803853740`): the old iOS ids belonged to an individual account and a bundle
+id cannot be reused across accounts, so iOS gained an `.ott` segment. Android is untouched — Play
+has no equivalent constraint and reusing the package keeps the existing listing.
+
+| Variant | iOS `bundleIdentifier` | Android `package` |
+|---|---|---|
+| prod | `al.rtsh.tani.ott` | `al.rtsh.tani` |
+| preview | `al.rtsh.tani.ott.preview` | `al.rtsh.tani.preview` |
+| dev | `al.rtsh.tani.ott.dev` | `al.rtsh.tani.dev` |
+
+The `.dev` / `.preview` **suffixes are unchanged**, which is load-bearing: `lib/monitoring.ts` derives
+Sentry's `environment` from `Application.applicationId.endsWith(...)`. Verified still correct after the
+rename — but any future id change must re-check it (see `rules/ARCHITECTURE.md → Observability`).
 
 It also reads `APP_PLATFORM` (optional; `androidstb`) → `extra.devicePlatform`, the build-time platform override for operator STB builds (runtime can't distinguish an STB from retail Android TV). Consumed by `getDeviceType()` / `getDeviceClass()` in `utils/device.ts` (the `buildTimePlatform` const — STB build-flag wins first).
 

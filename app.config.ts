@@ -19,7 +19,7 @@ function getVariantValues(): VariantValues {
   if (IS_DEV) {
     return {
       name: 'RTSH TANI (Dev)',
-      bundleIdentifier: 'al.rtsh.tani.dev',
+      bundleIdentifier: 'al.rtsh.tani.ott.dev',
       package: 'al.rtsh.tani.dev',
       // updatesChannel: "development",
     };
@@ -27,14 +27,14 @@ function getVariantValues(): VariantValues {
   if (IS_PREVIEW) {
     return {
       name: 'RTSH TANI (Preview)',
-      bundleIdentifier: 'al.rtsh.tani.preview',
+      bundleIdentifier: 'al.rtsh.tani.ott.preview',
       package: 'al.rtsh.tani.preview',
       // updatesChannel: "preview",
     };
   }
   return {
     name: 'RTSH TANI',
-    bundleIdentifier: 'al.rtsh.tani',
+    bundleIdentifier: 'al.rtsh.tani.ott',
     package: 'al.rtsh.tani',
     // updatesChannel: "production",
   };
