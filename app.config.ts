@@ -95,15 +95,9 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     android: {
       package: androidPackage,
       adaptiveIcon: {
-        // The foreground bakes in its own off-white plate across the inner 66%
-        // (the adaptive-icon safe zone) with a transparent 17% margin, so
-        // `backgroundColor` MUST match that plate (#F9FAFC) — any other value
-        // shows the plate as a visible tile inside the launcher mask.
+        // Scaled-down Android foreground so launcher masks do not crop the RTSH mark.
         foregroundImage: './assets/images/android-icon-foreground.png',
-        backgroundColor: '#F9FAFC',
-        // Android 13+ themed icons: red marks opaque, the RTSH wordmark left as
-        // a knockout so it stays legible when the OS recolors the silhouette.
-        monochromeImage: './assets/images/android-icon-monochrome.png',
+        backgroundColor: '#FFFFFF',
       },
       predictiveBackGestureEnabled: false,
     },
