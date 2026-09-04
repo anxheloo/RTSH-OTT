@@ -111,7 +111,7 @@
     "eas:ios:dev": "eas build --platform ios --profile development",
     "eas:android:preview": "eas build --platform android --profile preview",
     "eas:ios:preview": "eas build --platform ios --profile preview",
-    "eas:android:prod": "eas build --platform android --profile production",
+    "eas:android:prod": "eas build --platform android --profile production --auto-submit",
     "eas:ios:prod": "eas build --platform ios --profile production --auto-submit",
     "eas:submit:ios": "eas submit --platform ios --latest",
     "eas:submit:android": "eas submit --platform android --latest",
