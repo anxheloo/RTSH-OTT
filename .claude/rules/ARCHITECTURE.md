@@ -1168,6 +1168,46 @@ September-2026 social-media/age-assurance questions, already answerable today.
 Append-only, dated record of SDK/dependency upgrades — what moved, whether the native layer changed
 (and therefore whether a new binary was required), and which layers were re-verified.
 
+- **2026-09-14: Expo SDK 57 patch sync + four production-crash fixes.** Driven by the Sentry
+  backlog on production build `al.rtsh.tani@1.0+17`, not by a version schedule. Still SDK 57 —
+  SDK 58 is `58.0.0-preview.0` on npm and is deliberately deferred to its own phase
+  (`anxheloo-expo-upgrade`).
+  - **Deps:** `expo` 57.0.13 → 57.0.22, `expo-modules-core` 57.0.11 → 57.0.18, `expo-video`
+    57.0.2 → 57.0.4, `expo-audio` 57.0.3 → 57.0.5, `expo-keep-awake` 57.0.1 → 57.0.2, plus the
+    remaining 57.x drift. The only behavioral gain read from the changelogs is **expo-video
+    57.0.3**, which fixes the Android `MissingActivity` throw when a `VideoPlayer` is constructed
+    while the activity is briefly unavailable — the same background path as the crash below.
+    `expo-keep-awake` 57.0.2 and `expo-video` 57.0.4 carry **no** user-facing changes, so the
+    keep-awake fix had to be ours.
+  - **Code (all four were unhandled-error sources, none a fork or a patched dependency):**
+    (1) `useKeepAwake(undefined, { suppressDeactivateWarnings: true })` — the unmount `deactivate`
+    rejects when the activity is already gone; uncaught it was the app's top issue by volume
+    (634 events / 228 users). (2) `staysActiveInBackground` / `showNowPlayingNotification` are now
+    armed only when the app is not backgrounded, and re-armed on foreground — both setters start
+    the Android media foreground service, which Android 12+ refuses from the background.
+    (3) the `apiError` modal's retry (`query.fetch()`) now catches, so a failed retry during a
+    backend 522/523 outage no longer reports as an uncaught AxiosError. (4) `utils/openLink.ts`:
+    Android TV opens legal links via `Linking` instead of Custom Tabs — the SecurityException was
+    thrown natively inside `BrowserProxyActivity.onCreate`, which no JS catch can intercept.
+  - **Native rebuild required: YES** (module bump). The four code fixes are JS-only and could ship
+    by OTA, but the module bump cannot.
+  - **Re-VERIFY:** expo-doctor 21/21 · `tsc --noEmit` clean · `expo lint` clean · **134/134 tests**.
+  - **Device-verified against the LIVE backend** (Metro pinned `EXPO_PUBLIC_API_MODE=real`):
+    Pixel 6 API 33 ✅ (live playback, media service foreground with a valid `PlaybackService`
+    channel, playback continues backgrounded, in-app Terms browser), `RTSH_TV_API34` (leanback,
+    1920×1080) ✅ (D-pad login, route menu, live playback, **legal link resolves to the TV's
+    no-browser stub with no crash**), iPhone 17 Pro / iOS 26.5 ✅ (guest mode, live playback,
+    background + resume, SFSafariViewController Terms). Log sweeps for `FATAL` /
+    `BackgroundServiceStartNotAllowed` / `Bad notification` / unhandled rejection: **0 hits** on
+    every device.
+  - **NOT reproduced on device:** the original crashes themselves (an emulator would not enter the
+    states that produce them), so this is a no-regression result plus a documented-behavior fix —
+    the proof is the Sentry issues going quiet on the next production build.
+  - **Emulator-only artifact worth not chasing:** the phone emulator's software AAC decoder
+    (`c2.android.aac.decoder`) fails on the `video/mp2t` live stream and logs a dev-only
+    `[VideoPlayer] playback error`. The TV emulator, iOS and real devices in Sentry all play the
+    same stream fine.
+
 - **2026-07-29: Expo SDK 57 patch realignment — `expo` 57.0.2 → 57.0.8** (`expo-modules-core`
   57.0.2 → 57.0.7, 26 `expo-*` packages realigned, `react-native-screens` 4.25.2 → ~4.26.0,
   `jest-expo` → ~57.0.2). **Not an SDK-major** — stayed on SDK 57 throughout, so none of the
