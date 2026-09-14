@@ -204,7 +204,11 @@ export const queryClient = new QueryClient({
         modalData: {
           description: apiErrorDescription(error),
           button: i18n.t('common.retry'),
-          action: () => void query.fetch(),
+          // `fetch()` rejects when the retry fails too; that failure re-enters this
+          // onError (modal again), so the rejection itself must be swallowed —
+          // uncaught, it reached Sentry as an unhandled AxiosError on every retry
+          // tap during a backend outage (REACT-NATIVE-RTSH-OTT-9 / -7).
+          action: () => void query.fetch().catch(() => {}),
         },
       });
     },

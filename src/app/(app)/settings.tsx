@@ -23,7 +23,6 @@ import { useTranslation } from 'react-i18next';
 import Constants from 'expo-constants';
 import { router } from 'expo-router';
 import * as Updates from 'expo-updates';
-import * as WebBrowser from 'expo-web-browser';
 
 import { BORDERRADIUS } from '@/theme/borders';
 import { FONTSIZE } from '@/theme/fonts';
@@ -34,6 +33,7 @@ import { Switch } from '@/components/Inputs';
 import ReusableText from '@/components/Inputs/ReusableText';
 import { ListRow, ScreenLayout, TabHeader } from '@/components/Layout';
 import { ParentalPinModal } from '@/components/ParentalPin';
+import { openLink } from '@/utils/openLink';
 import {
   ChevronLeftIcon,
   DocIcon,
@@ -265,13 +265,13 @@ const SettingsScreen: React.FC = () => {
           <ListRow
             title={t('settings.terms.title')}
             leading={<Icon as={DocIcon} size={20} color={colors.text} />}
-            onPress={() => WebBrowser.openBrowserAsync(LINKS.TERMS)}
+            onPress={() => openLink(LINKS.TERMS)}
             testID="settings-terms-row"
           />
           <ListRow
             title={t('settings.privacy.title')}
             leading={<Icon as={ShieldIcon} size={20} color={colors.text} />}
-            onPress={() => WebBrowser.openBrowserAsync(LINKS.PRIVACY)}
+            onPress={() => openLink(LINKS.PRIVACY)}
             testID="settings-privacy-row"
           />
           <ListRow

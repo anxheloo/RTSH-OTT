@@ -9,7 +9,7 @@
  * key requests on iOS/Android. Validate on a real RTSH stream before
  * shipping. Fallback: react-native-video if headers don't propagate.
  */
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { AppState, Platform, StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
 
 import { useEvent, useEventListener } from 'expo';
@@ -17,6 +17,7 @@ import { useKeepAwake } from 'expo-keep-awake';
 import { useVideoPlayer, VideoPlayer as ExpoVideoPlayer, VideoSource, VideoView } from 'expo-video';
 
 import { PLAYER_COLORS } from '@/theme/playerColors';
+import { useAppState } from '@/hooks/useAppState';
 import { inferContentType } from '@/utils/resolveStreamSource';
 
 export type VideoStatus = 'idle' | 'loading' | 'readyToPlay' | 'error';
@@ -58,6 +59,12 @@ export type VideoPlayerProps = {
   renderOverlay?: (props: VideoPlayerOverlayProps) => React.ReactNode;
 };
 
+/** Both setters start the Android media foreground service when `enabled`. */
+function setBackgroundPlayback(player: ExpoVideoPlayer, enabled: boolean): void {
+  player.staysActiveInBackground = enabled;
+  player.showNowPlayingNotification = enabled;
+}
+
 function VideoPlayer({
   source,
   headers,
@@ -74,7 +81,10 @@ function VideoPlayer({
   renderOverlay,
 }: VideoPlayerProps): React.ReactElement {
   // Keep the screen awake while a video player is mounted (deactivates on unmount).
-  useKeepAwake();
+  // `suppressDeactivateWarnings` catches the unmount-time `deactivate` rejection
+  // Android raises when the activity is already gone (app closed / recreated) —
+  // harmless, but uncaught it was the app's top Sentry issue (REACT-NATIVE-RTSH-OTT-3).
+  useKeepAwake(undefined, { suppressDeactivateWarnings: true });
 
   // `contentType` is inferred from the URL extension (extensionless → HLS) so the
   // native player parses streaming manifests correctly instead of falling back to
@@ -106,8 +116,12 @@ function VideoPlayer({
     // recorded seek bar never becomes seekable and the progress fill never moves.
     p.timeUpdateEventInterval = 0.5;
     // Background audio + lock-screen now-playing controls (opt-in via prop).
-    p.staysActiveInBackground = backgroundPlayback;
-    p.showNowPlayingNotification = backgroundPlayback;
+    // On Android both setters start a media foreground service, which Android 12+
+    // refuses from the background (BackgroundServiceStartNotAllowedException —
+    // REACT-NATIVE-RTSH-OTT-A). A player can be created while backgrounded (e.g. an
+    // ad or block lifting), so only arm it in the foreground; `enableBackgroundPlayback`
+    // below arms it on return.
+    setBackgroundPlayback(p, backgroundPlayback && AppState.currentState !== 'background');
     // Casting is OUT OF SCOPE for v1 — and expo-video defaults
     // `allowsExternalPlayback` to TRUE, so without this line iOS silently offers
     // AirPlay from Control Center on every stream. That path cannot work here:
@@ -140,6 +154,11 @@ function VideoPlayer({
   const handlePictureInPictureStop = () => {
     if (AppState.currentState !== 'active') player.pause();
   };
+
+  const enableBackgroundPlayback = useCallback(() => {
+    if (backgroundPlayback && !player.staysActiveInBackground) setBackgroundPlayback(player, true);
+  }, [player, backgroundPlayback]);
+  useAppState({ onForeground: enableBackgroundPlayback });
 
   const lastUriRef = useRef(source);
   useEffect(() => {

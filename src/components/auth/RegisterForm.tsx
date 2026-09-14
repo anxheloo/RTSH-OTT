@@ -12,7 +12,6 @@ import { Controller, useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 
 import { zodResolver } from '@hookform/resolvers/zod';
-import * as WebBrowser from 'expo-web-browser';
 
 import { SPACING } from '@/theme/spacing';
 import ReusableBtn from '@/components/Buttons/ReusableBtn';
@@ -23,6 +22,7 @@ import ReusableInput from '@/components/Inputs/ReusableInput';
 import ReusableText from '@/components/Inputs/ReusableText';
 import SegmentedChoice from '@/components/Inputs/SegmentedChoice';
 import SelectInput from '@/components/Inputs/SelectInput';
+import { openLink } from '@/utils/openLink';
 import { LINKS } from '@/constants/links';
 import {
   EDUCATION_LEVELS,
@@ -237,7 +237,7 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onSubmit, isSubmitting = fa
                 <ReusableText
                   variant="bodySmall"
                   themeColor="primary"
-                  onPress={() => WebBrowser.openBrowserAsync(LINKS.TERMS)}
+                  onPress={() => openLink(LINKS.TERMS)}
                   testID="register-terms-link"
                 >
                   {t('auth.register.accept_terms_link')}
