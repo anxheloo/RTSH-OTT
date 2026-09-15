@@ -1058,6 +1058,11 @@ count.
   `1.0.0`. The record must be renamed `1.0` → `1.0.0` in App Store Connect **before** the next push,
   or eas will look for a `1.0.0` record that does not exist. Renaming edits the record in place, so
   the 19 already-uploaded screenshots stay on it.
+
+  **Bumped to `1.0.1` on 2026-09-15:** once `1.0` was approved, Apple closed its build train —
+  a new build under `1.0` fails upload with ITMS-90062 / 90186, and no build-number bump helps.
+  Every App Store release after an approval needs a higher `version`. It also moves
+  `runtimeVersion`, so an OTA built for `1.0` no longer reaches `1.0.1` binaries (and vice versa).
 - **`screenshots` is typed `additionalProperties`**, so any display-type key lints clean and only
   Apple's API rejects a wrong one. `APP_IPHONE_67` accepted 1320×2868 (6.9") and
   `APP_IPAD_PRO_3GEN_129` accepted 2064×2752 — **proven by a successful upload**, not inferred. Note

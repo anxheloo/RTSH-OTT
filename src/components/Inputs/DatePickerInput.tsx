@@ -19,7 +19,7 @@ import { SPACING } from '@/theme/spacing';
 import { useAppStore } from '@/store/useAppStore';
 import ReusableBtn from '@/components/Buttons/ReusableBtn';
 import { Icon } from '@/components/Icons';
-import { ClockIcon } from '@/assets/icons';
+import { GuideIcon } from '@/assets/icons';
 
 import ReusableText from './ReusableText';
 
@@ -121,7 +121,7 @@ const DatePickerInput: React.FC<DatePickerInputProps> = ({
         style={[styles.field, { backgroundColor: colors.inputBackground, borderColor }]}
         testID={testID}
       >
-        <Icon as={ClockIcon} size={19} color={colors.textMuted} />
+        <Icon as={GuideIcon} size={19} color={colors.textMuted} />
         <ReusableText
           variant="bodySmall"
           style={[styles.value, { color: displayText ? colors.text : colors.textMuted }]}

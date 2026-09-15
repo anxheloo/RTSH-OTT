@@ -55,8 +55,9 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     // Single source of truth for the version. Drives the build's CFBundleShortVersionString,
     // runtimeVersion (policy 'appVersion', below), the Sentry release string, and — via
     // store/store.config.js — which App Store version record `eas metadata:push` writes to.
-    // Kept at '1.0' to match the App Store Connect record created before the first submission.
-    version: '1.0',
+    // Must be higher than the last approved App Store version — Apple closes a version's
+    // build train once it is approved (ITMS-90062/90186), so each new App Store release bumps this.
+    version: '1.0.1',
     // Mobile/TV only — no web target (product scope; also keeps `eas update
     // --platform=all` from bundling an unused web target).
     platforms: ['ios', 'android'],
