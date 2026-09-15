@@ -657,10 +657,29 @@ is the SDK-compatible one. Several APIs the Sentry docs show are 8.x-only — se
   without a written reason — an unexplained filter is how a real bug stays invisible for months.
 - **Readable stack traces — three paths, all wired.**
   - *EAS Build* + *local release builds* (`expo run:* --variant release` / `--configuration Release`):
-    the `@sentry/react-native/expo` config plugin generates the iOS build phase (dSYMs + JS maps) and
-    applies the Android Gradle plugin (ProGuard mappings + Hermes `.hbc.map`). `disableAutoUpload` is
+    the `@sentry/react-native/expo` config plugin generates the iOS build phase (dSYMs + JS maps) and,
+    on Android, `sentry.gradle` uploads the Hermes `.hbc.map`. `disableAutoUpload` is
     `IS_DEV` — dev builds skip the wait, preview/production never do. Needs `SENTRY_AUTH_TOKEN` in
     the build environment, which EAS injects from `eas env` automatically.
+  - *Android R8 (on since 2026-09-15)*: `expo-build-properties` → `enableMinifyInReleaseBuilds: true`,
+    release variant only. Driven by Play's DEX-optimization warning (obfuscation 1%, ≥25% required by
+    Feb 2027). **No `extraProguardRules`**: every reflection-heavy dep (RN core, expo-modules-core,
+    media3, Nitro/MMKV, Reanimated, sentry-android) ships its own consumer keep rules — add one only
+    when R8 names a missing class. `mapping.txt` reaches **Play** inside the AAB automatically, and
+    **Sentry** only through the Sentry Android Gradle Plugin, which the Expo plugin applies **only**
+    with `experimental_android.enableAndroidGradlePlugin` (`withSentry.js`) — without it native
+    Android traces stay obfuscated with no error anywhere. Its `tracingInstrumentation` and
+    `autoInstallation` stay off (plugin defaults), so there is no runtime change.
+    `enableShrinkResourcesInReleaseBuilds` is deliberately **off**: RN resolves bundled image assets
+    by name at runtime, which the resource shrinker can strip. Verified on a local preview release
+    build: 95% of classes renamed, `Uploaded a total of 1 new mapping files`, and a real-backend smoke
+    pass on Pixel 6 API 33 + `RTSH_TV_API34` (login, live + catch-up HLS, radio foreground service +
+    background, register-form native pickers, Custom Tabs, cold-restart session) with no
+    missing-class crash. **Local-build trap:** `./gradlew assembleRelease` bundles with the
+    publisher's `.env` *and* Metro's transform cache, exactly like `ota:export` — pin
+    `EXPO_PUBLIC_API_MODE=real` inline **and** clear `$TMPDIR/metro-cache`, then confirm the APK's
+    `assets/index.android.bundle` contains no fixture string (`Radio Studentore`). Pinning alone
+    shipped mock on this run.
   - *EAS Update (OTA)*: an OTA bundle is **new JS**, so it needs its own upload or every crash on
     OTA'd code is unreadable — precisely the code shipped fastest and tested least. Each
     preview/production `eas:update:*` script is `export → upload → publish`:

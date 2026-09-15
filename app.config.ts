@@ -139,11 +139,25 @@ export default ({ config }: ConfigContext): ExpoConfig => {
       // Allow plain-HTTP (cleartext) traffic for the dev backend (http://<ip>:port).
       // Android blocks cleartext by default in release builds; dev/preview ONLY
       // (false in production — see ALLOW_CLEARTEXT).
-      ['expo-build-properties', { android: { usesCleartextTraffic: ALLOW_CLEARTEXT } }],
+      [
+        'expo-build-properties',
+        {
+          android: {
+            usesCleartextTraffic: ALLOW_CLEARTEXT,
+            // R8 shrinking + obfuscation, release variant only (debug untouched).
+            // Play requires >= 25% DEX obfuscation. Every reflection-heavy dep
+            // (RN core, expo-modules-core, media3, Nitro/MMKV, Reanimated,
+            // Sentry) ships its own consumer keep rules, so no extraProguardRules
+            // until a real R8 failure names a class.
+            enableMinifyInReleaseBuilds: true,
+          },
+        },
+      ],
       [
         // Crash/error monitoring. This plugin wires the NATIVE half: the iOS
-        // build phase that uploads dSYMs + JS source maps, and the Android
-        // Gradle plugin that uploads ProGuard mappings + Hermes maps. Without
+        // build phase that uploads dSYMs + JS source maps, and — only with
+        // `experimental_android.enableAndroidGradlePlugin` below — the Sentry
+        // Android Gradle plugin that uploads R8 mappings. Without
         // it you get JS-only symbolication and the hard crashes (dyld, OOM,
         // ANR) — the least debuggable ones — stay unreadable forever.
         //
@@ -165,6 +179,14 @@ export default ({ config }: ConfigContext): ExpoConfig => {
           // the network. NEVER true for preview/production — those are the
           // builds whose traces you actually need readable.
           disableAutoUpload: IS_DEV,
+          // `sentry.gradle` alone uploads JS/Hermes maps only. With R8 on,
+          // native Android traces stay obfuscated unless this plugin uploads
+          // mapping.txt. Tracing instrumentation stays off (plugin default).
+          experimental_android: {
+            enableAndroidGradlePlugin: true,
+            autoUploadProguardMapping: true,
+            includeProguardMapping: true,
+          },
         },
       ],
       [
