@@ -273,6 +273,7 @@
       "title": "Versioni",
       "subtitle": "RTSH TANI {{version}}"
     },
+    "credits": "Listat e qyteteve: GeoNames (CC BY 4.0) dhe countries-states-cities-database (ODbL 1.0).",
     "default_quality": {
       "title": "Cilësia e parazgjedhur"
     },

@@ -273,6 +273,7 @@
       "title": "Version",
       "subtitle": "RTSH TANI {{version}}"
     },
+    "credits": "City lists: GeoNames (CC BY 4.0) and countries-states-cities-database (ODbL 1.0).",
     "default_quality": {
       "title": "Default quality"
     },

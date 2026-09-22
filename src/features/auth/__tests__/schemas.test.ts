@@ -74,7 +74,15 @@ describe('registerSchema city', () => {
   it('includes the municipalities the dataset was missing', () => {
     expect(cityError('Elbasan', 'Albania')).toBeUndefined();
     expect(cityError('Prishtinë', 'Kosovo')).toBeUndefined();
-    expect(cityError('Debar', 'Macedonia')).toBeUndefined();
+  });
+
+  it('lists every town in Albania, Kosovo and Montenegro, only the largest cities elsewhere', () => {
+    expect(cityError('Žabljak', 'Montenegro')).toBeUndefined();
+    expect(cityError('Skopje', 'Macedonia')).toBeUndefined();
+    expect(cityError('Milan', 'Italy')).toBeUndefined();
+    // A small town outside the three full countries is registered as "Other".
+    expect(cityError('Debar', 'Macedonia')).toBe('auth.errors.city_invalid');
+    expect(cityError('Other', 'Macedonia')).toBeUndefined();
   });
 
   it('rejects a free-typed city not in the list', () => {

@@ -282,6 +282,10 @@ const SettingsScreen: React.FC = () => {
             testID="settings-version-row"
           />
         </View>
+        {/* Attribution the city-data licences require (register form's city picker). */}
+        <ReusableText variant="caption" themeColor="mutedDim" style={styles.credits}>
+          {t('settings.credits')}
+        </ReusableText>
       </ScrollView>
 
       <ParentalPinModal
@@ -309,6 +313,10 @@ const styles = StyleSheet.create({
   card: {
     borderRadius: BORDERRADIUS.radius_14,
     overflow: 'hidden',
+  },
+  credits: {
+    marginTop: SPACING.space_12,
+    marginHorizontal: SPACING.space_4,
   },
 });
 
