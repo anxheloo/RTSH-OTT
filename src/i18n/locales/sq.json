@@ -51,6 +51,8 @@
       "sign_in": "Identifikohu",
       "birthday_placeholder": "Datëlindja (VVVV-MM-DD)",
       "city_placeholder": "Qyteti",
+      "city_select_country_first": "Zgjidh fillimisht shtetin",
+      "city_other": "Tjetër (nuk është në listë)",
       "country_placeholder": "Shteti",
       "gender_label": "Gjinia",
       "gender": {
@@ -70,6 +72,8 @@
     "errors": {
       "email": "Email i pavlefshëm",
       "username": "Përdoruesi duhet të ketë të paktën 3 shkronja",
+      "username_max": "Përdoruesi duhet të ketë më së shumti 30 shkronja",
+      "username_chars": "Përdoruesi mund të përmbajë vetëm shkronja dhe numra",
       "password_min": "Fjalëkalimi duhet të ketë të paktën 8 shkronja",
       "password_match": "Fjalëkalimet nuk përputhen",
       "gender_required": "Zgjidhni gjininë",
@@ -79,6 +83,7 @@
       "birthday_required": "Datëlindja kërkohet",
       "birthday_invalid": "Shkruani një datë të vlefshme (VVVV-MM-DD)",
       "city_required": "Qyteti kërkohet",
+      "city_invalid": "Zgjidh një qytet nga lista",
       "country_required": "Shteti kërkohet",
       "otp_length": "Shkruani kodin 6-shifror",
       "password_required": "Shkruani fjalëkalimin aktual",

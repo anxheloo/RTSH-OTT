@@ -83,6 +83,7 @@
     "start": "expo start",
     "start:dev": "APP_VARIANT=development expo start --dev-client",
     "deps:sync": "expo install --fix",
+    "cities:build": "node scripts/build-cities.mjs",
     "expoUpgrade": "npx expo install expo@latest && npx expo install --fix && rm -rf node_modules .expo && npm install && npx expo-doctor",
     "prebuild:dev": "APP_VARIANT=development expo prebuild --clean",
     "prebuild:preview": "APP_VARIANT=preview expo prebuild --clean",

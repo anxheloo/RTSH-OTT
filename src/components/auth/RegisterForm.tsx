@@ -1,6 +1,6 @@
 /**
  * Register form (design single page, decision 9) — credentials + profile in one
- * RHF form: email, username, password, confirm, birth date, city, country,
+ * RHF form: email, username, password, confirm, birth date, country, city,
  * gender, and an accept-terms checkbox (the backend contract's single-shot
  * register payload). Field errors are zod i18n keys resolved with `t()`. The
  * valid payload is handed up via `onSubmit`; the parent owns the mutation,
@@ -8,7 +8,7 @@
  */
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
-import { Controller, useForm } from 'react-hook-form';
+import { Controller, useForm, useWatch } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -16,6 +16,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { SPACING } from '@/theme/spacing';
 import ReusableBtn from '@/components/Buttons/ReusableBtn';
 import Checkbox from '@/components/Inputs/Checkbox';
+import CityPickerInput from '@/components/Inputs/CityPickerInput';
 import CountryPickerInput from '@/components/Inputs/CountryPickerInput';
 import DatePickerInput from '@/components/Inputs/DatePickerInput';
 import ReusableInput from '@/components/Inputs/ReusableInput';
@@ -39,7 +40,7 @@ export interface RegisterFormProps {
 
 const RegisterForm: React.FC<RegisterFormProps> = ({ onSubmit, isSubmitting = false, errorText }) => {
   const { t } = useTranslation();
-  const { control, handleSubmit } = useForm<RegisterFormData>({
+  const { control, handleSubmit, setValue } = useForm<RegisterFormData>({
     resolver: zodResolver(registerSchema),
     defaultValues: {
       email: '',
@@ -67,6 +68,13 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onSubmit, isSubmitting = fa
   }));
 
   const tr = (key?: string) => (key ? t(key) : undefined);
+
+  // A city belongs to one country — switching country clears it.
+  const country = useWatch({ control, name: 'country' });
+  const handleCountryChange = (next: string, onChange: (v: string) => void) => {
+    if (next !== country) setValue('city', '');
+    onChange(next);
+  };
 
   return (
     <>
@@ -159,30 +167,31 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onSubmit, isSubmitting = fa
 
       <Controller
         control={control}
-        name="city"
-        render={({ field: { value, onChange, onBlur }, fieldState: { error } }) => (
-          <ReusableInput
+        name="country"
+        render={({ field: { value, onChange }, fieldState: { error } }) => (
+          <CountryPickerInput
             value={value}
-            onChangeText={onChange}
-            onBlur={onBlur}
-            label={t('auth.register.city_label')}
-            placeholder={t('auth.register.city_placeholder')}
+            onChange={(next) => handleCountryChange(next, onChange)}
+            label={t('auth.register.country_label')}
             errorText={tr(error?.message)}
-            testID="register-city-input"
+            testID="register-country-input"
           />
         )}
       />
 
       <Controller
         control={control}
-        name="country"
+        name="city"
         render={({ field: { value, onChange }, fieldState: { error } }) => (
-          <CountryPickerInput
+          <CityPickerInput
+            country={country}
             value={value}
             onChange={onChange}
-            label={t('auth.register.country_label')}
+            label={t('auth.register.city_label')}
+            placeholder={t('auth.register.city_placeholder')}
+            disabledPlaceholder={t('auth.register.city_select_country_first')}
             errorText={tr(error?.message)}
-            testID="register-country-input"
+            testID="register-city-input"
           />
         )}
       />

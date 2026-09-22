@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import { CITY_OTHER, getCitiesForCountry } from '@/constants/cities';
+
 export const loginSchema = z.object({
   email: z.email({ error: 'auth.errors.email' }).toLowerCase(),
   password: z.string().min(8, { error: 'auth.errors.password_min' }),
@@ -43,7 +45,13 @@ export type EducationLevel = (typeof EDUCATION_LEVELS)[number];
 export const registerSchema = z
   .object({
     email: z.email({ error: 'auth.errors.email' }).toLowerCase(),
-    username: z.string({ error: 'auth.errors.username' }).trim().min(3, { error: 'auth.errors.username' }),
+    // Letters (any alphabet, so ë/ç work) and digits only — no emoji, symbols or spaces.
+    username: z
+      .string({ error: 'auth.errors.username' })
+      .trim()
+      .min(3, { error: 'auth.errors.username' })
+      .max(30, { error: 'auth.errors.username_max' })
+      .regex(/^[\p{L}\p{N}]+$/u, { error: 'auth.errors.username_chars' }),
     password: z
       .string()
       .min(8, { error: 'auth.errors.password_min' })
@@ -67,7 +75,19 @@ export const registerSchema = z
   .refine((d) => d.password === d.confirmPassword, {
     error: 'auth.errors.password_match',
     path: ['confirmPassword'],
-  });
+  })
+  // The picker only offers the selected country's cities; this backs it up.
+  .refine(
+    (d) =>
+      !d.city ||
+      !d.country ||
+      d.city === CITY_OTHER ||
+      getCitiesForCountry(d.country).includes(d.city),
+    {
+      error: 'auth.errors.city_invalid',
+      path: ['city'],
+    },
+  );
 export type RegisterFormData = z.infer<typeof registerSchema>;
 
 /* ----------------------- Reset · step 3 (new password) --------------------- */
