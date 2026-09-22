@@ -44,18 +44,6 @@
       "source": "https://docs.expo.dev/versions/latest/config/app/#adaptiveicon"
     },
     {
-      "id": "android-adaptive-monochrome",
-      "role": "app-source-icon",
-      "platform": "android",
-      "path": "./assets/images/android-icon-monochrome.png",
-      "required": true,
-      "shape": { "width": 1024, "height": 1024, "square": true },
-      "formats": ["png"],
-      "alpha": "required",
-      "spec_verified": "2026-08-01",
-      "source": "https://docs.expo.dev/versions/latest/config/app/#adaptiveicon"
-    },
-    {
       "id": "android-legacy-fallback-icon",
       "role": "app-source-icon",
       "platform": "android",

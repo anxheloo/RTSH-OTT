@@ -96,9 +96,11 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     android: {
       package: androidPackage,
       adaptiveIcon: {
-        // Scaled-down Android foreground so launcher masks do not crop the RTSH mark.
+        // The foreground's red tile fills the 72dp visible viewport, so the
+        // background must be the same brand red — any other colour leaks as
+        // slivers at the edges of some launcher mask shapes.
         foregroundImage: './assets/images/android-icon-foreground.png',
-        backgroundColor: '#FFFFFF',
+        backgroundColor: '#EE1332',
       },
       predictiveBackGestureEnabled: false,
     },
@@ -193,11 +195,12 @@ export default ({ config }: ConfigContext): ExpoConfig => {
       [
         'expo-splash-screen',
         {
-          // Native splash shows the RTSH 2020 logo lockup from frame zero on a
+          // Native splash shows the lowercase "rtsh" mark from frame zero on a
           // black background, and holds for the whole boot (no JS splash phase).
-          // Android 12+ constrains the splash icon to a ~192dp circle, so the
-          // wide lockup is kept narrow (160dp wide → ~175dp diagonal) to fit
-          // inside the circle uncropped.
+          // The "sh" is knocked out (transparent), so it reads as black here.
+          // Android 12+ constrains the splash icon to a ~192dp circle; at 160dp
+          // wide (→ ~105dp tall) every opaque pixel sits inside it — the empty
+          // corners of the bounding box are what the circle clips.
           backgroundColor: '#000000',
           ios: {
             image: './assets/images/splash-icon.png',
@@ -233,6 +236,9 @@ export default ({ config }: ConfigContext): ExpoConfig => {
           microphonePermission: false,
         },
       ],
+      // Hides the Android navigation bar natively on every Activity start. Takes
+      // effect from the next native build; until then `_layout.tsx` hides it from JS.
+      ['expo-navigation-bar', { hidden: true }],
     ],
     experiments: {
       typedRoutes: true,

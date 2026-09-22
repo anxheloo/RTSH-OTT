@@ -109,8 +109,9 @@ const WEEKDAY_KEYS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'] as const;
 const keyExtractor = (p: EpgItem) => p.id;
 
 const ChannelScreen: React.FC = () => {
-  // Cellular data warning. While `pending`, the confirmation modal is up and the
-  // player stays unmounted — the stream must not start behind it.
+  // Cellular data warning. While `pending`, the confirmation modal is up. Before
+  // playback has started the player stays unmounted (the stream must not start
+  // behind it); after that it is only paused — see `holdForCellular` below.
   const cellular = useCellularGate();
   const { id } = useLocalSearchParams<{ id: string }>();
   const channelId = id ?? '';
@@ -539,8 +540,17 @@ const ChannelScreen: React.FC = () => {
     setRefreshing(false);
   }, [queryClient, channelId, numericChannelId]);
 
+  // A mid-session Wi-Fi → cellular switch pauses the running player behind the
+  // prompt instead of unmounting it: tearing a player down and rebuilding it is
+  // what raced expo-video's Android playback service (REACT-NATIVE-RTSH-OTT-B),
+  // and unmounting also dropped the viewer out of the fullscreen UI.
+  const [playbackStarted, setPlaybackStarted] = useState(false);
+  const holdForCellular = cellular.pending && !playbackStarted;
+  const showsPlayer = !holdForCellular && !mediaPending && !adPending && !showBlocked && !blockPlayer;
+  if (showsPlayer && !playbackStarted) setPlaybackStarted(true);
+
   const player =
-    cellular.pending || mediaPending || adPending ? (
+    holdForCellular || mediaPending || adPending ? (
       <Skeleton
         borderRadius={BORDERRADIUS.none}
         style={styles.playerSkeleton}
@@ -579,7 +589,7 @@ const ChannelScreen: React.FC = () => {
             : (selectedProgramTitle ?? channelMeta?.name ?? channelId)
         }
         isLive={isLive}
-        paused={adActive || coveredByFullScreen}
+        paused={adActive || coveredByFullScreen || cellular.pending}
         isFullscreen={isFullscreen}
         onToggleFullscreen={toggleFullscreen}
         onOpenOptions={() => router.push('/(app)/(modals)/player-options')}

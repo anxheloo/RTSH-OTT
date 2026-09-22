@@ -25,7 +25,7 @@ import { BlurView } from 'expo-blur';
 import { BRAND_HEADER_BASE_HEIGHT } from '@/theme/header';
 import { SCREEN_PADDING, SPACING } from '@/theme/spacing';
 import { useAppStore } from '@/store/useAppStore';
-import { RtshLogoFull } from '@/assets/icons/Brand';
+import { RtshWordmark } from '@/assets/icons/Brand';
 
 import TVNavButton from './TVNavButton';
 
@@ -57,7 +57,7 @@ const BrandHeader: React.FC<BrandHeaderProps> = ({
   const mode = useAppStore((s) => s.mode);
   const insets = useSafeAreaInsets();
 
-  const logo = <RtshLogoFull height={logoHeight} taglineColor={colors.text} />;
+  const logo = <RtshWordmark height={logoHeight} />;
 
   return (
     <View

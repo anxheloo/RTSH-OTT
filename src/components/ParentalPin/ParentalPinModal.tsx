@@ -195,6 +195,8 @@ const ParentalPinModal: React.FC<ParentalPinModalProps> = ({
       statusBarTranslucent
       presentationStyle="overFullScreen"
       transparent
+      // Can open during fullscreen (a live 18+ boundary) — see ModalWrapper.
+      supportedOrientations={['portrait', 'landscape']}
     >
       <View style={[styles.screen, { backgroundColor: colors.background, paddingTop: insets.top }]}>
         <View style={styles.header}>

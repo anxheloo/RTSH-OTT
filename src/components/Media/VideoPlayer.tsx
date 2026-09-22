@@ -9,7 +9,7 @@
  * key requests on iOS/Android. Validate on a real RTSH stream before
  * shipping. Fallback: react-native-video if headers don't propagate.
  */
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { AppState, Platform, StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
 
 import { useEvent, useEventListener } from 'expo';
@@ -17,7 +17,6 @@ import { useKeepAwake } from 'expo-keep-awake';
 import { useVideoPlayer, VideoPlayer as ExpoVideoPlayer, VideoSource, VideoView } from 'expo-video';
 
 import { PLAYER_COLORS } from '@/theme/playerColors';
-import { useAppState } from '@/hooks/useAppState';
 import { inferContentType } from '@/utils/resolveStreamSource';
 
 export type VideoStatus = 'idle' | 'loading' | 'readyToPlay' | 'error';
@@ -46,24 +45,12 @@ export type VideoPlayerProps = {
   onPlayEnd?: () => void;
   allowsPictureInPicture?: boolean;
   startsPictureInPictureAutomatically?: boolean;
-  /**
-   * Keep audio playing while backgrounded AND show lock-screen / control-center
-   * now-playing controls. Opt-in (default off) so ads never keep playing
-   * invisibly or hijack the lock screen — only LivePlayer enables it.
-   */
-  backgroundPlayback?: boolean;
   /** Lock-screen / now-playing metadata (title, artist, artwork uri). */
   metadata?: { title?: string; artist?: string; artwork?: string };
   style?: StyleProp<ViewStyle>;
   /** Render prop — receives live player instance for custom controls overlay. */
   renderOverlay?: (props: VideoPlayerOverlayProps) => React.ReactNode;
 };
-
-/** Both setters start the Android media foreground service when `enabled`. */
-function setBackgroundPlayback(player: ExpoVideoPlayer, enabled: boolean): void {
-  player.staysActiveInBackground = enabled;
-  player.showNowPlayingNotification = enabled;
-}
 
 function VideoPlayer({
   source,
@@ -75,7 +62,6 @@ function VideoPlayer({
   onPlayEnd,
   allowsPictureInPicture = false,
   startsPictureInPictureAutomatically = false,
-  backgroundPlayback = false,
   metadata,
   style,
   renderOverlay,
@@ -83,7 +69,9 @@ function VideoPlayer({
   // Keep the screen awake while a video player is mounted (deactivates on unmount).
   // `suppressDeactivateWarnings` catches the unmount-time `deactivate` rejection
   // Android raises when the activity is already gone (app closed / recreated) —
-  // harmless, but uncaught it was the app's top Sentry issue (REACT-NATIVE-RTSH-OTT-3).
+  // harmless, but uncaught it was a top Sentry error. Sentry groups every expo
+  // `CodedError` rejection into REACT-NATIVE-RTSH-OTT-3, so that issue also holds
+  // unrelated errors (e.g. ExpoNavigationBar.setStyle) and does not track this one alone.
   useKeepAwake(undefined, { suppressDeactivateWarnings: true });
 
   // `contentType` is inferred from the URL extension (extensionless → HLS) so the
@@ -115,13 +103,13 @@ function VideoPlayer({
     // 0 = never). Without it `currentTime`/`duration` stay 0 forever, so the
     // recorded seek bar never becomes seekable and the progress fill never moves.
     p.timeUpdateEventInterval = 0.5;
-    // Background audio + lock-screen now-playing controls (opt-in via prop).
-    // On Android both setters start a media foreground service, which Android 12+
-    // refuses from the background (BackgroundServiceStartNotAllowedException —
-    // REACT-NATIVE-RTSH-OTT-A). A player can be created while backgrounded (e.g. an
-    // ad or block lifting), so only arm it in the foreground; `enableBackgroundPlayback`
-    // below arms it on return.
-    setBackgroundPlayback(p, backgroundPlayback && AppState.currentState !== 'background');
+    // `staysActiveInBackground` / `showNowPlayingNotification` are deliberately
+    // left off (product decision 2026-09-21): only radio (expo-audio) plays on the
+    // lock screen; TV keeps playing in the background through PiP alone, which
+    // expo-video honours without them. On Android either setter starts expo-video's
+    // media foreground service, whose lifecycle races crashed builds 17 and 20
+    // (REACT-NATIVE-RTSH-OTT-A, -B, -W, -18, -1B), and whose teardown `cancelAll()`s
+    // every app notification, radio's included.
     // Casting is OUT OF SCOPE for v1 — and expo-video defaults
     // `allowsExternalPlayback` to TRUE, so without this line iOS silently offers
     // AirPlay from Control Center on every stream. That path cannot work here:
@@ -154,11 +142,6 @@ function VideoPlayer({
   const handlePictureInPictureStop = () => {
     if (AppState.currentState !== 'active') player.pause();
   };
-
-  const enableBackgroundPlayback = useCallback(() => {
-    if (backgroundPlayback && !player.staysActiveInBackground) setBackgroundPlayback(player, true);
-  }, [player, backgroundPlayback]);
-  useAppState({ onForeground: enableBackgroundPlayback });
 
   const lastUriRef = useRef(source);
   useEffect(() => {

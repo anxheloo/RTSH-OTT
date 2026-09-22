@@ -152,7 +152,7 @@ Phase 8 (5 tabs) → 22.4 (4 tabs). · 5.X.6/5.X.7/5.X.8 (design tokens) → 22.
   - **Backend contract:** geo enforced at the **CDN edge by user IP** via backend-issued **signed, short-lived playback URLs** — the client cannot geolocate and must not try. Client branches a `403` on manifest/AES-key requests: *expiry* → silently re-fetch the signed URL; *geo* → overlay.
 - [x] **15.3** Cellular-data gate — `useCellularGate` confirmation modal.
 - [x] **15.4** ~~Mosaic view~~ **REMOVED** (user 2026-06-11, see 22.14f). Feature cut: route/tile/entry-points deleted. CLAUDE.md mandatory-features list updated.
-- [ ] **15.5 → superseded, verify entitlements only.** PIP + iOS background video are now **always-on** (no user setting; `backgroundVideoAllowed` removed 2026-06-26) — see CLAUDE.md → Mandatory product features and ARCHITECTURE.md → Player. **Remaining:** confirm the `expo-video` config plugin entitlements (`supportsBackgroundPlayback`) are wired and verified on a real device (native rebuild required); one player in PIP at a time.
+- [ ] **15.5 → superseded, verify entitlements only.** PIP + iOS background video are now **always-on** (no user setting; `backgroundVideoAllowed` removed 2026-06-26) — see CLAUDE.md → Mandatory product features and ARCHITECTURE.md → Player. **Remaining:** confirm the `expo-video` config plugin entitlements (`supportsBackgroundPlayback`) are wired and verified on a real device (native rebuild required); one player in PIP at a time. **2026-09-21:** background video removed — TV continues in the background via PiP only; lock-screen playback is radio-only (see CLAUDE.md → Mandatory product features).
 - [x] **15.6** Foreground refresh — channels + EPG invalidated on app foreground.
 
 ### Phase 16 — Ad Infrastructure

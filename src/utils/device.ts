@@ -61,9 +61,9 @@ export async function getOrCreateDeviceId(): Promise<string> {
   return id;
 }
 
-// TODO(anx 2026-06-12): replace with the real App Store ID once the listing
-// exists (Phase 24 store readiness). Android resolves from the package name.
-const IOS_APP_STORE_ID = '';
+// App Store Connect Apple ID of `al.rtsh.tani.ott` (same value as eas.json →
+// submit.production.ios.ascAppId). Android resolves from the package name.
+const IOS_APP_STORE_ID = '6803853740';
 
 function getStoreUrl(): string | null {
   if (Platform.OS === 'android') {

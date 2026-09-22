@@ -16,6 +16,7 @@ import { router } from 'expo-router';
 import { BORDERRADIUS, SPACING } from '@/theme';
 import { useAppStore } from '@/store/useAppStore';
 import { openStoreListing } from '@/utils/device';
+import { CONTENT_MAX_WIDTH } from '@/responsive';
 import { isTV } from '@/tv';
 
 import ReusableBtn from './Buttons/ReusableBtn';
@@ -109,6 +110,11 @@ const ModalWrapper: React.FC = () => {
       visible
       onRequestClose={blocking ? () => {} : close}
       statusBarTranslucent
+      // iPhone Modals default to portrait-only. A global modal raised while the
+      // player is locked to landscape (fullscreen) then has no orientation in
+      // common with the app, and iOS throws UIApplicationInvalidInterfaceOrientation
+      // (REACT-NATIVE-RTSH-OTT-12). Dev builds only log it, so it crashes in release only.
+      supportedOrientations={['portrait', 'landscape']}
     >
       {/*
         `focusable={!isTV}`: these two wrappers exist only to catch backdrop taps
@@ -191,6 +197,10 @@ const styles = StyleSheet.create({
   },
   sheet: {
     width: '100%',
+    // A dialog, not a page: without a cap it stretches edge to edge once the
+    // phone player is in landscape (and on tablet/TV). Every iPhone in portrait
+    // is already narrower than this, so portrait layout is unchanged.
+    maxWidth: CONTENT_MAX_WIDTH.form,
     borderRadius: BORDERRADIUS.radius_14,
     overflow: 'hidden',
   },

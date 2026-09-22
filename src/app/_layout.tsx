@@ -2,7 +2,7 @@
 import '@/polyfills';
 
 import { useEffect } from 'react';
-import { StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Platform, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import * as Sentry from '@sentry/react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
@@ -17,7 +17,7 @@ import {
 } from '@expo-google-fonts/inter';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { useFonts } from 'expo-font';
-import { NavigationBar } from 'expo-navigation-bar';
+import { setVisibilityAsync } from 'expo-navigation-bar';
 import { type ErrorBoundaryProps, Stack, useNavigationContainerRef } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 
@@ -116,6 +116,17 @@ const RootLayoutNav = () => {
     StatusBar.setBarStyle(mode === 'dark' ? 'light-content' : 'dark-content');
   }, [mode]);
 
+  // Hide the Android navigation bar once per mount (a recreated Activity remounts
+  // this tree, so it re-runs). NOT `<NavigationBar hidden />`: on unmount (Activity
+  // destroyed, JS alive) that component resets the bar via an unhandled
+  // `setStyle` call with no Activity — REACT-NATIVE-RTSH-OTT-3. `setVisibilityAsync`
+  // is deprecated but, unlike `NavigationBar.setHidden`, it returns its promise and
+  // skips the JS-side value cache that would no-op on a recreated Activity. Remove
+  // once every build carries the `expo-navigation-bar` plugin (app.config.ts).
+  useEffect(() => {
+    if (Platform.OS === 'android') setVisibilityAsync('hidden').catch(() => {});
+  }, []);
+
   useEffect(() => {
     if (fontsSettled && tokenChecked) {
       SplashScreen.hideAsync();
@@ -128,7 +139,6 @@ const RootLayoutNav = () => {
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
-      <NavigationBar hidden />
       <Stack
         screenOptions={{
           headerShown: false,

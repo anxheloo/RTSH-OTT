@@ -11,6 +11,7 @@
  * expo-crypto is emulated with Node crypto — same SHA-256 semantics.
  */
 import React from 'react';
+import { Modal } from 'react-native';
 
 import { fireEvent, render, waitFor } from '@testing-library/react-native';
 
@@ -156,5 +157,18 @@ describe('ParentalPinModal — set', () => {
 
     expect(onSuccess).not.toHaveBeenCalled();
     expect(useAppStore.getState().parentalPin).toBeNull();
+  });
+});
+
+describe('ParentalPinModal — orientation', () => {
+  // A live 18+ boundary can raise this while the phone player is locked to
+  // landscape; a portrait-only Modal then crashes iOS (REACT-NATIVE-RTSH-OTT-12).
+  it('supports landscape so it can present over the fullscreen player', () => {
+    const { UNSAFE_getByType } = render(
+      <ParentalPinModal visible mode="verify" onSuccess={jest.fn()} onDismiss={jest.fn()} />,
+    );
+    expect(UNSAFE_getByType(Modal).props.supportedOrientations).toEqual(
+      expect.arrayContaining(['portrait', 'landscape']),
+    );
   });
 });

@@ -107,7 +107,6 @@ const LivePlayer: React.FC<LivePlayerProps> = ({
         paused={paused}
         allowsPictureInPicture={!paused}
         startsPictureInPictureAutomatically={!paused}
-        backgroundPlayback
         metadata={metadata}
         onStatusChange={handleStatusChange}
         style={StyleSheet.absoluteFill}
