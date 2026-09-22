@@ -19,6 +19,8 @@ export interface PlayerSlice {
   radioStreamUrl: string | null;
   radioTitle: string | null;
   radioArtworkUrl: string | null;
+  /** `null` = the live stream; set = a catch-up recording of that programme. */
+  radioProgramId: string | null;
 
   // Video quality (selected in the quality sheet, read by the player). Session
   // state, not persisted — reset to `DEFAULT_QUALITY` (Auto) on each channel open.
@@ -36,6 +38,8 @@ export interface PlayerSlice {
     streamUrl: string;
     title: string;
     artworkUrl?: string;
+    /** Omit for live; a programme id plays its catch-up recording. */
+    programId?: string;
   }) => void;
   setRadioPlaying: (isPlaying: boolean) => void;
   clearRadio: () => void;
@@ -49,15 +53,17 @@ export const createPlayerSlice: StateCreator<AppStore, [], [], PlayerSlice> = (s
   radioStreamUrl: null,
   radioTitle: null,
   radioArtworkUrl: null,
+  radioProgramId: null,
   videoQuality: DEFAULT_QUALITY,
   availableQualities: [],
 
-  setRadioChannel: ({ channelId, streamUrl, title, artworkUrl }) =>
+  setRadioChannel: ({ channelId, streamUrl, title, artworkUrl, programId }) =>
     set({
       radioChannelId: channelId,
       radioStreamUrl: streamUrl,
       radioTitle: title,
       radioArtworkUrl: artworkUrl ?? null,
+      radioProgramId: programId ?? null,
       radioIsPlaying: true,
     }),
 
@@ -70,6 +76,7 @@ export const createPlayerSlice: StateCreator<AppStore, [], [], PlayerSlice> = (s
       radioStreamUrl: null,
       radioTitle: null,
       radioArtworkUrl: null,
+      radioProgramId: null,
     }),
 
   setVideoQuality: (quality) => set({ videoQuality: quality }),

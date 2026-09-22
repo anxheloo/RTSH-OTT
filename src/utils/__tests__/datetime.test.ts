@@ -9,6 +9,7 @@ import type { TFunction } from 'i18next';
 import {
   formatDayMonth,
   formatDurationMinutes,
+  formatPlaybackTime,
   formatRelativeDay,
   formatTime,
   toDateKey,
@@ -50,6 +51,21 @@ describe('formatDurationMinutes', () => {
   it('rounds seconds to whole minutes', () => {
     expect(formatDurationMinutes(125)).toBe('2 min');
     expect(formatDurationMinutes(3600)).toBe('60 min');
+  });
+});
+
+describe('formatPlaybackTime', () => {
+  it('uses m:ss under an hour and h:mm:ss from an hour up', () => {
+    expect(formatPlaybackTime(0)).toBe('0:00');
+    expect(formatPlaybackTime(65.9)).toBe('1:05');
+    expect(formatPlaybackTime(3599)).toBe('59:59');
+    expect(formatPlaybackTime(3600)).toBe('1:00:00');
+    expect(formatPlaybackTime(3725)).toBe('1:02:05');
+  });
+
+  it('reads an unloaded player (NaN / negative) as 0:00', () => {
+    expect(formatPlaybackTime(Number.NaN)).toBe('0:00');
+    expect(formatPlaybackTime(-3)).toBe('0:00');
   });
 });
 

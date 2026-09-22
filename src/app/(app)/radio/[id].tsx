@@ -25,19 +25,20 @@
  * endpoint + day-strip mechanism the TV channel screen uses
  * (`useChannelEpgQuery`): a radio station is just a `Channel` with
  * `type: 'RADIO'` in the same id-space, so the call is unchanged, only the id
- * differs. Unlike TV, browsing is **read-only** — radio is one continuous
- * stream with no per-programme recording, so the day strip only lets you see
- * what aired/airs when. Only the currently-airing row on TODAY is interactive
- * (`state: 'now'`, toggles the live stream); every other row — past or future,
- * on any day — renders `state: 'scheduled'` (info only, non-pressable, but
- * still expandable to read its description).
+ * differs. Catch-up works like TV: the airing row on TODAY is `now` (toggles
+ * the live stream, or returns to it from a recording), every finished programme
+ * is `recorded` and plays its recording from `GET /channels/{id}/epg/{programId}`,
+ * and only not-yet-started rows are `scheduled` (info only). The recording plays
+ * through the same `RadioAudioHost` engine as live — the store carries a
+ * `radioProgramId` — so it survives navigation and docks in the mini-player
+ * exactly like a live station. Guests are sent to sign in, as on TV
+ * (`GUEST_CATCHUP_ALLOWED`).
  *
  * The schedule is a virtualized `FlashList`. That matters beyond the usual
  * reason: a `ProgramRow` is expensive to mount (reanimated layout + a worklet,
- * plus a native `BlurView` on Android — and on radio every row but the airing
- * one is `scheduled`, so nearly all of them carry one). Building a whole day at
+ * plus a native `BlurView` on Android). Building a whole day at
  * once made switching dates visibly janky; recycling keeps it to the visible
- * slice. It also means auto-centering on the now-airing row is a plain
+ * slice. It also means auto-centering on the active row is a plain
  * `scrollToIndex` rather than the channel screen's `onLayout` offset
  * bookkeeping — nothing to measure, nothing to invalidate on a day change.
  */
@@ -56,6 +57,7 @@ import { FONTSIZE } from '@/theme/fonts';
 import { SPACING } from '@/theme/spacing';
 import { useAppStore } from '@/store/useAppStore';
 import {
+  channelPlaybackQueryOptions,
   useChannelEpgQuery,
   useChannelPlaybackQuery,
   useChannelsQuery,
@@ -72,10 +74,13 @@ import type { ProgramRowState } from '@/components/epg/ProgramRow';
 import { Icon, IconButton } from '@/components/Icons';
 import { ScreenLayout, SectionHeader, Skeleton, TabHeader } from '@/components/Layout';
 import RadioPlayer from '@/components/Media/RadioPlayer';
+import RadioSeekBar from '@/components/Media/RadioSeekBar';
 import { resolveStreamSource } from '@/utils';
 import { formatDayMonth, toDateKey } from '@/utils/datetime';
 import type { CatchupDay, EpgItem } from '@/types/domain';
 import { ChevronLeftIcon } from '@/assets/icons';
+import { GUEST_CATCHUP_ALLOWED } from '@/constants/auth';
+import { promptSignIn } from '@/features/auth/signInPrompt';
 import { useContentWidth, useResponsive } from '@/responsive';
 
 /**
@@ -144,8 +149,12 @@ const RadioPlayerScreen: React.FC = () => {
   const splitLayout = deviceClass === 'tv' || (deviceClass === 'tablet' && isLandscape);
   const radioChannelId = useAppStore((s) => s.radioChannelId);
   const radioIsPlaying = useAppStore((s) => s.radioIsPlaying);
+  const radioProgramId = useAppStore((s) => s.radioProgramId);
+  const isGuest = useAppStore((s) => s.isGuest);
   const setRadioChannel = useAppStore((s) => s.setRadioChannel);
   const setRadioPlaying = useAppStore((s) => s.setRadioPlaying);
+  const updateModalSlice = useAppStore((s) => s.updateModalSlice);
+  const queryClient = useQueryClient();
 
   // Floating header clearance for the (non-scrolling) top pane — mirrors
   // `useBrandHeaderHeight`'s formula, kept local since only this screen floats
@@ -162,6 +171,8 @@ const RadioPlayerScreen: React.FC = () => {
 
   const isActive = radioChannelId === activeId;
   const isPlaying = isActive && radioIsPlaying;
+  // The recording this station is playing, or null when it is live / not active.
+  const recordingId = isActive ? radioProgramId : null;
 
   // Current local calendar day, kept correct across midnight (foreground +
   // next-midnight timer) — see `useToday`.
@@ -213,7 +224,7 @@ const RadioPlayerScreen: React.FC = () => {
 
   // Only TODAY's list has a meaningful "now" — browsing another day passes []
   // so nothing is marked as airing there.
-  const { playing } = useNowProgram(selectedDay.isToday ? programs : []);
+  const { playing, nowMs } = useNowProgram(selectedDay.isToday ? programs : []);
 
   // One row open at a time; resets on day/station swap since the list changes
   // under it.
@@ -227,24 +238,27 @@ const RadioPlayerScreen: React.FC = () => {
     setExpandedProgramId(null);
   };
 
-  // Radio has no per-programme playback — only the row airing right now on
-  // TODAY is interactive; every other row (already aired or upcoming, on any
-  // day) is info-only. Pressing it (via the play glyph) toggles the single
-  // live stream.
-  const programState = (p: EpgItem): ProgramRowState =>
-    selectedDay.isToday && playing?.id === p.id ? 'now' : 'scheduled';
+  // Same rule as the channel screen: keyed off the programme's own clock, so a
+  // programme that finished TODAY is as playable as one from a past day. Only a
+  // not-yet-started programme is `scheduled` (info only).
+  const programState = (p: EpgItem): ProgramRowState => {
+    if (selectedDay.isToday && playing?.id === p.id) return 'now';
+    if (Date.parse(p.startTime) > nowMs) return 'scheduled';
+    return 'recorded';
+  };
 
-  // Auto-center the airing programme. The list is virtualized, so this is a
-  // `scrollToIndex` rather than per-row offset bookkeeping — nothing to
-  // measure, nothing to invalidate on a day change. Only meaningful on today's
-  // list (browsing another day has nothing "active" to center on).
+  // Auto-center the active programme — the recording on the engine, else today's
+  // airing one. The list is virtualized, so this is a `scrollToIndex` rather than
+  // per-row offset bookkeeping — nothing to measure, nothing to invalidate on a
+  // day change. A day that doesn't contain the active programme centers nothing.
   //
   // It MUST wait for `onLoad`. FlashList deliberately draws no items on its
   // first cycle — it measures itself first — so a scroll issued before that
   // resolves against an unmeasured list and lands at an estimated offset, which
   // then snaps to the true position on the user's first scroll. `listReady` is
   // that gate.
-  const activeProgramId = selectedDay.isToday ? (playing?.id ?? null) : null;
+  // What's on the engine: the recording, else today's airing programme (live).
+  const activeProgramId = recordingId ?? (selectedDay.isToday ? (playing?.id ?? null) : null);
   const listRef = useRef<FlashListRef<EpgItem>>(null);
   const activeIndex = activeProgramId
     ? programs.findIndex((p) => p.id === activeProgramId)
@@ -270,6 +284,9 @@ const RadioPlayerScreen: React.FC = () => {
   useEffect(() => {
     if (cellular.pending || !station || !playback || selectedRef.current === activeId) return;
     selectedRef.current = activeId;
+    // Re-entering from the mini-player while this station plays a recording must
+    // not yank it back to live.
+    if (recordingId) return;
     setRadioChannel({
       channelId: station.id,
       streamUrl: resolveStreamSource(playback.streams, 'auto'),
@@ -278,7 +295,7 @@ const RadioPlayerScreen: React.FC = () => {
     });
     // `cellular.pending` is a dep so the station is selected the moment the user
     // accepts the data warning — not only on the next unrelated re-render.
-  }, [cellular.pending, station, playback, activeId, setRadioChannel]);
+  }, [cellular.pending, station, playback, activeId, recordingId, setRadioChannel]);
 
   // Closing the player (X on the mini-player, on-screen or off) clears the store;
   // when that happens while this screen is open, leave it too.
@@ -297,23 +314,76 @@ const RadioPlayerScreen: React.FC = () => {
     };
   }, [stations, activeId]);
 
+  const playLive = () => {
+    if (!station || !playback) return;
+    setRadioChannel({
+      channelId: station.id,
+      streamUrl: resolveStreamSource(playback.streams, 'auto'),
+      title: station.name,
+      artworkUrl: station.imageUrl,
+    });
+  };
+
   const togglePlay = () => {
-    if (isActive) {
-      setRadioPlaying(!radioIsPlaying);
-    } else if (station && playback) {
-      setRadioChannel({
-        channelId: station.id,
-        streamUrl: resolveStreamSource(playback.streams, 'auto'),
-        title: station.name,
-        artworkUrl: station.imageUrl,
+    if (isActive) setRadioPlaying(!radioIsPlaying);
+    else playLive();
+  };
+
+  // Last tap wins: a slow decision for an earlier tap, or for a station the user
+  // has since swapped away from, must not start playing over the newer choice.
+  const tapRef = useRef(0);
+  const changeStation = (next: string) => {
+    tapRef.current += 1;
+    setActiveId(next);
+  };
+
+  const playRecording = async (p: EpgItem) => {
+    if (!station) return;
+    // Catch-up needs an account, same switch as TV — and the signed recording URL
+    // is never fetched for a guest.
+    if (isGuest && !GUEST_CATCHUP_ALLOWED) {
+      promptSignIn();
+      return;
+    }
+    const tap = ++tapRef.current;
+    // `fetchQuery` shares the cache entry `useChannelPlaybackQuery` would use. A
+    // failure is already surfaced by the global QueryCache `onError` modal.
+    const decision = await queryClient
+      .fetchQuery(channelPlaybackQueryOptions(station.id, p.id))
+      .catch(() => null);
+    if (!decision || tap !== tapRef.current) return;
+    if (decision.decision !== 'ALLOWED') {
+      updateModalSlice({
+        currentModal: 'notify',
+        modalData: {
+          title: p.title,
+          description: decision.noticeMessage?.trim() || t('player.unavailable_body'),
+        },
       });
+      return;
+    }
+    setRadioChannel({
+      channelId: station.id,
+      streamUrl: resolveStreamSource(decision.streams, 'auto'),
+      title: p.title,
+      artworkUrl: station.imageUrl,
+      programId: p.id,
+    });
+  };
+
+  const handleSelectProgram = (p: EpgItem, state: ProgramRowState) => {
+    if (state === 'now') {
+      if (recordingId) playLive();
+      else togglePlay();
+    } else if (state === 'recorded') {
+      if (recordingId === p.id) setRadioPlaying(!radioIsPlaying);
+      else void playRecording(p);
     }
   };
 
   // Pull-to-refresh — mirrors the channel screen: invalidate this station's
   // schedule (every cached day, prefix-matched) + the cached RADIO list
   // (station name/art).
-  const queryClient = useQueryClient();
   const [refreshing, setRefreshing] = useState(false);
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -379,7 +449,10 @@ const RadioPlayerScreen: React.FC = () => {
   const listHeader = (
     <View style={[styles.programs, contentWidth]}>
       {!selectedDay.isToday && !selectedDay.isFuture ? (
-        <CatchupBanner label={t('radio.past_banner', { day: dayLabel })} testID="radio-past-banner" />
+        <CatchupBanner
+          label={t('catchup.banner', { day: dayLabel })}
+          testID="radio-catchup-banner"
+        />
       ) : null}
       <SectionHeader
         title={selectedDay.isToday ? t('radio.program') : t('radio.schedule_for', { day: dayLabel })}
@@ -400,8 +473,8 @@ const RadioPlayerScreen: React.FC = () => {
   );
 
   // Rows recycle, so the list needs to know which non-`data` values change a
-  // row's render — the open row, and what the transport/now-airing state is.
-  const listExtraData = `${expandedProgramId}|${playing?.id}|${isPlaying}`;
+  // row's render — the open row and what this station has on the engine.
+  const listExtraData = `${expandedProgramId}|${activeProgramId}|${isActive}|${nowMs}`;
 
   return (
     <ScreenLayout>
@@ -432,11 +505,13 @@ const RadioPlayerScreen: React.FC = () => {
             station={station}
             isPlaying={isPlaying}
             onTogglePlay={togglePlay}
-            onPrev={prevId ? () => setActiveId(prevId) : undefined}
-            onNext={nextId ? () => setActiveId(nextId) : undefined}
+            onPrev={prevId ? () => changeStation(prevId) : undefined}
+            onNext={nextId ? () => changeStation(nextId) : undefined}
             hasPrev={Boolean(prevId)}
             hasNext={Boolean(nextId)}
           />
+          {/* A recording is seekable; live radio deliberately is not. */}
+          {recordingId ? <RadioSeekBar /> : null}
         </View>
 
         {/* Schedule pane — day strip (sticky, outside the scroller) + list.
@@ -480,7 +555,6 @@ const RadioPlayerScreen: React.FC = () => {
             }
             renderItem={({ item: p }) => {
               const state = programState(p);
-              const isNow = state === 'now';
               return (
                 <View style={contentWidth}>
                   <ProgramRow
@@ -493,9 +567,11 @@ const RadioPlayerScreen: React.FC = () => {
                     time={formatTime(p.startTime)}
                     ageRating={p.ageRating}
                     state={state}
-                    isPlaying={isNow && isPlaying}
-                    isLiveNow={isNow}
-                    onPress={togglePlay}
+                    // "Loaded in the player", not "audible" — stays marked while
+                    // paused, like the channel screen.
+                    isPlaying={isActive && p.id === activeProgramId}
+                    isLiveNow={state === 'now'}
+                    onPress={() => handleSelectProgram(p, state)}
                     expanded={p.id === expandedProgramId}
                     onToggleExpand={() => handleToggleExpand(p)}
                     testID={`radio-program-${p.id}`}

@@ -64,29 +64,32 @@ const AppLayout: React.FC = () => {
 
   return (
     <View style={styles.root}>
-      {/* Pushed screens slide in from the right (matches the auth stack); both
-          player routes slide up from the bottom and dismiss on a downward swipe,
-          which reads as modal — while staying CARD PUSHES. That distinction is
-          load-bearing, not cosmetic: see `getPlayerScreenOptions` for why a
-          native presentation here strands an invisible touch-eating overlay. */}
-      <Stack screenOptions={{ headerShown: false, animation: 'slide_from_right' }}>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="channel/[id]" options={getPlayerScreenOptions()} />
-        <Stack.Screen name="radio/[id]" options={getPlayerScreenOptions()} />
-        <Stack.Screen name="settings" />
-        <Stack.Screen name="account" />
-        <Stack.Screen name="change-password" />
-        {/* `(modals)/` groups every route that presents as a native sheet, so a
+      {/* The host renders no UI; it wraps the router only to share the radio
+          engine through context (see `useRadioAudioPlayer`). */}
+      <RadioAudioHost>
+        {/* Pushed screens slide in from the right (matches the auth stack); both
+            player routes slide up from the bottom and dismiss on a downward swipe,
+            which reads as modal — while staying CARD PUSHES. That distinction is
+            load-bearing, not cosmetic: see `getPlayerScreenOptions` for why a
+            native presentation here strands an invisible touch-eating overlay. */}
+        <Stack screenOptions={{ headerShown: false, animation: 'slide_from_right' }}>
+          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+          <Stack.Screen name="channel/[id]" options={getPlayerScreenOptions()} />
+          <Stack.Screen name="radio/[id]" options={getPlayerScreenOptions()} />
+          <Stack.Screen name="settings" />
+          <Stack.Screen name="account" />
+          <Stack.Screen name="change-password" />
+          {/* `(modals)/` groups every route that presents as a native sheet, so a
             sheet is distinguishable from a push in the file tree alone. Typed
             routes require the group in the href (`/(app)/(modals)/language`) —
             it is part of the generated union, not elided. */}
-        <Stack.Screen name="(modals)/player-options" options={sheetOptions} />
-        <Stack.Screen name="(modals)/quality" options={sheetOptions} />
-        <Stack.Screen name="(modals)/language" options={sheetOptions} />
-        <Stack.Screen name="(modals)/theme" options={sheetOptions} />
-      </Stack>
-      <RadioAudioHost />
-      <RadioMiniPlayer />
+          <Stack.Screen name="(modals)/player-options" options={sheetOptions} />
+          <Stack.Screen name="(modals)/quality" options={sheetOptions} />
+          <Stack.Screen name="(modals)/language" options={sheetOptions} />
+          <Stack.Screen name="(modals)/theme" options={sheetOptions} />
+        </Stack>
+        <RadioMiniPlayer />
+      </RadioAudioHost>
       {launchAd && canShowLaunchAd && (
         <AdOverlay creative={launchAd} onComplete={() => setLaunchAdDismissed(true)} />
       )}

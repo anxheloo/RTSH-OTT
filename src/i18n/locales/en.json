@@ -133,7 +133,6 @@
     "now_playing": "Now playing",
     "program": "Radio schedule",
     "schedule_for": "Schedule — {{day}}",
-    "past_banner": "{{day}} — already aired, info only",
     "live_now": "On air",
     "previous": "Previous station",
     "next": "Next station"

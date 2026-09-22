@@ -7,27 +7,40 @@
  * this host obeys (swap source on `radioStreamUrl`, play/pause on
  * `radioIsPlaying`). Living above the router is what lets playback survive tab
  * navigation and screen unmounts, which is the whole point of the docked
- * mini-player. Renders nothing.
+ * mini-player. Renders no UI of its own — it wraps the router only to share
+ * the player through context (`useRadioAudioPlayer`), so a screen can READ
+ * position/duration and seek a catch-up recording without owning the engine.
+ * Everything else still goes through the store.
  *
  * Background-while-locked relies on the iOS `audio` background mode + Android
  * foreground-service entitlements emitted by the `expo-audio` config plugin
  * (`enableBackgroundPlayback: true`) — a native rebuild is required for them to
  * take effect.
  */
-import { useEffect } from 'react';
+import React, { createContext, useContext, useEffect } from 'react';
 
-import { setAudioModeAsync, useAudioPlayer } from 'expo-audio';
+import { type AudioPlayer, setAudioModeAsync, useAudioPlayer } from 'expo-audio';
 
 import { useAppStore } from '@/store/useAppStore';
 import { getStreamHeaders, resolveExternalPlaybackChange } from '@/utils';
 import { publish, STOMP_DEST } from '@/realtime';
 
-const RadioAudioHost: React.FC = () => {
+const RadioPlayerContext = createContext<AudioPlayer | null>(null);
+
+/** The single radio engine — for reading status and seeking, never for source/play state. */
+export function useRadioAudioPlayer(): AudioPlayer {
+  const player = useContext(RadioPlayerContext);
+  if (!player) throw new Error('useRadioAudioPlayer must be used inside <RadioAudioHost>');
+  return player;
+}
+
+const RadioAudioHost: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const radioChannelId = useAppStore((s) => s.radioChannelId);
   const radioStreamUrl = useAppStore((s) => s.radioStreamUrl);
   const radioIsPlaying = useAppStore((s) => s.radioIsPlaying);
   const radioTitle = useAppStore((s) => s.radioTitle);
   const radioArtworkUrl = useAppStore((s) => s.radioArtworkUrl);
+  const radioProgramId = useAppStore((s) => s.radioProgramId);
   const realtimeConnected = useAppStore((s) => s.realtimeConnected);
   const player = useAudioPlayer(null);
 
@@ -37,13 +50,18 @@ const RadioAudioHost: React.FC = () => {
   const stationId = radioChannelId != null ? Number(radioChannelId) : null;
 
   // Watch segment (socket analytics) — mirrors channel/[id] via useChannelRealtime.
-  // Radio is always live with no programme. Open on select + every station switch
-  // (backend closes the previous segment); re-fire on reconnect (publish is a
-  // no-op until connected, and RN drops the socket on background).
+  // Live carries no programme; a catch-up recording carries its programme id. Open
+  // on select + every station/programme switch (backend closes the previous
+  // segment); re-fire on reconnect (publish is a no-op until connected, and RN
+  // drops the socket on background).
   useEffect(() => {
     if (stationId == null) return;
-    publish(STOMP_DEST.watch, { channelId: stationId, programId: null, kind: 'LIVE' });
-  }, [stationId, realtimeConnected]);
+    publish(STOMP_DEST.watch, {
+      channelId: stationId,
+      programId: radioProgramId != null ? Number(radioProgramId) : null,
+      kind: radioProgramId != null ? 'RECORDED' : 'LIVE',
+    });
+  }, [stationId, radioProgramId, realtimeConnected]);
 
   // Watch end — on station change / clear (mini-player close). Disconnect/kill
   // closes it server-side.
@@ -75,10 +93,11 @@ const RadioAudioHost: React.FC = () => {
   // Lock-screen now-playing controls (also required on Android for sustained
   // >3min background playback). Cleared when the station is torn down.
   //
-  // `isLiveStream: true` is load-bearing, not cosmetic: expo-audio gates the
-  // scrub bar on it (`changePlaybackPositionCommand.isEnabled = !isLiveStream`
-  // in MediaController.swift), so without it the lock screen offers a duration
-  // and a seek control for a stream that has neither. Radio is always live.
+  // `isLiveStream` is load-bearing, not cosmetic: expo-audio gates the scrub bar
+  // on it (`changePlaybackPositionCommand.isEnabled = !isLiveStream` in
+  // MediaController.swift). Live radio must pass `true`, or the lock screen offers
+  // a duration and a seek control for a stream that has neither; a catch-up
+  // recording passes `false`, which is what gives it a working lock-screen scrubber.
   //
   // Next/previous station are NOT available here and cannot be added from JS:
   // expo-audio wires only play/pause/togglePlayPause/changePlaybackPosition/
@@ -96,9 +115,9 @@ const RadioAudioHost: React.FC = () => {
         title: radioTitle ?? undefined,
         artworkUrl: radioArtworkUrl ?? undefined,
       },
-      { isLiveStream: true },
+      { isLiveStream: radioProgramId == null },
     );
-  }, [radioStreamUrl, radioTitle, radioArtworkUrl, player]);
+  }, [radioStreamUrl, radioTitle, radioArtworkUrl, radioProgramId, player]);
 
   // Mirror the store's play/pause intent onto the engine.
   useEffect(() => {
@@ -134,7 +153,7 @@ const RadioAudioHost: React.FC = () => {
     return () => sub.remove();
   }, [player]);
 
-  return null;
+  return <RadioPlayerContext.Provider value={player}>{children}</RadioPlayerContext.Provider>;
 };
 
 export default RadioAudioHost;

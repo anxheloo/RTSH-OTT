@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { queryOptions, useQuery } from '@tanstack/react-query';
 
 import type { ChannelType, PlaybackDecision } from '@/types/domain';
 
@@ -38,15 +38,19 @@ export const useChannelsQuery = (
  * decision response is `{ decision, channelId, programId, noticeMessage, streams }`
  * and the client plays until it stops. A stale entry re-fetches the whole decision.
  */
+export const channelPlaybackQueryOptions = (channelId: string, programId: string | null) =>
+  queryOptions<PlaybackDecision>({
+    queryKey: ['channel-playback', channelId, programId],
+    queryFn: () =>
+      programId ? getCatchupPlayback(channelId, programId) : getChannelById(channelId),
+  });
+
 export const useChannelPlaybackQuery = (
   channelId: string | undefined,
   programId?: string | null,
 ) => {
-  const pid = programId ?? null;
-  const queryKey = ['channel-playback', channelId, pid] as const;
-  const { data, isLoading, error } = useQuery<PlaybackDecision>({
-    queryKey,
-    queryFn: () => (pid ? getCatchupPlayback(channelId!, pid) : getChannelById(channelId!)),
+  const { data, isLoading, error } = useQuery({
+    ...channelPlaybackQueryOptions(channelId ?? '', programId ?? null),
     enabled: !!channelId,
   });
   return { playback: data ?? null, isLoading, error };
