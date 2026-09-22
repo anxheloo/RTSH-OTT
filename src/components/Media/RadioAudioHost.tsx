@@ -22,7 +22,7 @@ import React, { createContext, useContext, useEffect } from 'react';
 import { type AudioPlayer, setAudioModeAsync, useAudioPlayer } from 'expo-audio';
 
 import { useAppStore } from '@/store/useAppStore';
-import { getStreamHeaders, resolveExternalPlaybackChange } from '@/utils';
+import { getStreamHeaders, isAtPlaybackEnd, resolveExternalPlaybackChange } from '@/utils';
 import { publish, STOMP_DEST } from '@/realtime';
 
 const RadioPlayerContext = createContext<AudioPlayer | null>(null);
@@ -125,12 +125,16 @@ const RadioAudioHost: React.FC<{ children: React.ReactNode }> = ({ children }) =
       player.pause();
       return;
     }
-    if (radioIsPlaying) {
-      player.play();
-    } else {
+    if (!radioIsPlaying) {
       player.pause();
+    } else if (radioProgramId != null && isAtPlaybackEnd(player.currentTime, player.duration)) {
+      // A finished recording is parked at its end, where `play()` does nothing
+      // (the UI showed "playing" over silence) — play restarts it from the top.
+      void player.seekTo(0).then(() => player.play());
+    } else {
+      player.play();
     }
-  }, [radioIsPlaying, radioStreamUrl, player]);
+  }, [radioIsPlaying, radioStreamUrl, radioProgramId, player]);
 
   // ...and mirror the engine back onto the store, closing the loop. The
   // lock-screen / notification transport moves the player NATIVELY inside

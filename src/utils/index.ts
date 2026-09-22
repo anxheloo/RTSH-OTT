@@ -13,4 +13,5 @@ export * from './image';
 export * from './navigation';
 export * from './openLink';
 export * from './pin';
+export * from './playback';
 export * from './resolveStreamSource';

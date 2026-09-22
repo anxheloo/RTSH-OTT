@@ -32,6 +32,7 @@ import { PLAYER_COLORS } from '@/theme/playerColors';
 import { SPACING } from '@/theme/spacing';
 import { Icon } from '@/components/Icons';
 import ReusableText from '@/components/Inputs/ReusableText';
+import { isAtPlaybackEnd } from '@/utils/playback';
 import {
   ChevronLeftIcon,
   FullscreenIcon,
@@ -137,8 +138,14 @@ const PlayerControls: React.FC<PlayerControlsProps> = ({
   }, [player]);
 
   const handleTogglePlay = () => {
-    if (player.playing) player.pause();
-    else player.play();
+    if (player.playing) {
+      player.pause();
+    } else {
+      // A finished recording is parked at its end, where `play()` does nothing —
+      // pressing play there restarts it from the beginning.
+      if (!isLive && isAtPlaybackEnd(player.currentTime, player.duration)) player.replay();
+      player.play();
+    }
     show();
   };
 
