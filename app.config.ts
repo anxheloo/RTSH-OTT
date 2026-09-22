@@ -57,7 +57,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     // store/store.config.js — which App Store version record `eas metadata:push` writes to.
     // Must be higher than the last approved App Store version — Apple closes a version's
     // build train once it is approved (ITMS-90062/90186), so each new App Store release bumps this.
-    version: '1.0.1',
+    version: '1.0.2',
     // Mobile/TV only — no web target (product scope; also keeps `eas update
     // --platform=all` from bundling an unused web target).
     platforms: ['ios', 'android'],
