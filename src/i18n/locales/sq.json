@@ -334,10 +334,7 @@
     "title": "Kërkohet përditësim",
     "message": "Ky version i RTSH Tani nuk mbështetet më. Ju lutemi përditësojeni për të vazhduar.",
     "cta": "Përditëso",
-    "ota_title": "Përditësim i disponueshëm",
-    "ota_message": "Një version i ri i RTSH Tani është i disponueshëm. Përditëso tani?",
-    "ota_cta": "Përditëso",
-    "ota_later": "Më vonë"
+    "notice_message": "Një version i ri është gati"
   },
   "parental": {
     "title": "Kontroll prindëror",

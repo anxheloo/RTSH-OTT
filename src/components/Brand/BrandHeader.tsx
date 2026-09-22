@@ -27,6 +27,7 @@ import { SCREEN_PADDING, SPACING } from '@/theme/spacing';
 import { useAppStore } from '@/store/useAppStore';
 import { RtshWordmark } from '@/assets/icons/Brand';
 
+import StoreUpdateBanner from './StoreUpdateBanner';
 import TVNavButton from './TVNavButton';
 
 export interface BrandHeaderProps {
@@ -60,51 +61,57 @@ const BrandHeader: React.FC<BrandHeaderProps> = ({
   const logo = <RtshWordmark height={logoHeight} />;
 
   return (
-    <View
-      style={[
-        styles.container,
-        {
-          height: height + insets.top,
-          paddingTop: insets.top,
-          borderBottomWidth: showBottomBorder ? StyleSheet.hairlineWidth : 0,
-          borderBottomColor: colors.border,
-        },
-        style,
-      ]}
-      testID={testID}
-    >
-      {/* Frosted background — same glass as the bottom tab bar. iOS blurs the
+    <>
+      <View
+        style={[
+          styles.container,
+          {
+            height: height + insets.top,
+            paddingTop: insets.top,
+            borderBottomWidth: showBottomBorder ? StyleSheet.hairlineWidth : 0,
+            borderBottomColor: colors.border,
+          },
+          style,
+        ]}
+        testID={testID}
+      >
+        {/* Frosted background — same glass as the bottom tab bar. iOS blurs the
           content behind; Android falls back to a near-opaque solid (a live blur
           needs a blurTarget ref we can't provide from here). */}
-      {Platform.OS === 'ios' ? (
-        <BlurView
-          tint={mode === 'light' ? 'light' : 'dark'}
-          intensity={40}
-          style={[StyleSheet.absoluteFill, { backgroundColor: colors.tabBar }]}
-        />
-      ) : (
-        <View style={[StyleSheet.absoluteFill, { backgroundColor: colors.tabBarSolid }]} />
-      )}
+        {Platform.OS === 'ios' ? (
+          <BlurView
+            tint={mode === 'light' ? 'light' : 'dark'}
+            intensity={40}
+            style={[StyleSheet.absoluteFill, { backgroundColor: colors.tabBar }]}
+          />
+        ) : (
+          <View style={[StyleSheet.absoluteFill, { backgroundColor: colors.tabBarSolid }]} />
+        )}
 
-      {onLogoPress ? (
-        <TouchableOpacity
-          onPress={onLogoPress}
-          activeOpacity={0.7}
-          accessibilityLabel="RTSH"
-          testID={testID ? `${testID}-logo` : undefined}
-        >
-          {logo}
-        </TouchableOpacity>
-      ) : (
-        logo
-      )}
-      {/* Right group: the screen's own right action + the TV route-menu button
+        {onLogoPress ? (
+          <TouchableOpacity
+            onPress={onLogoPress}
+            activeOpacity={0.7}
+            accessibilityLabel="RTSH"
+            testID={testID ? `${testID}-logo` : undefined}
+          >
+            {logo}
+          </TouchableOpacity>
+        ) : (
+          logo
+        )}
+        {/* Right group: the screen's own right action + the TV route-menu button
           (null off-TV, so mobile keeps just `rightSlot`). */}
-      <View style={styles.right}>
-        {rightSlot}
-        <TVNavButton />
+        <View style={styles.right}>
+          {rightSlot}
+          <TVNavButton />
+        </View>
       </View>
-    </View>
+      {/* Outside the container: that one is fixed-height with overflow hidden. */}
+      <View style={[styles.banner, { top: height + insets.top }]}>
+        <StoreUpdateBanner />
+      </View>
+    </>
   );
 };
 
@@ -121,6 +128,12 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: SCREEN_PADDING,
     paddingBottom: SPACING.space_8,
+  },
+  banner: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    zIndex: 10,
   },
   right: {
     flexDirection: 'row',

@@ -14,3 +14,9 @@ export const BRAND_HEADER_BASE_HEIGHT = 56;
 
 /** Extra space below the bar before scroll content begins. */
 export const BRAND_HEADER_CONTENT_GAP = 10;
+
+/**
+ * Height of the store-update strip `BrandHeader` renders under its brand row
+ * while `STORE_UPDATE_MODE === 'notice'` (added to `useBrandHeaderHeight`).
+ */
+export const STORE_UPDATE_BANNER_HEIGHT = 44;

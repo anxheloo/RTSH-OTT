@@ -63,6 +63,27 @@ npm run android:stb:dev              # APP_PLATFORM=androidstb (operator STB dev
 
 **Dev client mandatory** (Expo Go can't run MMKV, the expo-video/expo-audio config plugins, or other native modules).
 
+## Releasing
+
+Two kinds of update, never mixed. Mechanism: `rules/ARCHITECTURE.md → Boot / Splash gate`.
+
+- **JS fix → current version.** Publish from `main`. It applies silently at the next cold start (no prompt), so always start at a partial rollout:
+  ```bash
+  npm run eas:update:withSentry:prod -- --rollout-percentage 10 -m "..."
+  eas update:edit --branch production --rollout-percentage 100   # healthy in Sentry
+  eas update:revert-update-rollout                                # bad → pull it
+  ```
+- **Store notice → an OLDER version**, once a newer store version is live. Publish from that version's git tag, never from `main`:
+  ```bash
+  git worktree add ../ota-1.0.2 v1.0.2      # the old release's exact code
+  # in that folder: src/constants/appUpdate.ts → STORE_UPDATE_MODE = 'notice' (or 'block')
+  cd ../ota-1.0.2 && npm ci && npm run eas:update:withSentry:prod -- -m "Store update notice"
+  cd - && git worktree remove ../ota-1.0.2
+  ```
+  `main` keeps `STORE_UPDATE_MODE = 'off'` (a test enforces it) — a store build made from `main` must never show the notice.
+- **Tag every store build**: `git tag v<version> && git push origin v<version>` on the commit you build from. The notice flow depends on it.
+- **An update reaches only its own runtime** (`runtimeVersion` = app version), so it must be published from code whose `app.config.ts` version matches the installed builds — and must use only native modules those builds contain.
+
 ## Environment
 
 `.env` at root:

@@ -27,7 +27,7 @@ import { initMonitoring, navigationIntegration } from '@/lib/monitoring';
 import { setupAuthRefresh } from '@/api';
 import { queryClient } from '@/api/client';
 import { setupFocusManager } from '@/api/focusManager';
-import { useNetworkMonitor, useOTA } from '@/hooks';
+import { useNetworkMonitor, useOTA, useStoreUpdateBlock } from '@/hooks';
 import { useEstablishSession } from '@/hooks/useEstablishSession';
 import { useLockPortrait } from '@/hooks/useOrientation';
 import { useSystemTheme } from '@/hooks/useSystemTheme';
@@ -127,15 +127,18 @@ const RootLayoutNav = () => {
     if (Platform.OS === 'android') setVisibilityAsync('hidden').catch(() => {});
   }, []);
 
+  // Holds the splash (up to 5s) while a published OTA downloads, then reloads
+  // into it — see useOTA. Offline or slow: boots the current bundle.
+  const updateChecked = useOTA();
+  useStoreUpdateBlock();
+
   useEffect(() => {
-    if (fontsSettled && tokenChecked) {
+    if (fontsSettled && tokenChecked && updateChecked) {
       SplashScreen.hideAsync();
     }
-  }, [fontsSettled, tokenChecked]);
+  }, [fontsSettled, tokenChecked, updateChecked]);
 
-  useOTA();
-
-  if (!fontsSettled || !tokenChecked) return null;
+  if (!fontsSettled || !tokenChecked || !updateChecked) return null;
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>

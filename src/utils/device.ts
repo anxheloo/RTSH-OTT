@@ -72,10 +72,29 @@ function getStoreUrl(): string | null {
   return IOS_APP_STORE_ID ? `itms-apps://apps.apple.com/app/id${IOS_APP_STORE_ID}` : null;
 }
 
-/** Opens the platform store listing — the 426 force-update modal's CTA. */
+// Same listing on the web — for devices with no store app (iOS simulator, an
+// Android TV / STB without Play), where the store-app scheme is rejected.
+function getStoreWebUrl(): string | null {
+  if (Platform.OS === 'android') {
+    return `https://play.google.com/store/apps/details?id=${Application.applicationId}`;
+  }
+  return IOS_APP_STORE_ID ? `https://apps.apple.com/app/id${IOS_APP_STORE_ID}` : null;
+}
+
+/**
+ * Opens the platform store listing — the CTA of the 426 force-update modal and
+ * the store-update banner. Falls back to the web listing when no store app can
+ * take the link; still rejects if nothing can (no browser either).
+ */
 export async function openStoreListing(): Promise<void> {
   const url = getStoreUrl();
-  if (url) await Linking.openURL(url);
+  if (!url) return;
+  try {
+    await Linking.openURL(url);
+  } catch {
+    const webUrl = getStoreWebUrl();
+    if (webUrl) await Linking.openURL(webUrl);
+  }
 }
 
 /**

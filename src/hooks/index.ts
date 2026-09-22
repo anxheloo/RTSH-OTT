@@ -21,6 +21,7 @@ export * from './useParentalGuard';
 export * from './useRealtimeConnection';
 export * from './useRefreshOnFocus';
 export * from './useSearch';
+export * from './useStoreUpdateBlock';
 export * from './useSystemTheme';
 export * from './useTabBarHeight';
 export * from './useToday';

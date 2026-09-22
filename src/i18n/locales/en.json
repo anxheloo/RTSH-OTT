@@ -334,10 +334,7 @@
     "title": "Update required",
     "message": "This version of RTSH Tani is no longer supported. Please update to continue watching.",
     "cta": "Update",
-    "ota_title": "Update available",
-    "ota_message": "A new version of RTSH Tani is available. Update now?",
-    "ota_cta": "Update",
-    "ota_later": "Later"
+    "notice_message": "A new version is available"
   },
   "parental": {
     "title": "Parental control",
