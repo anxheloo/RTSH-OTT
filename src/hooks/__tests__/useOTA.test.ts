@@ -64,7 +64,7 @@ describe('useOTA', () => {
     expect(result.current).toBe(true);
   });
 
-  it('boots after 5s on a slow download and never reloads mid-session', async () => {
+  it('boots after the deadline on a slow download and never reloads mid-session', async () => {
     updates.checkForUpdateAsync.mockResolvedValue({ isAvailable: true } as never);
     let finishDownload: (v: unknown) => void = () => {};
     updates.fetchUpdateAsync.mockReturnValue(new Promise((r) => (finishDownload = r)) as never);
@@ -73,12 +73,25 @@ describe('useOTA', () => {
     await flush();
     expect(result.current).toBe(false);
 
-    act(() => jest.advanceTimersByTime(5000));
+    act(() => jest.advanceTimersByTime(10_000));
     expect(result.current).toBe(true);
 
     finishDownload({ isNew: true });
     await flush();
     expect(updates.reloadAsync).not.toHaveBeenCalled();
+  });
+
+  it('still boots when the reload itself fails after the update downloaded', async () => {
+    updates.checkForUpdateAsync.mockResolvedValue({ isAvailable: true } as never);
+    updates.reloadAsync.mockRejectedValue(new Error('no JS runtime'));
+
+    const { result } = renderHook(() => useOTA());
+    await flush();
+
+    // The splash was claimed for a reload that then threw — the gate must reopen
+    // rather than hold the user on a splash screen forever.
+    expect(updates.reloadAsync).toHaveBeenCalledTimes(1);
+    expect(result.current).toBe(true);
   });
 
   it('boots the current bundle when the check fails', async () => {

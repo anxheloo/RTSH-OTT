@@ -17,7 +17,7 @@
  * (`enableBackgroundPlayback: true`) — a native rebuild is required for them to
  * take effect.
  */
-import React, { createContext, useContext, useEffect } from 'react';
+import React, { createContext, useContext, useEffect, useRef } from 'react';
 
 import { type AudioPlayer, setAudioModeAsync, useAudioPlayer } from 'expo-audio';
 
@@ -43,6 +43,11 @@ const RadioAudioHost: React.FC<{ children: React.ReactNode }> = ({ children }) =
   const radioProgramId = useAppStore((s) => s.radioProgramId);
   const realtimeConnected = useAppStore((s) => s.realtimeConnected);
   const player = useAudioPlayer(null);
+  // False until a station is first selected. Before that, every sync expo-audio
+  // call is a no-op that still blocks JS on a main-thread hop, and the first
+  // setAudioModeAsync pays a one-time Kotlin-reflection init — both landed in the
+  // cold-start window on a low-end TV box (REACT-NATIVE-RTSH-OTT-24).
+  const engaged = useRef(false);
 
   // Station id as the numeric channel id the watch contract expects (radio and
   // TV share the /channels id namespace). Keyed on the engine's lifetime here —
@@ -72,22 +77,21 @@ const RadioAudioHost: React.FC<{ children: React.ReactNode }> = ({ children }) =
     };
   }, [stationId]);
 
-  // Background-capable audio session, set once. `shouldPlayInBackground` keeps
-  // the session alive when the screen locks; `doNotMix` is required for the OS
-  // to associate the lock-screen controls with this player.
+  // Swap the live stream whenever the selected station changes. The
+  // background-capable audio session is set once, on first use (see `engaged`):
+  // `shouldPlayInBackground` keeps the session alive when the screen locks;
+  // `doNotMix` is required for the OS to associate the lock-screen controls.
   useEffect(() => {
-    void setAudioModeAsync({
-      playsInSilentMode: true,
-      interruptionMode: 'doNotMix',
-      shouldPlayInBackground: true,
-    });
-  }, []);
-
-  // Swap the live stream whenever the selected station changes.
-  useEffect(() => {
-    if (radioStreamUrl) {
-      player.replace({ uri: radioStreamUrl, headers: getStreamHeaders() });
+    if (!radioStreamUrl) return;
+    if (!engaged.current) {
+      engaged.current = true;
+      void setAudioModeAsync({
+        playsInSilentMode: true,
+        interruptionMode: 'doNotMix',
+        shouldPlayInBackground: true,
+      });
     }
+    player.replace({ uri: radioStreamUrl, headers: getStreamHeaders() });
   }, [radioStreamUrl, player]);
 
   // Lock-screen now-playing controls (also required on Android for sustained
@@ -106,7 +110,7 @@ const RadioAudioHost: React.FC<{ children: React.ReactNode }> = ({ children }) =
   // greyed out. See `rules/ARCHITECTURE.md → Radio audio → Known gaps`.
   useEffect(() => {
     if (!radioStreamUrl) {
-      player.clearLockScreenControls();
+      if (engaged.current) player.clearLockScreenControls();
       return;
     }
     player.setActiveForLockScreen(
@@ -122,7 +126,7 @@ const RadioAudioHost: React.FC<{ children: React.ReactNode }> = ({ children }) =
   // Mirror the store's play/pause intent onto the engine.
   useEffect(() => {
     if (!radioStreamUrl) {
-      player.pause();
+      if (engaged.current) player.pause();
       return;
     }
     if (!radioIsPlaying) {
