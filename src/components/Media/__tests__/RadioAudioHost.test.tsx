@@ -5,6 +5,10 @@
  * Kotlin-reflection init — both landed in the cold-start window on a low-end
  * Android TV box (REACT-NATIVE-RTSH-OTT-24). Once engaged, closing the station
  * must still pause and clear the lock-screen controls.
+ *
+ * Also: a station switch must not read as a user pause. iOS pauses the old item
+ * before swapping it, which reported a settled paused frame and flipped the
+ * store off, then back on ~300 ms later (seen on an iPhone, 2026-09-29).
  */
 import { act, render } from '@testing-library/react-native';
 import { setAudioModeAsync } from 'expo-audio';
@@ -13,6 +17,8 @@ import { useAppStore } from '@/store/useAppStore';
 
 import RadioAudioHost from '../RadioAudioHost';
 
+let mockStatusListener: ((status: object) => void) | null = null;
+
 const mockPlayer = {
   replace: jest.fn(),
   play: jest.fn(),
@@ -20,7 +26,10 @@ const mockPlayer = {
   seekTo: jest.fn(() => Promise.resolve()),
   setActiveForLockScreen: jest.fn(),
   clearLockScreenControls: jest.fn(),
-  addListener: jest.fn(() => ({ remove: jest.fn() })),
+  addListener: jest.fn((_event: string, cb: (status: object) => void) => {
+    mockStatusListener = cb;
+    return { remove: jest.fn() };
+  }),
   currentTime: 0,
   duration: 0,
 };
@@ -38,7 +47,8 @@ jest.mock('@/realtime', () => ({
 jest.mock('@/utils', () => ({
   getStreamHeaders: () => ({ 'User-Agent': 'test' }),
   isAtPlaybackEnd: () => false,
-  resolveExternalPlaybackChange: () => null,
+  resolveExternalPlaybackChange:
+    jest.requireActual('@/utils/audioSync').resolveExternalPlaybackChange,
 }));
 
 const selectStation = () =>
@@ -98,5 +108,20 @@ describe('RadioAudioHost', () => {
 
     expect(mockPlayer.pause).toHaveBeenCalled();
     expect(mockPlayer.clearLockScreenControls).toHaveBeenCalled();
+  });
+
+  it('ignores the paused frame a station switch emits, but not a real pause after it plays', () => {
+    const settled = { isLoaded: true, isBuffering: false, error: null };
+    render(<RadioAudioHost>{null}</RadioAudioHost>);
+    selectStation();
+
+    // The old item, paused by the native replace before the new one starts.
+    act(() => mockStatusListener?.({ ...settled, playing: false }));
+    expect(useAppStore.getState().radioIsPlaying).toBe(true);
+
+    // Once the new source plays, a settled paused frame is a real (lock-screen) pause.
+    act(() => mockStatusListener?.({ ...settled, playing: true }));
+    act(() => mockStatusListener?.({ ...settled, playing: false }));
+    expect(useAppStore.getState().radioIsPlaying).toBe(false);
   });
 });

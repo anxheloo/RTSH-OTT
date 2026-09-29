@@ -6,6 +6,9 @@
  * per-feature `XSkeleton` siblings; don't hand-roll shimmer effects.
  *
  * Purely decorative: a theme-tokened block pulsing opacity on the UI thread.
+ * Static on TV: react-native-tvos does a binder IPC on every View props update,
+ * so an endless pulse costs one system call per block per frame — enough to
+ * ANR a low-end TV box during Home's loading grid (REACT-NATIVE-RTSH-OTT-1K).
  */
 import React, { useEffect } from 'react';
 import { DimensionValue, StyleProp, ViewStyle } from 'react-native';
@@ -19,6 +22,7 @@ import Animated, {
 
 import { BORDERRADIUS } from '@/theme/borders';
 import { useAppStore } from '@/store/useAppStore';
+import { isTV } from '@/tv';
 
 export interface SkeletonProps {
   width?: DimensionValue;
@@ -43,6 +47,7 @@ const Skeleton: React.FC<SkeletonProps> = ({
   const pulse = useSharedValue(0);
 
   useEffect(() => {
+    if (isTV) return;
     pulse.value = withRepeat(withTiming(1, { duration: PULSE_MS }), -1, true);
     return () => cancelAnimation(pulse);
   }, [pulse]);

@@ -48,6 +48,9 @@ const RadioAudioHost: React.FC<{ children: React.ReactNode }> = ({ children }) =
   // setAudioModeAsync pays a one-time Kotlin-reflection init — both landed in the
   // cold-start window on a low-end TV box (REACT-NATIVE-RTSH-OTT-24).
   const engaged = useRef(false);
+  // True from a source swap until the new source first plays — iOS pauses the
+  // old item mid-swap, and that frame must not read as a user pause.
+  const awaitingStart = useRef(false);
 
   // Station id as the numeric channel id the watch contract expects (radio and
   // TV share the /channels id namespace). Keyed on the engine's lifetime here —
@@ -91,6 +94,7 @@ const RadioAudioHost: React.FC<{ children: React.ReactNode }> = ({ children }) =
         shouldPlayInBackground: true,
       });
     }
+    awaitingStart.current = true;
     player.replace({ uri: radioStreamUrl, headers: getStreamHeaders() });
   }, [radioStreamUrl, player]);
 
@@ -155,7 +159,8 @@ const RadioAudioHost: React.FC<{ children: React.ReactNode }> = ({ children }) =
   useEffect(() => {
     const sub = player.addListener('playbackStatusUpdate', (status) => {
       const { radioIsPlaying: intent, setRadioPlaying } = useAppStore.getState();
-      const next = resolveExternalPlaybackChange(status, intent);
+      const next = resolveExternalPlaybackChange(status, intent, awaitingStart.current);
+      if (status.playing) awaitingStart.current = false;
       if (next !== null) setRadioPlaying(next);
     });
     return () => sub.remove();

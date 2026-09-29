@@ -50,6 +50,18 @@ describe('resolveExternalPlaybackChange', () => {
     ).toBeNull();
   });
 
+  it('abstains on a settled paused frame while a new source has not started yet', () => {
+    // iOS `replaceCurrentSource` pauses the OLD item before swapping it out, so
+    // the engine briefly reports loaded + not buffering + not playing. Adopting
+    // that as a pause flipped the station off and back on (iPhone device test,
+    // 2026-09-29).
+    expect(resolveExternalPlaybackChange(frame({ playing: false }), true, true)).toBeNull();
+  });
+
+  it('still adopts a lock-screen play while a new source is starting', () => {
+    expect(resolveExternalPlaybackChange(frame(), false, true)).toBe(true);
+  });
+
   it('trusts a playing frame even when it is otherwise unsettled', () => {
     // The engine cannot be playing by accident, so `playing` short-circuits the
     // settled-frame guards — a lock-screen play always wins.

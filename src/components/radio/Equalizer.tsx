@@ -5,6 +5,8 @@
  * smaller, in the mini-player dock to signal live audio.
  *
  * Purely decorative: it animates UI-thread only and reads no playback data.
+ * On TV the bars hold a static staggered height instead of looping — see
+ * `Skeleton` for why an endless animation is an ANR risk there.
  */
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
@@ -18,6 +20,7 @@ import Animated, {
 
 import { BORDERRADIUS } from '@/theme/borders';
 import { useAppStore } from '@/store/useAppStore';
+import { isTV } from '@/tv';
 
 export interface EqualizerProps {
   /** Animate the bars. When false they sit at the minimum height. Default true. */
@@ -48,7 +51,10 @@ const Bar: React.FC<{ active: boolean; delay: number; height: number; width: num
   const progress = useSharedValue(0);
 
   React.useEffect(() => {
-    if (active) {
+    if (active && isTV) {
+      // 0.4–1.0 from the 0–400 ms stagger, so the rest pose still reads as bars.
+      progress.value = withTiming(0.4 + (delay / 400) * 0.6, { duration: 200 });
+    } else if (active) {
       progress.value = withDelay(
         delay,
         withRepeat(withTiming(1, { duration: PERIOD_MS / 2 }), -1, true),

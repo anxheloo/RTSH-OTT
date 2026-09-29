@@ -27,6 +27,12 @@
  *
  * So a paused verdict is only trusted on a frame that is loaded, settled and
  * error-free. Anything else abstains rather than guessing.
+ *
+ * A source swap is the one case "loaded + settled" still lies: on iOS
+ * `replaceCurrentSource` pauses the OLD item before swapping it out
+ * (`AudioPlayer.swift`), so for an instant the engine reports a loaded, full,
+ * not-playing player. Until the new source has played once, a paused frame
+ * carries no verdict either.
  */
 import type { AudioStatus } from 'expo-audio';
 
@@ -43,16 +49,19 @@ export type PlaybackStatusFrame = Pick<
  *
  * @param status Latest `playbackStatusUpdate` frame from the engine.
  * @param intent Current `radioIsPlaying` in the store.
+ * @param awaitingStart True between a source swap and the new source's first
+ *   playing frame.
  */
 export const resolveExternalPlaybackChange = (
   status: PlaybackStatusFrame,
   intent: boolean,
+  awaitingStart = false,
 ): boolean | null => {
   // Playing is unambiguous — the engine cannot be playing by accident, so a
   // lock-screen play always wins.
   if (status.playing) return intent ? null : true;
 
-  if (!intent) return null;
+  if (!intent || awaitingStart) return null;
 
   // Not playing while we intended to: only a settled frame proves a real pause.
   if (!status.isLoaded || status.isBuffering || status.error) return null;
