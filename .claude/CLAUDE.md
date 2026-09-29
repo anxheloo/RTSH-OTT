@@ -81,8 +81,17 @@ Two kinds of update, never mixed. Mechanism: `rules/ARCHITECTURE.md → Boot / S
   cd - && git worktree remove ../ota-1.0.2
   ```
   `main` keeps `STORE_UPDATE_MODE = 'off'` (a test enforces it) — a store build made from `main` must never show the notice.
+- **Publish from a WORKTREE of the tag — never by temporarily editing `main`.** Proven 2026-09-29: an update meant for runtime `1.0.1` shipped to `1.0.2` instead, because `ota:export` reads the config when it STARTS and `eas update` reads it again at the END, so edits reverted in between silently retarget the publish. A worktree cannot drift under a running publish: `git worktree add ../ota-<ver> v<tag> && cd ../ota-<ver> && npm ci`, change, publish, `git worktree remove --force`. Read the printed **Runtime version + Platforms** before doing anything else.
+- **Runtimes that PREDATE `STORE_UPDATE_MODE`** (here: `1.0`) have neither the constant nor the banner. Don't port them — raise the build's EXISTING `confirmation` modal once per launch (store link + dismiss) from that tag's worktree, reusing its `update.*` strings, and patch `IOS_APP_STORE_ID` (empty in those builds, so the CTA is dead on iOS). Reference: the `1.0` patch published 2026-09-29 (`useStoreUpdateNotice`, ~50 lines, never merged).
 - **Tag every store build**: `git tag v<version> && git push origin v<version>` on the commit you build from. The notice flow depends on it.
-- **An update reaches only its own runtime** (`runtimeVersion` = app version), so it must be published from code whose `app.config.ts` version matches the installed builds — and must use only native modules those builds contain.
+- **An update reaches only its own runtime** (`runtimeVersion` = app version), so it must be published from code whose `app.config.ts` version matches the installed builds — and must use only native modules those builds contain. Runtime strings are compared literally: `1.0` is NOT `1.0.0`. Before publishing from a commit other than the users' build, prove compatibility with `git diff <build-commit> <publish-commit> -- package.json package-lock.json` — empty means the JS cannot call native code their build lacks. The same diff decides whether both platforms can share ONE publish (identical deps) or need one each.
+- **Delivery has a QUOTA, and it fails silently.** EAS Update's Free plan allows **1,000 monthly updating users**; past it `u.expo.dev` returns **429** to every device (*"The number of Monthly Updating Users has exceeded the Free tier's quota"*) while `eas update` keeps publishing successfully and the app shows nothing — indistinguishable from a broken bundle. Hit on 2026-09-26 (real demand that month: 3,045). Resets on the 1st of the calendar month. Diagnose in one call:
+  ```bash
+  curl -sI -H "expo-platform: ios" -H "expo-runtime-version: 1.0.1" \
+    -H "expo-channel-name: production" -H "expo-protocol-version: 1" \
+    -H "expo-api-version: 1" -H "accept: multipart/mixed" \
+    https://u.expo.dev/19f4d236-ba4f-4208-bf8b-4a0c229e027c
+  ```
 
 ## Environment
 
