@@ -300,6 +300,14 @@ export function clearMonitoringUser(): void {
 }
 
 /**
+ * Reports an error the app recovered from, so it stays visible in Sentry
+ * without crashing anything (e.g. a radio engine command that threw).
+ */
+export function reportHandledError(error: unknown): void {
+  Sentry.captureException(error, { level: 'warning' });
+}
+
+/**
  * 1% of failures. During an outage EVERY cold start fails, so the goal is "this
  * is happening" within the hour, not a count — at ~3k monthly devices a full
  * month of outage stays under ~1k events instead of eating the Sentry quota.

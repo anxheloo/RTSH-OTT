@@ -33,7 +33,14 @@ export async function setRefreshToken(
   remembered = options.remember;
   sessionRefreshToken = token;
   if (options.remember) {
-    await storeOnKeychain(REFRESH_TOKEN_KEY, token);
+    try {
+      await storeOnKeychain(REFRESH_TOKEN_KEY, token);
+    } catch {
+      // Uncertified TV boxes ship a broken Keystore that rejects every write.
+      // Degrade to memory-only (sign in again after a full close) rather than
+      // fail the login — never to plaintext storage, which would put a
+      // credential on disk unencrypted.
+    }
   } else {
     // A token left over from a previous "remembered" session would silently
     // resurrect the login on next boot — clear it.

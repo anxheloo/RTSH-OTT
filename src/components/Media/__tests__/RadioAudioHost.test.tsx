@@ -110,6 +110,16 @@ describe('RadioAudioHost', () => {
     expect(mockPlayer.clearLockScreenControls).toHaveBeenCalled();
   });
 
+  it('a native throw from the engine never reaches React (REACT-NATIVE-RTSH-OTT-26)', () => {
+    // An effect that throws unmounts the whole tree into the root error screen.
+    mockPlayer.play.mockImplementationOnce(() => {
+      throw new Error('Session lookup failed');
+    });
+    render(<RadioAudioHost>{null}</RadioAudioHost>);
+
+    expect(() => selectStation()).not.toThrow();
+  });
+
   it('ignores the paused frame a station switch emits, but not a real pause after it plays', () => {
     const settled = { isLoaded: true, isBuffering: false, error: null };
     render(<RadioAudioHost>{null}</RadioAudioHost>);

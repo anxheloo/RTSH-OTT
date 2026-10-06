@@ -53,6 +53,14 @@ describe('setRefreshToken', () => {
   });
 });
 
+describe('setRefreshToken — broken Keystore (uncertified TV boxes)', () => {
+  it('remember ON but the keychain rejects → memory-only session, login still succeeds', async () => {
+    mockStore.mockRejectedValue(new Error('Keystore operation failed'));
+    await expect(setRefreshToken('rt-3', { remember: true })).resolves.toBeUndefined();
+    await expect(getRefreshToken()).resolves.toBe('rt-3');
+  });
+});
+
 describe('getRefreshToken (cold boot)', () => {
   it('empty memory + keychain token → returns it and hydrates memory (one read)', async () => {
     mockGet.mockResolvedValue('persisted-rt');

@@ -23,6 +23,7 @@ import { type AudioPlayer, setAudioModeAsync, useAudioPlayer } from 'expo-audio'
 
 import { useAppStore } from '@/store/useAppStore';
 import { getStreamHeaders, isAtPlaybackEnd, resolveExternalPlaybackChange } from '@/utils';
+import { reportHandledError } from '@/lib/monitoring';
 import { publish, STOMP_DEST } from '@/realtime';
 
 const RadioPlayerContext = createContext<AudioPlayer | null>(null);
@@ -32,6 +33,21 @@ export function useRadioAudioPlayer(): AudioPlayer {
   const player = useContext(RadioPlayerContext);
   if (!player) throw new Error('useRadioAudioPlayer must be used inside <RadioAudioHost>');
   return player;
+}
+
+/**
+ * Runs one engine command. expo-audio throws synchronously when the native
+ * session is in a bad state ("Session lookup failed"), and a throw inside an
+ * effect unmounts the whole app into the root error screen
+ * (REACT-NATIVE-RTSH-OTT-26) — losing radio is far better than losing the app.
+ */
+function engine(command: () => unknown): void {
+  try {
+    const result = command();
+    if (result instanceof Promise) result.catch(reportHandledError);
+  } catch (error) {
+    reportHandledError(error);
+  }
 }
 
 const RadioAudioHost: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -88,14 +104,16 @@ const RadioAudioHost: React.FC<{ children: React.ReactNode }> = ({ children }) =
     if (!radioStreamUrl) return;
     if (!engaged.current) {
       engaged.current = true;
-      void setAudioModeAsync({
-        playsInSilentMode: true,
-        interruptionMode: 'doNotMix',
-        shouldPlayInBackground: true,
-      });
+      engine(() =>
+        setAudioModeAsync({
+          playsInSilentMode: true,
+          interruptionMode: 'doNotMix',
+          shouldPlayInBackground: true,
+        }),
+      );
     }
     awaitingStart.current = true;
-    player.replace({ uri: radioStreamUrl, headers: getStreamHeaders() });
+    engine(() => player.replace({ uri: radioStreamUrl, headers: getStreamHeaders() }));
   }, [radioStreamUrl, player]);
 
   // Lock-screen now-playing controls (also required on Android for sustained
@@ -114,33 +132,35 @@ const RadioAudioHost: React.FC<{ children: React.ReactNode }> = ({ children }) =
   // greyed out. See `rules/ARCHITECTURE.md → Radio audio → Known gaps`.
   useEffect(() => {
     if (!radioStreamUrl) {
-      if (engaged.current) player.clearLockScreenControls();
+      if (engaged.current) engine(() => player.clearLockScreenControls());
       return;
     }
-    player.setActiveForLockScreen(
-      true,
-      {
-        title: radioTitle ?? undefined,
-        artworkUrl: radioArtworkUrl ?? undefined,
-      },
-      { isLiveStream: radioProgramId == null },
+    engine(() =>
+      player.setActiveForLockScreen(
+        true,
+        {
+          title: radioTitle ?? undefined,
+          artworkUrl: radioArtworkUrl ?? undefined,
+        },
+        { isLiveStream: radioProgramId == null },
+      ),
     );
   }, [radioStreamUrl, radioTitle, radioArtworkUrl, radioProgramId, player]);
 
   // Mirror the store's play/pause intent onto the engine.
   useEffect(() => {
     if (!radioStreamUrl) {
-      if (engaged.current) player.pause();
+      if (engaged.current) engine(() => player.pause());
       return;
     }
     if (!radioIsPlaying) {
-      player.pause();
+      engine(() => player.pause());
     } else if (radioProgramId != null && isAtPlaybackEnd(player.currentTime, player.duration)) {
       // A finished recording is parked at its end, where `play()` does nothing
       // (the UI showed "playing" over silence) — play restarts it from the top.
-      void player.seekTo(0).then(() => player.play());
+      engine(() => player.seekTo(0).then(() => player.play()));
     } else {
-      player.play();
+      engine(() => player.play());
     }
   }, [radioIsPlaying, radioStreamUrl, radioProgramId, player]);
 

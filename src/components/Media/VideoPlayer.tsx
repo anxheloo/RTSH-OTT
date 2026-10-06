@@ -40,6 +40,12 @@ export type VideoPlayerProps = {
    * manual play/pause control calls the player directly, so it never collides.
    */
   paused?: boolean;
+  /**
+   * Live streams get no `timeUpdate` ticks: nothing reads a live position (the
+   * bar is pinned full), and each tick costs a synchronous main-thread XPC on
+   * iOS (`AVPlayerItem.currentDate()`) that hung the app (REACT-NATIVE-RTSH-OTT-2E).
+   */
+  isLive?: boolean;
   onStatusChange?: (status: VideoStatus) => void;
   onTimeUpdate?: (currentTime: number, duration: number) => void;
   onPlayEnd?: () => void;
@@ -52,10 +58,18 @@ export type VideoPlayerProps = {
   renderOverlay?: (props: VideoPlayerOverlayProps) => React.ReactNode;
 };
 
+// A function call, not an inline assignment: `react-hooks/immutability` rejects
+// writing a property of a hook's return value, the same reason `paused` below
+// uses `seekBy` rather than `targetOffsetFromLive`.
+function setTimeUpdateInterval(player: ExpoVideoPlayer, seconds: number): void {
+  player.timeUpdateEventInterval = seconds;
+}
+
 function VideoPlayer({
   source,
   headers,
   autoPlay = false,
+  isLive = false,
   paused = false,
   onStatusChange,
   onTimeUpdate,
@@ -99,10 +113,6 @@ function VideoPlayer({
   );
 
   const player = useVideoPlayer(initialSource, (p) => {
-    // expo-video emits `timeUpdate` ONLY when this interval is > 0 (defaults to
-    // 0 = never). Without it `currentTime`/`duration` stay 0 forever, so the
-    // recorded seek bar never becomes seekable and the progress fill never moves.
-    p.timeUpdateEventInterval = 0.5;
     // `staysActiveInBackground` / `showNowPlayingNotification` are deliberately
     // left off (product decision 2026-09-21): only radio (expo-audio) plays on the
     // lock screen; TV keeps playing in the background through PiP alone, which
@@ -144,6 +154,16 @@ function VideoPlayer({
   };
 
   const lastUriRef = useRef(source);
+  // The swap resolves after the screen may be gone, and `play()` on a released
+  // player throws (REACT-NATIVE-RTSH-OTT-2H) — so only the newest swap, while
+  // still mounted, may start playback.
+  const mountedRef = useRef(true);
+  useEffect(
+    () => () => {
+      mountedRef.current = false;
+    },
+    [],
+  );
   useEffect(() => {
     if (source === lastUriRef.current) return;
     lastUriRef.current = source;
@@ -154,9 +174,20 @@ function VideoPlayer({
           : null,
       )
       .then(() => {
+        if (!mountedRef.current || lastUriRef.current !== source) return;
         if (autoPlay && source && !paused) player.play();
+      })
+      .catch(() => {
+        // A failed load surfaces through `statusChange` (error) — nothing to add here.
       });
   }, [player, source, headers, autoPlay, paused, metadata]);
+
+  // expo-video emits `timeUpdate` ONLY when this interval is > 0 (defaults to
+  // 0 = never). A recording needs it — without it `currentTime`/`duration` stay
+  // 0 forever and the seek bar never becomes seekable. Live opts out (see `isLive`).
+  useEffect(() => {
+    setTimeUpdateInterval(player, isLive ? 0 : 0.5);
+  }, [player, isLive]);
 
   // Reconcile the declarative `paused` prop onto the imperative player — the
   // Expo-idiomatic bridge (no remount; the source/decoder stay warm). Resuming

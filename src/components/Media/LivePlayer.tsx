@@ -104,6 +104,7 @@ const LivePlayer: React.FC<LivePlayerProps> = ({
         source={streamUrl}
         headers={streamHeaders}
         autoPlay
+        isLive={isLive}
         paused={paused}
         allowsPictureInPicture={!paused}
         startsPictureInPictureAutomatically={!paused}

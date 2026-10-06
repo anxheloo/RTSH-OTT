@@ -24,6 +24,7 @@ import Constants from 'expo-constants';
 import * as Crypto from 'expo-crypto';
 import * as Device from 'expo-device';
 
+import { storage } from '@/store/storage';
 import type {
   DeviceClass,
   DevicePlatform,
@@ -45,19 +46,31 @@ const buildTimePlatform = Constants.expoConfig?.extra?.devicePlatform as
 
 let cachedDeviceId: string | null = null;
 
-/** Stable per-device UUID. Generated once, then read from the keychain. */
+/**
+ * Stable per-device UUID. Generated once, then read from the keychain.
+ *
+ * Uncertified Android TV boxes ship a broken Keystore that rejects every
+ * secure-store write; uncaught, that rejection silently killed login on them
+ * (REACT-NATIVE-RTSH-OTT-3). The id is an identifier, not a secret, so it falls
+ * back to MMKV — the same persistence on Android, where secure-store data is
+ * wiped on uninstall anyway.
+ */
 export async function getOrCreateDeviceId(): Promise<string> {
   if (cachedDeviceId) return cachedDeviceId;
 
-  const existing = await getFromKeychain(DEVICE_ID_KEY);
+  const existing = (await getFromKeychain(DEVICE_ID_KEY)) ?? storage.getString(DEVICE_ID_KEY);
   if (existing) {
     cachedDeviceId = existing;
     return existing;
   }
 
   const id = Crypto.randomUUID();
-  await storeOnKeychain(DEVICE_ID_KEY, id);
   cachedDeviceId = id;
+  try {
+    await storeOnKeychain(DEVICE_ID_KEY, id);
+  } catch {
+    storage.set(DEVICE_ID_KEY, id);
+  }
   return id;
 }
 
