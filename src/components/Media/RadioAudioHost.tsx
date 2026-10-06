@@ -16,8 +16,14 @@
  * foreground-service entitlements emitted by the `expo-audio` config plugin
  * (`enableBackgroundPlayback: true`) — a native rebuild is required for them to
  * take effect.
+ *
+ * The engine itself is created only when a station is first selected, then
+ * kept for the session. Constructing an expo-audio player builds an ExoPlayer
+ * AND a media3 `MediaSession` on the Android main thread, and doing that at
+ * mount caught low-end TV boxes in the cold-start window — an ANR for users who
+ * never opened radio (REACT-NATIVE-RTSH-OTT-2V).
  */
-import React, { createContext, useContext, useEffect, useRef } from 'react';
+import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 
 import { type AudioPlayer, setAudioModeAsync, useAudioPlayer } from 'expo-audio';
 
@@ -28,11 +34,13 @@ import { publish, STOMP_DEST } from '@/realtime';
 
 const RadioPlayerContext = createContext<AudioPlayer | null>(null);
 
-/** The single radio engine — for reading status and seeking, never for source/play state. */
-export function useRadioAudioPlayer(): AudioPlayer {
-  const player = useContext(RadioPlayerContext);
-  if (!player) throw new Error('useRadioAudioPlayer must be used inside <RadioAudioHost>');
-  return player;
+/**
+ * The single radio engine — for reading status and seeking, never for
+ * source/play state. `null` until a station has been selected (and for the
+ * one commit in which the engine is being created).
+ */
+export function useRadioAudioPlayer(): AudioPlayer | null {
+  return useContext(RadioPlayerContext);
 }
 
 /**
@@ -51,6 +59,33 @@ function engine(command: () => unknown): void {
 }
 
 const RadioAudioHost: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const radioStreamUrl = useAppStore((s) => s.radioStreamUrl);
+  const [player, setPlayer] = useState<AudioPlayer | null>(null);
+  // Latches on the first station select (adjust-during-render, no extra commit),
+  // so the engine mounts in the same commit as the selection and is never
+  // rebuilt afterwards — closing a station pauses it, it does not destroy it.
+  const [engaged, setEngaged] = useState(false);
+  if (radioStreamUrl && !engaged) setEngaged(true);
+
+  // The engine is a sibling, not a wrapper: mounting it must never remount the
+  // router underneath.
+  return (
+    <RadioPlayerContext.Provider value={player}>
+      {engaged ? <RadioEngine onPlayer={setPlayer} /> : null}
+      {children}
+    </RadioPlayerContext.Provider>
+  );
+};
+
+/**
+ * Owns the expo-audio player and every command sent to it. Mounted only once a
+ * station has been selected (see `RadioAudioHost`), so nothing here runs — and
+ * no native player exists — for a session that never plays radio
+ * (REACT-NATIVE-RTSH-OTT-24 / -2V).
+ */
+const RadioEngine: React.FC<{ onPlayer: (player: AudioPlayer | null) => void }> = ({
+  onPlayer,
+}) => {
   const radioChannelId = useAppStore((s) => s.radioChannelId);
   const radioStreamUrl = useAppStore((s) => s.radioStreamUrl);
   const radioIsPlaying = useAppStore((s) => s.radioIsPlaying);
@@ -59,11 +94,6 @@ const RadioAudioHost: React.FC<{ children: React.ReactNode }> = ({ children }) =
   const radioProgramId = useAppStore((s) => s.radioProgramId);
   const realtimeConnected = useAppStore((s) => s.realtimeConnected);
   const player = useAudioPlayer(null);
-  // False until a station is first selected. Before that, every sync expo-audio
-  // call is a no-op that still blocks JS on a main-thread hop, and the first
-  // setAudioModeAsync pays a one-time Kotlin-reflection init — both landed in the
-  // cold-start window on a low-end TV box (REACT-NATIVE-RTSH-OTT-24).
-  const engaged = useRef(false);
   // True from a source swap until the new source first plays — iOS pauses the
   // old item mid-swap, and that frame must not read as a user pause.
   const awaitingStart = useRef(false);
@@ -96,22 +126,29 @@ const RadioAudioHost: React.FC<{ children: React.ReactNode }> = ({ children }) =
     };
   }, [stationId]);
 
-  // Swap the live stream whenever the selected station changes. The
-  // background-capable audio session is set once, on first use (see `engaged`):
-  // `shouldPlayInBackground` keeps the session alive when the screen locks;
-  // `doNotMix` is required for the OS to associate the lock-screen controls.
+  // Share the engine with the screens that read it (`useRadioAudioPlayer`).
+  useEffect(() => {
+    onPlayer(player);
+    return () => onPlayer(null);
+  }, [player, onPlayer]);
+
+  // The background-capable audio session, set once — this engine only exists
+  // after a station was selected. Declared before the source swap below so it
+  // runs first. `shouldPlayInBackground` keeps the session alive when the screen
+  // locks; `doNotMix` is required for the OS to associate the lock-screen controls.
+  useEffect(() => {
+    engine(() =>
+      setAudioModeAsync({
+        playsInSilentMode: true,
+        interruptionMode: 'doNotMix',
+        shouldPlayInBackground: true,
+      }),
+    );
+  }, []);
+
+  // Swap the live stream whenever the selected station changes.
   useEffect(() => {
     if (!radioStreamUrl) return;
-    if (!engaged.current) {
-      engaged.current = true;
-      engine(() =>
-        setAudioModeAsync({
-          playsInSilentMode: true,
-          interruptionMode: 'doNotMix',
-          shouldPlayInBackground: true,
-        }),
-      );
-    }
     awaitingStart.current = true;
     engine(() => player.replace({ uri: radioStreamUrl, headers: getStreamHeaders() }));
   }, [radioStreamUrl, player]);
@@ -132,7 +169,7 @@ const RadioAudioHost: React.FC<{ children: React.ReactNode }> = ({ children }) =
   // greyed out. See `rules/ARCHITECTURE.md → Radio audio → Known gaps`.
   useEffect(() => {
     if (!radioStreamUrl) {
-      if (engaged.current) engine(() => player.clearLockScreenControls());
+      engine(() => player.clearLockScreenControls());
       return;
     }
     engine(() =>
@@ -150,7 +187,7 @@ const RadioAudioHost: React.FC<{ children: React.ReactNode }> = ({ children }) =
   // Mirror the store's play/pause intent onto the engine.
   useEffect(() => {
     if (!radioStreamUrl) {
-      if (engaged.current) engine(() => player.pause());
+      engine(() => player.pause());
       return;
     }
     if (!radioIsPlaying) {
@@ -186,7 +223,7 @@ const RadioAudioHost: React.FC<{ children: React.ReactNode }> = ({ children }) =
     return () => sub.remove();
   }, [player]);
 
-  return <RadioPlayerContext.Provider value={player}>{children}</RadioPlayerContext.Provider>;
+  return null;
 };
 
 export default RadioAudioHost;

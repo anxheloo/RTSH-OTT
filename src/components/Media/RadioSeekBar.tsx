@@ -17,7 +17,7 @@ import React, { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 
-import { useAudioPlayerStatus } from 'expo-audio';
+import { type AudioPlayer, useAudioPlayerStatus } from 'expo-audio';
 
 import { SPACING } from '@/theme/spacing';
 import { useAppStore } from '@/store/useAppStore';
@@ -34,8 +34,14 @@ const HOLD_TOLERANCE = 0.02;
 const clamp01 = (n: number) => Math.min(Math.max(n, 0), 1);
 
 const RadioSeekBar: React.FC = () => {
-  const colors = useAppStore((s) => s.colors);
+  // The engine is created on the first station select, so for that one commit
+  // there is nothing to seek yet.
   const player = useRadioAudioPlayer();
+  return player ? <SeekTrack player={player} /> : null;
+};
+
+const SeekTrack: React.FC<{ player: AudioPlayer }> = ({ player }) => {
+  const colors = useAppStore((s) => s.colors);
   const status = useAudioPlayerStatus(player);
 
   const [trackWidth, setTrackWidth] = useState(0);

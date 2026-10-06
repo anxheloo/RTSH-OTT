@@ -6,12 +6,18 @@
  * Android TV box (REACT-NATIVE-RTSH-OTT-24). Once engaged, closing the station
  * must still pause and clear the lock-screen controls.
  *
+ * The player itself is not even constructed until then: building one creates an
+ * ExoPlayer + MediaSession on the Android main thread, which ANR'd a low-end TV
+ * box at cold start for a user who never opened radio (REACT-NATIVE-RTSH-OTT-2V).
+ *
  * Also: a station switch must not read as a user pause. iOS pauses the old item
  * before swapping it, which reported a settled paused frame and flipped the
  * store off, then back on ~300 ms later (seen on an iPhone, 2026-09-29).
  */
+import React from 'react';
+
 import { act, render } from '@testing-library/react-native';
-import { setAudioModeAsync } from 'expo-audio';
+import { setAudioModeAsync, useAudioPlayer } from 'expo-audio';
 
 import { useAppStore } from '@/store/useAppStore';
 
@@ -35,7 +41,7 @@ const mockPlayer = {
 };
 
 jest.mock('expo-audio', () => ({
-  useAudioPlayer: () => mockPlayer,
+  useAudioPlayer: jest.fn(() => mockPlayer),
   setAudioModeAsync: jest.fn(() => Promise.resolve()),
 }));
 
@@ -65,9 +71,10 @@ describe('RadioAudioHost', () => {
     act(() => useAppStore.getState().clearRadio());
   });
 
-  it('does not touch the engine on mount when no station was ever selected', () => {
+  it('does not create or touch the engine on mount when no station was ever selected', () => {
     render(<RadioAudioHost>{null}</RadioAudioHost>);
 
+    expect(useAudioPlayer).not.toHaveBeenCalled();
     expect(setAudioModeAsync).not.toHaveBeenCalled();
     expect(mockPlayer.pause).not.toHaveBeenCalled();
     expect(mockPlayer.clearLockScreenControls).not.toHaveBeenCalled();
@@ -76,6 +83,11 @@ describe('RadioAudioHost', () => {
   it('sets the audio mode once, on first station select, before replacing the source', () => {
     render(<RadioAudioHost>{null}</RadioAudioHost>);
     selectStation();
+
+    expect(useAudioPlayer).toHaveBeenCalled();
+    expect((setAudioModeAsync as jest.Mock).mock.invocationCallOrder[0]).toBeLessThan(
+      mockPlayer.replace.mock.invocationCallOrder[0],
+    );
 
     expect(setAudioModeAsync).toHaveBeenCalledTimes(1);
     expect(setAudioModeAsync).toHaveBeenCalledWith({
@@ -108,6 +120,25 @@ describe('RadioAudioHost', () => {
 
     expect(mockPlayer.pause).toHaveBeenCalled();
     expect(mockPlayer.clearLockScreenControls).toHaveBeenCalled();
+  });
+
+  it('keeps the same engine across close and reselect, and never remounts the children', () => {
+    const mounts = jest.fn();
+    const Child = () => {
+      React.useEffect(() => mounts(), []);
+      return null;
+    };
+    render(
+      <RadioAudioHost>
+        <Child />
+      </RadioAudioHost>,
+    );
+    selectStation();
+    act(() => useAppStore.getState().clearRadio());
+    selectStation();
+
+    expect(mounts).toHaveBeenCalledTimes(1);
+    expect(setAudioModeAsync).toHaveBeenCalledTimes(1);
   });
 
   it('a native throw from the engine never reaches React (REACT-NATIVE-RTSH-OTT-26)', () => {

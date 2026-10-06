@@ -121,6 +121,11 @@ export default ({ config }: ConfigContext): ExpoConfig => {
       // flag rewrites the iOS project into a tvOS target, so it can never run
       // unconditionally here.
       ['./plugins/withUniversalAndroidTV', { banner: './assets/images/tv-banner.png' }],
+      // Android Baseline Profile: ART compiles the startup path at install instead
+      // of interpreting it on first launch — the cold-start ANRs on low-end TV
+      // boxes (REACT-NATIVE-RTSH-OTT-8 / -K). Re-capture on every SDK upgrade;
+      // procedure in rules/ARCHITECTURE.md → Android TV / STB.
+      ['./plugins/withAndroidBaselineProfile', { profile: './plugins/baseline-prof.txt.gz' }],
       // NOTE: `withAndroidTVFocusFix` (the MainApplication patch for the RN 0.80+
       // D-pad-into-ScrollView regression, react-native-tvos #1087) was DELETED
       // 2026-07-28 — react-native-tvos 0.86 ships
