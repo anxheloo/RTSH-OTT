@@ -1202,8 +1202,11 @@ September-2026 social-media/age-assurance questions, already answerable today.
   console work; nothing in `store/store.config.json` reaches Google.
 - **`privacyChoicesUrl` is unset**, pending audit blocker #2 — the RTSH privacy page has no titled
   account-deletion section with an `id` to anchor to.
-- **`submit.production.android.serviceAccountKeyPath` is still a placeholder** (gate A fails), so
-  `eas:submit:android` / `:all` cannot run yet.
+- ~~**`submit.production.android.serviceAccountKeyPath` is still a placeholder**~~ — **resolved.** It
+  points at `./rtsh-ott-5016e1d0e915.json` (gitignored, service account
+  `eas-play-submit@rtsh-ott.iam.gserviceaccount.com`), and `eas:android:prod --auto-submit` used it
+  for 1.0.3 (2026-10-06). Submissions land on the production track as a **draft**
+  (`releaseStatus: "draft"`), so nothing reaches users until the release is started in Play Console.
 
 ---
 
