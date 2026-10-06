@@ -298,3 +298,22 @@ export function setMonitoringUser(userId: string): void {
 export function clearMonitoringUser(): void {
   Sentry.setUser(null);
 }
+
+/**
+ * 1% of failures. During an outage EVERY cold start fails, so the goal is "this
+ * is happening" within the hour, not a count — at ~3k monthly devices a full
+ * month of outage stays under ~1k events instead of eating the Sentry quota.
+ */
+const OTA_FAILURE_SAMPLE_RATE = 0.01;
+
+/**
+ * Reports a failed OTA check / download / reload. `useOTA` swallows these so a
+ * failure never blocks boot — which is also why the EAS quota outage of
+ * 2026-09-26 (every device answered HTTP 429) went unnoticed for four days.
+ * The wording differs per platform (iOS: "HTTP response error 429: …", Android:
+ * "Failed to check for update"), so a fixed fingerprint groups them into ONE issue.
+ */
+export function reportOtaFailure(error: unknown): void {
+  if (Math.random() >= OTA_FAILURE_SAMPLE_RATE) return;
+  Sentry.captureException(error, { level: 'warning', fingerprint: ['ota-update-failed'] });
+}

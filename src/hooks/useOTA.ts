@@ -3,6 +3,8 @@ import { useEffect, useState } from 'react';
 import NetInfo from '@react-native-community/netinfo';
 import * as Updates from 'expo-updates';
 
+import { reportOtaFailure } from '@/lib/monitoring';
+
 /**
  * Applies a published OTA update silently at startup, while the native splash
  * is still up — no prompt. Returns `ready`, which the root layout adds to its
@@ -60,10 +62,12 @@ async function applyUpdateIfReady(claimSplash: () => boolean): Promise<boolean> 
       },
     });
     return true;
-  } catch {
+  } catch (error) {
     // Best-effort — a failed check must never block boot. A throw AFTER the
     // claim (a rejected `reloadAsync`) returns false too, so the caller reopens
-    // the gate instead of holding the splash forever.
+    // the gate instead of holding the splash forever. Reported (sampled) so a
+    // server-side refusal like the EAS quota 429 is not invisible.
+    reportOtaFailure(error);
     return false;
   }
 }

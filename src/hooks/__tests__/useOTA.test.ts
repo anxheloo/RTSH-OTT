@@ -2,7 +2,11 @@ import NetInfo from '@react-native-community/netinfo';
 import { act, renderHook } from '@testing-library/react-native';
 import * as Updates from 'expo-updates';
 
+import { reportOtaFailure } from '@/lib/monitoring';
+
 import { useOTA } from '../useOTA';
+
+jest.mock('@/lib/monitoring', () => ({ reportOtaFailure: jest.fn() }));
 
 jest.mock('@react-native-community/netinfo', () => ({
   __esModule: true,
@@ -92,6 +96,7 @@ describe('useOTA', () => {
     // rather than hold the user on a splash screen forever.
     expect(updates.reloadAsync).toHaveBeenCalledTimes(1);
     expect(result.current).toBe(true);
+    expect(reportOtaFailure).toHaveBeenCalledTimes(1);
   });
 
   it('boots the current bundle when the check fails', async () => {
@@ -100,5 +105,21 @@ describe('useOTA', () => {
     await flush();
     expect(result.current).toBe(true);
     expect(updates.reloadAsync).not.toHaveBeenCalled();
+  });
+
+  // A server that refuses the check (the 2026-09 EAS quota 429) must be visible,
+  // not silently swallowed like a flaky network.
+  it('reports a failed check to monitoring', async () => {
+    const error = new Error('HTTP response error 429');
+    updates.checkForUpdateAsync.mockRejectedValue(error);
+    renderHook(() => useOTA());
+    await flush();
+    expect(reportOtaFailure).toHaveBeenCalledWith(error);
+  });
+
+  it('reports nothing when there is simply no update', async () => {
+    renderHook(() => useOTA());
+    await flush();
+    expect(reportOtaFailure).not.toHaveBeenCalled();
   });
 });
