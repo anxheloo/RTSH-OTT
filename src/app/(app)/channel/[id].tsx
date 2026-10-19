@@ -45,6 +45,8 @@ import { PLAYER_COLORS } from '@/theme/playerColors';
 import { SCREEN_PADDING, SPACING } from '@/theme/spacing';
 import { useAppStore } from '@/store/useAppStore';
 import {
+  channelEpgQueryOptions,
+  channelPlaybackQueryOptions,
   useAdsQuery,
   useChannelEpgQuery,
   useChannelPlaybackQuery,
@@ -68,9 +70,11 @@ import { Icon } from '@/components/Icons';
 import ReusableText from '@/components/Inputs/ReusableText';
 import { CenteredMessage, ScreenLayout, Skeleton } from '@/components/Layout';
 import AdOverlay from '@/components/Media/AdOverlay';
+import ChannelSwipeArea from '@/components/Media/ChannelSwipeArea';
 import LivePlayer from '@/components/Media/LivePlayer';
 import { ParentalPinModal } from '@/components/ParentalPin';
 import { availableQualityIds, getStreamHeaders, resolveStreamSource } from '@/utils';
+import { getAdjacentId } from '@/utils/channelOrder';
 import { formatDayMonth, toDateKey } from '@/utils/datetime';
 import type { CatchupDay, EpgItem } from '@/types/domain';
 import { ChevronLeftIcon, CloseIcon, GuideIcon, InfoIcon, LockIcon } from '@/assets/icons';
@@ -113,8 +117,13 @@ const ChannelScreen: React.FC = () => {
   // playback has started the player stays unmounted (the stream must not start
   // behind it); after that it is only paused — see `holdForCellular` below.
   const cellular = useCellularGate();
+  // The route param only SEEDS the screen. Swipe / remote CH± switch channel in
+  // place through `switchChannel` (local state), never `router.setParams`:
+  // changing a route param remounts the screen (Expo Router docs), which would
+  // rebuild the player, restart the stream and drop fullscreen on every switch.
   const { id } = useLocalSearchParams<{ id: string }>();
-  const channelId = id ?? '';
+  const [activeId, setActiveId] = useState(id ?? '');
+  const channelId = activeId;
   const { t } = useTranslation();
   const colors = useAppStore((s) => s.colors);
   const { formatTime } = useDateTime();
@@ -232,7 +241,9 @@ const ChannelScreen: React.FC = () => {
   // the realtime scheduler.
   const [adDone, setAdDone] = useState(false);
   const numericChannelId = Number(channelId);
-  const { ads } = useAdsQuery(numericChannelId, { enabled: !Number.isNaN(numericChannelId) });
+  const { ads, isLoading: adsLoading } = useAdsQuery(numericChannelId, {
+    enabled: !Number.isNaN(numericChannelId),
+  });
   const channelAd = ads.find((a) => a.placement === 'CHANNEL_CHANGE') ?? null;
   const seedMidrolls = useMemo(() => ads.filter((a) => a.placement === 'MID_ROLL'), [ads]);
 
@@ -306,6 +317,12 @@ const ChannelScreen: React.FC = () => {
   // `new Date()` — is what stops the lineup/highlight/chip pinning to yesterday
   // after the app sits backgrounded past midnight.
   const todayKey = useToday();
+
+  // Today's schedule is what the live 18+ gate (`useParentalGuard`) and the live
+  // per-programme geo gate (`useLiveProgramBlock`) read — same cache entry. Until
+  // it lands neither gate can know the airing programme is restricted, so the
+  // stream is held (see `inputsPending`).
+  const { isLoading: todayEpgLoading } = useChannelEpgQuery(channelId, todayKey);
 
   // Day strip — past (7) · today · future (7), oldest left.
   const days = useMemo<CatchupDay[]>(() => {
@@ -546,11 +563,22 @@ const ChannelScreen: React.FC = () => {
   // and unmounting also dropped the viewer out of the fullscreen UI.
   const [playbackStarted, setPlaybackStarted] = useState(false);
   const holdForCellular = cellular.pending && !playbackStarted;
-  const showsPlayer = !holdForCellular && !mediaPending && !adPending && !showBlocked && !blockPlayer;
+
+  // Everything the stream must wait for: the decision (stream URLs), whether a
+  // preroll exists, the preroll itself, and — for live — today's schedule, which
+  // the 18+ and geo gates read. Starting before any of these lands lets a
+  // restricted programme play for a moment, or a late preroll cut the stream.
+  const inputsPending = mediaPending || adPending || adsLoading || (isLive && todayEpgLoading);
+
+  const showsPlayer = !holdForCellular && !inputsPending && !showBlocked && !blockPlayer;
   if (showsPlayer && !playbackStarted) setPlaybackStarted(true);
 
+  // Before the first start, a hold shows the skeleton (nothing mounted). After
+  // it, a hold — i.e. a channel switch — keeps the SAME player mounted with no
+  // source: nothing streams, and the next URL is swapped in place
+  // (`replaceAsync`) instead of tearing the native player down and rebuilding it.
   const player =
-    holdForCellular || mediaPending || adPending ? (
+    (holdForCellular || inputsPending) && !playbackStarted ? (
       <Skeleton
         borderRadius={BORDERRADIUS.none}
         style={styles.playerSkeleton}
@@ -581,7 +609,7 @@ const ChannelScreen: React.FC = () => {
     ) : (
       <LivePlayer
         channelId={channelId}
-        streamUrl={streamSource}
+        streamUrl={inputsPending ? '' : streamSource}
         streamHeaders={getStreamHeaders()}
         channelName={
           isLive
@@ -595,6 +623,46 @@ const ChannelScreen: React.FC = () => {
         onOpenOptions={() => router.push('/(app)/(modals)/player-options')}
       />
     );
+
+  // Channel switching — swipe on the video (touch) or CH± (TV remote). The order
+  // is the cached TV list, the same one Home shows; neighbours are derived from
+  // it, never stored. Everything that belongs to the PREVIOUS channel resets in
+  // the same batch as the id, so no render ever pairs the new channel with the
+  // old one's recording, day, ad state or open row. Fullscreen deliberately
+  // survives: swiping in landscape is the main point.
+  const zapItems = useMemo(
+    () => channels.map((c) => ({ id: c.id, name: c.name, imageUrl: c.logoUrl })),
+    [channels],
+  );
+  const switchChannel = useCallback(
+    (nextId: string) => {
+      setActiveId(nextId);
+      setSelectedProgramId(null);
+      setSelectedProgramTitle(null);
+      setAdDone(false);
+      setGuideOpen(false);
+      setSelectedKey(todayKey);
+      setExpandedProgramId(null);
+      didInitialCenterRef.current = false;
+    },
+    [todayKey],
+  );
+  // Warm the neighbours on touch-down / first remote press, so the switch reads
+  // the decision + today's schedule from cache. Lazy on purpose: warming on every
+  // open would double the playback-decision calls for users who never swipe.
+  const prefetchNeighbours = useCallback(() => {
+    const ids = channels.map((c) => c.id);
+    for (const dir of [1, -1] as const) {
+      const neighbourId = getAdjacentId(ids, channelId, dir);
+      if (!neighbourId) continue;
+      void queryClient.prefetchQuery(channelPlaybackQueryOptions(neighbourId, null));
+      void queryClient.prefetchQuery(channelEpgQueryOptions(neighbourId, todayKey));
+    }
+  }, [channels, channelId, queryClient, todayKey]);
+  // No switching while the PIN modal or an ad is up — an ad must not be
+  // skippable by zapping away from it.
+  const canSwitch =
+    !guard.promptVisible && !(channelAd && canShowChannelAd) && !(midrollAd && canShowMidrollAd);
 
   // Single back button for every player state and orientation: absolutely
   // positioned over the video surface, exits fullscreen in landscape and
@@ -671,11 +739,21 @@ const ChannelScreen: React.FC = () => {
       ? styles.videoFull
       : [styles.video, contentWidth, { marginTop: insets.top }, splitLayout && styles.videoSplit];
   const videoBox = (
-    <View style={videoBoxStyle}>
+    <ChannelSwipeArea
+      style={videoBoxStyle}
+      items={zapItems}
+      activeId={channelId}
+      onChange={switchChannel}
+      enabled={canSwitch}
+      onIntent={prefetchNeighbours}
+      cardColor={PLAYER_COLORS.surface}
+      textColor={PLAYER_COLORS.onSurface}
+      testID="channel-swipe-area"
+    >
       {player}
       {backButton}
       {isTV ? guideButton : null}
-    </View>
+    </ChannelSwipeArea>
   );
 
   const dayStripEl = (

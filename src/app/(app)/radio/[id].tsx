@@ -17,8 +17,9 @@
  *
  * Playback is store-driven: mounting selects the station in `PlayerSlice`
  * (which `RadioAudioHost` turns into actual audio); the transport just flips
- * store flags. Prev / next swap the station in place (local `activeId` state,
- * no navigation) so there's no screen-slide. Closing from the mini-player
+ * store flags. Prev / next — the transport buttons, a horizontal swipe on the
+ * now-playing pane, or remote CH± on TV (`ChannelSwipeArea`) — swap the station
+ * in place (local `activeId` state, no navigation) so there's no screen-slide. Closing from the mini-player
  * (anywhere) clears the store, which this screen watches to `router.back()`.
  *
  * Radio EPG — `GET /channels/{id}/epg?date=YYYY-MM-DD`, the SAME per-channel
@@ -73,9 +74,11 @@ import { ProgramRow, ProgramRowSkeleton } from '@/components/epg';
 import type { ProgramRowState } from '@/components/epg/ProgramRow';
 import { Icon, IconButton } from '@/components/Icons';
 import { ScreenLayout, SectionHeader, Skeleton, TabHeader } from '@/components/Layout';
+import ChannelSwipeArea from '@/components/Media/ChannelSwipeArea';
 import RadioPlayer from '@/components/Media/RadioPlayer';
 import RadioSeekBar from '@/components/Media/RadioSeekBar';
 import { resolveStreamSource } from '@/utils';
+import { getAdjacentId } from '@/utils/channelOrder';
 import { formatDayMonth, toDateKey } from '@/utils/datetime';
 import type { CatchupDay, EpgItem } from '@/types/domain';
 import { ChevronLeftIcon } from '@/assets/icons';
@@ -305,14 +308,15 @@ const RadioPlayerScreen: React.FC = () => {
     else if (wasActiveRef.current) router.back();
   }, [radioChannelId]);
 
-  const { prevId, nextId } = useMemo(() => {
-    const i = stations.findIndex((s: { id: string }) => s.id === activeId);
-    if (i === -1) return { prevId: undefined, nextId: undefined };
-    return {
-      prevId: i > 0 ? stations[i - 1].id : undefined,
-      nextId: i < stations.length - 1 ? stations[i + 1].id : undefined,
-    };
-  }, [stations, activeId]);
+  // Prev / next follow the cached RADIO list order and wrap around at the ends,
+  // like a TV remote. Shared with the swipe and remote CH± via `getAdjacentId`.
+  const stationIds = useMemo(() => stations.map((s) => s.id), [stations]);
+  const prevId = getAdjacentId(stationIds, activeId, -1);
+  const nextId = getAdjacentId(stationIds, activeId, 1);
+  const zapItems = useMemo(
+    () => stations.map((s) => ({ id: s.id, name: s.name, imageUrl: s.imageUrl ?? s.logoUrl })),
+    [stations],
+  );
 
   const playLive = () => {
     if (!station || !playback) return;
@@ -335,6 +339,19 @@ const RadioPlayerScreen: React.FC = () => {
   const changeStation = (next: string) => {
     tapRef.current += 1;
     setActiveId(next);
+    // The schedule below belongs to the station — a past day or an open row from
+    // the previous one must not carry over.
+    setSelectedKey(todayKey);
+    setExpandedProgramId(null);
+  };
+
+  // Warm the neighbours' live decision on touch-down / first remote press, so a
+  // swipe starts audio from cache.
+  const prefetchNeighbours = () => {
+    for (const neighbourId of [prevId, nextId]) {
+      if (neighbourId)
+        void queryClient.prefetchQuery(channelPlaybackQueryOptions(neighbourId, null));
+    }
   };
 
   const playRecording = async (p: EpgItem) => {
@@ -493,13 +510,20 @@ const RadioPlayerScreen: React.FC = () => {
             fraction, so it can't be squeezed into overlapping the schedule);
             fixed, never scrolls. In split mode it becomes the left column and
             `alignSelf: 'center'` — a ROW's cross axis — centers it vertically. */}
-        <View
+        <ChannelSwipeArea
           style={[
             styles.topHalf,
             contentWidth,
             { paddingTop: splitLayout ? 0 : headerHeight },
             splitLayout && styles.topHalfSplit,
           ]}
+          items={zapItems}
+          activeId={activeId}
+          onChange={changeStation}
+          onIntent={prefetchNeighbours}
+          cardColor={colors.background}
+          textColor={colors.text}
+          testID="radio-swipe-area"
         >
           <RadioPlayer
             station={station}
@@ -512,7 +536,7 @@ const RadioPlayerScreen: React.FC = () => {
           />
           {/* A recording is seekable; live radio deliberately is not. */}
           {recordingId ? <RadioSeekBar /> : null}
-        </View>
+        </ChannelSwipeArea>
 
         {/* Schedule pane — day strip (sticky, outside the scroller) + list.
             Only the list scrolls; the day strip stays put. In split mode this

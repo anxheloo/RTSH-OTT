@@ -1009,6 +1009,20 @@ logout → land on the login screen (unchanged), relaunch → still login.
 
 ---
 
+## Phase 26 — Channel / station switching in place (2026-10-19)
+
+Swipe left/right on the player (touch) and remote CH± / media next-previous (TV/STB) change channel or station without leaving the screen. Mechanism + gaps: `rules/ARCHITECTURE.md → Channel switching`.
+
+- 26.1 `getAdjacentId` (`utils/channelOrder.ts`) — list-order neighbours, wraps at the ends ✅ (unit-tested)
+- 26.2 Stream waits for ads + today's EPG before starting (`inputsPending`; `useAdsQuery` exposes `isLoading`) — closes the late-preroll / ungated-first-frame window ✅
+- 26.3 `channel/[id]` switches in place via local `activeId` + one-batch reset; neighbours warmed on touch-down ✅ (device: 0 player teardowns across switches)
+- 26.4 `ChannelSwipeArea` on the channel video box + radio now-playing pane ✅ (unit-tested; iOS sim device-verified incl. fullscreen)
+- 26.5 `useTVChannelKeys` with a 500ms commit debounce ✅ (device-verified on `RTSH_TV_API34`: CH± switches, a CH− burst commits once)
+- 26.6 **Open — decision:** iOS fast flicks can lose to the route's full-screen dismiss pan (react-native-screens). Native patch (new binary) vs. moving dismiss into the same RNGH pan (JS-only).
+- 26.7 Open: no screen-reader next/previous on the channel screen.
+
+---
+
 ## Reference
 - Style guide: `.claude/rules/STYLE_GUIDE.md` · Architecture: `.claude/rules/ARCHITECTURE.md`
 - Project memory: `.claude/memory/` · Design mockup: `.claude/docs/rtsh-tani-mobile.html`

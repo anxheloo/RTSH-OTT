@@ -13,8 +13,8 @@ import { getAds } from '../services/ads';
 export const useAdsQuery = (
   channelId?: number,
   options?: Partial<UseQueryOptions<Ad[]>>,
-): { ads: Ad[] } => {
-  const { data } = useQuery<Ad[]>({
+): { ads: Ad[]; isLoading: boolean } => {
+  const { data, isLoading } = useQuery<Ad[]>({
     queryKey: ['ads', channelId ?? 'app'],
     queryFn: () => getAds(channelId),
     staleTime: 0,
@@ -24,5 +24,8 @@ export const useAdsQuery = (
     retry: 0,
     ...options,
   });
-  return { ads: data ?? [] };
+  // `isLoading` lets the channel screen hold the stream until it knows whether a
+  // preroll exists — otherwise a decision that resolves first starts the stream,
+  // and the late preroll then cuts it.
+  return { ads: data ?? [], isLoading };
 };

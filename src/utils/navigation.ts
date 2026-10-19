@@ -80,9 +80,11 @@ export function getModalScreenOptions({
  *
  * The swipe-down comes from the gesture instead of the presentation:
  * `gestureDirection: 'vertical'` dismisses a card push downward, iOS-only.
- * `fullScreenGestureEnabled` is deliberately LEFT OFF (default `false`) so the
- * gesture only begins at the screen edge — a whole-screen vertical gesture would
- * fight the EPG `FlashList` scroll and the scrubber drag on `channel/[id]`.
+ * Note: `'vertical'` makes react-native-screens force `fullScreenSwipeEnabled` +
+ * `customAnimationOnSwipe` on, so the dismiss pan is full-screen and begins on
+ * movement in ANY direction — leaving `fullScreenGestureEnabled` unset does not
+ * limit it to the edge (verified in its source + on device, 2026-10-19). It races
+ * the channel/radio swipe — see ARCHITECTURE.md → Channel switching.
  * Android keeps the hardware/gesture back, which is its idiom.
  */
 export function getPlayerScreenOptions() {
