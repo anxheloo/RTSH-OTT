@@ -1237,10 +1237,16 @@ September-2026 social-media/age-assurance questions, already answerable today.
   console work; nothing in `store/store.config.json` reaches Google.
 - **`privacyChoicesUrl` is unset**, pending audit blocker #2 — the RTSH privacy page has no titled
   account-deletion section with an `id` to anchor to.
-- ~~**`submit.production.android.serviceAccountKeyPath` is still a placeholder**~~ — **resolved.** It
-  points at `./rtsh-ott-5016e1d0e915.json` (gitignored, service account
-  `eas-play-submit@rtsh-ott.iam.gserviceaccount.com`), and `eas:android:prod --auto-submit` used it
-  for 1.0.3 (2026-10-06). **Since 2026-10-19 submissions go out as `releaseStatus: "completed"`**
+- ~~**`submit.production.android.serviceAccountKeyPath` is still a placeholder**~~ — **resolved.**
+  The Play key (service account `eas-play-submit@rtsh-ott.iam.gserviceaccount.com`, key id
+  `5016e1d0…`) is stored in **EAS credentials, assigned to `al.rtsh.tani`** — moved there from a
+  gitignored local file on 2026-10-19, so `eas.json` carries no `serviceAccountKeyPath` and no copy
+  needs to sit on disk. `.dev`/`.preview` have no key, correctly: only `submit.production` exists.
+  Upload or rotate with `eas credentials --platform android` → production → Google Service Account →
+  **upload a new key** ("existing" lists keys saved anywhere on the Expo account, including SOLITAR's
+  Firebase admin keys, which have no Play access). `scripts/verify_play_submit_chain.py` now needs a
+  key path argument, so run it against a freshly downloaded key before uploading it.
+  `eas:android:prod --auto-submit` used the key for 1.0.3 (2026-10-06). **Since 2026-10-19 submissions go out as `releaseStatus: "completed"`**
   (user decision): an auto-submitted build is released to **100% of users** as soon as Google's review
   passes, with no staged rollout and no Play Console step. There is no human gate between
   `eas:android:prod` and every Android user, so smoke-test the release build first. For a staged

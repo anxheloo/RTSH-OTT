@@ -67,7 +67,7 @@
     "method": "scripts/verify_play_submit_chain.py (read-only Android Publisher API probe; nothing uploaded)",
     "serviceAccount": "eas-play-submit@rtsh-ott.iam.gserviceaccount.com",
     "cloudProject": "rtsh-ott",
-    "keyPath": "./rtsh-ott-5016e1d0e915.json",
+    "keyPath": "EAS credentials (since 2026-10-19; was ./rtsh-ott-5016e1d0e915.json)",
     "keyGitStatus": "gitignored at .gitignore:73, never committed, absent from git history",
     "playPermission": "Admin (all permissions) on al.rtsh.tani - MORE than least privilege; only release + store presence are needed",
     "result": "PASS - key valid, Android Publisher API enabled, service account authorized"

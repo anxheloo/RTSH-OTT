@@ -147,7 +147,6 @@ npm run eas:submit:android     # eas submit --platform android --latest
 >
 > ```diff
 >   "android": {
->     "serviceAccountKeyPath": "./rtsh-ott-5016e1d0e915.json",
 > -   "track": "production"
 > +   "track": "production",
 > +   "releaseStatus": "draft"

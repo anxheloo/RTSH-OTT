@@ -27,7 +27,10 @@ import time
 import urllib.parse
 import urllib.request
 
-KEY = sys.argv[1] if len(sys.argv) > 1 else "rtsh-ott-5016e1d0e915.json"
+if len(sys.argv) < 2:
+    # The key lives in EAS credentials, so there is no default local file to probe.
+    sys.exit("usage: verify_play_submit_chain.py <service-account.json> [package]")
+KEY = sys.argv[1]
 PKG = sys.argv[2] if len(sys.argv) > 2 else "al.rtsh.tani"
 SCOPE = "https://www.googleapis.com/auth/androidpublisher"
 TOKEN_URI = "https://oauth2.googleapis.com/token"
