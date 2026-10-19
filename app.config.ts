@@ -265,7 +265,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
       // `getDevicePlatform()` (utils/device.ts) for the X-Device-Platform header.
       devicePlatform: process.env.APP_PLATFORM,
     },
-    owner: 'anxheloo',
+    owner: 'rtsh-ott',
     updates: {
       url: 'https://u.expo.dev/19f4d236-ba4f-4208-bf8b-4a0c229e027c',
       // requestHeaders: { "expo-channel-name": updatesChannel },
