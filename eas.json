@@ -81,7 +81,7 @@
       "android": {
         "serviceAccountKeyPath": "./rtsh-ott-5016e1d0e915.json",
         "track": "production",
-        "releaseStatus": "draft"
+        "releaseStatus": "completed"
       }
     }
   }

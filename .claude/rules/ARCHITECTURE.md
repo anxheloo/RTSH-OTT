@@ -715,6 +715,16 @@ is the SDK-compatible one. Several APIs the Sentry docs show are 8.x-only — se
     with `experimental_android.enableAndroidGradlePlugin` (`withSentry.js`) — without it native
     Android traces stay obfuscated with no error anywhere. Its `tracingInstrumentation` and
     `autoInstallation` stay off (plugin defaults), so there is no runtime change.
+    **R8 *optimization* stays off — tried and reverted 2026-10-19.** The Expo template's
+    `proguard-android.txt` carries `-dontoptimize`, so R8 only shrinks and renames; Play Console
+    flags this ("Improve your app's memory and performance with R8 optimization"). Switching to
+    `proguard-android-optimize.txt` broke the app on a local production build: the register form's
+    `@expo/ui` dropdown threw an NPE in `expo.modules.kotlin.records.ReflectionRecordConversionStrategy`
+    (Expo records are read by Kotlin reflection, and the optimizer strips what it needs). The
+    exception killed the React instance, so the screen went black. It also shrank the packaged
+    Baseline Profile from ~43 KB to ~26 KB. Revisit only with keep rules for Expo `Record` classes
+    and a full device pass. **AGP 9 drops `proguard-android.txt` entirely**, so this returns at the
+    SDK upgrade that brings AGP 9 (this SDK is on 8.12).
     `enableShrinkResourcesInReleaseBuilds` is deliberately **off**: RN resolves bundled image assets
     by name at runtime, which the resource shrinker can strip. Verified on a local preview release
     build: 95% of classes renamed, `Uploaded a total of 1 new mapping files`, and a real-backend smoke
@@ -1230,8 +1240,11 @@ September-2026 social-media/age-assurance questions, already answerable today.
 - ~~**`submit.production.android.serviceAccountKeyPath` is still a placeholder**~~ — **resolved.** It
   points at `./rtsh-ott-5016e1d0e915.json` (gitignored, service account
   `eas-play-submit@rtsh-ott.iam.gserviceaccount.com`), and `eas:android:prod --auto-submit` used it
-  for 1.0.3 (2026-10-06). Submissions land on the production track as a **draft**
-  (`releaseStatus: "draft"`), so nothing reaches users until the release is started in Play Console.
+  for 1.0.3 (2026-10-06). **Since 2026-10-19 submissions go out as `releaseStatus: "completed"`**
+  (user decision): an auto-submitted build is released to **100% of users** as soon as Google's review
+  passes, with no staged rollout and no Play Console step. There is no human gate between
+  `eas:android:prod` and every Android user, so smoke-test the release build first. For a staged
+  rollout, set `"releaseStatus": "inProgress"` plus `"rollout"`, or `"draft"` to release by hand.
 
 ---
 
