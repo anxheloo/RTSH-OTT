@@ -83,7 +83,7 @@ import { GUEST_CATCHUP_ALLOWED } from '@/constants/auth';
 import { DEFAULT_QUALITY } from '@/constants/player';
 import { promptSignIn } from '@/features/auth/signInPrompt';
 import { useContentWidth, useResponsive } from '@/responsive';
-import { isTV, tvFocusHighlight, TVFocusZone, useTVFocus } from '@/tv';
+import { isTV, tvFocusHighlight, TVFocusZone, useTVAutoHide, useTVFocus } from '@/tv';
 
 /**
  * Tablet-landscape split ratio (video : guide). 62/38 keeps the player the
@@ -229,6 +229,13 @@ const ChannelScreen: React.FC = () => {
     });
     return () => sub.remove();
   }, [guideOpen]);
+
+  // TV only: the player chrome — back, guide, and everything PlayerControls
+  // draws — hides after a quiet spell while video plays; any remote key brings
+  // it back. Held up while paused and while the guide drawer is open. Always
+  // visible off-TV (mobile keeps PlayerControls' own tap-to-reveal).
+  const [playerPlaying, setPlayerPlaying] = useState(false);
+  const chromeVisible = useTVAutoHide(playerPlaying && !guideOpen);
 
   // Tablet/TV: cap the inline player + EPG to a centered column so they don't
   // stretch edge-to-edge. No-op on phone, and not applied in fullscreen (the
@@ -619,8 +626,11 @@ const ChannelScreen: React.FC = () => {
         isLive={isLive}
         paused={adActive || coveredByFullScreen || cellular.pending}
         isFullscreen={isFullscreen}
-        onToggleFullscreen={toggleFullscreen}
+        // TV is always full-screen — the button would do nothing there.
+        onToggleFullscreen={isTV ? undefined : toggleFullscreen}
         onOpenOptions={() => router.push('/(app)/(modals)/player-options')}
+        tvHidden={!chromeVisible}
+        onPlayingChange={isTV ? setPlayerPlaying : undefined}
       />
     );
 
@@ -751,8 +761,8 @@ const ChannelScreen: React.FC = () => {
       testID="channel-swipe-area"
     >
       {player}
-      {backButton}
-      {isTV ? guideButton : null}
+      {chromeVisible ? backButton : null}
+      {isTV && chromeVisible ? guideButton : null}
     </ChannelSwipeArea>
   );
 

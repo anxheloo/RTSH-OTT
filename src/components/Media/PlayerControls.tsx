@@ -8,9 +8,10 @@
  *
  * Quality / audio / PIP live in the options sheet (opened via the top
  * options button → `onOpenOptions`), not in this chrome. Tap anywhere to reveal
- * the chrome; it hides after 3s. Controls are white over a glass/scrim so they
- * read on any frame. The player surface is always dark, so colors come from
- * `PLAYER_COLORS`, not the theme.
+ * the chrome; it hides after 3s. On TV the screen decides instead (`tvHidden`,
+ * driven by `useTVAutoHide`): there is no tap, so a remote key reveals it.
+ * Controls are white over a glass/scrim so they read on any frame. The player
+ * surface is always dark, so colors come from `PLAYER_COLORS`, not the theme.
  */
 import React, { useEffect, useRef, useState } from 'react';
 import { StyleSheet, TouchableOpacity, View } from 'react-native';
@@ -56,6 +57,10 @@ export type PlayerControlsProps = {
   onOpenOptions?: () => void;
   channelName?: string;
   programTitle?: string;
+  /** TV only: hide the chrome. The screen owns this (`useTVAutoHide`). */
+  tvHidden?: boolean;
+  /** Playback started/stopped; reported `false` again on unmount. */
+  onPlayingChange?: (playing: boolean) => void;
 };
 
 const PlayerControls: React.FC<PlayerControlsProps> = ({
@@ -68,6 +73,8 @@ const PlayerControls: React.FC<PlayerControlsProps> = ({
   onOpenOptions,
   channelName,
   programTitle,
+  tvHidden = false,
+  onPlayingChange,
 }) => {
   const { t } = useTranslation();
   const [visible, setVisible] = useState(true);
@@ -104,9 +111,8 @@ const PlayerControls: React.FC<PlayerControlsProps> = ({
   // SharedValue is stable — no useCallback needed; plain functions avoid the
   // react-hooks/immutability rule that fires when a SharedValue is in deps.
   const hide = () => {
-    // TV has no tap-to-reveal, and hidden chrome (pointerEvents none) can't be
-    // focused — so the D-pad could never bring the controls back. Keep them
-    // always visible on TV; auto-hide is a touch-only affordance.
+    // This timer is the touch auto-hide. TV hides through `tvHidden` instead,
+    // which the screen drives from remote keys (`useTVAutoHide`).
     if (isTV) return;
     opacity.value = withTiming(0, { duration: 300 });
     setVisible(false);
@@ -131,11 +137,22 @@ const PlayerControls: React.FC<PlayerControlsProps> = ({
   }, []);
 
   useEffect(() => {
+    onPlayingChange?.(player.playing);
     const sub = player.addListener('playingChange', ({ isPlaying: playing }) => {
       setIsPlaying(playing);
+      onPlayingChange?.(playing);
     });
-    return () => sub.remove();
-  }, [player]);
+    return () => {
+      sub.remove();
+      onPlayingChange?.(false);
+    };
+  }, [player, onPlayingChange]);
+
+  // TV: after the chrome has hidden once, every reveal hands focus to play/pause
+  // (Media3 does the same). Not on first mount — the guide drawer may already
+  // hold focus when the player first appears.
+  const [claimFocusOnReveal, setClaimFocusOnReveal] = useState(false);
+  if (tvHidden && !claimFocusOnReveal) setClaimFocusOnReveal(true);
 
   const handleTogglePlay = () => {
     if (player.playing) {
@@ -228,122 +245,137 @@ const PlayerControls: React.FC<PlayerControlsProps> = ({
     <TouchableOpacity
       style={StyleSheet.absoluteFill}
       activeOpacity={1}
-      onPress={handleTapOverlay}
-      // TV: don't let the full-screen tap layer become a focus target — the D-pad
-      // must reach the actual control buttons, not this overlay (controls stay
-      // visible on TV, so there's no tap-to-reveal to preserve).
-      focusable={!isTV}
+      // TV, chrome hidden: OK pauses/resumes, as on YouTube and Netflix. The
+      // pause holds the chrome up, so the same press also brings it back.
+      onPress={tvHidden ? handleTogglePlay : handleTapOverlay}
+      // TV, chrome shown: this layer must not be focusable, or it traps the D-pad
+      // above the control buttons. TV, chrome hidden: the buttons are unmounted
+      // (a faded button still holds focus and still presses), and this layer is
+      // the ONE focusable view — remote keys only reach JS through the focused
+      // view's chain, so something has to hold focus for a key to reveal them.
+      focusable={!isTV || tvHidden}
+      hasTVPreferredFocus={tvHidden}
       testID="controls-tap-overlay"
     >
-      <Animated.View
-        style={[StyleSheet.absoluteFill, overlayStyle]}
-        pointerEvents={visible ? 'box-none' : 'none'}
-      >
-        {/* LIVE tag — bottom-left, YouTube-style; part of the chrome. */}
-        {isLive ? (
-          <View style={styles.liveTag} testID="controls-live-badge">
-            <View style={styles.liveDot} />
-            <ReusableText fontSize={FONTSIZE.xxs} fontWeight="extraBold" style={styles.liveText}>
-              {t('player.live')}
-            </ReusableText>
-          </View>
-        ) : null}
+      {tvHidden ? null : (
+        <Animated.View
+          style={[StyleSheet.absoluteFill, overlayStyle]}
+          pointerEvents={visible ? 'box-none' : 'none'}
+        >
+          {/* LIVE tag — bottom-left, YouTube-style; part of the chrome. */}
+          {isLive ? (
+            <View style={styles.liveTag} testID="controls-live-badge">
+              <View style={styles.liveDot} />
+              <ReusableText fontSize={FONTSIZE.xxs} fontWeight="extraBold" style={styles.liveText}>
+                {t('player.live')}
+              </ReusableText>
+            </View>
+          ) : null}
 
-        {/* Top bar: glass back + glass options. Back renders only when the host
+          {/* Top bar: glass back + glass options. Back renders only when the host
             wires onClose — the channel screen owns a single screen-level back
             (consistent across portrait/fullscreen), so it passes none. */}
-        <View style={styles.topBar}>
-          {onClose ? (
-            <TouchableOpacity
-              {...closeFocus.focusProps}
-              style={[styles.glassBtn, tvFocusHighlight(PLAYER_COLORS.brand, closeFocus.focused)]}
-              onPress={onClose}
-              activeOpacity={0.8}
-              accessibilityRole="button"
-              accessibilityLabel="Back"
-              testID="controls-close-btn"
+          <View style={styles.topBar}>
+            {onClose ? (
+              <TouchableOpacity
+                {...closeFocus.focusProps}
+                style={[styles.glassBtn, tvFocusHighlight(PLAYER_COLORS.brand, closeFocus.focused)]}
+                onPress={onClose}
+                activeOpacity={0.8}
+                accessibilityRole="button"
+                accessibilityLabel="Back"
+                testID="controls-close-btn"
+              >
+                <Icon as={ChevronLeftIcon} size={22} color={PLAYER_COLORS.onSurface} />
+              </TouchableOpacity>
+            ) : (
+              <View style={styles.spacer} />
+            )}
+
+            {onOpenOptions ? (
+              <TouchableOpacity
+                {...optionsFocus.focusProps}
+                style={[
+                  styles.glassBtn,
+                  tvFocusHighlight(PLAYER_COLORS.brand, optionsFocus.focused),
+                ]}
+                onPress={onOpenOptions}
+                activeOpacity={0.8}
+                accessibilityRole="button"
+                accessibilityLabel="Player options"
+                testID="controls-options-btn"
+              >
+                <Icon as={SettingsIcon} size={20} color={PLAYER_COLORS.onSurface} />
+              </TouchableOpacity>
+            ) : (
+              <View style={styles.spacer} />
+            )}
+          </View>
+
+          {/* Centered title */}
+          {title ? (
+            <ReusableText
+              fontSize={FONTSIZE.md}
+              fontWeight="extraBold"
+              numberOfLines={1}
+              style={styles.title}
             >
-              <Icon as={ChevronLeftIcon} size={22} color={PLAYER_COLORS.onSurface} />
-            </TouchableOpacity>
-          ) : (
-            <View style={styles.spacer} />
-          )}
+              {title}
+            </ReusableText>
+          ) : null}
 
-          {onOpenOptions ? (
+          {/* Bottom controls: play/pause + track + fullscreen */}
+          <View style={styles.controlRow}>
             <TouchableOpacity
-              {...optionsFocus.focusProps}
-              style={[styles.glassBtn, tvFocusHighlight(PLAYER_COLORS.brand, optionsFocus.focused)]}
-              onPress={onOpenOptions}
-              activeOpacity={0.8}
-              accessibilityRole="button"
-              accessibilityLabel="Player options"
-              testID="controls-options-btn"
-            >
-              <Icon as={SettingsIcon} size={20} color={PLAYER_COLORS.onSurface} />
-            </TouchableOpacity>
-          ) : (
-            <View style={styles.spacer} />
-          )}
-        </View>
-
-        {/* Centered title */}
-        {title ? (
-          <ReusableText
-            fontSize={FONTSIZE.md}
-            fontWeight="extraBold"
-            numberOfLines={1}
-            style={styles.title}
-          >
-            {title}
-          </ReusableText>
-        ) : null}
-
-        {/* Bottom controls: play/pause + track + fullscreen */}
-        <View style={styles.controlRow}>
-          <TouchableOpacity
-            {...playFocus.focusProps}
-            onPress={handleTogglePlay}
-            hitSlop={styles.hitSlop}
-            activeOpacity={0.8}
-            style={tvFocusHighlight(PLAYER_COLORS.brand, playFocus.focused)}
-            testID="controls-play-pause-btn"
-            accessibilityRole="button"
-            accessibilityLabel={isPlaying ? 'Pause' : 'Play'}
-          >
-            <Icon as={isPlaying ? PauseIcon : PlayIcon} size={22} color={PLAYER_COLORS.onSurface} />
-          </TouchableOpacity>
-
-          <GestureDetector gesture={seekGesture}>
-            <View
-              style={styles.trackHitArea}
-              testID="controls-seek-bar"
-              onLayout={(e) => {
-                trackWidth.value = e.nativeEvent.layout.width || 1;
-              }}
-            >
-              <View style={styles.track}>
-                <Animated.View style={[styles.fill, fillStyle]} />
-                <Animated.View style={[styles.knob, knobStyle]} />
-              </View>
-            </View>
-          </GestureDetector>
-
-          {onToggleFullscreen ? (
-            <TouchableOpacity
-              {...fullscreenFocus.focusProps}
-              onPress={onToggleFullscreen}
+              {...playFocus.focusProps}
+              hasTVPreferredFocus={claimFocusOnReveal}
+              onPress={handleTogglePlay}
               hitSlop={styles.hitSlop}
               activeOpacity={0.8}
-              style={tvFocusHighlight(PLAYER_COLORS.brand, fullscreenFocus.focused)}
-              testID="controls-fullscreen-btn"
+              style={tvFocusHighlight(PLAYER_COLORS.brand, playFocus.focused)}
+              testID="controls-play-pause-btn"
               accessibilityRole="button"
-              accessibilityLabel="Toggle fullscreen"
+              accessibilityLabel={isPlaying ? 'Pause' : 'Play'}
             >
-              <Icon as={FullscreenIcon} size={22} color={PLAYER_COLORS.onSurface} />
+              <Icon
+                as={isPlaying ? PauseIcon : PlayIcon}
+                size={22}
+                color={PLAYER_COLORS.onSurface}
+              />
             </TouchableOpacity>
-          ) : null}
-        </View>
-      </Animated.View>
+
+            <GestureDetector gesture={seekGesture}>
+              <View
+                style={styles.trackHitArea}
+                testID="controls-seek-bar"
+                onLayout={(e) => {
+                  trackWidth.value = e.nativeEvent.layout.width || 1;
+                }}
+              >
+                <View style={styles.track}>
+                  <Animated.View style={[styles.fill, fillStyle]} />
+                  <Animated.View style={[styles.knob, knobStyle]} />
+                </View>
+              </View>
+            </GestureDetector>
+
+            {onToggleFullscreen ? (
+              <TouchableOpacity
+                {...fullscreenFocus.focusProps}
+                onPress={onToggleFullscreen}
+                hitSlop={styles.hitSlop}
+                activeOpacity={0.8}
+                style={tvFocusHighlight(PLAYER_COLORS.brand, fullscreenFocus.focused)}
+                testID="controls-fullscreen-btn"
+                accessibilityRole="button"
+                accessibilityLabel="Toggle fullscreen"
+              >
+                <Icon as={FullscreenIcon} size={22} color={PLAYER_COLORS.onSurface} />
+              </TouchableOpacity>
+            ) : null}
+          </View>
+        </Animated.View>
+      )}
     </TouchableOpacity>
   );
 };

@@ -53,6 +53,10 @@ export type LivePlayerProps = {
   onToggleFullscreen?: () => void;
   /** Opens the player options sheet (22.10 sub-step 3). */
   onOpenOptions?: () => void;
+  /** TV only: hide the control chrome (the screen's `useTVAutoHide`). */
+  tvHidden?: boolean;
+  /** Playback started/stopped (forwarded from the controls). */
+  onPlayingChange?: (playing: boolean) => void;
   style?: StyleProp<ViewStyle>;
 };
 
@@ -69,6 +73,8 @@ const LivePlayer: React.FC<LivePlayerProps> = ({
   isFullscreen = false,
   onToggleFullscreen,
   onOpenOptions,
+  tvHidden,
+  onPlayingChange,
   style,
 }) => {
   const [hasError, setHasError] = useState(false);
@@ -143,6 +149,8 @@ const LivePlayer: React.FC<LivePlayerProps> = ({
                 onOpenOptions={onOpenOptions}
                 channelName={channelName}
                 programTitle={currentProgramTitle}
+                tvHidden={tvHidden}
+                onPlayingChange={onPlayingChange}
               />
             ) : null}
           </>
