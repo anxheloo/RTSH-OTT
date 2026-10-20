@@ -72,49 +72,53 @@ const ChannelCard: React.FC<ChannelCardProps> = ({
       activeOpacity={0.9}
       testID={`channel-card-${channelId}`}
     >
-      <SceneBackground
-        source={sceneSource}
-        blurhash={DEFAULT_BLURHASH}
-        scrim
-        scrimFrom="60%"
-        scrimOpacity={0.28}
-      />
-
-      {/* clogo — frosted badge with channel logo (3:1), top-left */}
-      <View style={styles.clogo}>
-        <ReusableImage
-          source={logoUrl ?? ''}
+      {/* Clipping lives on this inner, never-focused View: on Android TV a focusable
+          view with `overflow: 'hidden'` stops drawing its children once focus leaves it. */}
+      <View style={styles.clip}>
+        <SceneBackground
+          source={sceneSource}
           blurhash={DEFAULT_BLURHASH}
-          width={LOGO_W}
-          height={LOGO_H}
-          contentFit="contain"
-          cachePolicy="memory-disk"
-          priority="high"
-          transitionDurationMs={150}
-          containerStyle={styles.logoContainer}
+          scrim
+          scrimFrom="60%"
+          scrimOpacity={0.28}
         />
-      </View>
 
-      {/* tagchip — top-right LIVE badge */}
-      {isLive ? (
-        <View style={[styles.tagchip, { backgroundColor: colors.primary }]}>
-          <View style={styles.liveDot} />
-          <ReusableText fontSize={FONTSIZE.xxs} fontWeight="bold" themeColor="onPrimary">
-            LIVE
-          </ReusableText>
+        {/* clogo — frosted badge with channel logo (3:1), top-left */}
+        <View style={styles.clogo}>
+          <ReusableImage
+            source={logoUrl ?? ''}
+            blurhash={DEFAULT_BLURHASH}
+            width={LOGO_W}
+            height={LOGO_H}
+            contentFit="contain"
+            cachePolicy="memory-disk"
+            priority="high"
+            transitionDurationMs={150}
+            containerStyle={styles.logoContainer}
+          />
         </View>
-      ) : null}
 
-      {/* name */}
-      <ReusableText
-        fontSize={FONTSIZE.regular}
-        fontWeight="bold"
-        themeColor="onPrimary"
-        numberOfLines={1}
-        style={styles.name}
-      >
-        {name}
-      </ReusableText>
+        {/* tagchip — top-right LIVE badge */}
+        {isLive ? (
+          <View style={[styles.tagchip, { backgroundColor: colors.primary }]}>
+            <View style={styles.liveDot} />
+            <ReusableText fontSize={FONTSIZE.xxs} fontWeight="bold" themeColor="onPrimary">
+              LIVE
+            </ReusableText>
+          </View>
+        ) : null}
+
+        {/* name */}
+        <ReusableText
+          fontSize={FONTSIZE.regular}
+          fontWeight="bold"
+          themeColor="onPrimary"
+          numberOfLines={1}
+          style={styles.name}
+        >
+          {name}
+        </ReusableText>
+      </View>
     </TouchableOpacity>
   );
 };
@@ -125,6 +129,10 @@ const styles = StyleSheet.create({
   card: {
     flex: 1,
     aspectRatio: 16 / 10,
+    borderRadius: BORDERRADIUS.card,
+  },
+  clip: {
+    flex: 1,
     borderRadius: BORDERRADIUS.card,
     overflow: 'hidden',
   },

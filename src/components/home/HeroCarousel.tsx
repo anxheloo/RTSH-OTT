@@ -67,25 +67,29 @@ const HeroCard: React.FC<HeroCardProps> = ({ item, cardWidth, onPressItem, testI
       ]}
       testID={testID}
     >
-      <SceneBackground source={item.imageUrl} scrim scrimFrom="35%" scrimOpacity={0.45} />
+      {/* Clip on an inner, never-focused View — see ChannelCard (Android TV blanks a
+          focusable view with `overflow: 'hidden'` after it loses focus). */}
+      <View style={styles.clip}>
+        <SceneBackground source={item.imageUrl} scrim scrimFrom="35%" scrimOpacity={0.45} />
 
-      <View style={styles.cap}>
-        <View style={[styles.kicker, { backgroundColor: colors.primary }]}>
-          <ReusableText fontSize={FONTSIZE.xs} fontWeight="extraBold" themeColor="onPrimary">
-            {item.kicker}
+        <View style={styles.cap}>
+          <View style={[styles.kicker, { backgroundColor: colors.primary }]}>
+            <ReusableText fontSize={FONTSIZE.xs} fontWeight="extraBold" themeColor="onPrimary">
+              {item.kicker}
+            </ReusableText>
+          </View>
+          <ReusableText
+            fontSize={FONTSIZE.xl}
+            fontWeight="extraBold"
+            themeColor="onPrimary"
+            numberOfLines={2}
+          >
+            {item.title}
+          </ReusableText>
+          <ReusableText fontSize={FONTSIZE.sm} themeColor="onPrimary" style={styles.meta}>
+            {item.meta}
           </ReusableText>
         </View>
-        <ReusableText
-          fontSize={FONTSIZE.xl}
-          fontWeight="extraBold"
-          themeColor="onPrimary"
-          numberOfLines={2}
-        >
-          {item.title}
-        </ReusableText>
-        <ReusableText fontSize={FONTSIZE.sm} themeColor="onPrimary" style={styles.meta}>
-          {item.meta}
-        </ReusableText>
       </View>
     </TouchableOpacity>
   );
@@ -161,6 +165,10 @@ const styles = StyleSheet.create({
   },
   card: {
     height: HERO_HEIGHT,
+    borderRadius: BORDERRADIUS.radius_20,
+  },
+  clip: {
+    flex: 1,
     borderRadius: BORDERRADIUS.radius_20,
     overflow: 'hidden',
   },
