@@ -154,13 +154,26 @@ const PlayerControls: React.FC<PlayerControlsProps> = ({
   const [claimFocusOnReveal, setClaimFocusOnReveal] = useState(false);
   if (tvHidden && !claimFocusOnReveal) setClaimFocusOnReveal(true);
 
+  // Live: how far behind the edge playback was when paused. The live window is
+  // short (24s today: 4 × 6s segments), so a longer pause resumes behind it and
+  // fails — Media3 BehindLiveWindowException, surfaced as "Source error".
+  // Resuming catches up by exactly the paused time, keeping the earlier delay.
+  const liveOffsetAtPauseRef = useRef<number | null>(null);
+
   const handleTogglePlay = () => {
     if (player.playing) {
+      liveOffsetAtPauseRef.current = isLive ? player.currentOffsetFromLive : null;
       player.pause();
     } else {
       // A finished recording is parked at its end, where `play()` does nothing —
       // pressing play there restarts it from the beginning.
       if (!isLive && isAtPlaybackEnd(player.currentTime, player.duration)) player.replay();
+      const offsetAtPause = liveOffsetAtPauseRef.current;
+      const offsetNow = isLive ? player.currentOffsetFromLive : null;
+      if (offsetAtPause != null && offsetNow != null && offsetNow > offsetAtPause) {
+        player.seekBy(offsetNow - offsetAtPause);
+      }
+      liveOffsetAtPauseRef.current = null;
       player.play();
     }
     show();
@@ -245,9 +258,12 @@ const PlayerControls: React.FC<PlayerControlsProps> = ({
     <TouchableOpacity
       style={StyleSheet.absoluteFill}
       activeOpacity={1}
-      // TV, chrome hidden: OK pauses/resumes, as on YouTube and Netflix. The
-      // pause holds the chrome up, so the same press also brings it back.
-      onPress={tvHidden ? handleTogglePlay : handleTapOverlay}
+      // TV: OK on this layer pauses/resumes, as on YouTube and Netflix. It can
+      // only hold focus while the chrome is hidden, so that is the only time it
+      // gets the press — keyed on `isTV`, NOT `tvHidden`: the same key's
+      // release reveals the chrome (`useTVAutoHide`), and that render can land
+      // before this click, which would otherwise find the touch handler here.
+      onPress={isTV ? handleTogglePlay : handleTapOverlay}
       // TV, chrome shown: this layer must not be focusable, or it traps the D-pad
       // above the control buttons. TV, chrome hidden: the buttons are unmounted
       // (a faded button still holds focus and still presses), and this layer is
