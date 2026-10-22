@@ -11,7 +11,7 @@ import type { Ad } from '@/types/domain';
  * MIGRATED 2026-07-14: no longer carries `?deviceClass=` — the backend reads
  * device/platform from the token on the STOMP CONNECT frame (`Authorization:
  * Bearer <accessToken>`, already sent), the same token-derived source as the
- * playback GETs. See ARCHITECTURE.md → Device identity.
+ * playback GETs. See .claude/rules/architecture/device-identity-and-request-headers.md.
  */
 export const WS_URL = `${API_BASE_URL.replace(/^http/, 'ws').replace(/\/api\/v1\/?$/, '')}/ws`;
 

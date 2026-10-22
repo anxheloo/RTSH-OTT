@@ -20,7 +20,7 @@ Source of truth for `src/api/`. Seeded 2026-06-12 with the device-identity heade
 
 Wire shape: `{ id: int64, email, username, birthDate, city, country, gender: MALE|FEMALE|OTHER|UNSPECIFIED, educationLevel: HIGH|MEDIUM|LOW }`. `userDtoSchema` (`types/domain.ts`) validates + transforms in one parse: `id` → string, `displayName` ← `username`, `age` ← computed from `birthDate`, `location` ← `"city, country"`, enums lowercased.
 
-**Parental PIN is not on `UserDTO` (changed 2026-06-16).** The gate is device-level / client-only — the PIN lives in `ParentalSlice` (MMKV), never on the user object or the wire. See `rules/ARCHITECTURE.md → Parental control`.
+**Parental PIN is not on `UserDTO` (changed 2026-06-16).** The gate is device-level / client-only — the PIN lives in `ParentalSlice` (MMKV), never on the user object or the wire. See `.claude/rules/architecture/parental-control.md`.
 
 ### `GET /users/me` / `PATCH /users/me`
 
@@ -38,7 +38,7 @@ No body — the access token (Authorization header) identifies the account. Retu
 
 ### Parental control — no API (device-level, client-only)
 
-**Changed 2026-06-16.** Parental control has **no backend endpoints**. The PIN is content gating, not a credential, and is handled entirely on the client at the **device level**: it lives in `ParentalSlice` (`parentalEnabled` + `parentalPin`, MMKV-persisted), is set/verified by a local compare, and is never sent to or read from the server. There is no setup/toggle/verify endpoint and no cross-device sync (each device has its own PIN). The previously-specified `POST`/`PATCH`/`GET /parental` + `POST /parental/verify-pin` are removed. See `rules/ARCHITECTURE.md → Parental control`.
+**Changed 2026-06-16.** Parental control has **no backend endpoints**. The PIN is content gating, not a credential, and is handled entirely on the client at the **device level**: it lives in `ParentalSlice` (`parentalEnabled` + `parentalPin`, MMKV-persisted), is set/verified by a local compare, and is never sent to or read from the server. There is no setup/toggle/verify endpoint and no cross-device sync (each device has its own PIN). The previously-specified `POST`/`PATCH`/`GET /parental` + `POST /parental/verify-pin` are removed. See `.claude/rules/architecture/parental-control.md`.
 
 `POST /auth/logout` takes `{ refreshToken, logoutOtherDevices? }` (default `false`).
 

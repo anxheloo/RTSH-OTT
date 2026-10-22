@@ -11,7 +11,7 @@ RTSH TANI — OTT streaming app for Radio Televizioni Shqiptar. Live TV (19 chan
 ## Stack
 
 - Expo SDK 57 · React Native 0.86.0 · React 19.2.3 · TypeScript strict · New Architecture only
-  - **Android TV / STB** share this one codebase via the `react-native-tvos` **npm alias** (`react-native` → `npm:react-native-tvos@0.86.0-2`, a strict superset) **and, since 2026-07-28, ONE Android artifact** — a single APK/AAB installs on phone, tablet, Android TV and STB. `Platform.isTV` is resolved at runtime from `UiModeManager`, so the only build-time TV input is the manifest, written unconditionally by `plugins/withUniversalAndroidTV.js` (leanback launcher category + `uses-feature required="false"` block + TV banner). `EXPO_TV` is now **inert**; `@react-native-tvos/config-tv` is unregistered (kept in devDeps for a future tvOS target). `src/tv/` focus module unchanged. The alias needs `.npmrc legacy-peer-deps=true`, which forces two peers to be declared **explicitly**: `react-native-nitro-modules` (mmkv) + `@react-native/jest-preset`. Full mechanism + the open STB question: `rules/ARCHITECTURE.md → Android TV / STB`.
+  - **Android TV / STB** share this codebase via the `react-native-tvos` **npm alias** (`react-native` → `npm:react-native-tvos@0.86.0-2`) and, since 2026-07-28, **ONE Android artifact** for phone, tablet, TV and STB: `Platform.isTV` resolves at runtime, and the TV manifest comes from `plugins/withUniversalAndroidTV.js`. `EXPO_TV` is **inert**. The alias needs `.npmrc legacy-peer-deps=true`, so `react-native-nitro-modules` + `@react-native/jest-preset` are declared **explicitly**. → `rules/architecture/android-tv-stb.md`
 - Expo Router v7 (Native Tabs, typed routes)
 - Single Zustand store composed from slices · MMKV persist · expo-secure-store for tokens
 - TanStack Query v5 (server state) · axios (HTTP client)
@@ -20,11 +20,10 @@ RTSH TANI — OTT streaming app for Radio Televizioni Shqiptar. Live TV (19 chan
 - @shopify/flash-list · react-native-reanimated v4 · react-native-gesture-handler · react-native-keyboard-controller
 - react-hook-form + zod (forms + validation)
 - i18next + expo-localization (sq default, en fallback)
-- @sentry/react-native **7.11.0** — crash/error monitoring + tracing. **Installed 2026-07-29** (closes the 2026-07-03 deferral; plan 14.1 / 5.X.12 / 11.Y.6). Init in `lib/monitoring.ts`; org `acsolutions-1a`, project `react-native-rtsh-ott`, **EU region** (`https://de.sentry.io/` — never `sentry.io`). Version is pinned by Expo SDK 57, **not** npm-latest: several documented APIs are 8.x-only. Full mechanism + known gaps: `rules/ARCHITECTURE.md → Observability`. Replay / structured logging / profiling deliberately off.
+- @sentry/react-native **7.11.0** (pinned by Expo SDK 57, **not** npm-latest) — init in `lib/monitoring.ts`; org `acsolutions-1a`, project `react-native-rtsh-ott`, **EU region** (`https://de.sentry.io/`, never `sentry.io`). Replay / logging / profiling deliberately off. → `rules/architecture/observability.md`
 - jest-expo + @testing-library/react-native — unit/behavior tests, co-located `__tests__/` folders (policy: `rules/STANDARDS.md §11`)
 - EAS Build + EAS Update
-- Store listing art (icons, screenshots, Play feature graphic) is tracked in `store/store-assets.json` — a dated manifest, verified against `scripts/verify.sh` from the `anxheloo-expo-store-assets` skill. **One real gap open:** Play's feature graphic has no source file yet (the listing-icon alpha channel was fixed 2026-09-22 with the "rtsh" rebrand). Full mechanism: `rules/ARCHITECTURE.md → Store assets`.
-- The **App Store listing itself is code** — `store/store.config.json`, committed and pushed by `eas metadata:push` (never typed into a form). Listing prose is English in the `en-US` slot (Apple has no `sq` localization) with Albanian **keywords**; never state exact channel counts. `apple.review.notes` stays English for US-based reviewers. Age rating is **computed by Apple** from honest questionnaire answers (no override; expected 13+ — read the real value in ASC after a push). Apple-only: the Play listing, Data Safety and App Content stay console work, as does Apple's App Privacy questionnaire and Content Rights. Full mechanism + the two lint-invisible traps (`apple.version`, screenshot display types): `rules/ARCHITECTURE.md → Release & store submission`.
+- Store listing art is tracked in `store/store-assets.json` (→ `rules/architecture/store-assets.md`); the **App Store listing itself is code** in `store/store.config.json`, pushed by `eas metadata:push` — Apple only, Play stays console work (→ `rules/architecture/release-and-store-submission.md`).
 
 ## Commands
 
@@ -59,62 +58,19 @@ npm run eas:metadata:help    # order of operations + why there is no pull script
 npm run android:stb:dev              # APP_PLATFORM=androidstb (operator STB device-type override)
 ```
 
-**One Android artifact:** every prebuild produces the same TV-capable native project — there is no mobile-vs-TV toggle to manage. Emulator notes: `expo run:android` auto-targets the single booted device — don't pass `--device <serial>` (expo matches AVD *names*, not adb serials). A TV emulator AVD defaults `hw.keyboard=no` (text via the leanback IME); set it `yes` in the AVD `config.ini` + cold-restart to type with the host keyboard.
-
-**Dev client mandatory** (Expo Go can't run MMKV, the expo-video/expo-audio config plugins, or other native modules).
+**Dev client mandatory** (Expo Go can't run MMKV, the expo-video/expo-audio config plugins, or other native modules). Android emulator + TV-AVD notes: `rules/architecture/android-tv-stb.md`.
 
 ## Releasing
 
-Two kinds of update, never mixed. Mechanism: `rules/ARCHITECTURE.md → Boot / Splash gate`.
-
-- **JS fix → current version.** Publish from `main`. It applies silently at the next cold start (no prompt), so always start at a partial rollout:
-  ```bash
-  npm run eas:update:withSentry:prod -- --rollout-percentage 10 -m "..."
-  eas update:edit --branch production --rollout-percentage 100   # healthy in Sentry
-  eas update:revert-update-rollout                                # bad → pull it
-  ```
-- **Store notice → an OLDER version**, once a newer store version is live **in both stores at 100%** (a Play staged rollout leaves users outside it with a store button that can't update; if one store lags, publish per platform with `--platform`). Publish from a worktree of the **newest code already live on that runtime**, never from `main`:
-  ```bash
-  # base = the commit of the newest update on that runtime; the tag only if nothing was published to it since release
-  eas update:list --branch production --json        # newest group for runtime 1.0.2 → eas update:view <group> --json → gitCommitHash
-  git worktree add ../ota-1.0.2 <that commit or v1.0.2>
-  # in that folder: src/constants/appUpdate.ts → STORE_UPDATE_MODE = 'notice' (or 'block')
-  cd ../ota-1.0.2 && npm ci && npm run eas:update:withSentry:prod -- -m "Store update notice"
-  cd - && git worktree remove ../ota-1.0.2
-  ```
-  Branching blindly from the tag rolls back every update already shipped to that runtime — and for **`1.0.1` the tag doesn't even contain the switch** (`v1.0.1` predates `5357367`; the switch reached 1.0.1 only through updates). `main` keeps `STORE_UPDATE_MODE = 'off'` (a test enforces it) — a store build made from `main` must never show the notice.
-- **A notice reaches an old binary at THAT binary's update cadence, not the splash.** Builds before `1.0.2` embed the old prompt hook, so the first update they get applies only when the user taps "Update" on the prompt, or on the next **cold start**. Only after that do they run the silent-apply hook and the banner. Expect old users to see a notice over days, not on their next launch.
-- **Probe delivery before AND after every publish** (the diagnose `curl` below, one per runtime + platform). Before: a `429` means nothing will arrive — don't publish expecting it to. After: the manifest's `"id"` must be the update id just published (`eas update:view <group> --json`). A green `eas update` proves nothing about delivery.
-- **Publish from a WORKTREE of the tag — never by temporarily editing `main`.** Proven 2026-09-29: an update meant for runtime `1.0.1` shipped to `1.0.2` instead, because `ota:export` reads the config when it STARTS and `eas update` reads it again at the END, so edits reverted in between silently retarget the publish. A worktree cannot drift under a running publish: `git worktree add ../ota-<ver> <newest-live-commit|v<tag>> && cd ../ota-<ver> && npm ci`, change, publish, `git worktree remove --force`. Read the printed **Runtime version + Platforms** before doing anything else.
-- **Runtimes that PREDATE `STORE_UPDATE_MODE`** (here: `1.0`) have neither the constant nor the banner. Don't port them — raise the build's EXISTING `confirmation` modal once per launch (store link + dismiss) from that tag's worktree, reusing its `update.*` strings, and patch `IOS_APP_STORE_ID` (empty in those builds, so the CTA is dead on iOS). Reference: the `1.0` patch published 2026-09-29 (`useStoreUpdateNotice`, ~50 lines, never merged).
-- **Tag every store build**: `git tag v<version> && git push origin v<version>` on the commit you build from. The notice flow depends on it.
-- **An update reaches only its own runtime** (`runtimeVersion` = app version), so it must be published from code whose `app.config.ts` version matches the installed builds — and must use only native modules those builds contain. Runtime strings are compared literally: `1.0` is NOT `1.0.0`. Before publishing from a commit other than the users' build, prove compatibility with `git diff <build-commit> <publish-commit> -- package.json package-lock.json` — empty means the JS cannot call native code their build lacks. The same diff decides whether both platforms can share ONE publish (identical deps) or need one each.
-- **Delivery has a QUOTA, and it fails silently.** EAS Update's Free plan allows **1,000 monthly updating users**; past it `u.expo.dev` returns **429** to every device (*"The number of Monthly Updating Users has exceeded the Free tier's quota"*) while `eas update` keeps publishing successfully and the app shows nothing — indistinguishable from a broken bundle. Hit on 2026-09-26 (real demand that month: 3,045). Resets on the 1st of the calendar month. Diagnose in one call:
-  ```bash
-  curl -sI -H "expo-platform: ios" -H "expo-runtime-version: 1.0.1" \
-    -H "expo-channel-name: production" -H "expo-protocol-version: 1" \
-    -H "expo-api-version: 1" -H "accept: multipart/mixed" \
-    https://u.expo.dev/19f4d236-ba4f-4208-bf8b-4a0c229e027c
-  ```
+Two kinds of update, never mixed: a **JS fix** to the current version (from `main`, partial rollout first), and a **store notice** to an older version (from a worktree of the newest code live on that runtime, never `main`). Tag every store build (`git tag v<version>`). EAS Update's Free plan caps delivery at 1,000 monthly updating users and fails **silently** (HTTP 429) — probe before and after every publish. Full runbook with commands: `rules/architecture/ota-releases.md`.
 
 ## Environment
 
 `.env` at root:
-- `EXPO_PUBLIC_API_MODE` — **`mock | real`** (the **only** env var the app reads; the backend base URL is hardcoded in `src/api/client.ts`). Only the literal `mock` enables the fixture adapter; any other value is real. **It is a LOCAL DEV toggle for `expo start` only** — every EAS build profile and `ota:export` pin the value themselves, so `.env` can never decide what a build or an OTA ships (see `rules/ARCHITECTURE.md → OTA bundles on the publisher's machine`).
+- `EXPO_PUBLIC_API_MODE` — **`mock | real`**, the **only** env var the app reads (the backend base URL is hardcoded in `src/api/client.ts`). Only the literal `mock` enables the fixture adapter. **A LOCAL DEV toggle for `expo start` only** — every EAS build profile and `ota:export` pin it, so `.env` never decides what a build or an OTA ships.
+- `.env` stays **gitignored**; a fresh clone does not need it (absent ⇒ "not mock" ⇒ the real API).
 
-`EXPO_PUBLIC_API_MODE` really is the only var the **app** reads. The earlier plan to put `SENTRY_DSN` in the EAS dashboard was **dropped 2026-07-29**: a DSN is public (write-only) and must be in the client bundle anyway, so it is hardcoded in `lib/monitoring.ts` exactly like `API_BASE_URL`.
-
-Build-time only (never read by app code): `APP_VARIANT`, `APP_PLATFORM`, and **`SENTRY_AUTH_TOKEN`** — a real secret that can publish releases to the Sentry org. It is **never committed**, never in the tree, and never passed to `Sentry.init`. It lives in exactly **one** place: **`eas env`, at `sensitive` visibility**, in the `preview` + `production` environments (`development` has none by design — `disableAutoUpload: IS_DEV`, and the dev OTA scripts skip the upload step entirely). That single copy serves both consumers:
-- **EAS Build** injects it into the builder automatically.
-- **EAS Update (OTA)** pulls it at publish time via **`eas env:exec <environment> '<cmd>'`** (`ota:sourcemaps:preview` / `:prod`), because the export + map upload run **locally**, before `eas update` is invoked.
-
-**Visibility must stay `sensitive`, not `secret` (changed 2026-07-31).** `secret` means *"can only be accessed on EAS builder"* — proven empirically: `eas env:exec preview 'test -n "$SENTRY_AUTH_TOKEN"'` returned **absent** while the var was `secret`, so the local OTA upload silently had no credential. `sensitive` is still masked in the dashboard UI but is readable by the CLI, which is what `env:exec` needs. **A `secret` var cannot be converted in place** — EAS can't decrypt it either (`env:update --visibility` fails with *"type == SECRET can't be decrypted in any UI outside of EAS build environment"*); it must be re-set with `eas env:set`.
-
-**No token file, no committed credential.** `.env.sentry-build-plugin` is **gitignored** and deliberately unused — an earlier plan to commit it was **withdrawn 2026-07-31** in favour of `env:exec`, which gives the same zero-setup fresh-clone workflow (you're already `eas login`'d if you can publish at all) without putting a release-publishing credential into permanent git history. **`npm run ota:preflight` was deleted** as redundant: `expo-upload-sourcemaps.js` itself `process.exit(1)`s on a missing token, so the `&&` chain already blocks the publish — a stronger guarantee than a proxy check, since it's the real uploader failing.
-
-**`SENTRY_AUTH_TOKEN` must never live in `.env`** — because it is a credential at rest in the working tree, one `git add -f` from permanent exposure, and `eas env:exec` provides it with no local copy. **Corrected 2026-08-01:** an earlier note claimed `@expo/env` loads `EXPO_PUBLIC_*` vars only, so a token there "wouldn't work anyway" — that was **wrong** (`load()` assigns every non-denylisted key; the Sentry uploader calls it directly, so it *would* have worked). See `rules/ARCHITECTURE.md → Observability` for the source-verified detail. **Never put a secret in `.env`** — and never give one an `EXPO_PUBLIC_` prefix, since those *are* inlined into every shipped bundle.
-
-**`.env` stays gitignored**, and a fresh clone does not need it: `EXPO_PUBLIC_API_MODE` is read in exactly ONE place (`app/_layout.tsx`, `=== 'mock'`), so an absent `.env` resolves to "not mock" — the real API, the correct default for preview/production. Tracking it would only create a way to ship `mock` to users by accident.
+Build-time only (never read by app code): `APP_VARIANT`, `APP_PLATFORM`, and **`SENTRY_AUTH_TOKEN`**. The token lives in exactly one place — **`eas env` at `sensitive` visibility** (not `secret`: `env:exec` cannot read `secret`) in `preview` + `production`; EAS Build injects it, OTA publishes read it via `eas env:exec`. **Never put a secret in `.env`, and never give one an `EXPO_PUBLIC_` prefix** (those are inlined into every bundle). The Sentry DSN is public and hardcoded in `lib/monitoring.ts`. Detail: `rules/architecture/observability.md`.
 
 MMKV is intentionally unencrypted, so there is no `MMKV_ENCRYPTION_KEY`.
 
@@ -122,9 +78,8 @@ MMKV is intentionally unencrypted, so there is no `MMKV_ENCRYPTION_KEY`.
 
 `app.config.ts` reads `APP_VARIANT` (`development | preview | production`) → different bundle IDs.
 **iOS and Android diverged 2026-08-20** with the move to RTSH's own Apple org account (team
-`65K2L4RTV3`, ASC app `6803853740`): the old iOS ids belonged to an individual account and a bundle
-id cannot be reused across accounts, so iOS gained an `.ott` segment. Android is untouched — Play
-has no equivalent constraint and reusing the package keeps the existing listing.
+`65K2L4RTV3`, ASC app `6803853740`): a bundle id cannot be reused across accounts, so iOS gained an
+`.ott` segment. Android is untouched (reusing the package keeps the Play listing).
 
 | Variant | iOS `bundleIdentifier` | Android `package` |
 |---|---|---|
@@ -132,89 +87,34 @@ has no equivalent constraint and reusing the package keeps the existing listing.
 | preview | `al.rtsh.tani.ott.preview` | `al.rtsh.tani.preview` |
 | dev | `al.rtsh.tani.ott.dev` | `al.rtsh.tani.dev` |
 
-The `.dev` / `.preview` **suffixes are unchanged**, which is load-bearing: `lib/monitoring.ts` derives
-Sentry's `environment` from `Application.applicationId.endsWith(...)`. Verified still correct after the
-rename — but any future id change must re-check it (see `rules/ARCHITECTURE.md → Observability`).
+The `.dev` / `.preview` **suffixes are load-bearing**: `lib/monitoring.ts` derives Sentry's
+`environment` from `Application.applicationId.endsWith(...)` — any future id change must re-check it.
 
-It also reads `APP_PLATFORM` (optional; `androidstb`) → `extra.devicePlatform`, the build-time platform override for operator STB builds (runtime can't distinguish an STB from retail Android TV). Consumed by `getDeviceType()` / `getDeviceClass()` in `utils/device.ts` (the `buildTimePlatform` const — STB build-flag wins first).
+`APP_PLATFORM` (optional; `androidstb`) → `extra.devicePlatform`, the build-time override for operator STB builds (runtime can't tell an STB from retail Android TV); read by `getDeviceType()` / `getDeviceClass()` in `utils/device.ts`.
 
 ## Architecture
 
-Where things live — file-level structure only. Mechanism, rationale, and known
-gaps for every cross-cutting flow are in `rules/ARCHITECTURE.md`; read the
-matching section there before changing behavior. Coding conventions are in
-`rules/STYLE_GUIDE.md`.
+Where things live. How each flow works, why, and its known gaps: the topic files under
+`rules/architecture/`, listed in `rules/ARCHITECTURE.md`. Conventions: `rules/STYLE_GUIDE.md`.
 
-### Navigation (`src/app/`)
-
-Expo Router file-based. Root `_layout.tsx` uses `Stack.Protected` guards:
-- No token → `(auth)/` (login → register → forgot)
-- Token → `(app)/(tabs)/` (live, epg, catchup, radio, profile)
-- Player routes (`channel/[id]`, `radio/[id]`) are full-screen at root — **card pushes** via `getPlayerScreenOptions()`: `slide_from_bottom` + `gestureEnabled` + `gestureDirection: 'vertical'` (swipe down to dismiss), deliberately NOT any native presentation. `fullScreenModal`/`modal`/`formSheet` all race `ModalWrapper`'s RN `<Modal>` for the root view controller and strand an invisible touch-eating window — **re-verified still broken on screens 4.26 / iOS 26.1 on 2026-08-07**, with the reproduction recipe in `rules/ARCHITECTURE.md → Network state`.
-- Sheet routes live in the `(modals)/` group (`player-options`, `quality`, `language`, `theme`) via `getModalScreenOptions()`. The group is **not** elided from typed-route hrefs — `/(app)/(modals)/theme`. Both option builders live in `utils/navigation.ts`; never inline presentation options at a `Stack.Screen`.
-
-### State (`src/store/`)
-
-Single `useAppStore` composed from slices: `UserSlice`, `SettingsSlice`, `ThemeSlice`, `ModalSlice`, `NetworkSlice`, `PlayerSlice`, `ParentalSlice`, `RealtimeSlice`, `AdsSlice`. Persist via MMKV (`zustandStorage`); `partialize` controls what persists. Planned, not yet implemented: `ChannelsSlice` (favorites/recently-watched), `EpgSlice` (reminders).
-
-Storage-layer breakdown (keychain vs MMKV vs query cache, and why): `rules/ARCHITECTURE.md → Persistence boundaries`.
-
-### Networking (`src/api/`)
-
-- `client.ts` — single `apiClient` (axios) + `queryClient`. Auth/refresh/device-identity mechanism: `rules/ARCHITECTURE.md → Auth flow` + `→ Device identity`.
-- `endpoints.ts` — string constants for routes (`AUTH_ROUTES`, `CHANNELS_ROUTES`, etc).
-- `services/*.ts` — domain-grouped axios calls (`auth.ts`, `channels.ts`, `epg.ts`, `guide.ts`, `users.ts`, `config.ts`). (`devices.ts` removed 2026-07-14 — device identity now rides the login/register-verify body, see `rules/ARCHITECTURE.md → Device identity`.)
-- `queries/*.ts` / `mutations/*.ts` — TanStack Query/Mutation hooks wrapping services.
-- `mocks/` — custom axios-adapter mock (not MSW) + fixtures, active when `EXPO_PUBLIC_API_MODE=mock`.
-
-### Real-time (`src/realtime/`)
-
-STOMP-over-WebSocket (`@stomp/stompjs`). `events.ts`, `midroll.ts` (pure scheduling core, no React), `client.ts` (singleton), `hooks/useChannelRealtime.ts`. Full mechanism (presence, watch-time, mid-roll, geo): `rules/ARCHITECTURE.md → Real-time`. Backend contract: `docs/REALTIME_SOCKET.md`.
-
-### Player
-
-- `components/Media/VideoPlayer.tsx` — base `expo-video` wrapper. The source's `contentType` is **inferred from the URL** via `inferContentType()` (`utils/resolveStreamSource.ts`): recognized streaming extensions map to their protocol (`.m3u8`→`hls`, `.mpd`→`dash`, `.ism(l)`→`smoothStreaming`), other media extensions → `auto`, and **no extension → `hls`** (our backend serves HLS from an extensionless `/playback/manifest?u=…` endpoint). Without this expo-video defaults to `auto` and the manifest fails to load. Live streams get no `timeUpdate` ticks (`isLive` → `timeUpdateEventInterval = 0`): nothing reads a live position, and each tick is a synchronous main-thread XPC on iOS (`AVPlayerItem.currentDate()`) that hung the app (REACT-NATIVE-RTSH-OTT-2E). A `replaceAsync` that resolves after unmount, or after a newer swap, never calls `play()` (-2H).
-- `components/Media/LivePlayer.tsx` — HLS player for **both** live and recorded (catch-up); AES-128 + DVR. Takes an ad-driven `paused` prop that pauses the stream for a mid-roll without a remount; a live stream best-effort re-syncs to the edge on resume.
-- `components/Media/RadioAudioHost.tsx` — the single `expo-audio` engine, mounted above the router in `(app)/_layout`. Rationale + flow: `rules/ARCHITECTURE.md → Radio audio`.
-- `components/Media/RadioPlayer.tsx` — presentational now-playing core; no playback logic. `RadioMiniPlayer` (Layout/) is the docked strip.
-- `components/Media/RadioSeekBar.tsx` — radio **catch-up** scrubber, shown only while a recording plays (radio programmes are catch-up-able like TV). Reads/seeks the engine via `useRadioAudioPlayer()` context; live radio is never seekable.
-- `components/Media/PlayerControls.tsx` — overlay (auto-hide, fullscreen, PIP, audio tracks). Draggable scrubber, active only when seekable (recorded/catch-up — **live is deliberately non-seekable**). Resuming a paused **live** stream first catches up by exactly the paused time (`currentOffsetFromLive` at pause vs now): the live window is only ~24s (4 × 6s segments), so resuming in place after a longer pause fails with Media3's `BehindLiveWindowException` ("Source error") on every platform. Requires `GestureHandlerRootView` at the app root.
-
-**`expo-video` must stay `>= 57.0.2` — never relax this floor.** expo-modules-core 57 changed the SharedObject lifecycle so `release()` no longer deallocates the native object immediately (it lives until JS GC). expo-video 57.0.0/57.0.1 still tore the player down in `deinit`, so on iOS the `AVPlayer` **kept decoding and holding the audio session after the JS component unmounted** — closing the channel screen or switching to a catch-up programme left the previous stream audible, two at once (expo/expo#47569). 57.0.2 moves teardown into `sharedObjectWillRelease()` (expo/expo#47828). This is a **native** fix: it ships only in a new build, never via `eas update`.
-
-**Paired floor: `expo-modules-core` must stay `>= 57.0.3` (i.e. `expo >= 57.0.5`) — verified 2026-07-29.** Expo ships **precompiled iOS xcframeworks** (`EXPO_USE_PRECOMPILED_MODULES`, default on), and a module's prebuilt binary is rebuilt against the **current** core **without bumping its own npm version**. `expo-modules-core` 57.0.3 dropped the `appContext:` argument from `AnyModule._decorateModule`, and `expo-video@57.0.2`'s published prebuilt calls the new 2-param form — so pairing it with core `<= 57.0.2` produces a **dyld `Symbol not found` `SIGABRT` at launch, before any JS runs**. Diagnose in seconds without rebuilding: `nm -gU <App>.app/Frameworks/ExpoModulesCore.framework/ExpoModulesCore | grep decorate | xcrun swift-demangle -compact` vs `nm -u .../ExpoVideo.framework/ExpoVideo | grep decorate | …` — mismatched signatures are this bug. Fix is to bump `expo`, **never** to downgrade `expo-video` (already latest; only its binary moved). Escape hatches if a future pairing breaks again: `package.json` → `expo.autolinking.apple.buildFromSource: ["ExpoVideo"]`, or `expo-build-properties` → `ios.usePrecompiledModules: false`.
-
-Stream `User-Agent` stamping + the AES-128 header-forwarding open risk: `rules/ARCHITECTURE.md → Device identity`.
-
-### Theme
-
-`ThemeSlice` holds `mode` + `colors`; no ThemeProvider. Tokens in `src/theme/`: `colors.ts` (`lightTheme`/`darkTheme`), `fonts.ts` (`Fonts`, `FONTSIZE`), `borders.ts` (`BORDERRADIUS`), `spacing.ts` (`SPACING`) — all pass through `scaled()` from `@/responsive`. Full mechanism: `rules/ARCHITECTURE.md → Theme flow`.
-
-### Responsive (`src/responsive/`)
-
-Portable, self-contained module (`react`+`react-native` only). `useResponsiveGrid()` / `useResponsive()` (reactive layout), `scaled()` (static per-class sizing step). Config: `responsive/breakpoints.ts`. Full mechanism: `rules/ARCHITECTURE.md → Responsive layout & sizing`.
-
-### Android TV / STB (`src/tv/`)
-
-Focus/D-pad module, inert off-TV (`Platform.isTV`-gated) — mobile/iOS stays byte-identical. Full mechanism: `rules/ARCHITECTURE.md → Android TV / STB`.
-
-### Register form data (`constants/cities.*`)
-
-`cities.json` (~40 KB, lazy-loaded) is generated by `npm run cities:build` (`scripts/build-cities.mjs`): every town for Albania, Kosovo and Montenegro (dr5hn dataset, ODbL), the 20 largest cities elsewhere (GeoNames, CC BY 4.0), with a pinned "Other". Both licences require the credit shown under Settings (`settings.credits`) — keep it if the data changes. Usernames are letters + digits only (any alphabet), 3–30 chars, in `features/auth/schemas.ts`; the backend currently checks length only.
-
-### Specs
-
-- `docs/API.md` — backend contract (source of truth for `src/api/`)
-- `docs/REALTIME_SOCKET.md` — STOMP/WebSocket backend contract (presence, watch-time, mid-roll, geo)
+- **Navigation (`src/app/`)** — Expo Router; root `_layout.tsx` guards with `Stack.Protected` (no session → `(auth)/`, session → `(app)/(tabs)/`). Player routes (`channel/[id]`, `radio/[id]`) are **card pushes** via `getPlayerScreenOptions()`, deliberately not a native presentation (→ `rules/architecture/network-state.md`). Sheets live in `(modals)/` via `getModalScreenOptions()`; the group stays in hrefs (`/(app)/(modals)/theme`). Both builders: `utils/navigation.ts`.
+- **State (`src/store/`)** — one `useAppStore` from slices (`User`, `Settings`, `Theme`, `Modal`, `Network`, `Player`, `Parental`, `Realtime`, `Ads`), MMKV persist with `partialize` (→ `rules/architecture/persistence-boundaries.md`).
+- **Networking (`src/api/`)** — `client.ts` (`apiClient` + `queryClient`), `endpoints.ts`, `services/*`, `queries/*` / `mutations/*`, `mocks/` (axios-adapter fixtures when `EXPO_PUBLIC_API_MODE=mock`) (→ `rules/architecture/auth-flow.md`, `rules/architecture/device-identity-and-request-headers.md`).
+- **Real-time (`src/realtime/`)** — STOMP client, events, pure mid-roll core (→ `rules/architecture/real-time.md`).
+- **Player (`components/Media/`)** — `VideoPlayer` / `LivePlayer` / `PlayerControls`, radio engine `RadioAudioHost`. `expo-video` must stay `>= 57.0.2` and `expo-modules-core` `>= 57.0.3` — never relax (→ `rules/architecture/player.md`, `rules/architecture/radio-audio.md`).
+- **Theme (`src/theme/`)**, **Responsive (`src/responsive/`)**, **TV focus (`src/tv/`)** — → `rules/architecture/theme-flow.md`, `rules/architecture/responsive-layout-and-sizing.md`, `rules/architecture/android-tv-stb.md`.
+- **Register form data (`constants/cities.*`)** — generated by `npm run cities:build`; its licences require the Settings credit (→ `rules/architecture/auth-flow.md`).
+- **Specs** — `docs/API.md` (backend contract, source of truth for `src/api/`), `docs/REALTIME_SOCKET.md` (STOMP contract).
 
 ## Doc sync (mandatory)
 
 Every change that affects documented behavior must update the docs in the same turn — never leave them stale:
 
-- **Cross-cutting flow changed** (auth, theme, boot/splash, network, persistence, radio audio, parental, navigation) → update `rules/ARCHITECTURE.md`'s current-state section directly (how it works / why / known gaps). No separate changelog file — `ARCHITECTURE.md` is a living current-state doc, not a history log; git history is the changelog.
-- **Convention or pattern changed** → update `rules/STYLE_GUIDE.md`.
-- **Feature added/removed, scope or stack changed** → update this file (CLAUDE.md).
-- **Plan step done/superseded** → update `.claude/docs/plan.md` (and mark stale references in older entries).
+- **Cross-cutting flow changed** → update its topic in `rules/architecture/` (current state: how it works / why / known gaps). A new flow gets a new topic with `paths:` naming its files plus a line in the `rules/ARCHITECTURE.md` index. Topics are current state, not history — git is the changelog.
+- **Convention or pattern changed** → `rules/STYLE_GUIDE.md` (project-wide) or its scoped file in `rules/style/`.
+- **Feature added/removed, scope or stack changed** → this file.
+- **SDK / dependency upgrade** → a new entry in `docs/upgrades/UPGRADES.md` (append-only ledger).
+- **Plan step done/superseded** → `.claude/docs/plan.md` (and mark stale references in older entries).
 
 ## Working preferences (Anxhelo)
 
@@ -225,15 +125,13 @@ Every change that affects documented behavior must update the docs in the same t
 
 ## On every session start
 
-`rules/ARCHITECTURE.md` and `rules/STYLE_GUIDE.md` are auto-loaded alongside this
-file every session — they're already in context, don't re-read them. Use
-`ARCHITECTURE.md` as the detail layer before changing a cross-cutting flow
-(auth, theme, boot/splash, network, persistence, radio audio); use
-`STYLE_GUIDE.md` before writing or editing components/hooks/slices.
+This file, `rules/STANDARDS.md`, `rules/STYLE_GUIDE.md` and the `rules/ARCHITECTURE.md` index load
+every session. Topic files (`rules/architecture/`) and scoped conventions (`rules/style/`) load only
+when you read or edit a file their `paths:` match — so before answering how a flow works, or changing
+one, open its topic from the index.
 
-Read `.claude/docs/plan.md` to find the next step to execute — it's the single
-source of truth for what's done vs. remaining (the standalone audit doc was
-folded into it 2026-07-08 and retired).
+Read `.claude/docs/plan.md` to find the next step to execute — the single source of truth for what's
+done vs. remaining.
 
 ## Output rule
 
@@ -241,32 +139,23 @@ All deliverable files go inside this repo (`RTSH-OTT/`). Source spec lives in `.
 
 ## Mandatory product features (spec-required)
 
-Beyond the architecture scaffold, these features are spec-mandated for v1 — do not treat as optional:
+Spec-mandated for v1 — do not treat as optional:
 
-- **T&C acceptance** — enforced once at registration: the `acceptTerms` checkbox (zod-required) on the register form, with an inline link that opens the T&C URL in `expo-web-browser`. Acceptance is account-level (sent to backend as `termsAccepted`), not re-prompted on login — no client gate, no `tcAcceptedAt` flag (removed 2026-06-17).
-- **Guest mode — the app opens WITHOUT an account (iOS only)** — live TV, radio, the
-  7-day guide and search are free to browse and watch. An account is required only for
-  catch-up replay, 18+ programmes, enabling the parental PIN, and anything
-  account-shaped (profile, change password, delete). Fixes two App Store rejections
-  under **Guideline 5.1.1(v)**; Android (phone/tablet/TV/STB) keeps its login wall,
-  since Play has no equivalent rule. `isAuthenticated` still means "a real, identified
-  user" — app access is gated on `selectHasSession`. Full mechanism:
-  `rules/ARCHITECTURE.md → Auth flow → Guest session`.
-- **Geoblocking** — channel-level (CDN / `PlaybackDecision`) + per-programme (EPG `decision` flag, live-boundary stop). Full mechanism: `rules/ARCHITECTURE.md → Real-time → Geo`.
-- **Cellular-data gate** — confirmation modal before playback over cellular when `settings.cellularPlaybackAllowed === false`. `useCellularGate()` mounts on both player routes and returns `{ pending }`; while pending the player stays unmounted (channel) / the station isn't selected (radio), so nothing streams behind the modal. Requires `channel/[id]` to stay a **card push, not `fullScreenModal`** — see `rules/ARCHITECTURE.md → Network state`.
-- ~~**Mosaic view**~~ — **cut from v1 by user decision (2026-06-11, plan 22.14f)**; route + components removed.
-- **PIP for TV, lock-screen playback for radio only** — TV channels keep playing in the background through PiP alone (always-on, no user setting); `LivePlayer` deliberately does NOT enable expo-video's `staysActiveInBackground` / `showNowPlayingNotification` (product decision 2026-09-21 — on Android they start expo-video's media foreground service, whose lifecycle races crashed builds 17/20). Only radio (`expo-audio`) plays on the lock screen with now-playing controls. PiP entitlements come from the `expo-video` config plugin (native rebuild required on change).
-- **Ads** — three slots (`APP_OPEN`, `CHANNEL_CHANGE` preroll, `MID_ROLL`), one merged array per context (`GET /ads?channelId=`), single `AdOverlay` component (`components/Media/AdOverlay.tsx`, design `adpop`), one-ad-at-a-time app-wide via `AdsSlice` + `useAdSlot`. Full slot orchestration (preroll gating, reveal delay, mid-roll pause + PiP gating, impression reporting, route-scoped exclusivity): `rules/ARCHITECTURE.md → Real-time`.
-- **Channel / station switching in place** — swipe left/right on the player (touch) or remote CH± / media next-previous (TV/STB) steps through the cached list order, wrapping at the ends. One screen, one player: `activeId` is local state (never `router.setParams`, which remounts), `ChannelSwipeArea` (`components/Media/`) + `useTVChannelKeys` (`src/tv/`). Full mechanism + the iOS dismiss-gesture race: `rules/ARCHITECTURE.md → Channel switching`.
-- **Quality picker** — manual ABR selection in the player options sheet (per-session, player-only; no persisted default in Settings). Resets to Auto on each channel open.
-- **Parental control** — 4–6 digit PIN, device-level, client-only (SHA-256 local compare, no backend, no cross-device sync). Gates adult-flagged content only when enabled. Full mechanism: `rules/ARCHITECTURE.md → Parental control`.
-- **Change password** — `POST /users/me/change-password`, rotates the refresh token, folds in "sign out other devices." See `rules/ARCHITECTURE.md → Auth flow 5b`.
-- **Delete account** — `DELETE /users/me`; wipes session + parental config only on a confirmed 200. See `rules/ARCHITECTURE.md → Auth flow 5a`.
-- **Background audio for radio** — `expo-audio` lock-screen controls + Android foreground service.
-- **Analytics** — first-party telemetry, **currently DISABLED** (mounts commented out, pending backend ingestion — see `.claude/docs/plan.md → Phase 14`). Full mechanism: `rules/ARCHITECTURE.md → Analytics & telemetry`.
+- **T&C acceptance** — once, at registration (`acceptTerms` → `termsAccepted`); no re-prompt on login.
+- **Guest mode (iOS only)** — live TV, radio, guide and search without an account; an account is required only for catch-up, 18+ programmes, enabling the parental PIN and account screens. Fixes App Store **5.1.1(v)**; Android keeps its login wall. → `rules/architecture/auth-flow.md → Guest session`
+- **Geoblocking** — channel-level + per-programme. → `rules/architecture/real-time.md`
+- **Cellular-data gate** — confirm before playback over cellular. → `rules/architecture/network-state.md`
+- ~~**Mosaic view**~~ — cut from v1 (2026-06-11, plan 22.14f).
+- **PiP for TV, lock-screen playback for radio only**; **quality picker** per session. → `rules/architecture/player.md`
+- **Ads** — `APP_OPEN`, `CHANNEL_CHANGE` preroll, `MID_ROLL`, one at a time app-wide. → `rules/architecture/real-time.md`
+- **Channel / station switching in place** — swipe or remote CH±. → `rules/architecture/channel-switching.md`
+- **Parental control** — 4–6 digit device-level PIN, client-only. → `rules/architecture/parental-control.md`
+- **Change password / delete account.** → `rules/architecture/auth-flow.md` (5a, 5b)
+- **Background audio for radio** — lock-screen controls + Android foreground service. → `rules/architecture/radio-audio.md`
+- **Analytics** — first-party telemetry, **currently DISABLED**. → `rules/architecture/analytics-and-telemetry.md`
 
 ## Out of scope for v1
 
-- Cast (Chromecast / AirPlay) — **fully removed 2026-07-31**. There is no cast UI anywhere, and the *implicit* AirPlay path is off too: `expo-video` defaults `allowsExternalPlayback` to **`true`**, so iOS was silently offering AirPlay from Control Center on every stream; `VideoPlayer.tsx` now sets it `false` on iOS. **Blocker to re-enabling either platform:** the receiver device fetches the manifest, segments and the AES-128 key itself, and custom headers do **not** cross the AirPlay/Cast session boundary — so `getStreamHeaders()`'s `User-Agent: RTSHTani-*` (`utils/device.ts`, the origin's gate) never arrives and the request is rejected. Playback auth must move to a **signed/expiring URL** (Apple's documented pattern: auth as a query param on the multivariant playlist — the same direction as the 15.2 geo contract) before casting is worth scoping. Once it does, iOS AirPlay is cheap (`VideoAirPlayButton` ships in expo-video already); Chromecast is not — `react-native-google-cast` has had **no code release since 2025-07-26** (4.9.1, "New Architecture **compatibility mode**", RN ≥ 0.76) and is unverified against our RN 0.86 New-Arch-only runtime, and the default Cast receiver does **not** support AES-128, so it would need a custom receiver plus a key-server CORS allowlist.
+- Cast (Chromecast / AirPlay) — **fully removed 2026-07-31**, implicit AirPlay off too; blocked on signed playback URLs. → `rules/architecture/player.md`
 - Server-side ad insertion (SSAI) — client-side overlay only in v1.
 - Widevine / FairPlay / PlayReady — AES-128 HLS only (spec confirms).

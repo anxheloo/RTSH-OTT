@@ -123,7 +123,7 @@ const ModalWrapper: React.FC = () => {
         unreachable — the app-wide failure device-verified 2026-08-17 (logout,
         delete account, retry, and the force-update CTA could all be SEEN but
         never pressed). Same trap and same fix already documented in
-        STYLE_GUIDE.md → "Nested focusables trap the D-pad" and applied to
+        .claude/rules/style/tv.md → "Nested focusables trap the D-pad" and applied to
         RadioMiniPlayer / PlayerControls; this component was missed.
         Touch is unaffected — `focusable` is Android-focus only and both keep
         their onPress.

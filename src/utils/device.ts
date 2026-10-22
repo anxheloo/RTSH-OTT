@@ -15,7 +15,7 @@
  * `?deviceClass=` param. The backend now derives both from the device baked
  * into the access token at login, so `buildDeviceRegistration()` below is
  * only ever called from the login/register-verify screens. See
- * ARCHITECTURE.md → Device identity for the full rationale + rollback note.
+ * .claude/rules/architecture/device-identity-and-request-headers.md for the full rationale + rollback note.
  */
 import { Linking, Platform } from 'react-native';
 

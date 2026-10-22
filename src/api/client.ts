@@ -84,7 +84,7 @@ const isAuthRoute = (url?: string): boolean => !!url && url.startsWith('/auth/')
  * minted with no device — a pre-migration client, or a login/register-verify
  * that skipped `device`. Added 2026-07-14 alongside the device-identity
  * migration (device now rides the login/register-verify body instead of a
- * standalone `PUT /users/me/device` — see ARCHITECTURE.md → Device identity).
+ * standalone `PUT /users/me/device` — see .claude/rules/architecture/device-identity-and-request-headers.md).
  */
 const DEVICE_CLASS_REQUIRED_CODE = 'playback.device_class_required';
 

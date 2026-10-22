@@ -124,7 +124,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
       // Android Baseline Profile: ART compiles the startup path at install instead
       // of interpreting it on first launch — the cold-start ANRs on low-end TV
       // boxes (REACT-NATIVE-RTSH-OTT-8 / -K). Re-capture on every SDK upgrade;
-      // procedure in rules/ARCHITECTURE.md → Android TV / STB.
+      // procedure in .claude/rules/architecture/android-tv-stb.md.
       ['./plugins/withAndroidBaselineProfile', { profile: './plugins/baseline-prof.txt.gz' }],
       // NOTE: `withAndroidTVFocusFix` (the MainApplication patch for the RN 0.80+
       // D-pad-into-ScrollView regression, react-native-tvos #1087) was DELETED
@@ -132,7 +132,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
       // `enableCustomFocusSearchOnClippedElementsAndroid` defaulting to FALSE, so
       // forcing it false was a no-op. Re-check that default on every SDK upgrade
       // (ReactNativeFeatureFlagsDefaults.kt / .h); if upstream flips it back to
-      // true, the patch must return. See rules/ARCHITECTURE.md → Android TV / STB.
+      // true, the patch must return. See .claude/rules/architecture/android-tv-stb.md.
       'expo-router',
       // `faceIDPermission: false` DELETES `NSFaceIDUsageDescription` from the
       // built Info.plist (@expo/config-plugins `applyPermissions` treats an

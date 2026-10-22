@@ -69,7 +69,7 @@ export async function getChannels(type: ChannelType): Promise<Channel[]> {
  * Returns the playback decision for a channel — stream URLs + access decision.
  * The backend picks the platform-specific player URL from the device baked
  * into the access token at login (no `?deviceClass=` param since 2026-07-14 —
- * see ARCHITECTURE.md → Device identity). A token minted without a device
+ * see .claude/rules/architecture/device-identity-and-request-headers.md). A token minted without a device
  * 400s with `playback.device_class_required`, handled globally in `client.ts`.
  */
 export async function getChannelById(id: string): Promise<PlaybackDecision> {

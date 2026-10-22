@@ -34,8 +34,9 @@
  *   That second hook is not optional here: the axios client in `api/client.ts`
  *   sets an `Authorization: Bearer <token>` header on every request, and Sentry's
  *   default HTTP breadcrumb integration records request metadata — so a token
- *   can reach Sentry past a flawless `beforeSend`. See `rules/ARCHITECTURE.md →
- *   Observability`. This is the ISO 27001 "no PII / credentials in logs"
+ *   can reach Sentry past a flawless `beforeSend`. See
+ *   `.claude/rules/architecture/observability.md`. This is the ISO 27001 "no PII /
+ *   credentials in logs"
  *   obligation from the contract, enforced in code.
  *
  * - **`sendDefaultPii: false`.** Sentry's own docs example ships `true`. That is

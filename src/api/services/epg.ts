@@ -66,8 +66,8 @@ export async function getChannelEpg(channelId: string, date?: string): Promise<E
  * Fetch catch-up playback decision for a recorded programme —
  * `GET /channels/{channelId}/epg/{programId}`. Platform-specific player URL
  * selection now comes from the device baked into the access token at login
- * (no `?deviceClass=` param since 2026-07-14 — see ARCHITECTURE.md → Device
- * identity).
+ * (no `?deviceClass=` param since 2026-07-14 — see
+ * .claude/rules/architecture/device-identity-and-request-headers.md).
  */
 export async function getCatchupPlayback(
   channelId: string,

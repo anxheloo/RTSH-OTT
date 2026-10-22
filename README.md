@@ -35,7 +35,7 @@ npx expo run:ios       # local iOS build + launch (simulator)
 > **`.env` is a local toggle for `expo start` and nothing more.** Every EAS build profile and
 > `ota:export` pin `EXPO_PUBLIC_API_MODE` explicitly, so your local value can never reach a build or
 > an OTA. It once did — a stale Metro cache published a `mock` bundle to the preview channel; see
-> `.claude/rules/ARCHITECTURE.md → OTA bundles on the publisher's machine`.
+> `.claude/rules/architecture/observability.md → OTA bundles on the publisher's machine`.
 
 Build/publish-time only — **never read by app code, never committed**:
 
@@ -46,9 +46,9 @@ Build/publish-time only — **never read by app code, never committed**:
 
 The Sentry **DSN** is public (write-only) and is hardcoded in `src/lib/monitoring.ts`, like the API
 base URL. Visibility must stay `sensitive`, not `secret` — `secret` is unreadable outside an EAS
-builder, which breaks the local OTA upload. See `.claude/rules/ARCHITECTURE.md → Observability`.
+builder, which breaks the local OTA upload. See `.claude/rules/architecture/observability.md`.
 
-MMKV is intentionally **unencrypted** (low-sensitivity data; real secrets stay in the keychain — see `rules/ARCHITECTURE.md → Persistence boundaries`), so there is no `MMKV_ENCRYPTION_KEY`.
+MMKV is intentionally **unencrypted** (low-sensitivity data; real secrets stay in the keychain — see `.claude/rules/architecture/persistence-boundaries.md`), so there is no `MMKV_ENCRYPTION_KEY`.
 
 ## Commands
 

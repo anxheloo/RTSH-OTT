@@ -15,8 +15,9 @@
  *
  * `device` (2026-07-14): the backend now derives device identity from the
  * access token instead of a standalone `PUT /users/me/device` upsert, so it
- * rides the two auth calls that mint a token — see ARCHITECTURE.md → Device
- * identity for the full rationale + rollback note.
+ * rides the two auth calls that mint a token — see
+ * .claude/rules/architecture/device-identity-and-request-headers.md for the full
+ * rationale + rollback note.
  */
 import axios from 'axios';
 

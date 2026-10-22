@@ -28,7 +28,7 @@
  * makes react-native-screens install a FULL-SCREEN dismiss pan that begins on
  * movement in any direction and cancels this one when it recognizes first. The
  * 10px thresholds make this pan win most horizontal swipes; a fast flick can
- * still lose. See ARCHITECTURE.md → Channel switching.
+ * still lose. See .claude/rules/architecture/channel-switching.md.
  */
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { type StyleProp, StyleSheet, View, type ViewStyle } from 'react-native';

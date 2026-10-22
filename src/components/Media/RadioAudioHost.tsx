@@ -166,7 +166,7 @@ const RadioEngine: React.FC<{ onPlayer: (player: AudioPlayer | null) => void }> 
   // expo-audio wires only play/pause/togglePlayPause/changePlaybackPosition/
   // skipForward/skipBackward, and never touches `nextTrackCommand` /
   // `previousTrackCommand` — so iOS draws those two buttons permanently
-  // greyed out. See `rules/ARCHITECTURE.md → Radio audio → Known gaps`.
+  // greyed out. See `.claude/rules/architecture/radio-audio.md → Known gaps`.
   useEffect(() => {
     if (!radioStreamUrl) {
       engine(() => player.clearLockScreenControls());

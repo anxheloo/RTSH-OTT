@@ -30,11 +30,11 @@ const AppLayout: React.FC = () => {
   // Device registration removed 2026-07-14 — the standalone `PUT
   // /users/me/device` upsert this hook fired is gone; the device now rides
   // the login/register-verify body instead (see `utils/device.ts` and
-  // ARCHITECTURE.md → Device identity).
+  // .claude/rules/architecture/device-identity-and-request-headers.md).
   // Open the app-level STOMP connection (= presence) while authenticated.
   useRealtimeConnection();
   // Analytics (src/analytics) is built but DISABLED pending backend ingestion —
-  // wiring guide: ARCHITECTURE.md → Analytics & telemetry (mount useAnalytics here).
+  // wiring guide: .claude/rules/architecture/analytics-and-telemetry.md (mount useAnalytics here).
 
   const [launchAdDismissed, setLaunchAdDismissed] = useState(false);
   // Defer the launch-ad fetch until Home's TV channels have settled, so the ad

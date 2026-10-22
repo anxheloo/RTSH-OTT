@@ -84,7 +84,7 @@ export function getModalScreenOptions({
  * `customAnimationOnSwipe` on, so the dismiss pan is full-screen and begins on
  * movement in ANY direction — leaving `fullScreenGestureEnabled` unset does not
  * limit it to the edge (verified in its source + on device, 2026-10-19). It races
- * the channel/radio swipe — see ARCHITECTURE.md → Channel switching.
+ * the channel/radio swipe — see .claude/rules/architecture/channel-switching.md.
  * Android keeps the hardware/gesture back, which is its idiom.
  */
 export function getPlayerScreenOptions() {

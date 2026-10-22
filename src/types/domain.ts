@@ -469,7 +469,7 @@ export interface AppVersionInfo {
  * MIGRATED 2026-07-14: previously registered via a standalone `PUT
  * /users/me/device` upsert on every authenticated entry; the backend now reads
  * the device from the token (set once at login), so this type's only wire use
- * is the login/register-verify body. See ARCHITECTURE.md → Device identity.
+ * is the login/register-verify body. See .claude/rules/architecture/device-identity-and-request-headers.md.
  */
 export type DeviceType =
   | 'PHONE_IOS'
@@ -491,7 +491,7 @@ export type DeviceType =
  * playback GETs or the `/ws` handshake — the backend now derives it from the
  * device baked into the access token at login. `getDeviceClass()` is kept for
  * the (unrelated) stream `User-Agent` header and the ad-impression beacon,
- * which still take it as a param — see ARCHITECTURE.md → Device identity.
+ * which still take it as a param — see .claude/rules/architecture/device-identity-and-request-headers.md.
  */
 export type DeviceClass = 'MOBILE' | 'TV' | 'STB';
 
@@ -502,8 +502,9 @@ export type DeviceClass = 'MOBILE' | 'TV' | 'STB';
  * is the stable keychain UUID generated once per install.
  *
  * MIGRATED 2026-07-14 (was a standalone `PUT /users/me/device` upsert fired on
- * every authenticated entry — see git history / ARCHITECTURE.md → Device
- * identity for the old flow if this ever needs reverting).
+ * every authenticated entry — see git history /
+ * .claude/rules/architecture/device-identity-and-request-headers.md for the old flow
+ * if this ever needs reverting).
  */
 export interface DeviceRegistration {
   deviceKey: string;

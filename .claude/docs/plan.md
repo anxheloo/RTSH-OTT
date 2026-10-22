@@ -15,7 +15,7 @@
 - **Backlog:** deferred audit/infra items (`5.X.*`, `11.Y.4–11`), Telemetry re-enable decision (14.2/14.3), remaining product-feature verification (15.2 geo-CDN hard-enforcement confirm, 15.5 PIP entitlement confirm), ad funnel analytics (16.6), Hardening (17), Handoff polish (18), Quality gate (23), **Store readiness & submission (24)**.
 - **End-to-end execution order (user 2026-06-10):** mobile run/test/fix (22.17) → large-screen pass (22.18) → ~~backend wiring (11.X.9)~~ **done** → final audit + plan sync (23) → store readiness & submit (24 requirements + 21 pipeline).
 
-> `rules/ARCHITECTURE.md` reflects the actual current-state of every flow as it evolves (real-time/STOMP, ads, analytics, device identity, TV, etc.) and is the doc to trust for "how does X work today" — reconcile this snapshot against it if the two ever visibly disagree.
+> `rules/ARCHITECTURE.md` (the index of the `rules/architecture/` topic files) reflects the actual current-state of every flow as it evolves (real-time/STOMP, ads, analytics, device identity, TV, etc.) and is the doc to trust for "how does X work today" — reconcile this snapshot against it if the two ever visibly disagree.
 
 ---
 

@@ -147,7 +147,7 @@ const ChannelScreen: React.FC = () => {
 
   // Analytics is DISABLED pending backend ingestion — when re-enabled, watch
   // tracking + the LivePlayer onError → stream_error beacon mount here (see
-  // ARCHITECTURE.md → Analytics & telemetry).
+  // .claude/rules/architecture/analytics-and-telemetry.md).
 
   // Single query — branches on programId: live → GET /channels/{id},
   // recorded → GET /channels/{id}/epg/{programId}. Each pair cached independently.
