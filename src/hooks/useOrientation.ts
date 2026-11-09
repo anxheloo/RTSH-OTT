@@ -73,6 +73,20 @@ const lockPortrait = (): void => {
 export function useLockPortrait(): void {
   useEffect(() => {
     lockPortrait();
+
+    // iPhone Duo: folding or opening it swaps the SCREEN between phone and
+    // tablet size while the app runs. Without this, an app launched folded kept
+    // its portrait lock on the open display (sideways in the book pose), and one
+    // launched open stayed unlocked when folded. Re-apply only on a class change,
+    // so a phone rotating into the fullscreen player keeps its landscape lock.
+    let wasPhone = isPhone();
+    const sub = Dimensions.addEventListener('change', () => {
+      const phone = isPhone();
+      if (phone === wasPhone) return;
+      wasPhone = phone;
+      lockPortrait();
+    });
+    return () => sub.remove();
   }, []);
 }
 

@@ -55,7 +55,16 @@ const ToastHost: React.FC = () => {
   return (
     <Animated.View
       pointerEvents="none"
-      style={[styles.wrap, { bottom: insets.bottom + SPACING.space_64 }, animatedStyle]}
+      style={[
+        styles.wrap,
+        // Horizontal insets centre the pill beside the iPhone Duo rail, not under it.
+        {
+          bottom: insets.bottom + SPACING.space_64,
+          paddingLeft: insets.left,
+          paddingRight: insets.right,
+        },
+        animatedStyle,
+      ]}
     >
       <View style={[styles.pill, { backgroundColor: colors.text }]}>
         <Icon as={CheckIcon} size={16} color={colors.primary} />

@@ -8,6 +8,7 @@
 import React from 'react';
 import { StyleSheet, TouchableOpacity, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { BORDERRADIUS } from '@/theme/borders';
 import { FONTSIZE } from '@/theme/fonts';
@@ -23,6 +24,7 @@ const StoreUpdateBanner: React.FC = () => {
   const { t } = useTranslation();
   const colors = useAppStore((s) => s.colors);
   const { focused, focusProps } = useTVFocus();
+  const insets = useSafeAreaInsets();
 
   if (STORE_UPDATE_MODE !== 'notice') return null;
 
@@ -35,7 +37,12 @@ const StoreUpdateBanner: React.FC = () => {
     <TouchableOpacity
       style={[
         styles.strip,
-        { backgroundColor: colors.primary },
+        {
+          backgroundColor: colors.primary,
+          // iPhone Duo rail: full-width strip, text and button clear of it.
+          paddingLeft: SCREEN_PADDING + insets.left,
+          paddingRight: SCREEN_PADDING + insets.right,
+        },
         tvFocusHighlight(colors.focus, focused, { scale: false }),
       ]}
       activeOpacity={0.8}
@@ -68,7 +75,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: SPACING.space_12,
-    paddingHorizontal: SCREEN_PADDING,
   },
   message: {
     flex: 1,

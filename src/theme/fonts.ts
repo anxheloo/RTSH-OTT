@@ -8,8 +8,8 @@
  * Sub-400 weights (`thin`/`extraLight`/`light`) alias to 400 — the design never
  * goes below Regular, and nothing references them; kept for API stability.
  *
- * `FONTSIZE` values pass through `scaled()` so type ramps up a step on tablet/TV
- * (phone factor is 1 → identical to the Figma values). Apply scaling here at the
+ * `FONTSIZE` values pass through `scaled()` so type ramps up a step on TV
+ * (phone and tablet factor is 1 → identical to the Figma values). Apply scaling here at the
  * token source, not at call sites. See `responsive/scale.ts`.
  */
 import { scaled } from '@/responsive';

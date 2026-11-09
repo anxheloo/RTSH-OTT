@@ -31,8 +31,8 @@ interface VariantSpec {
 
 // Type ramp from the designer HTML (Phase 22.2): headings 800, section/title 700,
 // labels/links 600, body 400/500. This table is the canonical text scale.
-// fontSize/lineHeight pass through `scaled()` so the ramp steps up on tablet/TV
-// (phone factor is 1 → unchanged). See `responsive/scale.ts`.
+// fontSize/lineHeight pass through `scaled()` so the ramp steps up on TV
+// (phone and tablet factor is 1 → unchanged). See `responsive/scale.ts`.
 const VARIANTS: Record<TextVariant, VariantSpec> = {
   heading1: { fontSize: scaled(25), fontWeight: 'extraBold', lineHeight: scaled(30) }, // welcome / large h2
   heading2: { fontSize: scaled(22), fontWeight: 'extraBold', lineHeight: scaled(28) },

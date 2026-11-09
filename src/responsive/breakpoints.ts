@@ -44,12 +44,19 @@ export const GRID_GAP = {
 
 /**
  * Per-device-class UI scale step. `phone: 1` is the design baseline, so phones
- * render byte-for-byte identically to today (scaled(n) === n). Bigger screens
- * bump tokens a single step — readable, not stretched.
+ * render byte-for-byte identically to today (scaled(n) === n).
+ *
+ * `tablet` is 1 too (was 1.15 until 2026-11-09): `scaled()` resolves once at
+ * launch, and iPhone Duo (and iPad Split View) moves between the phone and
+ * tablet classes WHILE the app runs. With a tablet step, an app launched open
+ * kept tablet-sized text on the folded phone screen, and one launched folded
+ * kept phone-sized text when opened. Apple gives iOS and iPadOS one Dynamic
+ * Type table, so a bigger window gets more layout (columns, splits, caps), not
+ * bigger type. Only TV keeps a step: a TV never changes class.
  */
 export const UI_SCALE = {
   phone: 1,
-  tablet: 1.15,
+  tablet: 1,
   tv: 1.3,
 } as const;
 

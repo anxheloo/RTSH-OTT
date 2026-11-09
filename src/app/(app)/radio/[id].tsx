@@ -417,7 +417,12 @@ const RadioPlayerScreen: React.FC = () => {
   // settings/account/change-password. Identical across every screen state, so
   // it's built once rather than duplicated in each early return below.
   const floatingHeader = (
-    <View style={styles.floatingHeader} testID="radio-player-header">
+    <View
+      // iPhone Duo rail: the frosted bar spans the window, the back button and
+      // title stay clear of it (this header floats outside ScreenLayout's padding).
+      style={[styles.floatingHeader, { paddingLeft: insets.left, paddingRight: insets.right }]}
+      testID="radio-player-header"
+    >
       {Platform.OS === 'ios' ? (
         <BlurView
           tint={mode === 'light' ? 'light' : 'dark'}

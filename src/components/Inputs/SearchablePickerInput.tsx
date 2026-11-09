@@ -8,7 +8,14 @@
  * picker waits for a country).
  */
 import React, { useMemo, useState } from 'react';
-import { Dimensions, FlatList, Modal, StyleSheet, TouchableOpacity, View } from 'react-native';
+import {
+  FlatList,
+  Modal,
+  StyleSheet,
+  TouchableOpacity,
+  useWindowDimensions,
+  View,
+} from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { SvgProps } from 'react-native-svg';
@@ -45,7 +52,8 @@ export interface SearchablePickerInputProps {
   testID?: string;
 }
 
-const SHEET_HEIGHT = Math.round(Dimensions.get('window').height * 0.75);
+// Fraction of the LIVE window: folding an iPhone Duo or rotating a tablet resizes it mid-session.
+const SHEET_HEIGHT_RATIO = 0.75;
 const ROW_HEIGHT = 52;
 
 const SearchablePickerInput: React.FC<SearchablePickerInputProps> = ({
@@ -62,6 +70,7 @@ const SearchablePickerInput: React.FC<SearchablePickerInputProps> = ({
   const { t } = useTranslation();
   const colors = useAppStore((s) => s.colors);
   const insets = useSafeAreaInsets();
+  const { height: windowHeight } = useWindowDimensions();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
 
@@ -181,6 +190,7 @@ const SearchablePickerInput: React.FC<SearchablePickerInputProps> = ({
             style={[
               styles.sheet,
               {
+                height: Math.round(windowHeight * SHEET_HEIGHT_RATIO),
                 backgroundColor: colors.surface,
                 paddingBottom: Math.max(insets.bottom, SPACING.space_16),
               },
@@ -245,7 +255,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.55)',
   },
   sheet: {
-    height: SHEET_HEIGHT,
     borderTopLeftRadius: BORDERRADIUS.radius_20,
     borderTopRightRadius: BORDERRADIUS.radius_20,
     overflow: 'hidden',

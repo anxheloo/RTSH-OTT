@@ -1,6 +1,6 @@
 /**
  * Spacing scale — 4px base grid, scaled per device class via `scaled()` so
- * whitespace grows a step on tablet/TV (phone factor is 1 → identical values).
+ * whitespace grows a step on TV (phone and tablet factor is 1 → identical values).
  * Apply scaling here at the token source. See `responsive/scale.ts`.
  *
  * Off-grid, design-verified values:

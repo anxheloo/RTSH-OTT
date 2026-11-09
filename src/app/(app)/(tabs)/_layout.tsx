@@ -49,6 +49,11 @@ const TabsLayout: React.FC = () => {
               // Lift the floating bar above the bottom inset (home indicator / gesture area).
               height: TAB_BAR_BASE_HEIGHT + insets.bottom,
               paddingBottom: insets.bottom,
+              // iPhone Duo rail (84pt on ONE edge). The navigator pads both sides by
+              // the larger inset, which centres the tabs off the content column;
+              // per-edge padding lines them up with the screens above.
+              paddingLeft: insets.left,
+              paddingRight: insets.right,
               borderTopColor: colors.tabBarBorder,
             },
         tabBarLabelStyle: TabBar.tabBarLabelStyle,
