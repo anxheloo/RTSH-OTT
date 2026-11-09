@@ -49,16 +49,26 @@ let cachedDeviceId: string | null = null;
 /**
  * Stable per-device UUID. Generated once, then read from the keychain.
  *
- * Uncertified Android TV boxes ship a broken Keystore that rejects every
- * secure-store write; uncaught, that rejection silently killed login on them
+ * Uncertified Android TV boxes ship a broken Keystore that rejects secure-store
+ * writes, and on some the READ fails too ("Could not decrypt the value");
+ * uncaught, either rejection silently killed login on them
  * (REACT-NATIVE-RTSH-OTT-3). The id is an identifier, not a secret, so it falls
  * back to MMKV — the same persistence on Android, where secure-store data is
- * wiped on uninstall anyway.
+ * wiped on uninstall anyway. A box whose read failed skips the keychain write
+ * too: that write may succeed and the next read fail again, minting a new id
+ * (and a ghost device in the backend registry) on every launch.
  */
 export async function getOrCreateDeviceId(): Promise<string> {
   if (cachedDeviceId) return cachedDeviceId;
 
-  const existing = (await getFromKeychain(DEVICE_ID_KEY)) ?? storage.getString(DEVICE_ID_KEY);
+  let keychainReadable = true;
+  let existing: string | null | undefined = null;
+  try {
+    existing = await getFromKeychain(DEVICE_ID_KEY);
+  } catch {
+    keychainReadable = false;
+  }
+  existing ??= storage.getString(DEVICE_ID_KEY);
   if (existing) {
     cachedDeviceId = existing;
     return existing;
@@ -67,6 +77,7 @@ export async function getOrCreateDeviceId(): Promise<string> {
   const id = Crypto.randomUUID();
   cachedDeviceId = id;
   try {
+    if (!keychainReadable) throw new Error('keychain unreadable');
     await storeOnKeychain(DEVICE_ID_KEY, id);
   } catch {
     storage.set(DEVICE_ID_KEY, id);

@@ -71,7 +71,13 @@ const axios401 = () =>
     config: { headers: new AxiosHeaders() },
   });
 
+// The module keeps a refresh cooldown in memory. Each test starts an hour after
+// the last one, so a cooldown a previous test opened has always expired.
+let mockNow = 1_000_000_000;
+jest.spyOn(Date, 'now').mockImplementation(() => mockNow);
+
 beforeEach(() => {
+  mockNow += 60 * 60_000;
   jest.clearAllMocks();
   mockGetRefreshToken.mockResolvedValue('refresh-token');
   // Default: a signed-in member. Guest tests opt in explicitly.
@@ -123,6 +129,29 @@ describe('refreshAccessToken', () => {
     mockRefresh.mockRejectedValue(new AxiosError('Network Error'));
     await expect(refreshAccessToken()).resolves.toBeNull();
     expect(mockForceSessionExpired).not.toHaveBeenCalled();
+  });
+
+  // `/auth/refresh` answered 500 after ~4 s for two days (2026-11-06/08). Every
+  // new 401 started another refresh, so a cold start waited 4 × 4 s and each
+  // user sent up to 70 refreshes to a struggling server.
+  it('after a transient failure, callers inside the cooldown get null without a request', async () => {
+    mockRefresh.mockRejectedValue(new AxiosError('Request failed with status code 500'));
+    await expect(refreshAccessToken()).resolves.toBeNull();
+
+    mockNow += 29_000;
+    await expect(refreshAccessToken()).resolves.toBeNull();
+    expect(mockRefresh).toHaveBeenCalledTimes(1);
+    expect(mockForceSessionExpired).not.toHaveBeenCalled();
+  });
+
+  it('tries again once the cooldown has passed', async () => {
+    mockRefresh.mockRejectedValueOnce(new AxiosError('Network Error'));
+    await refreshAccessToken();
+
+    mockNow += 30_000;
+    mockRefresh.mockResolvedValueOnce({ accessToken: 'after-cooldown' });
+    await expect(refreshAccessToken()).resolves.toBe('after-cooldown');
+    expect(mockRefresh).toHaveBeenCalledTimes(2);
   });
 
   it('confirmed 401 → delegates to the shared forceSessionExpired teardown', async () => {

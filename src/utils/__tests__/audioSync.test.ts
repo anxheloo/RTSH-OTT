@@ -69,4 +69,11 @@ describe('resolveExternalPlaybackChange', () => {
       resolveExternalPlaybackChange(frame({ isBuffering: true, isLoaded: false }), false),
     ).toBe(true);
   });
+
+  it('abstains on any frame while an app command has not reached the engine', () => {
+    // A playing frame sent before the engine applied the user's pause is stale,
+    // not a lock-screen play (play/pause toggled by itself, Android, 2026-11-09).
+    expect(resolveExternalPlaybackChange(frame(), false, false, true)).toBeNull();
+    expect(resolveExternalPlaybackChange(frame({ playing: false }), true, false, true)).toBeNull();
+  });
 });

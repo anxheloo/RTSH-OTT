@@ -7,9 +7,11 @@ import React from 'react';
 import { Stack } from 'expo-router';
 
 import { useAppStore } from '@/store/useAppStore';
+import { getStatusBarScreenOptions } from '@/utils/navigation';
 
 const AuthLayout: React.FC = () => {
   const colors = useAppStore((s) => s.colors);
+  const mode = useAppStore((s) => s.mode);
 
   return (
     <Stack
@@ -17,6 +19,7 @@ const AuthLayout: React.FC = () => {
         headerShown: false,
         contentStyle: { backgroundColor: colors.background },
         animation: 'slide_from_right',
+        ...getStatusBarScreenOptions(mode),
       }}
     />
   );

@@ -15,7 +15,7 @@
  */
 import React, { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
-import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import { GestureDetector, usePanGesture } from 'react-native-gesture-handler';
 
 import { type AudioPlayer, useAudioPlayerStatus } from 'expo-audio';
 
@@ -68,17 +68,21 @@ const SeekTrack: React.FC<{ player: AudioPlayer }> = ({ player }) => {
 
   const ratioAt = (x: number) => (trackWidth > 0 ? clamp01(x / trackWidth) : 0);
 
-  const gesture = Gesture.Pan()
-    .runOnJS(true)
-    .enabled(seekable)
-    .onBegin((e) => setScrubRatio(ratioAt(e.x)))
-    .onUpdate((e) => setScrubRatio(ratioAt(e.x)))
+  // Gesture Handler 3 hook API, like the station swipe area this bar sits in: a
+  // legacy `Gesture.Pan()` builder nested in a hook gesture runs through a
+  // separate detector and lost the drag to the swipe (device-verified 2026-11-09).
+  const gesture = usePanGesture({
+    runOnJS: true,
+    enabled: seekable,
+    onBegin: (e) => setScrubRatio(ratioAt(e.x)),
+    onUpdate: (e) => setScrubRatio(ratioAt(e.x)),
     // Read the release point off the event itself — the last `onUpdate`'s state
     // may not have re-rendered yet. Fires for a plain tap too.
-    .onFinalize((e) => {
+    onFinalize: (e) => {
       setScrubRatio(null);
       seekTo(ratioAt(e.x) * duration);
-    });
+    },
+  });
 
   const handleA11yAction = (e: { nativeEvent: { actionName: string } }) => {
     const step = e.nativeEvent.actionName === 'increment' ? A11Y_STEP_SECONDS : -A11Y_STEP_SECONDS;

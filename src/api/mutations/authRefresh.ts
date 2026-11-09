@@ -10,6 +10,17 @@ import * as authService from '../services/auth';
 let inflight: Promise<string | null> | null = null;
 
 /**
+ * After a transient failure (network, timeout, 5xx), no new refresh for this
+ * long: callers get `null` at once and their requests fail fast. `/auth/refresh`
+ * answered 500 after ~4 s for two days (2026-11-06/08); every new 401 started
+ * another attempt, so a cold start stalled 16 s+ and each user sent up to 70
+ * refreshes to a server that was already struggling. The session is kept — a
+ * 5xx never logs out.
+ */
+const REFRESH_COOLDOWN_MS = 30_000;
+let cooldownUntil = 0;
+
+/**
  * Exchange the keychain refresh token for a new access token. The refresh
  * token is static (no rotation — backend decision 2026-06-12) and the response
  * carries no user, so on success only the in-memory access token is updated;
@@ -30,6 +41,7 @@ let inflight: Promise<string | null> | null = null;
  * retried here — no proactive boot refresh needed.
  */
 export function refreshAccessToken(): Promise<string | null> {
+  if (!inflight && Date.now() < cooldownUntil) return Promise.resolve(null);
   // A refresh is already in flight — share it instead of firing a duplicate.
   if (!inflight) {
     inflight = doRefresh().finally(() => {
@@ -50,6 +62,7 @@ async function doRefresh(): Promise<string | null> {
 
   try {
     const { accessToken } = await authService.refresh(refreshToken);
+    cooldownUntil = 0;
     useAppStore.setState({ token: accessToken });
     return accessToken;
   } catch (error) {
@@ -66,6 +79,7 @@ async function doRefresh(): Promise<string | null> {
     }
     // Transient (network/timeout/5xx): caller treats as unauthenticated this
     // attempt, but token stays so the next attempt can succeed.
+    cooldownUntil = Date.now() + REFRESH_COOLDOWN_MS;
     return null;
   }
 }
