@@ -15,7 +15,7 @@ export interface AppStateOptions {
  * they change.
  */
 export function useAppState({ onForeground, onBackground, onChange }: AppStateOptions = {}): void {
-  const prevRef = useRef<AppStateStatus>(AppState.currentState);
+  const prevRef = useRef<AppStateStatus>((AppState.currentState ?? 'unknown') as AppStateStatus);
 
   useEffect(() => {
     const sub = AppState.addEventListener('change', (next) => {

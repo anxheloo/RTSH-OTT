@@ -15,7 +15,7 @@ describe('openStoreListing', () => {
 
   it('opens the App Store app on iOS', async () => {
     Platform.OS = 'ios';
-    openURL.mockResolvedValue(true);
+    openURL.mockResolvedValue(undefined);
     await openStoreListing();
     expect(openURL).toHaveBeenCalledWith('itms-apps://apps.apple.com/app/id6803853740');
     expect(openURL).toHaveBeenCalledTimes(1);
@@ -23,14 +23,14 @@ describe('openStoreListing', () => {
 
   it('falls back to the web listing when there is no App Store app (simulator)', async () => {
     Platform.OS = 'ios';
-    openURL.mockRejectedValueOnce(new Error('no handler')).mockResolvedValue(true);
+    openURL.mockRejectedValueOnce(new Error('no handler')).mockResolvedValue(undefined);
     await openStoreListing();
     expect(openURL).toHaveBeenLastCalledWith('https://apps.apple.com/app/id6803853740');
   });
 
   it('falls back to the Play web listing when there is no Play Store (Android TV)', async () => {
     Platform.OS = 'android';
-    openURL.mockRejectedValueOnce(new Error('no handler')).mockResolvedValue(true);
+    openURL.mockRejectedValueOnce(new Error('no handler')).mockResolvedValue(undefined);
     await openStoreListing();
     expect(openURL).toHaveBeenNthCalledWith(1, 'market://details?id=al.rtsh.tani');
     expect(openURL).toHaveBeenLastCalledWith(

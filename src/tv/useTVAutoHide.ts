@@ -17,9 +17,14 @@
  * Inert off-TV: always visible.
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { type HWEvent, useTVEventHandler } from 'react-native';
+import { useTVEventHandler } from 'react-native';
 
 import { isTV } from './constants';
+
+// RN 0.87's strict API dropped the `HWEvent` export; the handler's own parameter type is the contract.
+// It types `eventKeyAction` as a string, but Android sends the KeyEvent action as a number
+// (ReactAndroidHWInputDeviceHelper.kt), hence the `Number()` at each comparison.
+type TVRemoteEvent = Parameters<Parameters<typeof useTVEventHandler>[0]>[0];
 
 export const TV_AUTO_HIDE_MS = 5000;
 
@@ -41,8 +46,8 @@ export function useTVAutoHide(active: boolean, timeoutMs = TV_AUTO_HIDE_MS): boo
   }, [active, restart]);
 
   const handler = useCallback(
-    (evt: HWEvent) => {
-      if (!isTV || evt.eventKeyAction !== ACTION_UP) return;
+    (evt: TVRemoteEvent) => {
+      if (!isTV || Number(evt.eventKeyAction) !== ACTION_UP) return;
       setIdle(false);
       restart();
     },

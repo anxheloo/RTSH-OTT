@@ -5,14 +5,12 @@
  * ONCE, to where the presses ended, after the remote goes idle.
  */
 import { Text } from 'react-native';
-import { State } from 'react-native-gesture-handler';
+import { GestureHandlerRootView, State } from 'react-native-gesture-handler';
 import { fireGestureHandler, getByGestureTestId } from 'react-native-gesture-handler/jest-utils';
 
 import { act, fireEvent, render, screen, within } from '@testing-library/react-native';
 
 import ChannelSwipeArea from '../ChannelSwipeArea';
-
-import 'react-native-gesture-handler/jestSetup';
 
 let mockIsTV = false;
 jest.mock('@/tv/constants', () => ({
@@ -39,18 +37,22 @@ const WIDTH = 400;
 
 function renderArea(activeId: string, props: { enabled?: boolean } = {}) {
   const onChange = jest.fn();
+  // Gesture Handler 3 requires a root view above every GestureDetector, as the
+  // app root (`app/_layout.tsx`) provides at runtime.
   render(
-    <ChannelSwipeArea
-      items={ITEMS}
-      activeId={activeId}
-      onChange={onChange}
-      cardColor="#000"
-      textColor="#fff"
-      testID="area"
-      {...props}
-    >
-      <Text>player</Text>
-    </ChannelSwipeArea>,
+    <GestureHandlerRootView>
+      <ChannelSwipeArea
+        items={ITEMS}
+        activeId={activeId}
+        onChange={onChange}
+        cardColor="#000"
+        textColor="#fff"
+        testID="area"
+        {...props}
+      >
+        <Text>player</Text>
+      </ChannelSwipeArea>
+    </GestureHandlerRootView>,
   );
   fireEvent(screen.getByTestId('area'), 'layout', {
     nativeEvent: { layout: { width: WIDTH, height: 225, x: 0, y: 0 } },
