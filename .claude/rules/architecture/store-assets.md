@@ -28,6 +28,16 @@ manifest asset** — it is a directory, not a single image, and is validated sep
 suite's config-reading check (existence + that the `.icon` form is valid for the installed SDK),
 which reads the resolved app config directly rather than the manifest.
 
+**iPhone sets (re-checked 2026-11-09 against Apple's spec, re-published for the iPhone Duo launch).**
+Apple now **requires** the medium Dynamic Island iPhone set (1206×2622 / 1179×2556 — iPhone 17/18 Pro);
+the 6.9" set (1320×2868) is accepted, not required. Both are kept: `ios/mobile-6.3/` (8 shots, iPhone
+18 Pro simulator) and `ios/mobile/` (6.9"). **iPhone Duo** sets are optional until April 2027, then
+required for builds made with the iOS 27.1 SDK (this app's from 1.1.0); submitting them earns the
+"made for iPhone Duo" badge: `ios/duo-outer/` (cover display, 1398×2034 portrait) and `ios/duo-inner/`
+(open display, 2853×2007 landscape — the book pose shows the 4-column grid and the player/guide
+split). All are raw simulator captures with `simctl status_bar override` (9:41, full bars), RGB, no
+alpha, real backend in guest mode.
+
 ## Known gaps (found running the gate for the first time, 2026-08-06)
 
 - **Play's feature graphic (1024×500) has no source file.** Nothing in `AppStore-PlayStore/` matches

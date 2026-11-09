@@ -15,7 +15,7 @@ paths:
 - `components/Media/RadioAudioHost.tsx` — the single `expo-audio` engine, mounted above the router in `(app)/_layout`. Rationale + flow: `architecture/radio-audio.md`.
 - `components/Media/RadioPlayer.tsx` — presentational now-playing core; no playback logic. `RadioMiniPlayer` (Layout/) is the docked strip.
 - `components/Media/RadioSeekBar.tsx` — radio **catch-up** scrubber, shown only while a recording plays (radio programmes are catch-up-able like TV). Reads/seeks the engine via `useRadioAudioPlayer()` context; live radio is never seekable.
-- `components/Media/PlayerControls.tsx` — overlay (auto-hide, fullscreen, PIP, audio tracks). Draggable scrubber, active only when seekable (recorded/catch-up — **live is deliberately non-seekable**). Resuming a paused **live** stream first catches up by exactly the paused time (`currentOffsetFromLive` at pause vs now): the live window is only ~24s (4 × 6s segments), so resuming in place after a longer pause fails with Media3's `BehindLiveWindowException` ("Source error") on every platform. Requires `GestureHandlerRootView` at the app root.
+- `components/Media/PlayerControls.tsx` — overlay (auto-hide, fullscreen, PIP, audio tracks). Draggable scrubber, active only when seekable (recorded/catch-up — **live is deliberately non-seekable**), on Gesture Handler 3's `usePanGesture` like the `ChannelSwipeArea` around it: the legacy `Gesture.Pan()` builder nested in that hook gesture lost both the tap and the drag to the channel swipe (2026-11-09). Resuming a paused **live** stream first catches up by exactly the paused time (`currentOffsetFromLive` at pause vs now): the live window is only ~24s (4 × 6s segments), so resuming in place after a longer pause fails with Media3's `BehindLiveWindowException` ("Source error") on every platform. Requires `GestureHandlerRootView` at the app root.
 
 **`expo-video` must stay `>= 57.0.2` — never relax this floor.** expo-modules-core 57 changed the SharedObject lifecycle so `release()` no longer deallocates the native object immediately (it lives until JS GC). expo-video 57.0.0/57.0.1 still tore the player down in `deinit`, so on iOS the `AVPlayer` **kept decoding and holding the audio session after the JS component unmounted** — closing the channel screen or switching to a catch-up programme left the previous stream audible, two at once (expo/expo#47569). 57.0.2 moves teardown into `sharedObjectWillRelease()` (expo/expo#47828). This is a **native** fix: it ships only in a new build, never via `eas update`.
 
@@ -23,6 +23,8 @@ paths:
 
 Stream `User-Agent` stamping + the AES-128 header-forwarding open risk: `architecture/device-identity-and-request-headers.md`.
 
+
+**Status bar on the video screen (2026-11-09).** `LivePlayer` renders `<StatusBar style={app theme} hidden={isFullscreen} verticalBarBehaviorIOS="disabled" />`. `verticalBarBehaviorIOS="disabled"` keeps iPhone Duo's system bars horizontal for the whole player screen (Apple's advice for video; one stable value per screen) — with the rail on, `hidden` has no effect and fullscreen video loses 84pt. The `style` follows the **app** theme: expo-status-bar's default `auto` follows the *system* scheme, so a dark-themed app on a light-mode device drew black text on the black player (time and signal invisible on every iPhone; the bar looked empty in store screenshots). Layout consequences live in `architecture/responsive-layout-and-sizing.md` → iPhone Duo.
 
 ## Casting (out of scope for v1)
 

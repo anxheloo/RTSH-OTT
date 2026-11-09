@@ -1023,6 +1023,23 @@ Swipe left/right on the player (touch) and remote CH± / media next-previous (TV
 
 ---
 
+## Phase 27 — iPhone Duo + Expo SDK 58 (2026-11-09) — release 1.1.0
+
+Branch `feat/iphone-duo`. Mechanism + gaps: `rules/architecture/responsive-layout-and-sizing.md → iPhone Duo`; upgrade record: `docs/upgrades/UPGRADES.md` (2026-11-09).
+
+- 27.1 Expo SDK 57 → 58 (RN 0.88.1, react-native-tvos 0.88.1-0, Sentry 8.28, Gesture Handler 3, Jest 30); strict TS API migrated; Nitro 0.37.2 ✅ (tsc, lint, 234/234, iOS sims, Android debug compile)
+- 27.2 Router 58 fixes: `Stack.Protected` `redirectTo` (signed-out cold start hit "Unmatched Route"); `ChannelSwipeArea` on `usePanGesture` (the GH3 builder swallowed player-control taps) ✅ device-verified
+- 27.3 Duo layout: `ScreenLayout` horizontal insets by default + self-padding absolute chrome (headers, banner, mini player, toast, ad card, auth); tab items aligned per edge; player disables the rail; split guide honours the top inset; `UI_SCALE.tablet` 1; orientation policy re-applied on fold; live-window picker sheet ✅ (Duo sim: closed / half-open / open tall + wide)
+- 27.4 Player status bar follows the app theme (was invisible on dark app + light device) ✅
+- 27.5 Store art: 6.3" set (now REQUIRED by Apple) + Duo cover + Duo inner sets; manifest + `APP_IPHONE_61` in `store.config.json`; 1.1.0 release notes ✅
+- 27.6 **Open — you:** upload the two Duo sets by hand in App Store Connect (no API display type yet); `eas build` 1.1.0 (iOS + Android) → `eas submit` → `eas metadata:push`; tag `v1.1.0`.
+- 27.7 **Open — verify:** Android **release** build (AGP 9 → R8 optimizer; walk the register form); TV/STB smoke on `RTSH_TV_API34`; Baseline Profile re-capture; iPad + Android tablet type now 13% smaller (`UI_SCALE.tablet` 1).
+- 27.8 **Open — physical Duo:** unfold while the app is open — lock releases but the simulator keeps the UI portrait until relaunch.
+- 27.9 **Open — decision:** NativeTabs on iOS (Apple/Expo-recommended for Duo: tab bar in the rail/sidebar) vs. the custom JS tab bar of 22.4.
+- 27.10 ✅ **Release check 2026-11-09** (Sentry review + local release builds, both platforms). Fixed: device-ID keychain read on broken-Keystore TV boxes (OTT-3, login impossible), iOS status bar on pushed screens (SDK 58 template turned on view-controller-based appearance), catch-up seek bars losing to the channel/station swipe (legacy GH builder), radio play/pause toggling by itself (stale engine frames). Backend-owned: `/auth/refresh` 500s (`docs/diagnostics/DIAGNOSTICS.md`); app side: 30 s refresh cooldown after a transient failure + Sentry monitor `2630811` emailing on refresh 5xx.
+
+---
+
 ## Reference
 - Style guide: `.claude/rules/STYLE_GUIDE.md` · Architecture: `.claude/rules/ARCHITECTURE.md`
 - Project memory: `.claude/memory/` · Design mockup: `.claude/docs/rtsh-tani-mobile.html`

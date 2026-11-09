@@ -18,6 +18,7 @@ paths:
   - `onRehydrateStorage` after MMKV rehydration.
   - `Appearance.addChangeListener` in `useSystemTheme` (mounted in `RootLayoutNav`) for runtime OS toggles.
 - **Toggle:** `toggleTheme` cycles `system → light → dark → system`. Direct mode selection via `setTheme(mode)`.
+- **Status bar follows the APP theme, not the system** — `statusBarStyleFor(mode)` (`utils/navigation.ts`: dark → light icons, light → dark, system → `auto`). On iOS every native stack spreads `getStatusBarScreenOptions(mode)` into `screenOptions`: since Expo SDK 58 (iOS 27 SDK) each screen owns its status bar (`UIViewControllerBasedStatusBarAppearance` YES), and react-native-screens' default follows the system appearance, which put dark icons on the dark theme in Light mode. Android keeps the root `StatusBar.setBarStyle` effect in `app/_layout.tsx`; `LivePlayer`'s expo-status-bar uses the same helper. Locked by `utils/__tests__/navigation.test.ts`.
 
 ## Why these choices
 

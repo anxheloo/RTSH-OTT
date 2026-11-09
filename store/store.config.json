@@ -27,6 +27,7 @@
           "emisione"
         ],
         "promoText": "Watch RTSH live — television and radio from Albania's public broadcaster. Full TV guide, catch up on the last seven days, and radio that keeps playing in the background.",
+        "releaseNotes": "Made for iPhone Duo: RTSH TANI now fills both displays, keeps every control clear of the side status bar, and shows the player and the TV guide side by side when you open the phone.\nThe player's status bar is visible again in dark mode, plus stability improvements.",
         "privacyPolicyUrl": "https://rtsh.al/rreth-rtsh/rtsh-tani-platforma-ott-e-radio-televizionit-shqiptar/",
         "supportUrl": "https://rtsh.al/rreth-rtsh/rtsh-tani-platforma-ott-e-radio-televizionit-shqiptar/",
         "marketingUrl": "https://rtsh.al/rreth-rtsh/rtsh-tani-platforma-ott-e-radio-televizionit-shqiptar/",
@@ -40,6 +41,16 @@
             "../assets/AppStore-PlayStore/App Screenshots/ios/mobile/06-search.png",
             "../assets/AppStore-PlayStore/App Screenshots/ios/mobile/08-player-options.png",
             "../assets/AppStore-PlayStore/App Screenshots/ios/mobile/10-settings.png"
+          ],
+          "APP_IPHONE_61": [
+            "../assets/AppStore-PlayStore/App Screenshots/ios/mobile-6.3/01-home-live.png",
+            "../assets/AppStore-PlayStore/App Screenshots/ios/mobile-6.3/02-home-radio.png",
+            "../assets/AppStore-PlayStore/App Screenshots/ios/mobile-6.3/03-channel-player.png",
+            "../assets/AppStore-PlayStore/App Screenshots/ios/mobile-6.3/04-guide.png",
+            "../assets/AppStore-PlayStore/App Screenshots/ios/mobile-6.3/05-radio-player.png",
+            "../assets/AppStore-PlayStore/App Screenshots/ios/mobile-6.3/06-search.png",
+            "../assets/AppStore-PlayStore/App Screenshots/ios/mobile-6.3/07-player-options.png",
+            "../assets/AppStore-PlayStore/App Screenshots/ios/mobile-6.3/08-settings.png"
           ],
           "APP_IPAD_PRO_3GEN_129": [
             "../assets/AppStore-PlayStore/App Screenshots/ios/ipad/01-home-live.png",

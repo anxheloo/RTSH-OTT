@@ -4,7 +4,8 @@
   "notes": [
     "ios.icon (assets/AppIcon.icon, the SDK54+ Icon Composer directory) is validated by verify.sh Gate A directly against the resolved app config — it is a directory, not a single image, so it is deliberately NOT listed as an asset here (Gate C's shape/format check reads image bytes and would false-fail on a directory).",
     "Screenshot dirs live outside this repo, in the sibling Claude-Cowork-Workspace project folder (projects/RTSH/assets/AppStore-PlayStore/), per this workspace's own convention that deliverables go under projects/<name>/assets and outputs, not into the app's own git repo.",
-    "play-feature-graphic has no source file yet (checked 2026-08-06 — nothing in AppStore-PlayStore/ matches Play's 1024x500 spec). Declared required so Gate B fails loudly and names it, rather than the requirement being silently absent from tracking."
+    "play-feature-graphic has no source file yet (checked 2026-08-06 — nothing in AppStore-PlayStore/ matches Play's 1024x500 spec). Declared required so Gate B fails loudly and names it, rather than the requirement being silently absent from tracking.",
+    "2026-11-09: Apple's screenshot spec (re-published with the iPhone Duo launch) REQUIRES the medium Dynamic Island iPhone set (1206x2622 / 1179x2556); the 6.9\" set is accepted, not required. iPhone Duo screenshots are optional now and required from April 2027 for builds made with the iOS 27.1 SDK; submitting them adds the 'made for iPhone Duo' badge. App Store Connect's API has no Duo display type yet, so both Duo sets are uploaded by hand in App Store Connect, not by eas metadata:push."
   ],
   "assets": [
     {
@@ -72,12 +73,54 @@
       "role": "screenshot-set",
       "platform": "ios",
       "dir": "../assets/AppStore-PlayStore/App Screenshots/ios/mobile",
-      "required": true,
+      "required": false,
       "min_count": 1,
       "max_count": 10,
       "shape": { "width": 1320, "height": 2868 },
       "formats": ["png", "jpeg"],
       "spec_verified": "2026-08-01",
+      "source": "https://developer.apple.com/help/app-store-connect/reference/screenshot-specifications"
+    },
+    {
+      "id": "ios-iphone-6.3-screenshots",
+      "role": "screenshot-set",
+      "platform": "ios",
+      "dir": "../assets/AppStore-PlayStore/App Screenshots/ios/mobile-6.3",
+      "required": true,
+      "min_count": 1,
+      "max_count": 10,
+      "shape": { "width": 1206, "height": 2622 },
+      "formats": ["png", "jpeg"],
+      "alpha": "forbidden",
+      "spec_verified": "2026-11-09",
+      "source": "https://developer.apple.com/help/app-store-connect/reference/screenshot-specifications"
+    },
+    {
+      "id": "ios-duo-outer-screenshots",
+      "role": "screenshot-set",
+      "platform": "ios",
+      "dir": "../assets/AppStore-PlayStore/App Screenshots/ios/duo-outer",
+      "required": false,
+      "min_count": 1,
+      "max_count": 10,
+      "shape": { "width": 1398, "height": 2034 },
+      "formats": ["png", "jpeg"],
+      "alpha": "forbidden",
+      "spec_verified": "2026-11-09",
+      "source": "https://developer.apple.com/help/app-store-connect/reference/screenshot-specifications"
+    },
+    {
+      "id": "ios-duo-inner-screenshots",
+      "role": "screenshot-set",
+      "platform": "ios",
+      "dir": "../assets/AppStore-PlayStore/App Screenshots/ios/duo-inner",
+      "required": false,
+      "min_count": 1,
+      "max_count": 10,
+      "shape": { "width": 2853, "height": 2007 },
+      "formats": ["png", "jpeg"],
+      "alpha": "forbidden",
+      "spec_verified": "2026-11-09",
       "source": "https://developer.apple.com/help/app-store-connect/reference/screenshot-specifications"
     },
     {
