@@ -61,6 +61,21 @@ describe('getOrCreateDeviceId', () => {
     expect(second).toBe(first);
   });
 
+  // The same boxes can also fail the READ: "Could not decrypt the value for key
+  // 'rtsh.device_id'" — 2,826 events from 20 installs, all stuck on the login
+  // screen, because the write fallback above never ran.
+  it('still resolves when the keychain read is rejected', async () => {
+    mockGet.mockRejectedValue(new Error('Could not decrypt the value'));
+    await expect(coldLaunch().getOrCreateDeviceId()).resolves.toMatch(/^uuid-/);
+  });
+
+  it('keeps the same id across launches when the keychain read is broken', async () => {
+    mockGet.mockRejectedValue(new Error('Could not decrypt the value'));
+    const first = await coldLaunch().getOrCreateDeviceId();
+    const second = await coldLaunch().getOrCreateDeviceId();
+    expect(second).toBe(first);
+  });
+
   it('prefers the keychain id when one exists', async () => {
     mockGet.mockResolvedValue('keychain-id');
     await expect(coldLaunch().getOrCreateDeviceId()).resolves.toBe('keychain-id');

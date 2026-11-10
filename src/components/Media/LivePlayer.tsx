@@ -22,7 +22,9 @@ import { BORDERRADIUS } from '@/theme/borders';
 import { Fonts,FONTSIZE } from '@/theme/fonts';
 import { PLAYER_COLORS } from '@/theme/playerColors';
 import { SPACING } from '@/theme/spacing';
+import { useAppStore } from '@/store/useAppStore';
 import { FullScreenLoader } from '@/components/Layout';
+import { statusBarStyleFor } from '@/utils/navigation';
 
 import PlayerControls from './PlayerControls';
 import VideoPlayer, { VideoStatus } from './VideoPlayer';
@@ -77,6 +79,7 @@ const LivePlayer: React.FC<LivePlayerProps> = ({
   onPlayingChange,
   style,
 }) => {
+  const mode = useAppStore((s) => s.mode);
   const [hasError, setHasError] = useState(false);
   const [retryKey, setRetryKey] = useState(0);
 
@@ -103,7 +106,18 @@ const LivePlayer: React.FC<LivePlayerProps> = ({
 
   return (
     <View style={[styles.container, style]} testID="live-player-container">
-      <StatusBar hidden={isFullscreen} />
+      {/* iPhone Duo: keep the status bar and system bars horizontal on the player
+          screen, as Apple advises for video. With the rail on, `hidden` has no
+          effect and the video loses 84pt of width in fullscreen. A no-op on every
+          other device; one stable value for the screen's whole life, per Apple. */}
+      {/* `style` follows the APP theme, as the root layout's bar does. The
+          default ('auto') follows the SYSTEM scheme, so a dark app on a
+          light-mode device drew black status-bar text on the black player. */}
+      <StatusBar
+        style={statusBarStyleFor(mode)}
+        hidden={isFullscreen}
+        verticalBarBehaviorIOS="disabled"
+      />
 
       <VideoPlayer
         key={retryKey}

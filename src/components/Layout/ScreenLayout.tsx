@@ -4,11 +4,17 @@
  * boilerplate at the root of every app screen. Mirrors Bunk-Art's
  * `MainLayout` / `ContentLayout`, adapted to our theme store.
  *
- * Edges default to `[]`:
+ * Edges default to `['left', 'right']`:
+ *   - Horizontal insets are on by default because iPhone Duo puts the status bar
+ *     (and the Dynamic Island) in an 84pt vertical rail on the left or right edge,
+ *     and Split View moves it to either side. Every iPhone in portrait reports
+ *     0 there, so phones are unchanged. Absolutely positioned children (the
+ *     frosted `BrandHeader`) still span the full width, so their background runs
+ *     under the rail while their content pads itself clear of it.
  *   - Tab screens pass nothing — `TabHeader` handles the top inset and the
  *     bottom tab bar handles the bottom.
  *   - Full-screen routes (players, modals with no tab bar) pass the edges they
- *     need, e.g. `edges={['bottom']}` or `['top', 'bottom']`.
+ *     need, e.g. `edges={['bottom', 'left', 'right']}`.
  */
 import React from 'react';
 import { StyleProp, StyleSheet, ViewStyle } from 'react-native';
@@ -19,7 +25,7 @@ import { useAppStore } from '@/store/useAppStore';
 
 export interface ScreenLayoutProps {
   children: React.ReactNode;
-  /** Safe-area edges to inset. Default `[]` (no insets). */
+  /** Safe-area edges to inset. Default `['left', 'right']` (clear of the iPhone Duo rail). */
   edges?: readonly Edge[];
   /** Theme background token. Default `'background'`. */
   backgroundColor?: keyof ThemeColors;
@@ -37,11 +43,11 @@ export interface ScreenLayoutProps {
   testID?: string;
 }
 
-const EMPTY_EDGES: readonly Edge[] = [];
+const HORIZONTAL_EDGES: readonly Edge[] = ['left', 'right'];
 
 const ScreenLayout: React.FC<ScreenLayoutProps> = ({
   children,
-  edges = EMPTY_EDGES,
+  edges = HORIZONTAL_EDGES,
   backgroundColor = 'background',
   style,
   testID,

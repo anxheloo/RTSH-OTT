@@ -8,7 +8,14 @@
  * a server-side constraint, so time backgrounded still counts toward it.
  */
 import React, { useRef, useState } from 'react';
-import { Pressable, StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
+import {
+  Pressable,
+  StyleSheet,
+  TextInput,
+  type TextInputInstance,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import { useTranslation } from 'react-i18next';
 
 import { BORDERRADIUS } from '@/theme/borders';
@@ -44,7 +51,7 @@ const OtpVerify: React.FC<OtpVerifyProps> = ({
 }) => {
   const { t } = useTranslation();
   const colors = useAppStore((s) => s.colors);
-  const inputRef = useRef<TextInput>(null);
+  const inputRef = useRef<TextInputInstance>(null);
   const [code, setCode] = useState('');
   const { remaining: seconds, isDone: canResend, restart } = useCountdown(resendSeconds);
 

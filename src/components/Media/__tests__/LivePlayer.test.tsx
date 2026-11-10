@@ -48,6 +48,9 @@ jest.mock('expo-video', () => ({
 }));
 
 jest.mock('expo', () => ({
+  // Keep the rest of `expo` (requireNativeModule): LivePlayer reads the theme
+  // store, whose user slice loads the monitoring seam and expo-application.
+  ...jest.requireActual('expo'),
   useEvent: (_player: unknown, _event: string, initial?: unknown) => initial,
   useEventListener: () => undefined,
 }));

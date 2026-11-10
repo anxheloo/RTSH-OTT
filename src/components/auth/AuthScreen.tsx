@@ -8,6 +8,7 @@
  */
 import React from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { SPACING } from '@/theme/spacing';
 import { useAppStore } from '@/store/useAppStore';
@@ -45,6 +46,9 @@ const AuthScreen: React.FC<AuthScreenProps> = ({
   const colors = useAppStore((s) => s.colors);
   // Cap the form column on tablet/TV so inputs don't stretch edge-to-edge; no-op on phone.
   const contentWidth = useContentWidth('form');
+  // iPhone Duo rail (84pt, either edge). This root is not a ScreenLayout, so the
+  // scroll content clears it here; the background still runs edge to edge.
+  const insets = useSafeAreaInsets();
 
   return (
     <KeyboardAvoidingView
@@ -56,7 +60,13 @@ const AuthScreen: React.FC<AuthScreenProps> = ({
       {header ?? <BrandHeader testID={testID ? `${testID}-header` : 'auth-header'} />}
 
       <ScrollView
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[
+          styles.scrollContent,
+          {
+            paddingLeft: SPACING.space_15 + insets.left,
+            paddingRight: SPACING.space_15 + insets.right,
+          },
+        ]}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
@@ -75,7 +85,6 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     flexGrow: 1,
-    paddingHorizontal: SPACING.space_15,
     paddingTop: SPACING.space_32,
     paddingBottom: SPACING.space_40,
     justifyContent: 'center',

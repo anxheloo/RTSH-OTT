@@ -23,7 +23,7 @@ import { tvFocusHighlight, useTVFocus } from '@/tv';
 const DEFAULT_BLURHASH =
   '|rF?hV%2WCj[ayj[a|j[az_NaeWBj@ayfRayfQfQM{M|azj[azf6fQfQfQIpWXofj[ayj[j[fQayWCoeoeaya}j[ayfQa{oLj?j[WVj[ayayj[fQoff7azayj[ayj[j[ayofayayayj[fQj[ayayj[ayfjj[j[ayjuayj[';
 
-// 3:1 logo badge — scaled once at launch via the responsive token step (phone 1×, tablet 1.15×, TV 1.3×).
+// 3:1 logo badge — scaled once at launch via the responsive token step (phone and tablet 1×, TV 1.3×).
 const LOGO_W = scaled(54);
 const LOGO_H = scaled(18);
 

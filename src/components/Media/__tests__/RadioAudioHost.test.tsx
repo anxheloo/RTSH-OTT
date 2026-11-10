@@ -165,4 +165,38 @@ describe('RadioAudioHost', () => {
     act(() => mockStatusListener?.({ ...settled, playing: false }));
     expect(useAppStore.getState().radioIsPlaying).toBe(false);
   });
+
+  // The engine's status frames lag its commands. A playing frame sent before it
+  // applied the user's pause read as a lock-screen play and flipped the intent
+  // back, the next frame flipped it again, and play/pause toggled by itself
+  // every ~0.5 s (Android, SDK 58 release check, 2026-11-09).
+  it('a pause the user just tapped is not undone by a frame the engine sent before pausing', () => {
+    const settled = { isLoaded: true, isBuffering: false, error: null };
+    render(<RadioAudioHost>{null}</RadioAudioHost>);
+    selectStation();
+    act(() => mockStatusListener?.({ ...settled, playing: true }));
+
+    act(() => useAppStore.getState().setRadioPlaying(false));
+    act(() => mockStatusListener?.({ ...settled, playing: true }));
+    expect(useAppStore.getState().radioIsPlaying).toBe(false);
+
+    // Once the engine reports the pause, a playing frame is a real lock-screen play.
+    act(() => mockStatusListener?.({ ...settled, playing: false }));
+    act(() => mockStatusListener?.({ ...settled, playing: true }));
+    expect(useAppStore.getState().radioIsPlaying).toBe(true);
+  });
+
+  it('adopts an outside change again if the engine never confirms a command', () => {
+    const settled = { isLoaded: true, isBuffering: false, error: null };
+    const now = jest.spyOn(Date, 'now').mockReturnValue(1_000_000);
+    render(<RadioAudioHost>{null}</RadioAudioHost>);
+    selectStation();
+    act(() => mockStatusListener?.({ ...settled, playing: true }));
+    act(() => useAppStore.getState().setRadioPlaying(false));
+
+    now.mockReturnValue(1_000_000 + 5_000);
+    act(() => mockStatusListener?.({ ...settled, playing: true }));
+    expect(useAppStore.getState().radioIsPlaying).toBe(true);
+    now.mockRestore();
+  });
 });

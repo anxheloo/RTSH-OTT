@@ -16,6 +16,14 @@
  */
 import { setUpTests } from 'react-native-reanimated';
 
+// Worklets' official jest mock (its testing guide, required before Reanimated's
+// setup). Gesture Handler 3 asks Worklets for the UI runtime on mount, which the
+// web build the resolver picks throws on; the mock answers it.
+jest.mock('react-native-worklets', () =>
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  require('react-native-worklets/lib/module/mock'),
+);
+
 setUpTests();
 
 // Official jest mock shipped by the package — provides a SafeAreaProvider-less

@@ -143,6 +143,15 @@ dropping the legacy key fails `metadata:lint` outright. Ten advisory fields that
 `healthOrWellnessTopics`, `ageRatingOverrideV2`, `developerAgeRatingInfoUrl`) — these are Apple's
 September-2026 social-media/age-assurance questions, already answerable today.
 
+- **Screenshot display types (2026-11-09).** `APP_IPHONE_61` (the required medium Dynamic Island
+  set, 1206×2622) is declared in `store.config.json` next to `APP_IPHONE_67`; it lints clean, but like
+  the others only a real push proves Apple accepts the slot. **iPhone Duo screenshots cannot go
+  through `eas metadata:push`:** App Store Connect's API `ScreenshotDisplayType` enum (and eas-cli
+  27.5's apple-utils) has no Duo value yet, so the `ios/duo-outer` + `ios/duo-inner` sets are uploaded
+  by hand in App Store Connect → the 1.1.0 version → iPhone Duo. Re-check the enum before each release.
+- **Release notes are a versioned field** (`apple.info.en-US.releaseNotes`, added for 1.1.0): push after
+  `eas submit` has created the 1.1.0 version record, never before.
+
 ## Known gaps
 
 - **Seven placeholders remain and are all external** (`verify.sh` gate J): `apple.copyright` (RTSH

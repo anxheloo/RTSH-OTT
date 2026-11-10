@@ -20,6 +20,7 @@ import React, { useCallback, useEffect, useRef } from 'react';
 import { Modal, Pressable, StyleSheet, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { ZoomIn, ZoomOut } from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { BlurView } from 'expo-blur';
 import { randomUUID } from 'expo-crypto';
@@ -81,6 +82,7 @@ const AdOverlay: React.FC<AdOverlayProps> = ({ creative, channelId, onComplete, 
   // The card flips from a portrait 3:4 to a wider 16:9 so the creative fills the
   // landscape screen instead of floating as a small portrait card in the middle.
   const { isLandscape } = useResponsive();
+  const insets = useSafeAreaInsets();
 
   // Clamp the creative's timing up-front so a missing/0/NaN value can never freeze
   // the auto-dismiss (the app-lock bug). `durationSeconds` is the guaranteed dismiss
@@ -167,7 +169,16 @@ const AdOverlay: React.FC<AdOverlayProps> = ({ creative, channelId, onComplete, 
       onRequestClose={creative.skippable && canSkip ? handleComplete : undefined}
       testID={testID}
     >
-      <View style={styles.scrim}>
+      <View
+        style={[
+          styles.scrim,
+          // iPhone Duo rail: centre the card in the safe area so Skip never sits under it.
+          {
+            paddingLeft: SPACING.space_18 + insets.left,
+            paddingRight: SPACING.space_18 + insets.right,
+          },
+        ]}
+      >
         <AnimatedView
           style={[styles.card, isLandscape && styles.cardLandscape]}
           entering={ZOOM_IN}

@@ -16,7 +16,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { StyleSheet, TouchableOpacity, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
-import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import { GestureDetector, usePanGesture } from 'react-native-gesture-handler';
 import Animated, {
   useAnimatedStyle,
   useDerivedValue,
@@ -215,23 +215,29 @@ const PlayerControls: React.FC<PlayerControlsProps> = ({
   // onFinalize commits — firing whether or not the pan crossed its activation
   // threshold. The SharedValue writes happen here on the UI thread; only the
   // player move is scheduled to JS. Disabled when not seekable (live edge).
-  const seekGesture = Gesture.Pan()
-    .enabled(isSeekable)
-    .onBegin((e) => {
+  // Gesture Handler 3 hook API, matching `ChannelSwipeArea` around it: a legacy
+  // `Gesture.Pan()` builder nested in that hook gesture runs through a separate
+  // detector and lost both the tap and the drag to the channel swipe on catch-up
+  // (device-verified on an Android release build, 2026-11-09).
+  const seekGesture = usePanGesture({
+    testID: 'controls-seek-pan',
+    enabled: isSeekable,
+    onBegin: (e) => {
       isScrubbing.value = true;
       scrubRatioSv.value =
         trackWidth.value > 0 ? Math.min(Math.max(e.x / trackWidth.value, 0), 1) : 0;
-    })
-    .onUpdate((e) => {
+    },
+    onUpdate: (e) => {
       scrubRatioSv.value =
         trackWidth.value > 0 ? Math.min(Math.max(e.x / trackWidth.value, 0), 1) : 0;
-    })
-    .onFinalize(() => {
+    },
+    onFinalize: () => {
       const clamped = scrubRatioSv.value;
       heldRatioSv.value = clamped; // hold here until the mirror catches up (see displayProgress)
       isScrubbing.value = false;
       scheduleOnRN(commitSeek, clamped * duration);
-    });
+    },
+  });
 
   // Bar position (0..1): the finger while scrubbing; the held release point until
   // the mirror reaches it after a seek; otherwise the live playback progress.

@@ -16,8 +16,9 @@ Scoped part of `rules/STYLE_GUIDE.md`; loads when you read or edit a file named 
 ## Navigation
 
 - Expo Router v7 file-based routing. No `useNavigation` + stack manipulation.
-- Auth guard via `Stack.Protected` in root `_layout.tsx` — no guard `useEffect`.
+- Auth guard via `Stack.Protected` in root `_layout.tsx` — no guard `useEffect`. **Every `Stack.Protected` sets `redirectTo`** (SDK 58+): a failed guard now redirects to the navigator's anchor, else its first accessible route, instead of dropping the screen — and the `(auth)` group has no index, so without it a signed-out cold start showed "Unmatched Route".
 - Full-screen player routes are root-level modals: `player/[id]`, `channel/[id]`.
+- **Every native `Stack` spreads `getStatusBarScreenOptions(mode)` (`utils/navigation.ts`) into `screenOptions`** (SDK 58+). iOS screens own their status bar now, and a stack without it falls back to the system appearance: dark icons on the dark theme in Light mode. A new nested stack must add it too.
 - **Transitions:** pushed screens use `animation: 'slide_from_right'` (stack-level `screenOptions` default in both the auth and app stacks); full-screen player modals (`channel/[id]`, `program/[id]`) use `slide_from_bottom`. Sheets animate natively via `formSheet`.
 - Platform-specific presentation where it matters:
 

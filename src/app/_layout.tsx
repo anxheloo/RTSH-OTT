@@ -34,6 +34,7 @@ import { useSystemTheme } from '@/hooks/useSystemTheme';
 import { ToastHost } from '@/components/Layout';
 import ModalWrapper from '@/components/ModalWrapper';
 import { initI18n } from '@/i18n';
+import { getStatusBarScreenOptions } from '@/utils/navigation';
 
 // Start mock server before any React rendering so the first API call is intercepted.
 //
@@ -146,6 +147,7 @@ const RootLayoutNav = () => {
         screenOptions={{
           headerShown: false,
           contentStyle: { backgroundColor: colors.background },
+          ...getStatusBarScreenOptions(mode),
         }}
       >
         {/* `(app)` is FIRST on purpose: a guest satisfies both guards at once
@@ -157,11 +159,17 @@ const RootLayoutNav = () => {
 
             `(auth)` stays on `!isAuthenticated` — unchanged, and already
             correct: a guest is not authenticated, so the auth stack remains
-            reachable for them to sign in from Profile. */}
-        <Stack.Protected guard={hasSession}>
+            reachable for them to sign in from Profile.
+
+            `redirectTo` is required since SDK 58: a failed guard now REDIRECTS
+            (to the navigator's anchor, else its first accessible route) instead
+            of dropping the screen. Signed out, `/` resolved into `(app)` and the
+            fallback landed on the `(auth)` group, which has no index — an
+            "Unmatched Route" on every cold start. */}
+        <Stack.Protected guard={hasSession} redirectTo="/(auth)/login">
           <Stack.Screen name="(app)" />
         </Stack.Protected>
-        <Stack.Protected guard={!isAuthenticated}>
+        <Stack.Protected guard={!isAuthenticated} redirectTo="/(app)/(tabs)">
           <Stack.Screen name="(auth)" />
         </Stack.Protected>
       </Stack>

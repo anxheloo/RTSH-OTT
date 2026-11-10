@@ -24,7 +24,8 @@ import { useAppStore } from '@/store/useAppStore';
  * setTimeout-based approaches fire late on iOS.
  */
 export function useAppResumeGuard(onResume: () => void, thresholdMs = 30_000) {
-  const appStateRef = useRef<AppStateStatus>(AppState.currentState);
+  // RN 0.87+ strict API types currentState as `string | null | undefined`.
+  const appStateRef = useRef<AppStateStatus>((AppState.currentState ?? 'unknown') as AppStateStatus);
   const backgroundedAtRef = useRef<number | null>(null);
 
   const handleChange = useCallback(

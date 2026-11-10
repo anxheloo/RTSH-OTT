@@ -13,7 +13,11 @@ import { useAdSlot, useDelayedReveal, useRealtimeConnection } from '@/hooks';
 import RadioMiniPlayer from '@/components/Layout/RadioMiniPlayer';
 import AdOverlay from '@/components/Media/AdOverlay';
 import RadioAudioHost from '@/components/Media/RadioAudioHost';
-import { getModalScreenOptions, getPlayerScreenOptions } from '@/utils/navigation';
+import {
+  getModalScreenOptions,
+  getPlayerScreenOptions,
+  getStatusBarScreenOptions,
+} from '@/utils/navigation';
 import { AD_REVEAL_DELAY_MS } from '@/constants/ads';
 
 // The app-open ad greets a cold open — it must never trail the user once they've
@@ -25,6 +29,7 @@ const AppLayout: React.FC = () => {
   // Sheets paint their CONTAINER, not just their content — see
   // `getModalScreenOptions`'s `backgroundColor` note.
   const colors = useAppStore((s) => s.colors);
+  const mode = useAppStore((s) => s.mode);
   const sheetOptions = getModalScreenOptions({ backgroundColor: colors.surface });
   useMeQuery();
   // Device registration removed 2026-07-14 — the standalone `PUT
@@ -72,7 +77,13 @@ const AppLayout: React.FC = () => {
             which reads as modal — while staying CARD PUSHES. That distinction is
             load-bearing, not cosmetic: see `getPlayerScreenOptions` for why a
             native presentation here strands an invisible touch-eating overlay. */}
-        <Stack screenOptions={{ headerShown: false, animation: 'slide_from_right' }}>
+        <Stack
+          screenOptions={{
+            headerShown: false,
+            animation: 'slide_from_right',
+            ...getStatusBarScreenOptions(mode),
+          }}
+        >
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           <Stack.Screen name="channel/[id]" options={getPlayerScreenOptions()} />
           <Stack.Screen name="radio/[id]" options={getPlayerScreenOptions()} />

@@ -13,9 +13,14 @@
  * so the callback is stable and reads the latest `onStep` from a ref.
  */
 import { useCallback, useEffect, useRef } from 'react';
-import { type HWEvent, useTVEventHandler } from 'react-native';
+import { useTVEventHandler } from 'react-native';
 
 import { isTV } from './constants';
+
+// RN 0.87's strict API dropped the `HWEvent` export; the handler's own parameter type is the contract.
+// It types `eventKeyAction` as a string, but Android sends the KeyEvent action as a number
+// (ReactAndroidHWInputDeviceHelper.kt), hence the `Number()` at each comparison.
+type TVRemoteEvent = Parameters<Parameters<typeof useTVEventHandler>[0]>[0];
 
 const STEP_BY_EVENT: Record<string, 1 | -1> = {
   channelUp: 1,
@@ -34,10 +39,10 @@ export function useTVChannelKeys(onStep: (dir: 1 | -1) => void, enabled = true):
     enabledRef.current = enabled;
   }, [onStep, enabled]);
 
-  const handler = useCallback((evt: HWEvent) => {
+  const handler = useCallback((evt: TVRemoteEvent) => {
     if (!isTV || !enabledRef.current) return;
     const dir = STEP_BY_EVENT[evt.eventType];
-    if (dir && evt.eventKeyAction === ACTION_UP) onStepRef.current(dir);
+    if (dir && Number(evt.eventKeyAction) === ACTION_UP) onStepRef.current(dir);
   }, []);
 
   useTVEventHandler(handler);

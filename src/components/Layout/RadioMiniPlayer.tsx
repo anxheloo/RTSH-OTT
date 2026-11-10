@@ -57,6 +57,9 @@ const RadioMiniPlayer: React.FC = () => {
         {
           height: STRIP_HEIGHT + insets.top,
           paddingTop: insets.top,
+          // iPhone Duo rail (84pt, either edge): pause/close stay tappable.
+          paddingLeft: SPACING.space_15 + insets.left,
+          paddingRight: SPACING.space_15 + insets.right,
           backgroundColor: colors.surfaceElevated,
           borderBottomColor: colors.border,
         },
@@ -127,7 +130,6 @@ const styles = StyleSheet.create({
     zIndex: Z_INDEX.miniPlayer,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: SPACING.space_15,
     gap: SPACING.space_12,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },

@@ -1,11 +1,12 @@
 # Upgrades — RTSH-OTT
 
-> **Current state as of 2026-10-22** (doc-layout migration: the upgrade history moved here from `.claude/rules/ARCHITECTURE.md → Upgrade log`) · Expo SDK 57, RN 0.86 (react-native-tvos alias); 4 follow-ups open.
+> **Current state as of 2026-11-09** (Expo SDK 58 upgrade, driven by iPhone Duo support) · Expo SDK 58, RN 0.88.1 (react-native-tvos alias 0.88.1-0); 5 follow-ups open.
 > Everything above **Run log** is rewritten by each run. The Run log is append-only, newest
 > first, and an entry is never edited once committed — a run adds an entry, never a new file.
 
 ## Contents
 
+- 2026-11-09 · Upgrade · Expo SDK 57 → 58 for iPhone Duo (app 1.1.0)
 - 2026-10-22 · Migration · upgrade log moved out of the architecture doc
 - 2026-10-06 · Native change · Android Baseline Profile + lazy radio engine (1.0.3)
 - 2026-09-14 · Upgrade · Expo SDK 57 patch sync + four production-crash fixes
@@ -13,20 +14,20 @@
 
 ## Current versions
 
-Read from `package.json` on 2026-10-22. The newest VERIFY recorded below is the 2026-10-06 entry;
-the patch versions installed since then have no entry of their own.
+Read from `package.json` on 2026-11-09 (VERIFY: the 2026-11-09 entry below).
 
-- `expo` ~57.0.27 (SDK 57) · `react-native` → `npm:react-native-tvos@0.86.2-0` · `react` 19.2.3
-- `expo-video` ~57.0.5 · `expo-audio` ~57.0.5 · `@sentry/react-native` ~7.11.0 · `typescript` ~6.0.3
+- `expo` ~58.0.23 (SDK 58) · `react-native` → `npm:react-native-tvos@0.88.1-0` · `react` 19.3.0
+- `expo-video` ~58.0.13 · `expo-audio` ~58.0.11 · `@sentry/react-native` ~8.28.0 · `react-native-gesture-handler` ~3.3.0 · `react-native-nitro-modules` 0.37.2 · `jest` ~30.5.2 · `typescript` ~6.0.3
 
 ## Pins and overrides
 
 `package.json` carries no `overrides` / `resolutions`. The pins are version floors and an alias:
 
-- **`expo-video` ≥ 57.0.2** — earlier versions keep the iOS `AVPlayer` decoding after unmount (expo/expo#47569). Never relax. Detail: `.claude/rules/architecture/player.md`.
-- **`expo-modules-core` ≥ 57.0.3 (`expo` ≥ 57.0.5)** — precompiled `expo-video` binaries call the newer `_decorateModule` signature; older core = dyld `SIGABRT` at launch. Removal: none while precompiled modules are on.
-- **`@sentry/react-native` ~7.11.0** — the version Expo SDK 57 pins (`expo/bundledNativeModules.json`), not npm-latest. Removal: the next SDK upgrade's pin.
-- **`react-native` → `npm:react-native-tvos`** alias (needs `.npmrc legacy-peer-deps=true`, so `react-native-nitro-modules` and `@react-native/jest-preset` are declared explicitly). Removal: only if Android TV is dropped.
+- **`expo-video` ≥ 57.0.2** — earlier versions keep the iOS `AVPlayer` decoding after unmount (expo/expo#47569). Never relax. Detail: `.claude/rules/architecture/player.md`. (SDK 58 installs 58.0.13, above it.)
+- **`expo-modules-core` ≥ 57.0.3 (`expo` ≥ 57.0.5)** — precompiled `expo-video` binaries call the newer `_decorateModule` signature; older core = dyld `SIGABRT` at launch. Removal: none while precompiled modules are on. (SDK 58: 58.0.30.)
+- **`@sentry/react-native` ~8.28.0** — the version Expo SDK 58 pins (`expo/bundledNativeModules.json`), not npm-latest. Removal: the next SDK upgrade's pin.
+- **`react-native` → `npm:react-native-tvos@0.88.1-0`** alias (needs `.npmrc legacy-peer-deps=true`, so `react-native-nitro-modules` and `@react-native/jest-preset` are declared explicitly). Removal: only if Android TV is dropped.
+- **`react-native-nitro-modules` 0.37.2 and `@react-native/jest-preset` 0.88.1 move WITH React Native, by hand.** `legacy-peer-deps` means `expo install --fix` never touches them. Nitro below 0.36.2 cannot install its JSI bindings on RN 0.87+ (`installJSIBindingsWithRuntime was not called`, MMKV dead at launch); 0.37.2 is the release built against RN 0.88. Check both on every SDK upgrade.
 
 ## Audit exceptions
 
@@ -34,12 +35,64 @@ None (no `.anxheloo-audit-exceptions.json`). `npm audit`'s build-time-only findi
 
 ## Open follow-ups
 
-- **react-native-tvos with upstream #1159** — bump the alias to the first `0.86.x` after `0.86.3-0` (native; new binary). Detail: `.claude/rules/architecture/android-tv-stb.md → Known gaps`.
-- **Expo 57.x patch drift** — `expo-doctor` reports packages out of date (12 on 2026-10-22); deliberately not synced on 2026-10-06. Run `npm run deps:sync` as its own change.
-- **Build-time `npm audit` findings** — re-check at the next SDK upgrade (2026-07-29 entry).
-- **Expo SDK 58** — deferred to its own phase (2026-09-14 entry).
+- **R8 optimization on SDK 58 (AGP 9)** — a local release APK passed the register form, including the `@expo/ui` dropdown that crashed under optimization on 2026-10-19 (release check, 2026-11-09). The EAS production build still has to be smoke-tested before Play rollout. Its Compose dropdown field renders narrower than the other inputs (Material3 1.5); compare it with 1.0.3. Detail: `.claude/rules/architecture/observability.md`.
+- **Baseline Profile re-capture** — owed on every SDK upgrade (`android-tv-stb.md → Known gaps`).
+- **React Native Strict TypeScript API** — migrated, no `react-native-legacy-deep-imports` opt-out in use; keep it that way.
+- **Build-time `npm audit` findings** — re-check (2026-07-29 entry).
 
 ## Run log (append-only, newest first)
+
+<a id="upgrade-2026-11-09"></a>
+### Upgrade — 2026-11-09 (Expo SDK 57 → 58 for iPhone Duo, app 1.1.0)
+
+- **Why now:** iPhone Duo needs Expo SDK 58 + Xcode 27.1 (Expo's Duo guide). The SDK 58 deferral of
+  2026-09-14 ends here. `react-native-tvos@0.88.1-0` exists, so the TV alias was not a blocker, and
+  it carries upstream #1159 (the per-props-update TalkBack binder call behind the TV ANR).
+- **Deps:** `expo` 57.0.27 → 58.0.23 via `npx expo install expo@latest` + `--fix` (it now resolves the
+  TV alias itself, written as the exact `0.88.1-0`). Majors: `@sentry/react-native` 7.11 → 8.28
+  (native/tooling only: Cocoa 9, CLI 3, SAGP 6), `react-native-gesture-handler` 2.32 → 3.3, `jest`
+  29 → 30, `react-native-worklets` 0.10 → 0.13. By hand (legacy-peer-deps): `react-native-nitro-modules`
+  0.36.1 → **0.37.2** (0.36.1 crashed at launch, see Pins), `@react-native/jest-preset` 0.88.1,
+  `react-test-renderer` 19.3.0.
+- **Breaking changes handled:** Strict TypeScript API (`ReusableBtn` owns its `onPress` type,
+  `TextInputInstance` ref, `TVRemoteEvent` derived from `useTVEventHandler` + `Number()` on
+  `eventKeyAction`, `AppState.currentState` nullable); Router 58 removed `beforeRemove` (parked
+  `useBlurAndUnMount` now points at `usePreventRemove`); **Router 58 guards redirect instead of
+  removing screens** — `Stack.Protected` needs `redirectTo`, or a signed-out cold start lands on
+  "Unmatched Route" (fixed in `app/_layout.tsx`); **Gesture Handler 3's legacy `Gesture.Pan()` builder
+  swallowed every tap on the player's TouchableOpacity controls** inside `ChannelSwipeArea` (fixed by
+  `usePanGesture`); Reanimated jest resolver + Worklets jest mock + GH `jestSetup` in `setupFiles`;
+  **the SDK 58 iOS template sets `UIViewControllerBasedStatusBarAppearance` to YES** (SDK 57: NO —
+  apps built with the iOS 27 SDK cannot use the app-level status bar API), so the root
+  `StatusBar.setBarStyle` stopped reaching pushed screens and react-native-screens' default `auto`
+  followed the SYSTEM appearance — dark icons on the dark theme in Light mode (found on the register
+  screen of a Release build). Fixed by `getStatusBarScreenOptions(mode)` on every native stack.
+  **A legacy `Gesture.Pan()` builder nested inside a hook gesture loses to it:** on catch-up the TV
+  scrubber's tap did nothing and a drag on it switched the channel (Android release build). Both
+  seek bars (`PlayerControls`, `RadioSeekBar`) moved to `usePanGesture`; no builder gesture is left.
+  **Radio play/pause toggled by itself** on Android (status frames lag commands, so a stale frame
+  undid the user's tap, then the next undid that): `RadioAudioHost` now ignores frames that
+  contradict its last command until the engine confirms it (1.5 s cap).
+- **Native layer changed: YES** — new binary, so `version` 1.0.3 → **1.1.0** (runtimeVersion policy
+  `appVersion`: 1.0.3 OTAs never reach 1.1.0 binaries). iOS prebuild now generates `SceneDelegate.swift`
+  (UIScene life cycle); no custom AppDelegate code here, nothing to migrate.
+- **VERIFY:** `tsc` clean · `lint` clean · **234/234 tests** · `expo-doctor` 20/20 · `expo install
+  --check` up to date · iOS dev build on the iPhone Duo (iOS 27.1) and iPhone 18 Pro (iOS 27.0)
+  simulators, live backend, guest mode: login, Home TV/radio, Guide, Search, Settings, channel player
+  (split + stacked), swipe-to-switch, player options, radio player, fold/unfold/half-open ·
+  Android **debug** build compiles (arm64, AGP 9 / Gradle 9.4.1). `format:check` fails on 91
+  pre-existing files (not touched here). **Release check (same day, after the fixes above): 243/243
+  tests** · production export for both platforms (Hermes bytecode) · **iOS Release** on the iPhone 18
+  Pro simulator (live backend, guest): signed-out cold start → login, register form + country/city
+  pickers, status bar readable on pushed screens, Home, live player, pause/resume, options sheet ·
+  **Android release APK** (R8 on, arm64, `EXPO_PUBLIC_API_MODE=real`, no fixture strings) on Pixel 6
+  API 33: register form incl. the `@expo/ui` Education dropdown (no R8 crash), login with the review
+  account, live + catch-up HLS, catch-up tap-to-seek and drag-to-scrub (no channel switch), radio
+  catch-up seek, radio play/pause holds · same APK on `RTSH_TV_API34`: D-pad login, Home, live
+  channel, OK pause/resume. **Not run:** iPad / iPhone Duo on the Release build (Duo was covered on
+  the dev build), a physical device, Baseline Profile re-capture.
+- **Benign warning:** Metro logs `expo-router ... router-store ... Falling back to file-based
+  resolution` — `@sentry/react-native` 8.28 probes a path SDK 58's router removed. Nothing breaks.
 
 <a id="migration-2026-10-22"></a>
 ### Migration — 2026-10-22 (upgrade log out of the architecture doc)

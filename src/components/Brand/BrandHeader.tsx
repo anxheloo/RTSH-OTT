@@ -68,6 +68,9 @@ const BrandHeader: React.FC<BrandHeaderProps> = ({
           {
             height: height + insets.top,
             paddingTop: insets.top,
+            // iPhone Duo rail: the frosted bar runs under it, the logo and actions don't.
+            paddingLeft: SCREEN_PADDING + insets.left,
+            paddingRight: SCREEN_PADDING + insets.right,
             borderBottomWidth: showBottomBorder ? StyleSheet.hairlineWidth : 0,
             borderBottomColor: colors.border,
           },
@@ -126,7 +129,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-end',
     justifyContent: 'space-between',
-    paddingHorizontal: SCREEN_PADDING,
     paddingBottom: SPACING.space_8,
   },
   banner: {

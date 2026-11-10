@@ -1012,7 +1012,7 @@ const ChannelScreen: React.FC = () => {
       // written back to 'column' on the way out of landscape, because a removed
       // layout prop is not reliably reset (see `videoSplit`).
       style={splitLayout ? styles.bodySplit : styles.bodyStack}
-      edges={isFullscreen ? ['bottom', 'left', 'right'] : []}
+      edges={isFullscreen ? ['bottom', 'left', 'right'] : ['left', 'right']}
       backgroundColor={isFullscreen ? 'videoPlaceholderBg' : 'background'}
     >
       {isTV ? (
@@ -1070,7 +1070,15 @@ const ChannelScreen: React.FC = () => {
             // list's height is definite (mirrors the radio schedule's
             // `bottomHalf`). FlashList reads its viewport from this box — that's
             // what `viewPosition: 0.5` centers against.
-            <View style={[styles.guidePane, splitLayout && styles.guidePaneSplit]}>
+            <View
+              style={[
+                styles.guidePane,
+                // Split: the guide is a full-height column, so it owns the top inset
+                // the stacked layout gives the video (iPad landscape status bar, and
+                // iPhone Duo's horizontal status bar once LivePlayer disables the rail).
+                splitLayout && [styles.guidePaneSplit, { paddingTop: insets.top }],
+              ]}
+            >
               {dayStripEl}
               {programList}
             </View>

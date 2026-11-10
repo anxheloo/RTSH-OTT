@@ -13,9 +13,13 @@ paths:
 
 ## How it works today (built 2026-07-29 — closes 14.1 / 5.X.12 / 11.Y.6)
 
-`@sentry/react-native` **7.11.0** — the version `expo install` pins for SDK 57
-(`expo/bundledNativeModules.json` → `~7.11.0`). npm's latest is 8.20.0; **do not chase it**, the pin
-is the SDK-compatible one. Several APIs the Sentry docs show are 8.x-only — see Known gaps.
+`@sentry/react-native` **8.28.0** — the version `expo install` pins for SDK 58
+(`expo/bundledNativeModules.json` → `~8.28.0`; was 7.11.0 on SDK 57). Follow the SDK pin, never
+npm-latest. The 7 → 8 major changed only native/build tooling (Cocoa SDK 9, sentry-cli 3, Sentry
+Android Gradle Plugin 6, iOS 15+ minimum); `lib/monitoring.ts` needed no change. Metro logs a benign
+`router-store ... Falling back to file-based resolution` warning: the SDK probes an expo-router path
+SDK 58 removed. The 8.16+ APIs below (`wrapExpoRouterErrorBoundary`, `autoWrapExpoRouterErrorBoundary`)
+are now available but NOT adopted — the explicit `captureException` in the boundary still works.
 
 - **`lib/monitoring.ts`** is the single `Sentry.init` site (in `lib/` because it is platform infra,
   beside `keychain.ts` / `tokenVault.ts` — not a domain API call). Armed from `app/_layout.tsx` at
@@ -202,11 +206,18 @@ is the SDK-compatible one. Several APIs the Sentry docs show are 8.x-only — se
   `preview`/`production` release currently reports `firstEvent: null` — only the two `.dev` releases
   have ever produced events, so there is no production traffic for either rule to evaluate.
 
-  **Alert rules are dashboard-only.** Three automation paths were tested and all fail: the Sentry
-  MCP exposes `find_alert_rules` / `get_alert_rule` but **no create**; `sentry-cli` has no `alerts`
-  command at all; and the REST API rejects the `eas env` token with **403** (it is scoped to
-  releases/sourcemaps, and cannot even *read* alert rules). Creating or deleting one means
-  `https://acsolutions-1a.sentry.io/alerts/new/` by hand — do not plan an automated path for it.
+  ~~**Alert rules are dashboard-only.**~~ **Superseded 2026-11-09:** the Sentry MCP now creates them
+  (`create_metric_monitor`, `create_alert_rule`). `sentry-cli` still has no `alerts` command, and the
+  `eas env` token still cannot read or write alerts (403, scoped to releases/sourcemaps).
+  - **`Token refresh failing (/auth/refresh 5xx)`** (metric monitor `2630811`, created 2026-11-09):
+    spans dataset, `span.op:http.client span.description:*auth/refresh* http.response.status_code:>=500`,
+    `environment: production`, 15-min window, **critical above 10, warning above 3** (traces are
+    sampled at 20%, so ~5× real requests). Connected to Alert **`Email: token refresh failing`**
+    (`1474124`, emails anxheloo, at most hourly). The filter matched all 3,840 spans of the
+    2026-11-06/08 incident, which it would have caught within 15 minutes.
+  - **Found 2026-11-09: the crash-free monitor (`1584932`) has NO connected Alert** (`workflowIds: []`),
+    so it changes state silently. Connect it to an email Alert in the dashboard, or with
+    `update_metric_monitor`.
 - **Rule 2 depends on sessions actually being sent, which is NOT yet proven.** `Sentry.init` does not
   disable `enableAutoSessionTracking` (defaults `true`), so sessions *should* flow — but no query
   available here can confirm it (`firstEvent` tracks errors, not sessions, and the MCP exposes no

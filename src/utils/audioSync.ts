@@ -51,12 +51,18 @@ export type PlaybackStatusFrame = Pick<
  * @param intent Current `radioIsPlaying` in the store.
  * @param awaitingStart True between a source swap and the new source's first
  *   playing frame.
+ * @param commandInFlight True while a play/pause the APP sent has not reached
+ *   the engine yet: its frames still describe the old state. Adopting one undid
+ *   the user's tap, the next frame undid that, and play/pause toggled by itself.
  */
 export const resolveExternalPlaybackChange = (
   status: PlaybackStatusFrame,
   intent: boolean,
   awaitingStart = false,
+  commandInFlight = false,
 ): boolean | null => {
+  if (commandInFlight) return null;
+
   // Playing is unambiguous — the engine cannot be playing by accident, so a
   // lock-screen play always wins.
   if (status.playing) return intent ? null : true;

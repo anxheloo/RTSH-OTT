@@ -16,7 +16,36 @@
  * race. So a route may only take a native presentation if it never raises a
  * global modal. The sheets below qualify (they raise none); the players do not.
  */
+import { Platform } from 'react-native';
+
 import { BORDERRADIUS } from '@/theme/borders';
+import type { ThemeMode } from '@/store/createThemeSlice';
+
+/**
+ * Status bar content colour for the APP theme: light icons on the dark theme,
+ * dark icons on the light one, the system's own choice when the theme follows
+ * the system. Valid for both expo-status-bar's `style` and the native stack's
+ * `statusBarStyle`.
+ */
+export function statusBarStyleFor(mode: ThemeMode): 'auto' | 'light' | 'dark' {
+  if (mode === 'system') return 'auto';
+  return mode === 'dark' ? 'light' : 'dark';
+}
+
+/**
+ * Spread into EVERY native stack's `screenOptions` (iOS only).
+ *
+ * Apps built with the iOS 27 SDK cannot use the app-level status bar API, so
+ * Expo SDK 58's template turns `UIViewControllerBasedStatusBarAppearance` on:
+ * each screen owns its status bar, the root `StatusBar.setBarStyle` call no
+ * longer reaches pushed screens, and react-native-screens' default (`auto`)
+ * follows the SYSTEM appearance — dark icons on the dark theme whenever the
+ * phone is in Light mode. Android is untouched: its root call still applies,
+ * and an option left unset never overrides it.
+ */
+export function getStatusBarScreenOptions(mode: ThemeMode) {
+  return Platform.OS === 'ios' ? { statusBarStyle: statusBarStyleFor(mode) } : {};
+}
 
 export interface ModalScreenOptionsConfig {
   /** Sheet detents — fractions of the screen, or 'fitToContents' (default). */

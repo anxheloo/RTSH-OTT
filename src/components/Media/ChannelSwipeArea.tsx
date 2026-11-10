@@ -32,7 +32,7 @@
  */
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { type StyleProp, StyleSheet, View, type ViewStyle } from 'react-native';
-import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import { GestureDetector, usePanGesture } from 'react-native-gesture-handler';
 import Animated, {
   cancelAnimation,
   FadeOut,
@@ -153,23 +153,27 @@ const ChannelSwipeArea: React.FC<ChannelSwipeAreaProps> = ({
 
   const hasPrev = !!prev;
   const hasNext = !!next;
-  const pan = Gesture.Pan()
-    .withTestId(`${testID ?? 'channel-swipe-area'}-pan`)
-    .enabled(enabled && !isTV && (hasPrev || hasNext))
-    .activeOffsetX([-10, 10])
-    .failOffsetY([-10, 10])
-    .onBegin(() => {
+  // Gesture Handler 3 hook API. The deprecated `Gesture.Pan()` builder, inside
+  // GH3's host `GestureDetector`, swallowed every tap on the player's own
+  // TouchableOpacity controls (options, play/pause, fullscreen) — device-verified
+  // on iOS 2026-11-09; disabling the pan brought them back.
+  const pan = usePanGesture({
+    testID: `${testID ?? 'channel-swipe-area'}-pan`,
+    enabled: enabled && !isTV && (hasPrev || hasNext),
+    activeOffsetX: [-10, 10],
+    failOffsetY: [-10, 10],
+    onBegin: () => {
       if (onIntent) scheduleOnRN(onIntent);
-    })
-    .onStart(() => {
+    },
+    onActivate: () => {
       cancelAnimation(x);
-    })
-    .onUpdate((e) => {
+    },
+    onUpdate: (e) => {
       const blocked = (e.translationX < 0 && !hasNext) || (e.translationX > 0 && !hasPrev);
       // Rubber-band toward a side with nothing on it.
       x.value = blocked ? e.translationX / 4 : e.translationX;
-    })
-    .onEnd((e) => {
+    },
+    onDeactivate: (e) => {
       const dir: 1 | -1 = e.translationX < 0 ? 1 : -1;
       const available = dir === 1 ? hasNext : hasPrev;
       const far =
@@ -182,7 +186,8 @@ const ChannelSwipeArea: React.FC<ChannelSwipeAreaProps> = ({
       x.value = withTiming(-dir * width.value, { duration: SLIDE_OUT_MS }, (finished) => {
         if (finished) scheduleOnRN(commitSwipe, dir);
       });
-    });
+    },
+  });
 
   const prevStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: x.value - width.value }],

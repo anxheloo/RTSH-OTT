@@ -10,9 +10,9 @@ RTSH TANI — OTT streaming app for Radio Televizioni Shqiptar. Live TV (19 chan
 
 ## Stack
 
-- Expo SDK 57 · React Native 0.86.0 · React 19.2.3 · TypeScript strict · New Architecture only
-  - **Android TV / STB** share this codebase via the `react-native-tvos` **npm alias** (`react-native` → `npm:react-native-tvos@0.86.0-2`) and, since 2026-07-28, **ONE Android artifact** for phone, tablet, TV and STB: `Platform.isTV` resolves at runtime, and the TV manifest comes from `plugins/withUniversalAndroidTV.js`. `EXPO_TV` is **inert**. The alias needs `.npmrc legacy-peer-deps=true`, so `react-native-nitro-modules` + `@react-native/jest-preset` are declared **explicitly**. → `rules/architecture/android-tv-stb.md`
-- Expo Router v7 (Native Tabs, typed routes)
+- Expo SDK 58 · React Native 0.88.1 · React 19.3.0 · TypeScript strict (RN Strict TypeScript API) · New Architecture only · built with Xcode 27.1 / iOS 27 SDK (UIScene life cycle)
+  - **Android TV / STB** share this codebase via the `react-native-tvos` **npm alias** (`react-native` → `npm:react-native-tvos@0.88.1-0`) and, since 2026-07-28, **ONE Android artifact** for phone, tablet, TV and STB: `Platform.isTV` resolves at runtime, and the TV manifest comes from `plugins/withUniversalAndroidTV.js`. `EXPO_TV` is **inert**. The alias needs `.npmrc legacy-peer-deps=true`, so `react-native-nitro-modules` + `@react-native/jest-preset` are declared **explicitly**. → `rules/architecture/android-tv-stb.md`
+- Expo Router (SDK 58; JS `Tabs` by design — plan 22.4, not NativeTabs; typed routes; every `Stack.Protected` sets `redirectTo`)
 - Single Zustand store composed from slices · MMKV persist · expo-secure-store for tokens
 - TanStack Query v5 (server state) · axios (HTTP client)
 - @stomp/stompjs (real-time: presence, watch-time, mid-roll ads, geo — STOMP over WebSocket)
@@ -20,7 +20,7 @@ RTSH TANI — OTT streaming app for Radio Televizioni Shqiptar. Live TV (19 chan
 - @shopify/flash-list · react-native-reanimated v4 · react-native-gesture-handler · react-native-keyboard-controller
 - react-hook-form + zod (forms + validation)
 - i18next + expo-localization (sq default, en fallback)
-- @sentry/react-native **7.11.0** (pinned by Expo SDK 57, **not** npm-latest) — init in `lib/monitoring.ts`; org `acsolutions-1a`, project `react-native-rtsh-ott`, **EU region** (`https://de.sentry.io/`, never `sentry.io`). Replay / logging / profiling deliberately off. → `rules/architecture/observability.md`
+- @sentry/react-native **8.28.0** (pinned by Expo SDK 58, **not** npm-latest) — init in `lib/monitoring.ts`; org `acsolutions-1a`, project `react-native-rtsh-ott`, **EU region** (`https://de.sentry.io/`, never `sentry.io`). Replay / logging / profiling deliberately off. → `rules/architecture/observability.md`
 - jest-expo + @testing-library/react-native — unit/behavior tests, co-located `__tests__/` folders (policy: `rules/STANDARDS.md §11`)
 - EAS Build + EAS Update
 - Store listing art is tracked in `store/store-assets.json` (→ `rules/architecture/store-assets.md`); the **App Store listing itself is code** in `store/store.config.json`, pushed by `eas metadata:push` — Apple only, Play stays console work (→ `rules/architecture/release-and-store-submission.md`).

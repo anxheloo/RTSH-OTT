@@ -35,6 +35,13 @@ import { publish, STOMP_DEST } from '@/realtime';
 const RadioPlayerContext = createContext<AudioPlayer | null>(null);
 
 /**
+ * How long a play/pause the app sent may stay unconfirmed before status frames
+ * that disagree with it count as an outside (lock-screen) change again. Frames
+ * arrive about every 0.5 s, so a stale one lands well inside this window.
+ */
+const COMMAND_SETTLE_MS = 1500;
+
+/**
  * The single radio engine — for reading status and seeking, never for
  * source/play state. `null` until a station has been selected (and for the
  * one commit in which the engine is being created).
@@ -97,6 +104,9 @@ const RadioEngine: React.FC<{ onPlayer: (player: AudioPlayer | null) => void }> 
   // True from a source swap until the new source first plays — iOS pauses the
   // old item mid-swap, and that frame must not read as a user pause.
   const awaitingStart = useRef(false);
+  // The play state the app last commanded, until the engine reports it. Status
+  // frames lag commands, so one sent before a pause still says "playing".
+  const commanded = useRef<{ playing: boolean; at: number } | null>(null);
 
   // Station id as the numeric channel id the watch contract expects (radio and
   // TV share the /channels id namespace). Keyed on the engine's lifetime here —
@@ -186,6 +196,7 @@ const RadioEngine: React.FC<{ onPlayer: (player: AudioPlayer | null) => void }> 
 
   // Mirror the store's play/pause intent onto the engine.
   useEffect(() => {
+    commanded.current = { playing: radioIsPlaying && !!radioStreamUrl, at: Date.now() };
     if (!radioStreamUrl) {
       engine(() => player.pause());
       return;
@@ -216,7 +227,21 @@ const RadioEngine: React.FC<{ onPlayer: (player: AudioPlayer | null) => void }> 
   useEffect(() => {
     const sub = player.addListener('playbackStatusUpdate', (status) => {
       const { radioIsPlaying: intent, setRadioPlaying } = useAppStore.getState();
-      const next = resolveExternalPlaybackChange(status, intent, awaitingStart.current);
+      // A frame that disagrees with the last command predates it — unless the
+      // engine never confirmed within COMMAND_SETTLE_MS (a failed command), when
+      // outside changes count again.
+      const sent = commanded.current;
+      if (sent && status.playing === sent.playing) commanded.current = null;
+      const inFlight =
+        sent !== null &&
+        status.playing !== sent.playing &&
+        Date.now() - sent.at < COMMAND_SETTLE_MS;
+      const next = resolveExternalPlaybackChange(
+        status,
+        intent,
+        awaitingStart.current,
+        inFlight,
+      );
       if (status.playing) awaitingStart.current = false;
       if (next !== null) setRadioPlaying(next);
     });
